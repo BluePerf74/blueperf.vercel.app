@@ -2,7 +2,11 @@ const { Redis } = require('@upstash/redis');
 
 let redis;
 function getRedis() {
-  if (!redis) redis = Redis.fromEnv();
+  if (!redis) {
+    const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+    const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    redis = new Redis({ url, token });
+  }
   return redis;
 }
 
@@ -52,8 +56,4 @@ module.exports = async (req, res) => {
     }
 
     res.setHeader('Allow', 'GET, POST, DELETE');
-    return res.status(405).json({ error: 'method not allowed' });
-  } catch (e) {
-    return res.status(500).json({ error: String((e && e.message) || e) });
-  }
-};
+    return
