@@ -5,14 +5,14 @@ function getRedis() {
   if (!redis) {
     const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
     const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-    redis = new Redis({ url, token });
+    // automaticDeserialization: false -> Upstash garde le texte tel quel au lieu d'essayer
+    // de le réinterpréter comme un objet, ce qui cassait la relecture des séances/ressentis.
+    redis = new Redis({ url, token, automaticDeserialization: false });
   }
   return redis;
 }
 
 module.exports = async (req, res) => {
-  // Empêche Vercel (ou tout intermédiaire) de mettre ces réponses en cache : les données changent
-  // à chaque validation de séance, une lecture mise en cache montrerait une ancienne version.
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 
   try {
