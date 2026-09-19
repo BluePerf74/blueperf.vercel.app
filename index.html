@@ -1,0 +1,3893 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Blueperf — Suivi programme Cindy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0D1B2A;
+    --navy-2:#16273D;
+    --navy-3:#1F3350;
+    --chalk:#D9E8DE;
+    --paper:#EBF6F0;
+    --ink:#122036;
+    --ink-soft:#54627A;
+    --line:#C4D9CC;
+    --grass:#2E7D4F;
+    --grass-dark:#1F5D3A;
+    --grass-tint:#E3F2E9;
+    --amber:#C98A2C;
+    --amber-tint:#FBF0DD;
+    --red:#B8443B;
+    --red-tint:#FAE4E1;
+    --shadow: 0 1px 2px rgba(13,27,42,.06), 0 6px 20px rgba(13,27,42,.06);
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--chalk);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.num-display{font-family:'Space Grotesk',system-ui,sans-serif;}
+  button{font-family:inherit;}
+  #app{max-width:560px;margin:0 auto;padding-bottom:60px;min-height:100vh;background:var(--paper);box-shadow:0 0 40px rgba(13,27,42,.05);}
+
+  /* ---------- Header ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:20;background:var(--navy);color:var(--chalk);
+    padding:14px 18px 0;
+  }
+  .topbar-row{display:flex;align-items:center;justify-content:space-between;}
+  .wordmark{font-family:'Space Grotesk';font-weight:700;font-size:13px;letter-spacing:.13em;color:var(--grass-tint);}
+  .view-toggle{display:flex;background:var(--navy-2);border:1px solid #2A3D57;border-radius:20px;padding:2px;}
+  .vt-btn{
+    font-size:12px;font-weight:600;color:#9FB0C6;background:none;border:none;border-radius:18px;
+    padding:5px 12px;cursor:pointer;transition:background .15s ease,color .15s ease;
+  }
+  .vt-btn:hover{color:#fff;}
+  .vt-btn.active{background:var(--grass);color:#fff;}
+  .section-switch{margin:12px auto 0;width:fit-content;}
+  .section-switch .vt-btn{padding:6px 14px;font-size:11.5px;}
+  .topbar-actions{display:flex;align-items:center;gap:8px;}
+  .logout-pill{font-size:11px;color:#9FB0C6;background:none;border:1px solid #33455F;border-radius:20px;
+    padding:5px 10px;cursor:pointer;white-space:nowrap;}
+  .client-switch{display:flex;align-items:center;gap:8px;margin:10px 0 2px;font-size:12px;color:#9FB0C6;}
+  .client-switch select{background:var(--navy-2);color:var(--chalk);border:1px solid #2A3D57;border-radius:8px;
+    padding:6px 10px;font-size:13px;font-weight:600;font-family:inherit;}
+  .topbar h1{font-size:19px;margin:8px 0 14px;font-weight:600;}
+  .tabs{display:flex;gap:4px;}
+  .tab{
+    flex:1;text-align:center;padding:10px 4px;font-size:13.5px;font-weight:600;color:#8FA0B8;
+    background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;
+    transition:color .15s ease,border-color .15s ease;
+  }
+  .tab:hover{color:#D7E1EC;}
+  .tab.active{color:#FFFFFF;border-bottom-color:var(--grass);}
+
+  /* ---------- Layout helpers ---------- */
+  .screen{padding:18px 18px 8px;}
+  .section-label{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--ink-soft);margin:22px 0 10px;}
+  .section-label:first-child{margin-top:4px;}
+
+  /* ---------- Scoreboard ---------- */
+  .scoreboard{
+    background:var(--navy);color:var(--chalk);border-radius:var(--radius);padding:18px 20px;
+    display:flex;align-items:flex-end;justify-content:space-between;margin-top:16px;
+  }
+  .score-num{font-size:40px;font-weight:700;line-height:1;}
+  .score-den{font-size:18px;font-weight:500;color:#9FB0C6;}
+  .score-label{font-size:12.5px;color:#9FB0C6;margin-top:6px;}
+  .score-bar-wrap{flex:1;margin-left:22px;}
+  .score-bar-track{height:6px;background:#26374E;border-radius:4px;overflow:hidden;margin-bottom:6px;}
+  .score-bar-fill{height:100%;background:var(--grass);border-radius:4px;}
+
+  /* ---------- Week chips ---------- */
+  .week-scroll{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 6px;margin:0 -2px;}
+  .week-chip{
+    flex:0 0 auto;min-width:46px;padding:9px 6px;border-radius:10px;border:1px solid var(--line);
+    background:var(--paper);text-align:center;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-soft);
+  }
+  .week-chip .wk-n{display:block;font-family:'Space Grotesk';font-size:15px;color:var(--ink);}
+  .week-chip.active{background:var(--navy);border-color:var(--navy);}
+  .week-chip.active .wk-n, .week-chip.active{color:var(--chalk);}
+  .week-chip.deload{border-style:dashed;}
+  .week-chip .wk-dot{display:block;width:5px;height:5px;border-radius:50%;margin:4px auto 0;background:var(--line);}
+  .week-chip.done .wk-dot{background:var(--grass);}
+
+  /* ---------- Week header ---------- */
+  .week-head{margin-top:16px;}
+  .week-head h2{font-size:20px;margin:0 0 2px;}
+  .week-meta{font-size:13px;color:var(--ink-soft);}
+  .charge-tag{
+    display:inline-block;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;
+    background:var(--grass-tint);color:var(--grass-dark);margin-top:8px;
+  }
+  .charge-tag.decharge{background:var(--amber-tint);color:var(--amber);}
+  .week-progress{font-size:13px;color:var(--ink-soft);margin-top:10px;}
+  .week-progress b{color:var(--ink);}
+
+  /* ---------- Journées (programme jour par jour) ---------- */
+  .day-block{margin-top:22px;}
+  .day-block:first-child{margin-top:16px;}
+  .day-head{font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--ink-soft);
+    padding-bottom:6px;border-bottom:1px solid var(--line);text-transform:uppercase;}
+  .day-rest{font-size:12.5px;color:#C7D2DE;padding:10px 0 2px;font-style:italic;}
+
+  /* ---------- Session card ---------- */
+  .session-card{
+    border:1px solid var(--line);border-radius:var(--radius);margin-top:14px;overflow:hidden;background:var(--paper);
+  }
+  .session-head{
+    display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;gap:10px;
+  }
+  .session-head-left{display:flex;align-items:center;gap:11px;min-width:0;}
+  .session-kind{
+    flex:0 0 auto;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .session-kind.renfo{background:var(--navy);color:var(--chalk);}
+  .session-kind.course{background:var(--grass-tint);color:var(--grass-dark);}
+  .session-titles{min-width:0;}
+  .session-titles .st-name{font-weight:600;font-size:14.5px;}
+  .session-titles .st-note{font-size:12px;color:var(--ink-soft);margin-top:1px;}
+  .chev{color:var(--ink-soft);font-size:12px;flex:0 0 auto;transition:transform .15s;}
+  .session-card.open .chev{transform:rotate(180deg);}
+  .session-body{border-top:1px solid var(--line);padding:4px 16px 16px;display:none;}
+  .session-card.open .session-body{display:block;}
+
+  .ex-row{padding:11px 0;border-bottom:1px solid #EEF1F4;}
+  .ex-row:last-of-type{border-bottom:none;}
+  .ex-top{display:flex;justify-content:space-between;gap:12px;}
+  .ex-name{font-size:13.5px;font-weight:600;}
+  .ex-note{font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.4;}
+  .ex-dose{flex:0 0 auto;font-size:12.5px;font-weight:600;color:var(--grass-dark);background:var(--grass-tint);
+    padding:3px 9px;border-radius:20px;height:fit-content;white-space:nowrap;}
+  .ex-explain-toggle{margin-top:6px;background:none;border:none;padding:0;font-size:12px;font-weight:600;
+    color:var(--navy-3);cursor:pointer;display:flex;align-items:center;gap:4px;}
+  .ex-explain-toggle .chev-sm{font-size:9px;transition:transform .15s;}
+  .ex-explain-toggle.open .chev-sm{transform:rotate(180deg);}
+  .ex-explain{margin-top:8px;background:var(--chalk);border-radius:10px;padding:11px 13px;font-size:12.5px;
+    color:var(--ink);line-height:1.55;}
+  .ex-explain .ex-tip{margin:8px 0 0;color:var(--ink-soft);font-style:italic;}
+  .ex-explain p{margin:0;}
+  .ex-explain p + p{margin-top:8px;}
+  .ex-photo{display:block;width:100%;max-width:320px;border-radius:10px;margin-bottom:10px;}
+
+  /* ---------- Éditeur d'exercices (coach) ---------- */
+  .ex-edit-row{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;background:var(--chalk);}
+  .ex-edit-top{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .ex-edit-top .ee-name{flex:2;}
+  .ex-edit-top .ee-dose{flex:1;}
+  .ex-edit-top input{padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:13px;
+    font-family:inherit;background:var(--paper);}
+  .ee-remove{flex:0 0 auto;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--paper);
+    color:var(--red);font-weight:700;cursor:pointer;}
+  .ee-how{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:12.5px;
+    font-family:inherit;background:var(--paper);resize:vertical;}
+  .ee-photo-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .ee-photo-preview{max-width:110px;max-height:110px;border-radius:8px;display:block;object-fit:cover;}
+  .ee-add{margin-top:4px;width:100%;}
+
+  .validate-row{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);}
+  .check-btn{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px;border-radius:10px;
+    border:1.5px solid var(--navy);background:var(--navy);color:var(--chalk);font-weight:600;font-size:14px;cursor:pointer;
+  }
+  .check-btn.done{background:var(--grass-tint);border-color:var(--grass);color:var(--grass-dark);}
+  .check-btn.done::before{content:"✓ ";}
+  .done-meta{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:8px;}
+  .done-links{display:flex;justify-content:center;gap:14px;margin-top:8px;}
+  .done-links button{background:none;border:none;padding:0;font-size:12px;font-weight:600;cursor:pointer;
+    color:var(--ink-soft);text-decoration:underline;}
+  .done-links button.danger{color:var(--red);}
+
+  .rpe-panel{margin-top:14px;background:var(--chalk);border-radius:12px;padding:14px 16px;}
+  .rpe-panel p{margin:0 0 10px;font-size:13px;font-weight:600;}
+  .rpe-row{display:flex;align-items:center;gap:12px;}
+  .rpe-row input[type=range]{flex:1;accent-color:var(--navy);}
+  .rpe-val{font-family:'Space Grotesk';font-size:20px;font-weight:700;width:30px;text-align:center;}
+  .rpe-scale-labels{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-soft);margin-top:4px;}
+  .rpe-save{margin-top:12px;width:100%;padding:10px;border-radius:9px;border:none;background:var(--navy);color:var(--chalk);
+    font-weight:600;font-size:13.5px;cursor:pointer;}
+
+  /* ---------- Buttons / misc ---------- */
+  .btn-line{background:none;border:1px solid var(--line);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;
+    color:var(--ink);cursor:pointer;}
+  .empty{padding:40px 10px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
+
+  /* ---------- Hooper ---------- */
+  .hooper-date{display:flex;align-items:center;gap:10px;margin-top:14px;}
+  .hooper-date input{flex:1;padding:10px 12px;border-radius:9px;border:1px solid var(--line);font-size:14px;font-family:inherit;}
+  .hooper-item{margin-top:20px;}
+  .hooper-item-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .hooper-item-head .hi-name{font-weight:600;font-size:14px;}
+  .hooper-item-head .hi-val{font-family:'Space Grotesk';font-weight:700;font-size:17px;}
+  .hooper-labels{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-soft);margin-top:5px;line-height:1.3;}
+  .hooper-labels span:last-child{text-align:right;max-width:45%;}
+  .hooper-labels span:first-child{max-width:45%;}
+  input[type=range].hooper-slider{width:100%;accent-color:var(--navy);}
+  .save-bar{position:sticky;bottom:0;background:linear-gradient(0deg, var(--paper) 60%, rgba(255,255,255,0));
+    padding:18px 0 6px;margin-top:8px;}
+  .save-btn{width:100%;padding:13px;border-radius:11px;border:none;background:var(--grass);color:#fff;font-weight:700;
+    font-size:14.5px;cursor:pointer;}
+  .save-btn:disabled{background:#B9C2CC;}
+  .save-confirm{text-align:center;font-size:12.5px;color:var(--grass-dark);margin-top:8px;font-weight:600;}
+
+  .bodymap-wrap{margin-top:16px;background:var(--chalk);border-radius:12px;padding:14px;}
+  .bodymap-wrap > p{margin:0 0 12px;font-size:13px;font-weight:600;}
+  .bm-tabs{display:flex;gap:6px;margin-bottom:12px;}
+  .bm-tab{flex:1;padding:8px;text-align:center;border-radius:8px;border:1px solid var(--line);background:var(--paper);
+    font-size:12.5px;font-weight:600;cursor:pointer;color:var(--ink-soft);}
+  .bm-tab.active{background:var(--navy);color:var(--chalk);border-color:var(--navy);}
+  .bm-svg-wrap{display:flex;justify-content:center;}
+  .bm-svg-wrap svg{max-width:190px;width:100%;}
+  .bm-zone{fill:#C7D2DE;fill-opacity:.35;stroke:#9FAEC2;stroke-width:1;cursor:pointer;transition:fill .1s,fill-opacity .1s;}
+  .bm-zone.sel{fill:var(--red);fill-opacity:.55;stroke:var(--red);}
+  .bm-body-outline{fill:#EDF1F5;stroke:#C7D2DE;stroke-width:1.5;}
+  .bm-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
+  .bm-chip{padding:7px 12px;border-radius:20px;border:1px solid var(--line);background:var(--paper);font-size:12px;
+    font-weight:600;color:var(--ink-soft);cursor:pointer;}
+  .bm-chip.sel{background:var(--red-tint);border-color:var(--red);color:var(--red);}
+
+  .history-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #EEF1F4;}
+  .history-item:last-child{border-bottom:none;}
+  .hi-date{font-size:13.5px;font-weight:600;}
+  .hi-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .flag{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;}
+  .flag.faible{background:var(--grass-tint);color:var(--grass-dark);}
+  .flag.modere{background:var(--amber-tint);color:var(--amber);}
+  .flag.eleve{background:var(--red-tint);color:var(--red);}
+  .history-zones{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
+
+  .coach-week-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #EEF1F4;cursor:pointer;}
+  .coach-week-expand{padding:6px 0 10px;border-bottom:1px solid #EEF1F4;}
+  .coach-week-row:last-child{border-bottom:none;}
+  .cwr-left .cwr-n{font-weight:600;font-size:13.5px;}
+  .cwr-left .cwr-meta{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .cwr-frac{font-family:'Space Grotesk';font-weight:700;font-size:15px;}
+  .cwr-frac.full{color:var(--grass-dark);}
+
+  .rpe-list-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #EEF1F4;font-size:13px;}
+  .rpe-list-item:last-child{border-bottom:none;}
+  .rpe-badge{font-family:'Space Grotesk';font-weight:700;background:var(--navy);color:var(--chalk);border-radius:6px;
+    padding:1px 8px;font-size:12.5px;}
+
+  .refresh-link{font-size:12px;color:var(--ink-soft);text-decoration:underline;cursor:pointer;background:none;border:none;
+    padding:0;}
+
+  ::-webkit-scrollbar{height:0;width:0;}
+
+  .save-error-bar{
+    position:fixed;left:50%;bottom:18px;transform:translate(-50%, 20px);
+    background:var(--red);color:#fff;font-size:13px;font-weight:600;padding:12px 20px;
+    border-radius:11px;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;
+    transition:opacity .2s, transform .2s;z-index:999;max-width:90vw;text-align:center;
+  }
+  .save-error-bar.show{opacity:1;transform:translate(-50%, 0);}
+
+  /* ---------- Connexion (style StatField) ---------- */
+  .login-screen{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    padding:28px; background:radial-gradient(ellipse at 50% 30%, #16273D 0%, var(--navy) 65%);color:var(--chalk);
+  }
+  .login-card{
+    width:100%;max-width:360px;background:#132238;border:1px solid #223A56;border-radius:18px;
+    padding:34px 30px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);
+  }
+  .shield-logo{width:56px;height:auto;margin-bottom:10px;}
+  .login-brand{font-size:23px;font-weight:700;margin:0 0 4px;}
+  .login-brand span{color:#3DA9FC;}
+  .login-sub{color:#9FB0C6;font-size:13.5px;margin:0 0 26px;}
+  .login-form{text-align:left;}
+  .login-form label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#7E90A8;margin:14px 0 6px;}
+  .login-form label:first-of-type{margin-top:0;}
+  .login-form input{
+    width:100%;padding:12px 14px;border-radius:9px;border:1px solid #2A3D57;background:#0F1D30;
+    color:var(--chalk);font-size:14.5px;font-family:inherit;
+  }
+  .login-form input::placeholder{color:#54627A;}
+  .login-submit{
+    width:100%;margin-top:22px;padding:13px;border-radius:9px;border:none;background:#2A8CE0;
+    color:#fff;font-weight:700;font-size:14px;cursor:pointer;
+  }
+  .login-submit:hover{background:#2478C4;}
+  .login-error{color:#ffb4a8;font-size:12.5px;margin-top:14px;text-align:center;}
+
+  /* ---------- Dashboard coach (en-tête façon StatField) ---------- */
+  .dash-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+    padding-bottom:12px;margin-bottom:2px;}
+  .dash-brand{display:flex;align-items:center;gap:10px;}
+  .dash-brand .shield-logo{width:30px;margin:0;}
+  .dash-title{font-family:'Space Grotesk';font-weight:700;font-size:15px;letter-spacing:.03em;}
+  .dash-title span{color:#3DA9FC;}
+  .dash-title em{font-style:normal;font-weight:500;color:#7E90A8;font-size:12.5px;}
+  .dash-badges{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .dash-pill{font-size:11.5px;font-weight:600;color:#C6D1DF;background:#1B2C44;border:1px solid #2A3D57;
+    border-radius:20px;padding:6px 12px;white-space:nowrap;}
+  .dash-pill.staff{color:#3DA9FC;}
+  .dash-pill.staff b{color:#C6D1DF;margin-left:4px;font-weight:700;}
+  .dash-logout{font-size:11.5px;font-weight:700;color:#fff;background:#2A5C8A;border:1px solid #3DA9FC;
+    border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap;}
+  .dash-logout:hover{background:#3470A3;}
+
+  /* ---------- Bilan hebdomadaire (Vue d'ensemble) ---------- */
+  .bilan-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .bilan-title{font-family:'Space Grotesk';font-weight:700;font-size:15px;}
+  .bilan-desc{font-size:12px;color:var(--ink-soft);line-height:1.6;margin:10px 0 0;}
+  .bilan-week-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 14px;
+    flex-wrap:wrap;}
+  .bilan-week-label{font-weight:700;font-size:13px;text-align:center;flex:1;}
+  .bilan-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -18px;padding:0 18px;}
+  .bilan-table{border-collapse:collapse;width:100%;min-width:640px;font-size:12.5px;}
+  .bilan-table th{
+    text-align:center;font-size:10.5px;font-weight:700;color:var(--ink-soft);padding:8px 6px;
+    border-bottom:2px solid var(--line);white-space:nowrap;cursor:default;
+  }
+  .bilan-table th[data-sort]{cursor:pointer;}
+  .bilan-table th:first-child{text-align:left;}
+  .bilan-table td{padding:8px 6px;text-align:center;border-bottom:1px solid #EEF1F4;}
+  .bilan-name{text-align:left !important;font-weight:600;white-space:nowrap;}
+  .bilan-total{font-weight:700;}
+  .bilan-cell.done{background:var(--grass-tint);color:var(--grass-dark);font-weight:700;border-radius:6px;}
+  .bilan-cell.empty{color:#C7D2DE;}
+  .bilan-pct{display:inline-block;padding:3px 9px;border-radius:20px;font-weight:700;font-size:11.5px;}
+  .bilan-pct.full{background:var(--grass-tint);color:var(--grass-dark);}
+  .bilan-pct.partial{background:var(--amber-tint);color:var(--amber);}
+  .bilan-pct.none{background:#EEF1F4;color:var(--ink-soft);}
+  .bilan-note{width:130px;padding:6px 8px;border-radius:7px;border:1px solid var(--line);font-size:11.5px;
+    font-family:inherit;}
+  .export-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .export-controls select{padding:9px 12px;border-radius:9px;border:1px solid var(--line);font-size:13px;
+    font-family:inherit;background:var(--paper);}
+
+  /* ---------- Suivi entraînement ---------- */
+  .training-chart{width:100%;height:auto;margin-top:12px;}
+  .training-total{margin-top:14px;font-size:13px;color:var(--ink-soft);}
+
+  /* ---------- Fiche bilan client (export PDF individuel) ---------- */
+  #print-fiche{display:none;}
+  .fiche-header{display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+  .fiche-header .shield-logo{width:44px;margin:0;}
+  .fiche-header h1{font-size:20px;margin:0;}
+  .fiche-date{font-size:12px;color:var(--ink-soft);margin:2px 0 0;}
+  #print-fiche h2{font-size:14px;margin:20px 0 6px;}
+  #print-fiche ul{margin:0;padding-left:20px;font-size:13px;line-height:1.7;}
+  #print-fiche p{font-size:13px;line-height:1.6;}
+
+  @media print{
+    .topbar > .dash-row, .topbar > .topbar-row, .tabs, .client-switch, .bilan-week-nav,
+    .refresh-link, .back-link{ display:none !important; }
+    body{background:#fff;}
+    #app{box-shadow:none;margin:0;max-width:100%;}
+    .bilan-table-wrap{overflow:visible;margin:0;padding:0;}
+    .printing-fiche .bilan-title, .printing-fiche .bilan-desc, .printing-fiche .export-controls,
+    .printing-fiche .bilan-table-wrap{ display:none !important; }
+    .printing-fiche #print-fiche{ display:block !important; }
+  }
+
+  /* ---------- Mes clients / créateur de séances (coach) ---------- */
+  .back-link{background:none;border:none;padding:0;font-size:13px;font-weight:600;color:var(--ink-soft);
+    cursor:pointer;margin-bottom:6px;}
+  .client-code-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--ink-soft);}
+  .client-code-edit-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .client-code-edit-row input{flex:1;min-width:110px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);
+    font-size:13px;font-family:'Space Grotesk',monospace;font-weight:700;letter-spacing:.04em;}
+  .client-code{font-family:'Space Grotesk';font-weight:700;font-size:15px;letter-spacing:.06em;color:var(--ink);
+    background:var(--chalk);padding:4px 10px;border-radius:8px;}
+  .client-actions-row{margin-top:10px;}
+  .danger-line{color:var(--red);border-color:var(--red-tint);}
+
+  .builder-week-card{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-top:14px;}
+  .builder-week-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .builder-week-title{font-weight:700;font-size:15px;}
+  .builder-session-row{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:10px 0;border-bottom:1px solid #EEF1F4;}
+  .builder-session-row:last-child{border-bottom:none;}
+  .bsr-name{font-weight:600;font-size:13.5px;}
+  .bsr-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .bsr-actions{display:flex;gap:8px;flex:0 0 auto;}
+  .builder-form{margin-top:12px;background:var(--chalk);border-radius:12px;padding:14px 16px;}
+  .bf-row{margin-bottom:12px;}
+  .bf-row label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
+  .bf-row input, .bf-row select, .bf-row textarea{
+    width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--line);font-size:13.5px;
+    font-family:inherit;background:var(--paper);
+  }
+  .bf-row textarea{resize:vertical;}
+  .bf-actions{display:flex;gap:10px;}
+  .na-check-group{display:flex;flex-direction:column;gap:8px;background:var(--chalk);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+  .na-check{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:500;color:var(--ink);cursor:pointer;}
+  .na-check input{width:auto;padding:0;accent-color:var(--grass);}
+  .bf-actions .bf-save{flex:1;}
+  .bf-actions .bf-cancel{flex:0 0 auto;}
+
+  /* ---------- Mes clients (coach) ---------- */
+  .add-client-row{display:flex;gap:8px;margin-top:12px;}
+  .add-client-row input{flex:1;padding:10px 12px;border-radius:9px;border:1px solid var(--line);font-size:14px;
+    font-family:inherit;}
+  .btn-primary-sm{padding:10px 16px;border-radius:9px;border:none;background:var(--grass);color:#fff;font-weight:700;
+    font-size:13.5px;cursor:pointer;white-space:nowrap;}
+  .client-card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px;}
+  .client-card.current{border-color:var(--grass);background:var(--grass-tint);}
+  .client-card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .client-card-name{font-weight:700;font-size:15px;}
+  .current-tag{font-size:10.5px;font-weight:700;color:var(--grass-dark);background:#fff;padding:2px 7px;
+    border-radius:20px;vertical-align:middle;}
+  .client-link-row{display:flex;gap:8px;margin-top:10px;}
+  .client-link-row input{flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--line);
+    font-size:11px;color:var(--ink-soft);background:var(--paper);}
+
+  /* ---------- Adaptation écran large (ordinateur) : pleine page ---------- */
+  @media (min-width: 860px){
+    body{background:var(--chalk);}
+    #app{max-width:100%;margin:0;border-radius:0;min-height:100vh;box-shadow:none;}
+    .topbar{padding:22px 44px 0;}
+    .topbar-row, .dash-row, .client-switch, .tabs, .section-switch{max-width:1280px;margin-left:auto;margin-right:auto;}
+    .topbar h1{font-size:23px;max-width:1280px;margin-left:auto;margin-right:auto;}
+    .screen{padding:26px 44px 44px;max-width:1280px;margin-left:auto;margin-right:auto;}
+    .week-scroll{flex-wrap:wrap;overflow-x:visible;}
+    .week-chip{min-width:52px;}
+    .scoreboard{padding:22px 28px;}
+    .session-card{max-width:820px;}
+    .client-card{max-width:680px;}
+    .bilan-table{min-width:0;width:100%;}
+    .nutri-card, .nutri-empty{max-width:820px;}
+  }
+
+  /* ---------- Nutrition ---------- */
+  :root{
+    --protein:#7C5CD9; --protein-tint:#EFEAFB;
+    --carb:#C98A2C; --carb-tint:#FBF0DD;
+    --lipid:#2E7FC9; --lipid-tint:#E3EEFA;
+  }
+  .nutri-intro{
+    display:flex;gap:10px;align-items:flex-start;background:var(--chalk);border-left:3px solid var(--grass);
+    border-radius:10px;padding:12px 14px;margin-top:16px;font-size:12.5px;color:var(--ink-soft);line-height:1.55;
+  }
+  .nutri-intro b{color:var(--ink);}
+  .nutri-card{border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:16px;background:var(--paper);}
+  .nutri-card h3{margin:0 0 10px;font-size:14.5px;}
+  .nutri-empty{margin-top:16px;padding:26px 16px;text-align:center;color:var(--ink-soft);font-size:13.5px;
+    border:1px dashed var(--line);border-radius:var(--radius);}
+  .nutri-empty .btn-primary-sm{margin-top:12px;}
+
+  .daytype-tabs{display:flex;gap:6px;margin-top:16px;}
+  .daytype-tab{flex:1;padding:9px 4px;text-align:center;border-radius:9px;border:1px solid var(--line);background:var(--paper);
+    font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-soft);}
+  .daytype-tab.active{background:var(--navy);color:var(--chalk);border-color:var(--navy);}
+  .daytype-note{font-size:12px;color:var(--ink-soft);margin-top:8px;font-style:italic;}
+
+  .nutri-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+  .nutri-stat{border:1px solid var(--line);border-radius:12px;padding:12px 13px;position:relative;overflow:hidden;}
+  .nutri-stat::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;}
+  .nutri-stat.st-kcal::before{background:var(--amber);}
+  .nutri-stat.st-prot::before{background:var(--protein);}
+  .nutri-stat.st-carb::before{background:var(--carb);}
+  .nutri-stat.st-water::before{background:var(--lipid);}
+  .nutri-stat .ns-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);font-weight:700;}
+  .nutri-stat .ns-val{font-family:'Space Grotesk';font-size:21px;font-weight:700;margin-top:3px;}
+  .nutri-stat .ns-sub{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+
+  .macro-bar{display:flex;height:12px;border-radius:99px;overflow:hidden;margin:14px 0 10px;background:var(--chalk);}
+  .macro-bar span{height:100%;}
+  .macro-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--ink-soft);}
+  .macro-legend .dot{width:8px;height:8px;border-radius:3px;display:inline-block;margin-right:5px;}
+  .macro-legend b{color:var(--ink);}
+
+  .plate-row{display:flex;gap:18px;flex-wrap:wrap;justify-content:space-around;margin-top:14px;}
+  .plate-block{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;min-width:130px;}
+  .plate-block .pb-title{font-size:12px;font-weight:700;text-align:center;}
+  .plate-block .pb-sub{font-size:10.5px;color:var(--ink-soft);text-align:center;}
+  .plate-legend{display:flex;flex-direction:column;gap:4px;margin-top:2px;width:100%;max-width:160px;}
+  .plate-legend .item{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink-soft);}
+  .plate-legend .dot{width:7px;height:7px;border-radius:2px;flex-shrink:0;}
+  .plate-legend .pct{margin-left:auto;font-weight:700;color:var(--ink);}
+
+  .nutri-food-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #EEF1F4;}
+  .nutri-food-row:last-child{border-bottom:none;}
+  .nutri-food-row .nf-ic{font-size:17px;flex:0 0 auto;}
+  .nutri-food-row .nf-name{flex:1;font-size:13px;font-weight:600;min-width:0;}
+  .nutri-food-row .nf-note{font-size:11px;color:var(--ink-soft);margin-top:1px;font-weight:400;}
+  .nutri-food-row .nf-qty{font-family:'Space Grotesk';font-weight:700;font-size:13px;white-space:nowrap;}
+
+  .micro-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #EEF1F4;font-size:12.5px;}
+  .micro-row:last-child{border-bottom:none;}
+  .micro-row .mr-name{color:var(--ink);}
+  .micro-row .mr-val{color:var(--ink-soft);font-weight:600;}
+
+  .nutri-timeline .tl-row{padding:11px 0;border-bottom:1px solid #EEF1F4;}
+  .nutri-timeline .tl-row:last-child{border-bottom:none;}
+  .nutri-timeline .tl-time{font-size:11px;font-weight:700;color:var(--grass-dark);text-transform:uppercase;letter-spacing:.03em;}
+  .nutri-timeline .tl-title{font-size:13.5px;font-weight:600;margin-top:3px;}
+  .nutri-timeline .tl-desc{font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.5;}
+
+  .nutri-tip{background:var(--chalk);border-radius:10px;padding:11px 13px;margin-top:10px;font-size:12.5px;
+    color:var(--ink);line-height:1.5;}
+  .nutri-tip b{color:var(--grass-dark);}
+
+  .nutri-journal-group{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-top:12px;}
+  .njg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .njg-head .njg-ic{font-size:17px;}
+  .njg-head .njg-name{font-weight:600;font-size:13.5px;flex:1;min-width:110px;}
+  .njg-head .njg-target{font-size:11px;color:var(--ink-soft);}
+  .njg-track{height:9px;border-radius:99px;background:var(--chalk);overflow:hidden;margin-bottom:7px;}
+  .njg-fill{height:100%;border-radius:99px;background:var(--grass);}
+  .njg-fill.watch{background:var(--amber);}
+  .njg-fill.over{background:var(--red);}
+  .njg-status{font-size:12px;color:var(--ink-soft);margin-bottom:10px;}
+  .njg-status b{color:var(--ink);}
+  .njg-tip{display:flex;gap:7px;background:var(--grass-tint);border-radius:8px;padding:9px 11px;margin-bottom:10px;
+    font-size:12px;color:var(--grass-dark);line-height:1.5;}
+  .njg-add{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .njg-quick{background:var(--chalk);border:1px solid var(--line);border-radius:99px;font-size:11.5px;font-weight:600;
+    padding:6px 10px;cursor:pointer;color:var(--ink-soft);}
+  .njg-quick:active{background:var(--grass-tint);color:var(--grass-dark);}
+  .njg-custom{display:flex;align-items:center;gap:6px;margin-left:auto;}
+  .njg-custom input{width:60px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-size:12.5px;font-family:inherit;}
+  .njg-custom button{border:none;background:var(--grass);color:#fff;font-weight:700;font-size:11.5px;
+    padding:6px 12px;border-radius:8px;cursor:pointer;}
+
+  .nutri-log-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #EEF1F4;font-size:12.5px;}
+  .nutri-log-row:last-child{border-bottom:none;}
+  .nutri-log-row .nl-name{flex:1;color:var(--ink-soft);}
+  .nutri-log-row .nl-grams{font-family:'Space Grotesk';font-weight:700;}
+  .nutri-log-row .nl-time{font-size:10.5px;color:var(--ink-soft);width:44px;text-align:right;}
+  .nutri-log-row .nl-del{border:none;background:none;color:var(--ink-soft);font-size:16px;cursor:pointer;padding:0 2px;}
+  .nutri-log-empty{font-size:12.5px;color:var(--ink-soft);padding:6px 0;}
+
+  .res-formula{background:var(--chalk);border-radius:9px;padding:11px 13px;margin:8px 0;overflow-x:auto;}
+  .res-formula code{font-family:ui-monospace,'SF Mono',monospace;font-size:12px;white-space:pre;line-height:1.7;display:block;color:var(--ink);}
+  .res-table{width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:12px;}
+  .res-table th{text-align:left;color:var(--ink-soft);font-weight:700;font-size:10.5px;text-transform:uppercase;
+    padding:0 8px 6px 0;border-bottom:1px solid var(--line);}
+  .res-table td{padding:7px 8px 7px 0;border-bottom:1px solid #EEF1F4;color:var(--ink-soft);}
+  .res-table td:first-child{color:var(--ink);font-weight:500;}
+  .res-source{font-size:10.5px;color:#9AA5B5;font-style:italic;margin-top:6px;}
+  .res-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;background:var(--chalk);
+    color:var(--ink-soft);padding:3px 8px;border-radius:99px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* =========================================================
+   DATA — programme des 12 semaines (issu du programme Blueperf)
+   ========================================================= */
+
+const BASE_A = [
+  {name:"Échauffement articulaire + activation fessiers/chevilles", fixed:"6-8 min", note:"Montées de genoux, talons-fesses, pas chassés, montées sur pointes",
+   how:"Enchaîne les mouvements les uns après les autres pendant la durée indiquée : montées de genoux en marchant, talons-fesses (petites foulées en touchant les fessiers avec les talons), pas chassés sur le côté, puis montées sur la pointe des pieds. L'idée est d'échauffer progressivement les articulations et de réveiller les muscles avant l'effort."},
+  {name:"Squat", reps:"10-12", note:"Poids du corps pour commencer, tempo contrôlé, amplitude complète",
+   how:"Pieds écartés largeur d'épaules, pointes légèrement ouvertes. Descends comme pour t'asseoir sur une chaise : dos droit, poids sur les talons, genoux qui suivent la direction des pieds, jusqu'à ce que les cuisses soient proches de l'horizontale (ou moins bas si c'est inconfortable). Remonte en poussant sur les talons. On garde le poids du corps pour l'instant, une charge légère pourra être ajoutée plus tard."},
+  {name:"Fentes marchées", reps:"10 / jambe", note:"Genou aligné, tronc gainé",
+   how:"Fais un grand pas en avant et descends jusqu'à ce que le genou arrière frôle le sol, genou avant aligné avec le pied (il ne dépasse pas trop la pointe). Pousse sur la jambe avant pour avancer directement sur l'autre jambe, en gardant le buste droit."},
+  {name:"Extension dorsale (superman)", reps:"12-15", note:"Contraction 2 sec en haut, mouvement lent et contrôlé",
+   how:"Allongée sur le ventre, bras tendus devant toi. Lève en même temps la poitrine, les bras et les jambes du sol en contractant le bas du dos et les fessiers, tiens 1-2 secondes en haut, puis redescends doucement sans reposer complètement entre les répétitions."},
+  {name:"Pompes (genoux si besoin)", reps:"8-12", note:"Progression selon niveau",
+   how:"Mains un peu plus larges que les épaules, corps gainé de la tête aux talons (ou genoux au sol pour une version plus accessible). Descends jusqu'à ce que la poitrine frôle le sol, coudes proches du corps, puis repousse le sol pour remonter."},
+  {name:"Équilibre unipodal + variantes", reps:"30-40 sec / côté", note:"Travail cheville — pieds nus si possible",
+   how:"Tiens-toi en équilibre sur une jambe, genou légèrement fléchi, regard fixé devant toi. Pour complexifier : ferme les yeux ou pose le pied sur une surface instable (coussin, terrain irrégulier). Change de jambe à la moitié du temps."},
+  {name:"Montées sur pointe unipodales", reps:"12-15 / côté", note:"Mollets / péroniers, prévention cheville",
+   how:"En appui sur une seule jambe, monte le plus haut possible sur la pointe du pied puis redescends lentement sans reposer complètement le talon entre deux répétitions. Tu peux te tenir légèrement à un support pour l'équilibre."},
+  {name:"Gainage ventral + latéral", reps:"30-40 sec / côté", note:"Respiration continue, pas de blocage",
+   how:"Gainage ventral : appui sur les avant-bras et les pointes de pieds, corps aligné de la tête aux talons, ventre engagé, sans creuser le bas du dos. Gainage latéral : allongée sur le côté, appui sur un avant-bras, corps aligné, la hanche décollée du sol. Respire normalement pendant tout l'exercice."},
+  {name:"Bird-dog / extension lombaire douce", reps:"10 / côté", fixedSeries:2, note:"Ciblé bas du dos, à faire lentement",
+   how:"À quatre pattes, tends un bras devant toi et la jambe opposée derrière en même temps, en gardant le dos plat et le bassin stable (il ne bascule pas). Reviens lentement en position de départ puis change de côté."},
+  {name:"Retour au calme : étirements + respiration", fixed:"5 min", note:"",
+   how:"Étire doucement les muscles sollicités (mollets, ischios, quadriceps, dos) en tenant chaque position 20 à 30 secondes, en respirant calmement pour faciliter la récupération."}
+];
+
+const BASE_B = [
+  {name:"Échauffement", fixed:"5 min", note:"Mobilité hanches + rachis",
+   how:"Mobilise les hanches (rotations, fentes dynamiques) et le dos (rotations du buste, dos rond / dos creux à quatre pattes) pendant la durée indiquée, pour préparer le corps avant les exercices."},
+  {name:"Soulevé de terre unijambiste (poids du corps)", reps:"8-10 / jambe", note:"Dos plat, mouvement lent, appui léger si besoin d'équilibre",
+   how:"Debout sur une jambe, penche le buste vers l'avant en tendant l'autre jambe vers l'arrière, comme une balance qui bascule, dos bien plat. Descends jusqu'à ce que le buste soit presque à l'horizontale (ou moins bas au début), puis reviens en position debout. Tu peux toucher légèrement le sol du bout des doigts ou te tenir à un mur/une chaise pour t'aider au début."},
+  {name:"Hip thrust", reps:"12", note:"Fessiers + protection lombaire",
+   how:"Dos appuyé contre un support stable (banc, canapé bas), pieds à plat au sol. Pousse les hanches vers le haut en contractant les fessiers, jusqu'à ce que le corps forme une ligne droite des épaules aux genoux, puis redescends sans reposer complètement."},
+  {name:"Y-T-W au sol (activation scapulaire)", reps:"8 par lettre", note:"Mouvement lent, sans forcer sur la nuque",
+   how:"Allongée sur le ventre, front légèrement décollé du sol. Lève les bras en formant un Y au-dessus de la tête puis redescends, puis en formant un T sur les côtés puis redescends, puis en formant un W (coudes pliés près du corps) puis redescends. Ce sont de petits mouvements — le contrôle compte plus que l'amplitude."},
+  {name:"Planche avec touches d'épaule", reps:"10 touches / côté", note:"Hanches stables, elles ne doivent pas basculer",
+   how:"En position de planche (appui sur les mains, bras tendus, corps aligné comme pour une pompe), touche ton épaule gauche avec la main droite puis repose la main, puis touche l'épaule droite avec la main gauche. Le bassin doit rester stable sans tourner à chaque touche — c'est ça qui muscle le gainage anti-rotation."},
+  {name:"Marche sur pointes puis sur les talons", reps:"20 pas de chaque", fixedSeries:2, note:"Prévention cheville, pieds nus si possible",
+   how:"Marche en ligne droite sur la pointe des pieds pendant une vingtaine de pas, puis reviens en marchant sur les talons (pieds relevés) pendant une vingtaine de pas. Ça renforce les muscles autour de la cheville, sans matériel."},
+  {name:"Étirements bas du dos + respiration", fixed:"5 min", note:"Idéalement aussi avant le coucher les autres soirs",
+   how:"Position de l'enfant (assise sur les talons, bras tendus devant) ou genoux ramenés contre la poitrine allongée sur le dos, en respirant profondément et lentement pendant toute la durée."}
+];
+
+function seanceA(series, opts){
+  opts = opts || {};
+  let ex = BASE_A.map(e => Object.assign({}, e, {series: e.fixedSeries || series}));
+  if(opts.plyo){
+    ex.splice(ex.length-1, 0, {name:"Appuis dynamiques / petits sauts bas", reps:"6-8", series:"2-3",
+      note:"Amorce vitesse / explosivité — surface adaptée, réception contrôlée",
+      how:"Petits sauts sur place ou faibles bondissements avant/latéraux, en cherchant une réception souple et silencieuse (amortis avec les genoux, pas les talons). Reste sur une surface stable et non glissante."});
+  }
+  if(opts.tests){
+    ex.splice(ex.length-1, 0, {name:"Tests de fin de bloc (facultatif)", fixed:"10 min",
+      note:"Ex : temps d'équilibre unipodal max, nb de pompes en 1 min — à comparer avec S1",
+      how:"Chronomètre le temps que tu tiens en équilibre sur une jambe (yeux ouverts), puis compte le nombre de pompes réalisées en 1 minute avec une bonne technique. Note les résultats pour comparer la progression depuis le début du bloc."});
+  }
+  return ex;
+}
+function seanceB(series, courte){
+  let ex = BASE_B.map(e => Object.assign({}, e, {series: e.fixedSeries || series}));
+  if(courte){
+    ex = ex.filter(e => e.name.indexOf("Planche avec touches d'épaule") === -1 && e.name.indexOf("Marche sur pointes") === -1);
+  }
+  return ex;
+}
+
+const RUN_META = [
+  {label:"Sortie 1 — mercredi", note:"Facile, récupération post-entraînement"},
+  {label:"Sortie 2 — vendredi", note:"Très facile, avant matchs du week-end"},
+  {label:"Sortie 3 — dimanche", note:"Facile à modérée, sortie longue (si pas de match)"}
+];
+
+const DAYS_OF_WEEK = [
+  {key:'lundi', label:'Lundi'},
+  {key:'mardi', label:'Mardi'},
+  {key:'mercredi', label:'Mercredi'},
+  {key:'jeudi', label:'Jeudi'},
+  {key:'vendredi', label:'Vendredi'},
+  {key:'samedi', label:'Samedi'},
+  {key:'dimanche', label:'Dimanche'}
+];
+function dayLabel(key){
+  const d = DAYS_OF_WEEK.find(x => x.key === key);
+  return d ? d.label : '';
+}
+function defaultDayForSessionId(id){
+  if(id === 'A') return 'lundi';
+  if(id === 'B') return 'jeudi';
+  if(id === 'R1') return 'mercredi';
+  if(id === 'R2') return 'vendredi';
+  if(id === 'R3') return 'dimanche';
+  return null;
+}
+
+const WEEKS = [
+ {n:1, meso:"Mésocycle 1 — Découverte", charge:"Légère", deload:false,
+  renfo:[{id:"A", label:"Séance A", note:"Très léger — poids du corps / charges très légères, priorité à la technique", exercises:seanceA(2)}],
+  runKm:[3,2,5]},
+ {n:2, meso:"Mésocycle 1 — Découverte", charge:"Légère à modérée", deload:false,
+  renfo:[{id:"A", label:"Séance A", note:"Charges toujours très légères — travail de la technique", exercises:seanceA(2)}],
+  runKm:[3.5,2.5,6]},
+ {n:3, meso:"Mésocycle 1 — Découverte", charge:"Modérée", deload:false,
+  renfo:[
+    {id:"A", label:"Séance A", note:"Technique", exercises:seanceA(2)},
+    {id:"B", label:"Séance B (courte, ~20 min)", note:"Introduction — sélection resserrée pour tenir en ~20 min", exercises:seanceB(2,true)}
+  ], runKm:[4,3,7]},
+ {n:4, meso:"Décharge", charge:"Décharge", deload:true,
+  renfo:[{id:"A", label:"Séance A (allégée)", note:"Reprise légère, focus mobilité / cheville / récupération", exercises:seanceA(2)}],
+  runKm:[2.5,2,3.5]},
+ {n:5, meso:"Mésocycle 2 — Structuration", charge:"Modérée", deload:false,
+  renfo:[
+    {id:"A", label:"Séance A", note:"Reprise progressive après la décharge", exercises:seanceA(3)},
+    {id:"B", label:"Séance B", note:"Version complète", exercises:seanceB(3)}
+  ], runKm:[4,3,6]},
+ {n:6, meso:"Mésocycle 2 — Structuration", charge:"Modérée à élevée", deload:false,
+  renfo:[
+    {id:"A", label:"Séance A", note:"Charges en hausse", exercises:seanceA(3)},
+    {id:"B", label:"Séance B", note:"Charges en hausse", exercises:seanceB(3)}
+  ], runKm:[4.5,3.5,8]},
+ {n:7, meso:"Mésocycle 2 — Structuration", charge:"Élevée", deload:false,
+  renfo:[
+    {id:"A", label:"Séance A", note:"Pic du mésocycle", exercises:seanceA(3)},
+    {id:"B", label:"Séance B", note:"Pic du mésocycle", exercises:seanceB(3)}
+  ], runKm:[5,4,9]},
+ {n:8, meso:"Décharge", charge:"Décharge", deload:true,
+  renfo:[{id:"A", label:"Séance A (légère)", note:"Décharge — mobilité, cheville, récupération", exercises:seanceA(2)}],
+  runKm:[3,2,5]},
+ {n:9, meso:"Mésocycle 3 — Consolidation", charge:"Modérée à élevée", deload:false,
+  renfo:[
+    {id:"A", label:"Séance A", note:"Reprise, charges élevées", exercises:seanceA(3)},
+    {id:"B", label:"Séance B", note:"Version complète", exercises:seanceB(3)}
+  ], runKm:[4.5,3.5,8]},
+ {n:10, meso:"Mésocycle 3 — Consolidation", charge:"Élevée", deload:false,
+  renfo:[
+    {id:"A", label:"Séance A", note:"Charges les plus élevées du bloc + amorce vitesse/explosivité", exercises:seanceA(3,{plyo:true})},
+    {id:"B", label:"Séance B", note:"Version complète", exercises:seanceB(3)}
+  ], runKm:[5.5,4.5,9]},
+ {n:11, meso:"Mésocycle 3 — Consolidation", charge:"Élevée (objectif atteint)", deload:false,
+  renfo:[
+    {id:"A", label:"Séance A", note:"Pic du bloc", exercises:seanceA(3,{plyo:true})},
+    {id:"B", label:"Séance B", note:"Pic du bloc", exercises:seanceB(3)}
+  ], runKm:[6,4.5,9.5]},
+ {n:12, meso:"Décharge + bilan", charge:"Décharge", deload:true,
+  renfo:[{id:"A", label:"Séance A (légère) + tests", note:"Décharge et bilan de fin de bloc", exercises:seanceA(2,{tests:true})}],
+  runKm:[3,2.5,5.5]}
+];
+
+function weekSessionDefs(week){
+  const defs = [];
+  week.renfo.forEach(r => defs.push({id:r.id, kind:"renfo", label:r.label, note:r.note, exercises:r.exercises, day:defaultDayForSessionId(r.id)}));
+  week.runKm.forEach((km, i) => defs.push({
+    id:"R"+(i+1), kind:"course", label:RUN_META[i].label,
+    note: RUN_META[i].note, km: km, day:defaultDayForSessionId("R"+(i+1))
+  }));
+  return defs;
+}
+function totalSessionCount(){
+  let t = 0;
+  WEEKS.forEach(w => t += weekSessionDefs(w).length);
+  return t;
+}
+const TOTAL_SESSIONS = totalSessionCount();
+
+/* ---------- Zones du schéma corporel ---------- */
+const FRONT_ZONES = [
+  {id:"epaules", label:"Épaules"},
+  {id:"pectoraux", label:"Pectoraux"},
+  {id:"abdominaux", label:"Abdominaux"},
+  {id:"avant-bras", label:"Bras / avant-bras"},
+  {id:"quadriceps", label:"Quadriceps"},
+  {id:"adducteurs", label:"Adducteurs (intérieur cuisse)"},
+  {id:"tibias", label:"Tibias"},
+  {id:"pieds", label:"Pieds"}
+];
+const BACK_ZONES = [
+  {id:"nuque", label:"Nuque / trapèzes"},
+  {id:"dos-haut", label:"Haut du dos"},
+  {id:"lombaires", label:"Lombaires"},
+  {id:"fessiers", label:"Fessiers"},
+  {id:"ischios", label:"Ischio-jambiers"},
+  {id:"mollets", label:"Mollets"},
+  {id:"triceps", label:"Triceps"}
+];
+
+function frontSvg(selected){
+  const sel = id => selected.indexOf(id) > -1 ? "bm-zone sel" : "bm-zone";
+  return `<svg viewBox="0 0 200 420" xmlns="http://www.w3.org/2000/svg">
+    <ellipse class="bm-body-outline" cx="100" cy="28" rx="17" ry="19"/>
+    <rect class="bm-body-outline" x="90" y="44" width="20" height="14" rx="4"/>
+    <path class="bm-body-outline" d="M62,58 L138,58 L128,150 L72,150 Z"/>
+    <path class="bm-body-outline" d="M62,60 L36,150 L46,155 L68,72 Z"/>
+    <path class="bm-body-outline" d="M138,60 L164,150 L154,155 L132,72 Z"/>
+    <path class="bm-body-outline" d="M40,150 L54,150 L50,205 L36,205 Z"/>
+    <path class="bm-body-outline" d="M146,150 L160,150 L164,205 L150,205 Z"/>
+    <path class="bm-body-outline" d="M74,150 L126,150 L120,205 L80,205 Z"/>
+    <path class="bm-body-outline" d="M80,205 L100,205 L98,290 L82,290 Z"/>
+    <path class="bm-body-outline" d="M100,205 L120,205 L118,290 L102,290 Z"/>
+    <rect class="bm-body-outline" x="80" y="290" width="17" height="70" rx="4"/>
+    <rect class="bm-body-outline" x="103" y="290" width="17" height="70" rx="4"/>
+    <ellipse class="bm-body-outline" cx="86" cy="368" rx="13" ry="9"/>
+    <ellipse class="bm-body-outline" cx="114" cy="368" rx="13" ry="9"/>
+
+    <ellipse class="${sel('epaules')}" data-zone="epaules" cx="60" cy="65" rx="15" ry="11"/>
+    <ellipse class="${sel('epaules')}" data-zone="epaules" cx="140" cy="65" rx="15" ry="11"/>
+    <rect class="${sel('pectoraux')}" data-zone="pectoraux" x="72" y="70" width="56" height="30" rx="6"/>
+    <rect class="${sel('abdominaux')}" data-zone="abdominaux" x="76" y="104" width="48" height="44" rx="6"/>
+    <rect class="${sel('avant-bras')}" data-zone="avant-bras" x="38" y="140" width="18" height="62" rx="6"/>
+    <rect class="${sel('avant-bras')}" data-zone="avant-bras" x="144" y="140" width="18" height="62" rx="6"/>
+    <rect class="${sel('quadriceps')}" data-zone="quadriceps" x="78" y="210" width="22" height="72" rx="6"/>
+    <rect class="${sel('quadriceps')}" data-zone="quadriceps" x="100" y="210" width="22" height="72" rx="6"/>
+    <rect class="${sel('adducteurs')}" data-zone="adducteurs" x="90" y="212" width="20" height="58" rx="8"/>
+    <rect class="${sel('tibias')}" data-zone="tibias" x="81" y="292" width="16" height="64" rx="5"/>
+    <rect class="${sel('tibias')}" data-zone="tibias" x="103" y="292" width="16" height="64" rx="5"/>
+    <ellipse class="${sel('pieds')}" data-zone="pieds" cx="86" cy="368" rx="13" ry="9"/>
+    <ellipse class="${sel('pieds')}" data-zone="pieds" cx="114" cy="368" rx="13" ry="9"/>
+  </svg>`;
+}
+function backSvg(selected){
+  const sel = id => selected.indexOf(id) > -1 ? "bm-zone sel" : "bm-zone";
+  return `<svg viewBox="0 0 200 420" xmlns="http://www.w3.org/2000/svg">
+    <ellipse class="bm-body-outline" cx="100" cy="28" rx="17" ry="19"/>
+    <rect class="bm-body-outline" x="90" y="44" width="20" height="14" rx="4"/>
+    <path class="bm-body-outline" d="M62,58 L138,58 L128,150 L72,150 Z"/>
+    <path class="bm-body-outline" d="M62,60 L36,150 L46,155 L68,72 Z"/>
+    <path class="bm-body-outline" d="M138,60 L164,150 L154,155 L132,72 Z"/>
+    <path class="bm-body-outline" d="M40,150 L54,150 L50,205 L36,205 Z"/>
+    <path class="bm-body-outline" d="M146,150 L160,150 L164,205 L150,205 Z"/>
+    <path class="bm-body-outline" d="M74,150 L126,150 L120,205 L80,205 Z"/>
+    <path class="bm-body-outline" d="M80,205 L100,205 L98,290 L82,290 Z"/>
+    <path class="bm-body-outline" d="M100,205 L120,205 L118,290 L102,290 Z"/>
+    <rect class="bm-body-outline" x="80" y="290" width="17" height="70" rx="4"/>
+    <rect class="bm-body-outline" x="103" y="290" width="17" height="70" rx="4"/>
+
+    <ellipse class="${sel('nuque')}" data-zone="nuque" cx="100" cy="52" rx="14" ry="10"/>
+    <rect class="${sel('dos-haut')}" data-zone="dos-haut" x="72" y="65" width="56" height="36" rx="6"/>
+    <rect class="${sel('lombaires')}" data-zone="lombaires" x="76" y="104" width="48" height="34" rx="6"/>
+    <rect class="${sel('fessiers')}" data-zone="fessiers" x="74" y="140" width="52" height="34" rx="8"/>
+    <rect class="${sel('triceps')}" data-zone="triceps" x="41" y="75" width="17" height="62" rx="6"/>
+    <rect class="${sel('triceps')}" data-zone="triceps" x="142" y="75" width="17" height="62" rx="6"/>
+    <rect class="${sel('ischios')}" data-zone="ischios" x="78" y="210" width="22" height="72" rx="6"/>
+    <rect class="${sel('ischios')}" data-zone="ischios" x="100" y="210" width="22" height="72" rx="6"/>
+    <rect class="${sel('mollets')}" data-zone="mollets" x="80" y="292" width="17" height="64" rx="6"/>
+    <rect class="${sel('mollets')}" data-zone="mollets" x="103" y="292" width="17" height="64" rx="6"/>
+  </svg>`;
+}
+
+/* =========================================================
+   STORAGE HELPERS
+   ---------------------------------------------------------
+   Adaptation Vercel : les données "personnelles" (préférences propres à cet
+   appareil — quel compte est connecté ici) vivent dans le localStorage du
+   navigateur. Les données "partagées" (tout ce que coach et clients doivent
+   voir en commun — séances, ressentis, programmes...) passent par l'API
+   /api/storage, adossée à une vraie base de données (Upstash Redis).
+   ========================================================= */
+const LS_PREFIX = 'bp_';
+
+async function sGet(key, shared){
+  if(!shared){
+    try{ return localStorage.getItem(LS_PREFIX+key); }
+    catch(e){ return null; }
+  }
+  try{
+    const r = await fetch('/api/storage?action=get&key='+encodeURIComponent(key)+'&_='+Date.now(), {cache:'no-store'});
+    if(!r.ok) return null;
+    const j = await r.json();
+    return (j && j.value != null) ? j.value : null;
+  }catch(e){ return null; }
+}
+async function sSet(key, value, shared){
+  if(!shared){
+    try{ localStorage.setItem(LS_PREFIX+key, value); return true; }
+    catch(e){ return null; }
+  }
+  const attempt = async () => {
+    const r = await fetch('/api/storage', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'set', key, value})
+    });
+    return r.ok;
+  };
+  try{
+    if(await attempt()) return true;
+  }catch(e){}
+  // un raté d'écriture peut être ponctuel (réseau, etc.) — on retente une fois avant d'abandonner
+  try{ return (await attempt()) ? true : null; }
+  catch(e){ return null; }
+}
+async function sList(prefix, shared){
+  if(!shared){
+    try{
+      const keys = [];
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(k && k.indexOf(LS_PREFIX) === 0){
+          const bare = k.slice(LS_PREFIX.length);
+          if(!prefix || bare.indexOf(prefix) === 0) keys.push(bare);
+        }
+      }
+      return keys;
+    }catch(e){ return []; }
+  }
+  try{
+    const r = await fetch('/api/storage?action=list&prefix='+encodeURIComponent(prefix||'')+'&_='+Date.now(), {cache:'no-store'});
+    if(!r.ok) return [];
+    const j = await r.json();
+    return (j && j.keys) ? j.keys : [];
+  }catch(e){ return []; }
+}
+async function sDelete(key, shared){
+  if(!shared){
+    try{ localStorage.removeItem(LS_PREFIX+key); return true; }
+    catch(e){ return null; }
+  }
+  try{
+    const r = await fetch('/api/storage?action=delete&key='+encodeURIComponent(key), {method:'DELETE'});
+    return r.ok ? true : null;
+  }catch(e){ return null; }
+}
+
+function sessionKey(clientId, weekN, id){ return "session:"+clientId+":S"+weekN+":"+id; }
+async function loadSession(clientId, weekN, id){
+  const raw = await sGet(sessionKey(clientId, weekN, id), true);
+  if(!raw) return {done:false, rpe:null, completedAt:null};
+  try{ return JSON.parse(raw); } catch(e){ return {done:false, rpe:null, completedAt:null}; }
+}
+/*
+  Enregistre une séance puis relit immédiatement ce qui a été écrit, pour être certain que la
+  sauvegarde a vraiment pris (plutôt que de supposer que ça a marché et de laisser quelqu'un cocher
+  une séance qui, en réalité, ne s'est jamais enregistrée). Renvoie true/false.
+*/
+/*
+  On se fie au résultat renvoyé par l'écriture elle-même plutôt que de la relire aussitôt après :
+  une relecture immédiate peut arriver avant que l'écriture soit pleinement propagée côté stockage
+  et remonter un faux échec alors que la sauvegarde a réellement fonctionné.
+*/
+async function saveSession(clientId, weekN, id, data){
+  const result = await sSet(sessionKey(clientId, weekN, id), JSON.stringify(data), true);
+  return !!result;
+}
+function hooperKey(clientId, date){ return "hooper:"+clientId+":"+date; }
+async function loadHooper(clientId, date){
+  const raw = await sGet(hooperKey(clientId, date), true);
+  if(!raw) return null;
+  try{ return JSON.parse(raw); } catch(e){ return null; }
+}
+async function saveHooper(clientId, date, data){
+  const result = await sSet(hooperKey(clientId, date), JSON.stringify(data), true);
+  return !!result;
+}
+
+function showSaveError(msg){
+  let bar = document.getElementById('save-error-bar');
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'save-error-bar';
+    bar.className = 'save-error-bar';
+    document.body.appendChild(bar);
+  }
+  bar.textContent = msg || "La sauvegarde n'a pas fonctionné — vérifie ta connexion et réessaie.";
+  bar.classList.add('show');
+  clearTimeout(showSaveError._t);
+  showSaveError._t = setTimeout(() => bar.classList.remove('show'), 5000);
+}
+
+/* ---------- Programme (séances) par client — modèle générique ---------- */
+function buildCindyDefaultWeeks(){
+  return WEEKS.map(w => ({
+    n: w.n, meso: w.meso, charge: w.charge, deload: w.deload,
+    sessions: weekSessionDefs(w).map(d => ({
+      id:d.id, kind:d.kind, label:d.label, note:d.note, km:d.km, exercises:d.exercises, day:d.day
+    }))
+  }));
+}
+
+async function loadProgram(clientId){
+  const raw = await sGet('program:'+clientId, true);
+  let prog = null;
+  if(raw){
+    try{
+      const p = JSON.parse(raw);
+      if(p && Array.isArray(p.weeks)) prog = p;
+    }catch(e){}
+  }
+  if(!prog) prog = {weeks:[]};
+  if(clientId === 'cindy' && prog.weeks.length === 0){
+    // Le programme de Cindy ne doit jamais rester vide : on le régénère automatiquement s'il manque.
+    prog = {weeks: buildCindyDefaultWeeks()};
+    await saveProgram('cindy', prog.weeks);
+  }
+  return prog;
+}
+async function saveProgram(clientId, weeks){
+  return await sSet('program:'+clientId, JSON.stringify({weeks}), true);
+}
+function nextWeekNumber(weeks){
+  return weeks.length ? Math.max.apply(null, weeks.map(w => w.n)) + 1 : 1;
+}
+function nextSessionId(week, kind){
+  const prefix = kind === 'renfo' ? 'RF' : 'CO';
+  const count = week.sessions.filter(s => s.kind === kind).length;
+  return prefix + (count + 1);
+}
+function exerciseDose(e){
+  if(e.dose != null) return e.dose;
+  return e.fixed ? e.fixed : (e.series+' x '+e.reps);
+}
+
+/* ---------- Notes hebdomadaires (bilan coach) ---------- */
+function noteKey(clientId, weekKey){ return "note:"+clientId+":"+weekKey; }
+async function loadNote(clientId, weekKey){
+  const raw = await sGet(noteKey(clientId, weekKey), true);
+  return raw || '';
+}
+async function saveNote(clientId, weekKey, text){
+  return await sSet(noteKey(clientId, weekKey), text, true);
+}
+
+/* ---------- Utilitaires dates / semaines ---------- */
+const DAY_LABELS = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
+function startOfWeek(d){
+  const date = new Date(d);
+  date.setHours(0,0,0,0);
+  const day = date.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  date.setDate(date.getDate() + diff);
+  return date;
+}
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function isoDateStr(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0'); }
+function fmtDDMM(d){ return String(d.getDate()).padStart(2,'0')+"/"+String(d.getMonth()+1).padStart(2,'0'); }
+function isoWeekNumber(d){
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+function isoWeekKeyOf(d){ return d.getFullYear()+"-W"+String(isoWeekNumber(d)).padStart(2,'0'); }
+
+function slugify(name){
+  const base = name.toString().trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-+|-+$)/g,'');
+  return base || 'client';
+}
+function uniqueClientId(base, existingIds){
+  let id = base, i = 2;
+  while(existingIds.indexOf(id) > -1){ id = base+'-'+i; i++; }
+  return id;
+}
+function generateClientCode(){
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // sans 0/O ni 1/I, pour éviter les confusions
+  let code = '';
+  for(let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
+  return code;
+}
+/*
+  Compare deux codes en ignorant la casse, les espaces et les tirets, pour que la saisie soit
+  tolérante (clavier mobile, autocorrection, espace collé par erreur, etc.).
+*/
+function normalizeCode(s){
+  return (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/*
+  Identifiants du coach par défaut. Comme le fichier est statique, il n'y a pas de vraie
+  authentification serveur derrière — largement suffisant pour éviter qu'un·e client·e tombe par
+  hasard sur l'espace coach. Modifiables ensuite dans l'onglet Paramètres (stockés à part).
+*/
+const COACH_USERNAME = "hugo";
+const COACH_CODE = "BLUEPERF2026";
+
+async function loadCoachCredentials(){
+  const raw = await sGet('coachCredentials', true);
+  if(raw){ try{ const c = JSON.parse(raw); if(c && c.username && c.password) return c; }catch(e){} }
+  return {username: COACH_USERNAME, password: COACH_CODE};
+}
+async function saveCoachCredentials(username, password){
+  return await sSet('coachCredentials', JSON.stringify({username, password}), true);
+}
+
+function shieldSvg(){
+  return `<svg viewBox="0 0 60 68" xmlns="http://www.w3.org/2000/svg" class="shield-logo">
+    <path d="M30 2 L56 12 V32 C56 48 45 60 30 66 C15 60 4 48 4 32 V12 Z"
+      fill="#16273D" stroke="#3DA9FC" stroke-width="2.5"/>
+    <text x="30" y="42" text-anchor="middle" font-family="'Space Grotesk',sans-serif"
+      font-weight="700" font-size="24" fill="#F6F8F7">BP</text>
+  </svg>`;
+}
+
+/* ---------- Clients (multi-athlètes) ---------- */
+async function ensureClientsLoaded(){
+  if(state.clients) return state.clients;
+  let list = [];
+  const raw = await sGet('clients', true);
+  if(raw){ try{ list = JSON.parse(raw); }catch(e){ list = []; } }
+  let changed = false;
+  if(!list.find(c => c.id === 'cindy')){
+    list.unshift({id:'cindy', name:'Cindy', code:generateClientCode()});
+    changed = true;
+  }
+  list.forEach(c => { if(!c.code){ c.code = generateClientCode(); changed = true; } });
+  if(changed){
+    let saved = await sSet('clients', JSON.stringify(list), true);
+    if(!saved){
+      // en cas de raté de sauvegarde ponctuel, on réessaie une fois plutôt que de perdre les codes générés
+      await new Promise(r => setTimeout(r, 300));
+      saved = await sSet('clients', JSON.stringify(list), true);
+    }
+  }
+  state.clients = list;
+  return list;
+}
+
+/*
+  Migrations ponctuelles, exécutées une seule fois (marqueurs "migration_vX" en stockage partagé) :
+  v2 — les toutes premières versions de l'app stockaient les séances/ressentis sans identifiant de
+       client (un seul client possible : Cindy). On les reprend sous la clé "cindy".
+  v3 — le programme de Cindy était codé en dur dans l'app ; on le convertit en données pour qu'il
+       suive le même modèle générique que les programmes créés pour de nouveaux clients.
+*/
+async function migrateIfNeeded(){
+  await ensureClientsLoaded();
+
+  const doneV2 = await sGet('migration_v2', true);
+  if(doneV2 !== 'done'){
+    const oldSessionKeys = await sList('session:', true);
+    for(const k of oldSessionKeys){
+      const parts = k.split(':');
+      if(parts.length === 3){
+        const raw = await sGet(k, true);
+        if(raw) await sSet('session:cindy:'+parts[1]+':'+parts[2], raw, true);
+        await sDelete(k, true);
+      }
+    }
+    const oldHooperKeys = await sList('hooper:', true);
+    for(const k of oldHooperKeys){
+      const parts = k.split(':');
+      if(parts.length === 2){
+        const raw = await sGet(k, true);
+        if(raw) await sSet('hooper:cindy:'+parts[1], raw, true);
+        await sDelete(k, true);
+      }
+    }
+    await sSet('migration_v2', 'done', true);
+  }
+
+  const doneV3 = await sGet('migration_v3', true);
+  if(doneV3 !== 'done'){
+    const existing = await sGet('program:cindy', true);
+    if(!existing){
+      await saveProgram('cindy', buildCindyDefaultWeeks());
+    }
+    await sSet('migration_v3', 'done', true);
+  }
+
+  const doneV4 = await sGet('migration_v4', true);
+  if(doneV4 !== 'done'){
+    // Ajoute un jour de la semaine par défaut aux séances de Cindy créées avant l'introduction
+    // de la vue "jour par jour" (les nouveaux programmes créés via le créateur ont déjà ce champ).
+    const raw = await sGet('program:cindy', true);
+    if(raw){
+      try{
+        const prog = JSON.parse(raw);
+        let changed = false;
+        prog.weeks.forEach(w => w.sessions.forEach(s => {
+          if(!s.day){
+            const d = defaultDayForSessionId(s.id);
+            if(d){ s.day = d; changed = true; }
+          }
+        }));
+        if(changed) await saveProgram('cindy', prog.weeks);
+      }catch(e){}
+    }
+    await sSet('migration_v4', 'done', true);
+  }
+}
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const state = {
+  loginError: '',
+  access: 'client',       // 'client' (connecté avec un identifiant/mot de passe personnel) | 'coach'
+  myClientId: 'cindy',    // pour access==='client' : quel athlète est connecté sur cet appareil
+  coachClientId: null,    // pour access==='coach' : quel athlète est actuellement géré
+  viewAs: 'client',       // 'client' | 'coach' — quel espace est affiché en ce moment
+  clients: null,          // liste mise en cache des athlètes {id,name,code}
+  tab: null,
+  week: 1,
+  openSession: null,
+  program: null,          // {clientId, weeks} — programme actuellement affiché côté client
+  cachedWeek: null,
+  cachedClientId: null,
+  sessionCache: {},     // id -> {done,rpe,completedAt}, pour la semaine/le client actuellement chargés
+  openExplain: {},      // "weekN-sessionId-exIndex" -> bool, panneaux "Comment faire ?" ouverts
+  pendingRpeFor: null,
+  hooperDate: todayStr(),
+  hooperDraft: {sommeil:4, fatigue:4, stress:4, courbatures:1, zones:[]},
+  hooperBmView: "front",
+  hooperSaved: false,
+  hooperLoadedDate: null,
+  hooperLoadedClientId: null,
+  coachOverview: null,      // {clientId, perWeek, overallDone, total, recentRpe}
+  coachExpandedWeek: null,   // n° de semaine actuellement dépliée dans l'onglet Séances (coach)
+  coachExpandedData: null,   // {weekN, defs, weeks, statuses} pour la semaine dépliée
+  seancesAddOpen: false,      // formulaire d'ajout rapide de séance ouvert dans l'onglet Séances
+  coachHooperForm: null,     // {date, draft:{...}, bmView} — formulaire d'ajout/édition de ressenti (coach)
+  coachUsername: null,       // identifiant coach actuellement configuré (chargé au login)
+  coachHooperHistory: null, // {clientId, entries}
+  builderClientId: null,    // client actuellement édité dans le créateur de séances
+  builderProgram: null,     // {clientId, weeks} — copie de travail pour le créateur de séances
+  builderFormFor: null,     // {weekN, sessionId} — formulaire d'ajout/édition ouvert
+  globalStats: null,        // {clients, sessions} — pour le badge d'en-tête coach
+  bilanWeekOffset: 0,        // 0 = semaine réelle en cours, -1 = précédente, +1 = suivante...
+  bilanData: null,           // {weekKey, rows:[...]} mis en cache pour l'offset courant
+  bilanSort: {key:'name', dir:1},
+  healthOverview: null,      // liste {id,name,flag,idx,date} du dernier ressenti de chaque client
+  trainingData: null,        // {clientId, buckets:[{weekKey,label,km}]} — côté coach
+  myTrainingData: null,      // {clientId, buckets:[...]} — côté client (son propre suivi)
+
+  section: 'programme',      // 'programme' (onglets historiques) | 'nutrition' (nouveau module)
+  nutriAnamDraft: null,      // copie de travail de l'anamnèse nutrition du client actuellement affiché
+  nutriAnamLoadedClientId: null,
+  nutriAnamSaved: false,
+  nutriDaytypeCache: {},     // clientId -> 'repos' | 'modere' | 'intense'
+  nutriJournalEntries: null, // liste des entrées du journal pour la date/le client actuellement affichés
+  nutriJournalDate: null,
+  nutriJournalLoadedKey: null // "clientId:date" déjà chargé, pour éviter les rechargements inutiles
+};
+
+function effectiveClientId(){
+  return state.access === 'coach' ? state.coachClientId : state.myClientId;
+}
+function clientName(id){
+  const c = (state.clients||[]).find(c => c.id === id);
+  return c ? c.name : id;
+}
+function invalidateClientCaches(clientId){
+  if(state.program && state.program.clientId === clientId) state.program = null;
+  if(state.coachOverview && state.coachOverview.clientId === clientId) state.coachOverview = null;
+  if(state.cachedClientId === clientId){ state.cachedWeek = null; state.cachedClientId = null; }
+  if(state.trainingData && state.trainingData.clientId === clientId) state.trainingData = null;
+  if(state.myTrainingData && state.myTrainingData.clientId === clientId) state.myTrainingData = null;
+  state.globalStats = null;
+  state.bilanData = null;
+}
+function invalidateAfterSessionChange(clientId){
+  if(state.coachOverview && state.coachOverview.clientId === clientId) state.coachOverview = null;
+  if(state.trainingData && state.trainingData.clientId === clientId) state.trainingData = null;
+  if(state.myTrainingData && state.myTrainingData.clientId === clientId) state.myTrainingData = null;
+  state.bilanData = null;
+}
+
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0');
+}
+function fmtDate(iso){
+  const parts = iso.split("-");
+  if(parts.length !== 3) return iso;
+  const months = ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+  return parseInt(parts[2],10)+" "+months[parseInt(parts[1],10)-1];
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+const app = document.getElementById('app');
+
+/*
+  Accès : plus aucun paramètre dans l'URL — on se connecte avec un code. Le coach a un code fixe
+  (COACH_CODE), chaque client·e a un code personnel généré à la création de son profil. Une fois
+  connecté, l'accès est mémorisé sur cet appareil (stockage personnel) jusqu'à déconnexion.
+*/
+async function checkStorageWorks(){
+  try{
+    const testKey = '__diag_'+Date.now();
+    const okPersonal = await sSet(testKey, 'ok', false);
+    const okShared = await sSet(testKey, 'ok', true);
+    if(!okPersonal || !okShared) return false;
+    const g1 = await sGet(testKey, false);
+    const g2 = await sGet(testKey, true);
+    await sDelete(testKey, false);
+    await sDelete(testKey, true);
+    return g1 === 'ok' && g2 === 'ok';
+  }catch(e){
+    return false;
+  }
+}
+
+function renderStorageError(){
+  app.innerHTML = `
+    <div class="login-screen">
+      <div class="login-card">
+        ${shieldSvg()}
+        <h1 class="login-brand">Blue<span>Perf</span></h1>
+        <p class="login-sub" style="color:#ffb4a8;">
+          Le stockage n'est pas disponible pour cette appli en ce moment — rien ne peut s'enregistrer
+          (ni les séances, ni les ressentis).
+        </p>
+        <p class="login-sub" style="text-align:left;">
+          Le serveur ne répond pas. Vérifie ta connexion et réessaie dans un instant.
+          Si le problème persiste, la base de données n'est peut-être pas encore connectée
+          au projet côté hébergement.
+        </p>
+        <button class="login-submit" id="storage-retry">Réessayer</button>
+      </div>
+    </div>`;
+  document.getElementById('storage-retry').addEventListener('click', init);
+}
+
+async function init(){
+  const storageOk = await checkStorageWorks();
+  if(!storageOk){
+    renderStorageError();
+    return;
+  }
+  await migrateIfNeeded();
+  const storedAccess = await sGet('access', false);
+
+  if(storedAccess === 'coach'){
+    await bootstrapCoach();
+    render();
+    return;
+  }
+  if(storedAccess === 'client'){
+    const storedClientId = await sGet('clientId', false);
+    if(storedClientId){
+      state.access = 'client';
+      state.myClientId = storedClientId;
+      state.viewAs = 'client';
+      state.tab = 'programme';
+      render();
+      return;
+    }
+  }
+  state.loginStep = 'choice';
+  state.loginError = '';
+  renderLoginScreen();
+}
+
+async function bootstrapCoach(){
+  state.access = 'coach';
+  await ensureClientsLoaded();
+  const creds = await loadCoachCredentials();
+  state.coachUsername = creds.username;
+  const storedCoachClient = await sGet('coachSelectedClient', false);
+  const ids = state.clients.map(c => c.id);
+  state.coachClientId = (storedCoachClient && ids.indexOf(storedCoachClient) > -1)
+    ? storedCoachClient
+    : (ids[0] || 'cindy');
+  state.viewAs = 'coach';
+  state.tab = 'apercu';
+}
+
+async function computeGlobalStats(){
+  if(state.globalStats) return state.globalStats;
+  let sessions = 0;
+  for(const c of state.clients){
+    const p = await loadProgram(c.id);
+    sessions += p.weeks.reduce((t,w) => t + w.sessions.length, 0);
+  }
+  state.globalStats = {clients: state.clients.length, sessions};
+  return state.globalStats;
+}
+
+async function logout(){
+  // on tente une suppression, puis on écrase avec une valeur vide en secours : certains
+  // environnements ne supportent pas bien la suppression, mais un set vide bloque quand même
+  // toute reconnexion automatique au prochain chargement.
+  await sDelete('access', false);
+  await sSet('access', '', false);
+  await sDelete('clientId', false);
+  await sSet('clientId', '', false);
+  state.access = 'client';
+  state.myClientId = 'cindy';
+  state.coachClientId = null;
+  state.viewAs = 'client';
+  state.tab = null;
+  state.builderClientId = null;
+  state.builderProgram = null;
+  state.program = null;
+  state.coachOverview = null;
+  state.coachHooperHistory = null;
+  state.globalStats = null;
+  state.bilanData = null;
+  state.healthOverview = null;
+  state.trainingData = null;
+  state.cachedWeek = null;
+  state.cachedClientId = null;
+  state.loginError = '';
+  renderLoginScreen();
+}
+
+/* =========================================================
+   CONNEXION
+   ========================================================= */
+function renderLoginScreen(){
+  app.innerHTML = `
+    <div class="login-screen">
+      <div class="login-card">
+        ${shieldSvg()}
+        <h1 class="login-brand">Blue<span>Perf</span></h1>
+        <p class="login-sub">Connecte-toi / Log in</p>
+        <form id="login-form" class="login-form">
+          <label>IDENTIFIANT / USERNAME</label>
+          <input type="text" id="login-user" placeholder="Identifiant" autocomplete="username">
+          <label>MOT DE PASSE / PASSWORD</label>
+          <input type="password" id="login-pass" placeholder="•••" autocomplete="current-password">
+          <button type="submit" class="login-submit">Se connecter / Log in</button>
+        </form>
+        ${state.loginError ? `<div class="login-error">${state.loginError}</div>` : ''}
+      </div>
+    </div>`;
+  document.getElementById('login-form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const user = document.getElementById('login-user').value;
+    const pass = document.getElementById('login-pass').value;
+    attemptLogin(user, pass);
+  });
+}
+
+async function attemptLogin(userRaw, passRaw){
+  const user = normalizeCode(userRaw);
+  const pass = normalizeCode(passRaw);
+  if(!user || !pass){
+    state.loginError = 'Merci de renseigner ton identifiant et ton mot de passe.';
+    renderLoginScreen();
+    return;
+  }
+  const creds = await loadCoachCredentials();
+  if(user === normalizeCode(creds.username) && pass === normalizeCode(creds.password)){
+    await sSet('access', 'coach', false);
+    await bootstrapCoach();
+    render();
+    return;
+  }
+  await ensureClientsLoaded();
+  const match = state.clients.find(c => normalizeCode(c.id) === user && c.code && normalizeCode(c.code) === pass);
+  if(match){
+    await sSet('access', 'client', false);
+    await sSet('clientId', match.id, false);
+    state.access = 'client';
+    state.myClientId = match.id;
+    state.viewAs = 'client';
+    state.tab = 'programme';
+    render();
+  } else {
+    state.loginError = 'Identifiant ou mot de passe incorrect.';
+    renderLoginScreen();
+  }
+}
+
+/* =========================================================
+   RENDER — SHELL
+   ========================================================= */
+const NUTRI_TABS_COACH = [
+  {id:'nutri-anamnese', label:'Anamnèse'}, {id:'nutri-programme', label:'Programme généré'},
+  {id:'nutri-journal', label:'Journal (vue cliente)'}, {id:'nutri-ressources', label:'Ressources'}
+];
+const NUTRI_TABS_CLIENT = [
+  {id:'nutri-programme', label:'Mon programme'}, {id:'nutri-journal', label:'Mon journal'}
+];
+const PROGRAMME_TABS_COACH = [
+  {id:'apercu', label:"Vue d'ensemble"}, {id:'seances', label:'Séances'}, {id:'sante', label:'Santé'},
+  {id:'entrainement', label:'Suivi entraînement'}, {id:'clients', label:'Mes clients'}, {id:'parametres', label:'Paramètres'}
+];
+const PROGRAMME_TABS_CLIENT = [
+  {id:'programme', label:'Programme'}, {id:'ressenti', label:'Ressenti du jour'}, {id:'entrainement', label:'Suivi entraînement'}
+];
+
+async function render(){
+  const isCoachView = state.viewAs === 'coach';
+  const isNutrition = state.section === 'nutrition';
+  const tabs = isNutrition
+    ? (isCoachView ? NUTRI_TABS_COACH : NUTRI_TABS_CLIENT)
+    : (isCoachView ? PROGRAMME_TABS_COACH : PROGRAMME_TABS_CLIENT);
+  if(!tabs.some(t => t.id === state.tab)) state.tab = tabs[0].id;
+
+  const curName = state.access === 'coach' ? clientName(state.coachClientId) : '';
+
+  const sectionSwitchHtml = `
+    <div class="view-toggle section-switch">
+      <button class="vt-btn ${!isNutrition?'active':''}" data-section="programme">Programme</button>
+      <button class="vt-btn ${isNutrition?'active':''}" data-section="nutrition">Nutrition</button>
+    </div>`;
+
+  const controlsHtml = state.access === 'coach'
+    ? `<div class="view-toggle">
+         <button class="vt-btn ${isCoachView?'active':''}" data-view="coach">Coach</button>
+         <button class="vt-btn ${!isCoachView?'active':''}" data-view="client">${curName}</button>
+       </div>`
+    : '';
+
+  const clientSwitchHtml = state.access === 'coach'
+    ? `<div class="client-switch">
+         <span>Athlète suivi·e :</span>
+         <select id="coach-client-select">
+           ${state.clients.map(c => `<option value="${c.id}" ${c.id===state.coachClientId?'selected':''}>${c.name}</option>`).join('')}
+         </select>
+       </div>`
+    : '';
+
+  let dashHeaderHtml = '';
+  if(state.access === 'coach'){
+    const stats = await computeGlobalStats();
+    dashHeaderHtml = `
+      <div class="dash-row">
+        <div class="dash-brand">
+          ${shieldSvg()}
+          <div class="dash-title">BLUE<span>PERF</span> <em>· DASHBOARD</em></div>
+        </div>
+        <div class="dash-badges">
+          <span class="dash-pill">${stats.clients} client${stats.clients>1?'s':''}, ${stats.sessions} séance${stats.sessions>1?'s':''}</span>
+          <span class="dash-pill staff">${state.coachUsername || COACH_USERNAME} <b>STAFF</b></span>
+          <button class="dash-logout" id="logout-btn">↺ DÉCONNEXION</button>
+        </div>
+      </div>`;
+  }
+
+  app.innerHTML = `
+    <div class="topbar">
+      ${dashHeaderHtml}
+      <div class="topbar-row">
+        <div class="wordmark">${state.access==='coach' ? '' : 'BLUEPERF'}</div>
+        <div class="topbar-actions">
+          ${controlsHtml}
+          ${state.access==='coach' ? '' : '<button class="logout-pill" id="logout-btn">Déconnexion</button>'}
+        </div>
+      </div>
+      ${sectionSwitchHtml}
+      <h1>${(state.tab==='programme' && state.access!=='coach') ? 'Mon programme' : tabLabel(tabs, state.tab)}</h1>
+      ${clientSwitchHtml}
+      <div class="tabs">
+        ${tabs.map(t => `<button class="tab ${state.tab===t.id?'active':''}" data-tab="${t.id}">${t.label}</button>`).join('')}
+      </div>
+    </div>
+    <div class="screen" id="screen"></div>
+  `;
+  document.getElementById('logout-btn').addEventListener('click', logout);
+  app.querySelectorAll('[data-section]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.section = b.getAttribute('data-section');
+      const newTabs = state.section === 'nutrition'
+        ? (state.viewAs === 'coach' ? NUTRI_TABS_COACH : NUTRI_TABS_CLIENT)
+        : (state.viewAs === 'coach' ? PROGRAMME_TABS_COACH : PROGRAMME_TABS_CLIENT);
+      state.tab = newTabs[0].id;
+      render();
+    });
+  });
+  if(state.access === 'coach'){
+    app.querySelectorAll('[data-view]').forEach(b => {
+      b.addEventListener('click', () => {
+        state.viewAs = b.getAttribute('data-view');
+        const newTabs = state.section === 'nutrition'
+          ? (state.viewAs === 'coach' ? NUTRI_TABS_COACH : NUTRI_TABS_CLIENT)
+          : (state.viewAs === 'coach' ? PROGRAMME_TABS_COACH : PROGRAMME_TABS_CLIENT);
+        state.tab = newTabs[0].id;
+        render();
+      });
+    });
+    const sel = document.getElementById('coach-client-select');
+    if(sel){
+      sel.addEventListener('change', async () => {
+        state.coachClientId = sel.value;
+        await sSet('coachSelectedClient', state.coachClientId, false);
+        state.coachOverview = null;
+        state.coachHooperHistory = null;
+        state.trainingData = null;
+        state.cachedWeek = null;
+        state.cachedClientId = null;
+        state.hooperLoadedDate = null;
+        state.hooperLoadedClientId = null;
+        state.coachExpandedWeek = null;
+        state.coachExpandedData = null;
+        state.coachHooperForm = null;
+        state.seancesAddOpen = false;
+        render();
+      });
+    }
+  }
+  app.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      state.tab = t.getAttribute('data-tab');
+      if(state.tab === 'programme'){
+        // entrée fraîche dans l'onglet : on force une relecture au cas où une séance a été
+        // modifiée ailleurs (par le coach, ou sur un autre appareil) depuis la dernière visite.
+        state.cachedWeek = null;
+        state.cachedClientId = null;
+      }
+      renderScreen();
+    });
+  });
+  renderScreen();
+}
+
+function tabLabel(tabs, id){
+  const t = tabs.find(x => x.id === id);
+  return t ? t.label : '';
+}
+
+function renderScreen(){
+  const screen = document.getElementById('screen');
+  const isCoachView = state.viewAs === 'coach';
+  if(state.section === 'nutrition'){
+    if(state.tab === 'nutri-anamnese') return renderNutriAnamnese(screen);
+    if(state.tab === 'nutri-programme') return renderNutriProgramme(screen);
+    if(state.tab === 'nutri-journal') return renderNutriJournal(screen);
+    if(state.tab === 'nutri-ressources') return renderNutriRessources(screen);
+    return;
+  }
+  if(isCoachView && state.tab === 'clients' && state.builderClientId) return renderBuilder(screen, state.builderClientId);
+  if(state.tab === 'programme') return renderProgramme(screen);
+  if(state.tab === 'ressenti' && !isCoachView) return renderHooperForm(screen);
+  if(state.tab === 'apercu') return renderApercu(screen);
+  if(state.tab === 'seances') return renderCoachOverview(screen);
+  if(state.tab === 'sante') return renderHooperHistory(screen);
+  if(state.tab === 'entrainement') return isCoachView ? renderEntrainement(screen) : renderMyTraining(screen);
+  if(state.tab === 'clients') return renderClientsTab(screen);
+  if(state.tab === 'parametres') return renderParametres(screen);
+}
+
+/* =========================================================
+   CLIENT — PROGRAMME
+   ========================================================= */
+async function renderProgramme(screen){
+  const clientId = effectiveClientId();
+
+  if(!state.program || state.program.clientId !== clientId){
+    const p = await loadProgram(clientId);
+    state.program = {clientId, weeks: p.weeks};
+  }
+  const weeks = state.program.weeks.slice().sort((a,b) => a.n - b.n);
+
+  if(!weeks.length){
+    screen.innerHTML = `<div class="empty">Ton coach n'a pas encore ajouté de séances ici. Reviens un peu plus tard !</div>`;
+    return;
+  }
+  if(!weeks.find(w => w.n === state.week)) state.week = weeks[0].n;
+  const week = weeks.find(w => w.n === state.week);
+  const defs = week.sessions;
+
+  screen.innerHTML = `
+    <div class="week-scroll" id="week-scroll">
+      ${weeks.map(w => `<div class="week-chip ${w.n===state.week?'active':''} ${w.deload?'deload':''}" data-week="${w.n}">
+        <span class="wk-n">S${w.n}</span><span class="wk-dot"></span>
+      </div>`).join('')}
+    </div>
+    <div class="week-head">
+      <h2>Semaine ${week.n}</h2>
+      ${week.meso ? `<div class="week-meta">${week.meso}</div>` : ''}
+      ${week.charge ? `<span class="charge-tag ${week.deload?'decharge':''}">Charge : ${week.charge}</span>` : ''}
+      <div class="week-progress" id="week-progress">Chargement…</div>
+    </div>
+    <div id="session-list"></div>
+  `;
+  screen.querySelectorAll('.week-chip').forEach(c => {
+    c.addEventListener('click', () => {
+      state.week = parseInt(c.getAttribute('data-week'),10);
+      state.openSession = null;
+      state.pendingRpeFor = null;
+      renderProgramme(screen);
+    });
+  });
+
+  if(!defs.length){
+    document.getElementById('week-progress').innerHTML = '';
+    document.getElementById('session-list').innerHTML = `<div class="empty">Pas de séance prévue cette semaine-là.</div>`;
+    return;
+  }
+
+  // load statuses (une seule fois par semaine/client, réutilisées ensuite pour les re-rendus locaux)
+  if(state.cachedWeek !== week.n || state.cachedClientId !== clientId){
+    const statuses = {};
+    await Promise.all(defs.map(async d => {
+      statuses[d.id] = await loadSession(clientId, week.n, d.id);
+    }));
+    state.sessionCache = statuses;
+    state.cachedWeek = week.n;
+    state.cachedClientId = clientId;
+  }
+  const statuses = state.sessionCache;
+  const doneCount = Object.values(statuses).filter(s => s.done).length;
+  document.getElementById('week-progress').innerHTML = `<b>${doneCount}/${defs.length}</b> séances réalisées cette semaine`;
+
+  const list = document.getElementById('session-list');
+  list.innerHTML = dayGroupedSessionsHtml(week.n, defs, statuses);
+  bindSessionCards(list, clientId, week.n, defs, statuses);
+}
+
+function dayGroupedSessionsHtml(weekN, defs, statuses){
+  const withDay = DAYS_OF_WEEK.map(day => ({
+    day, sessions: defs.filter(d => d.day === day.key)
+  }));
+  const unassigned = defs.filter(d => !d.day);
+
+  let html = withDay.map(({day, sessions}) => {
+    if(!sessions.length){
+      return `<div class="day-block">
+        <div class="day-head">${day.label}</div>
+        <div class="day-rest">Repos / libre</div>
+      </div>`;
+    }
+    return `<div class="day-block">
+      <div class="day-head">${day.label}</div>
+      ${sessions.map(d => sessionCardHtml(weekN, d, statuses[d.id])).join('')}
+    </div>`;
+  }).join('');
+
+  if(unassigned.length){
+    html += `<div class="day-block">
+      <div class="day-head">Autres séances</div>
+      ${unassigned.map(d => sessionCardHtml(weekN, d, statuses[d.id])).join('')}
+    </div>`;
+  }
+  return html;
+}
+
+function sessionCardHtml(weekN, def, status){
+  const isOpen = state.openSession === def.id;
+  const kindIcon = def.kind === 'renfo' ? '🏋️' : '🏃';
+  let bodyHtml = '';
+  if(def.kind === 'renfo'){
+    bodyHtml = def.exercises.map((e, i) => {
+      const exKey = weekN+'-'+def.id+'-'+i;
+      const exOpen = !!state.openExplain[exKey];
+      const hasExplain = !!(e.how || e.photo);
+      return `
+      <div class="ex-row">
+        <div class="ex-top">
+          <div class="ex-name">${e.name}${e.photo ? ' 📷' : ''}</div>
+          <div class="ex-dose">${exerciseDose(e)}</div>
+        </div>
+        ${hasExplain ? `
+          <button class="ex-explain-toggle ${exOpen?'open':''}" data-explain="${exKey}">
+            Comment faire ? <span class="chev-sm">▾</span>
+          </button>
+          ${exOpen ? `<div class="ex-explain">
+            ${e.photo ? `<img class="ex-photo" src="${e.photo}" alt="${e.name}">` : ''}
+            ${e.how ? `<p>${e.how}</p>` : ''}
+            ${e.note ? `<p class="ex-tip">${e.note}</p>` : ''}
+          </div>` : ''}
+        ` : ''}
+      </div>`;
+    }).join('');
+  } else {
+    bodyHtml = `<div class="ex-row" style="border-bottom:none;">
+      <div class="ex-top">
+        <div class="ex-name">${def.label}</div>
+        <div class="ex-dose">${def.km} km</div>
+      </div>
+      ${def.note ? `<div class="ex-note" style="margin-top:6px;">${def.note}</div>` : ''}
+    </div>`;
+  }
+
+  const showRpePanel = state.pendingRpeFor === def.id;
+  let footerHtml;
+  if(status.done){
+    footerHtml = `
+      <button class="check-btn done" data-toggle-rpe="${def.id}">Séance réalisée</button>
+      <div class="done-meta">${status.rpe != null ? 'RPE : '+status.rpe+'/10' : ''}${status.completedAt ? (status.rpe!=null?' · ':'')+status.completedAt : ''}</div>
+      <div class="done-links">
+        <button data-toggle-rpe="${def.id}">${status.rpe != null ? 'Modifier le RPE' : 'Ajouter un RPE'}</button>
+        <button class="danger" data-uncheck="${def.id}">Annuler la validation</button>
+      </div>`;
+  } else {
+    footerHtml = `<button class="check-btn" data-validate="${def.id}">Valider la séance</button>`;
+  }
+
+  return `
+    <div class="session-card ${isOpen?'open':''}" data-id="${def.id}">
+      <div class="session-head" data-toggle="${def.id}">
+        <div class="session-head-left">
+          <div class="session-kind ${def.kind}">${kindIcon}</div>
+          <div class="session-titles">
+            <div class="st-name">${def.label}</div>
+            <div class="st-note">${def.kind==='renfo' ? (def.note||'') : def.km+' km' + (def.note ? ' · '+def.note.split(',')[0] : '')}</div>
+          </div>
+        </div>
+        <div class="chev">▾</div>
+      </div>
+      <div class="session-body">
+        ${bodyHtml}
+        <div class="validate-row">
+          ${footerHtml}
+        </div>
+        ${showRpePanel ? rpePanelHtml(def.id, status.rpe) : ''}
+      </div>
+    </div>`;
+}
+
+function rpePanelHtml(id, currentRpe){
+  const val = currentRpe != null ? currentRpe : 5;
+  return `
+    <div class="rpe-panel" data-rpe-panel="${id}">
+      <p>Ressenti de la séance (RPE)</p>
+      <div class="rpe-row">
+        <input type="range" min="0" max="10" step="1" value="${val}" data-rpe-slider="${id}">
+        <div class="rpe-val" data-rpe-val="${id}">${val}</div>
+      </div>
+      <div class="rpe-scale-labels"><span>0 · très facile</span><span>10 · effort maximal</span></div>
+      <button class="rpe-save" data-rpe-save="${id}">Enregistrer</button>
+    </div>`;
+}
+
+function bindSessionCards(list, clientId, weekN, defs, statuses, onChange){
+  const redraw = onChange || (() => renderProgramme(document.getElementById('screen')));
+
+  list.querySelectorAll('[data-toggle]').forEach(h => {
+    h.addEventListener('click', () => {
+      const id = h.getAttribute('data-toggle');
+      state.openSession = state.openSession === id ? null : id;
+      state.pendingRpeFor = null;
+      redraw();
+    });
+  });
+  list.querySelectorAll('[data-explain]').forEach(b => {
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const key = b.getAttribute('data-explain');
+      state.openExplain[key] = !state.openExplain[key];
+      redraw();
+    });
+  });
+  list.querySelectorAll('[data-validate]').forEach(btn => {
+    btn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const id = btn.getAttribute('data-validate');
+      const s = statuses[id];
+      const newStatus = {done:true, rpe:s.rpe, completedAt: todayStr()};
+      const ok = await saveSession(clientId, weekN, id, newStatus);
+      if(!ok){ showSaveError(); return; }
+      invalidateAfterSessionChange(clientId);
+      statuses[id] = newStatus;
+      state.pendingRpeFor = id;
+      redraw();
+    });
+  });
+  list.querySelectorAll('[data-toggle-rpe]').forEach(btn => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const id = btn.getAttribute('data-toggle-rpe');
+      state.pendingRpeFor = state.pendingRpeFor === id ? null : id;
+      redraw();
+    });
+  });
+  list.querySelectorAll('[data-uncheck]').forEach(btn => {
+    btn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const id = btn.getAttribute('data-uncheck');
+      const newStatus = {done:false, rpe:null, completedAt:null};
+      const ok = await saveSession(clientId, weekN, id, newStatus);
+      if(!ok){ showSaveError(); return; }
+      invalidateAfterSessionChange(clientId);
+      statuses[id] = newStatus;
+      state.pendingRpeFor = null;
+      redraw();
+    });
+  });
+  list.querySelectorAll('[data-rpe-slider]').forEach(sl => {
+    sl.addEventListener('input', () => {
+      const id = sl.getAttribute('data-rpe-slider');
+      document.querySelector('[data-rpe-val="'+id+'"]').textContent = sl.value;
+    });
+  });
+  list.querySelectorAll('[data-rpe-save]').forEach(btn => {
+    btn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const id = btn.getAttribute('data-rpe-save');
+      const sl = document.querySelector('[data-rpe-slider="'+id+'"]');
+      const rpe = parseInt(sl.value,10);
+      const s = statuses[id];
+      const newStatus = {done:true, rpe:rpe, completedAt: s.completedAt || todayStr()};
+      const ok = await saveSession(clientId, weekN, id, newStatus);
+      if(!ok){ showSaveError(); return; }
+      invalidateAfterSessionChange(clientId);
+      statuses[id] = newStatus;
+      state.pendingRpeFor = null;
+      redraw();
+    });
+  });
+}
+
+/* =========================================================
+   CLIENT — RESSENTI DU JOUR (HOOPER)
+   ========================================================= */
+async function renderHooperForm(screen){
+  const clientId = effectiveClientId();
+  if(state.hooperLoadedDate !== state.hooperDate || state.hooperLoadedClientId !== clientId){
+    const existing = await loadHooper(clientId, state.hooperDate);
+    state.hooperDraft = existing
+      ? {sommeil:existing.sommeil, fatigue:existing.fatigue, stress:existing.stress, courbatures:existing.courbatures, zones:existing.zones||[]}
+      : {sommeil:4, fatigue:4, stress:4, courbatures:1, zones:[]};
+    state.hooperLoadedDate = state.hooperDate;
+    state.hooperLoadedClientId = clientId;
+    state.hooperSaved = false;
+  }
+  const d = state.hooperDraft;
+
+  const items = [
+    {key:'sommeil', name:'Qualité du sommeil', lo:'1 · très bonne', hi:'7 · très mauvaise'},
+    {key:'fatigue', name:'Fatigue', lo:'1 · aucune', hi:'7 · extrême'},
+    {key:'stress', name:'Stress', lo:'1 · aucun', hi:'7 · extrême'},
+    {key:'courbatures', name:'Courbatures (DOMS)', lo:'1 · aucune', hi:'7 · extrêmes'}
+  ];
+
+  screen.innerHTML = `
+    <div class="section-label">Ton ressenti du jour</div>
+    <div class="hooper-date">
+      <input type="date" id="hooper-date-input" value="${state.hooperDate}" max="${todayStr()}">
+    </div>
+    <div id="hooper-items">
+      ${items.map(it => `
+        <div class="hooper-item">
+          <div class="hooper-item-head"><span class="hi-name">${it.name}</span><span class="hi-val" data-hval="${it.key}">${d[it.key]}</span></div>
+          <input type="range" class="hooper-slider" min="1" max="7" step="1" value="${d[it.key]}" data-hslider="${it.key}">
+          <div class="hooper-labels"><span>${it.lo}</span><span>${it.hi}</span></div>
+        </div>
+      `).join('')}
+    </div>
+    <div id="bodymap-slot"></div>
+    <div class="save-bar">
+      <button class="save-btn" id="hooper-save">Enregistrer mon ressenti</button>
+      ${state.hooperSaved ? '<div class="save-confirm">Ressenti enregistré ✓</div>' : ''}
+    </div>
+  `;
+
+  document.getElementById('hooper-date-input').addEventListener('change', (e) => {
+    state.hooperDate = e.target.value || todayStr();
+    renderHooperForm(screen);
+  });
+
+  screen.querySelectorAll('[data-hslider]').forEach(sl => {
+    sl.addEventListener('input', () => {
+      const key = sl.getAttribute('data-hslider');
+      state.hooperDraft[key] = parseInt(sl.value,10);
+      document.querySelector('[data-hval="'+key+'"]').textContent = sl.value;
+      if(key === 'courbatures'){
+        renderBodyMapSlot();
+      }
+    });
+  });
+
+  renderBodyMapSlot();
+
+  document.getElementById('hooper-save').addEventListener('click', async () => {
+    const payload = Object.assign({}, state.hooperDraft, {savedAt: new Date().toISOString()});
+    const ok = await saveHooper(clientId, state.hooperDate, payload);
+    if(!ok){ showSaveError(); return; }
+    state.hooperSaved = true;
+    renderHooperForm(screen);
+  });
+}
+
+function renderBodyMapSlot(){
+  const slot = document.getElementById('bodymap-slot');
+  if(!slot) return;
+  if(state.hooperDraft.courbatures <= 1){
+    slot.innerHTML = '';
+    return;
+  }
+  const zones = state.hooperBmView === 'front' ? FRONT_ZONES : BACK_ZONES;
+  const selected = state.hooperDraft.zones;
+  slot.innerHTML = `
+    <div class="bodymap-wrap">
+      <p>Indique les zones où tu ressens des courbatures</p>
+      <div class="bm-tabs">
+        <button class="bm-tab ${state.hooperBmView==='front'?'active':''}" data-bmview="front">Avant</button>
+        <button class="bm-tab ${state.hooperBmView==='back'?'active':''}" data-bmview="back">Arrière</button>
+      </div>
+      <div class="bm-svg-wrap" id="bm-svg">${state.hooperBmView==='front' ? frontSvg(selected) : backSvg(selected)}</div>
+      <div class="bm-chips">
+        ${zones.map(z => `<button class="bm-chip ${selected.indexOf(z.id)>-1?'sel':''}" data-bmchip="${z.id}">${z.label}</button>`).join('')}
+      </div>
+    </div>
+  `;
+  slot.querySelectorAll('[data-bmview]').forEach(b => {
+    b.addEventListener('click', () => { state.hooperBmView = b.getAttribute('data-bmview'); renderBodyMapSlot(); });
+  });
+  function toggleZone(id){
+    const i = state.hooperDraft.zones.indexOf(id);
+    if(i>-1) state.hooperDraft.zones.splice(i,1); else state.hooperDraft.zones.push(id);
+    renderBodyMapSlot();
+  }
+  slot.querySelectorAll('[data-bmchip]').forEach(c => {
+    c.addEventListener('click', () => toggleZone(c.getAttribute('data-bmchip')));
+  });
+  slot.querySelectorAll('[data-zone]').forEach(z => {
+    z.addEventListener('click', () => toggleZone(z.getAttribute('data-zone')));
+  });
+}
+
+/* =========================================================
+   COACH — SUIVI SEANCES
+   ========================================================= */
+/* =========================================================
+   COACH — VUE D'ENSEMBLE (BILAN HEBDOMADAIRE)
+   ========================================================= */
+async function renderApercu(screen){
+  const weekStart = startOfWeek(addDays(new Date(), state.bilanWeekOffset * 7));
+  const weekKey = isoWeekKeyOf(weekStart);
+  screen.innerHTML = `<div class="empty">Chargement du bilan…</div>`;
+  await buildBilanData(weekStart, weekKey);
+  drawApercu(screen);
+}
+
+async function buildBilanData(weekStart, weekKey){
+  const days = [];
+  for(let i=0;i<7;i++) days.push(addDays(weekStart, i));
+  const dayKeys = days.map(isoDateStr);
+
+  const rows = [];
+  for(const c of state.clients){
+    const program = await loadProgram(c.id);
+    const weeksArr = program.weeks;
+    const totalSessions = weeksArr.reduce((t,w) => t + w.sessions.length, 0);
+    const activeWeeks = weeksArr.filter(w => w.sessions.length > 0).length || 1;
+    const target = totalSessions / activeWeeks;
+
+    const keys = await sList('session:'+c.id+':', true);
+    const values = await Promise.all(keys.map(async k => {
+      const raw = await sGet(k, true);
+      if(!raw) return null;
+      try{ return JSON.parse(raw); }catch(e){ return null; }
+    }));
+    const dayCounts = dayKeys.map(dk => values.filter(v => v && v.done && v.completedAt === dk).length);
+    const totalWeek = dayCounts.reduce((a,b) => a+b, 0);
+    const pct = target > 0 ? Math.min(100, Math.round((totalWeek/target)*100)) : (totalWeek>0 ? 100 : 0);
+    const note = await loadNote(c.id, weekKey);
+    rows.push({id:c.id, name:c.name, dayCounts, total: totalWeek, pct, note});
+  }
+  state.bilanData = {weekKey, weekStart, days, dayKeys, rows};
+}
+
+function sortedBilanRows(){
+  const {key, dir} = state.bilanSort;
+  const rows = state.bilanData.rows.slice();
+  rows.sort((a,b) => {
+    let av = a[key], bv = b[key];
+    if(typeof av === 'string') return av.localeCompare(bv) * dir;
+    return (av - bv) * dir;
+  });
+  return rows;
+}
+
+function drawApercu(screen){
+  const data = state.bilanData;
+  const rows = sortedBilanRows();
+  const weekLabel = 'Semaine '+isoWeekNumber(data.weekStart)+' ('+data.weekStart.getFullYear()+') — '
+    + fmtDDMM(data.weekStart)+' au '+fmtDDMM(data.days[6]);
+
+  screen.innerHTML = `
+    <div class="bilan-head">
+      <div class="bilan-title">📋 BILAN HEBDOMADAIRE — SÉANCES VALIDÉES</div>
+      <div class="export-controls">
+        <select id="export-client-select">
+          <option value="">Tous les clients (tableau)</option>
+          ${state.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+        </select>
+        <button class="btn-primary-sm" id="export-pdf">⬇ Export PDF</button>
+      </div>
+    </div>
+    <p class="bilan-desc">Pour la semaine choisie : nombre de séances validées par client, jour par jour, et total
+      sur la semaine. Le <b>% validé</b> compare ce total à la moyenne hebdomadaire attendue sur l'ensemble du
+      programme du client. 🟢 Vert = objectif hebdo atteint ou dépassé, 🟠 orange = partiellement atteint.
+      💡 Clique sur les en-têtes <b>Client</b>, <b>% validé</b> ou <b>Total</b> pour trier le tableau.
+      Pour exporter, choisis "Tous les clients" pour le tableau de la semaine, ou un·e client·e précis·e
+      pour sa fiche bilan complète (progression, RPE, Hooper, course).</p>
+
+    <div class="bilan-week-nav">
+      <button class="btn-line" id="week-prev">← Semaine précédente</button>
+      <div class="bilan-week-label">${weekLabel}</div>
+      <button class="btn-line" id="week-next">Semaine suivante →</button>
+    </div>
+
+    <div class="bilan-table-wrap">
+      <table class="bilan-table">
+        <thead>
+          <tr>
+            <th data-sort="name">JOUEUR ⇅</th>
+            <th data-sort="pct">% VALIDÉ ⇅</th>
+            ${data.days.map((d,i) => `<th>${DAY_LABELS[i]}<br>${fmtDDMM(d)}</th>`).join('')}
+            <th data-sort="total">TOTAL ⇅</th>
+            <th>NOTE SEMAINE</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.length ? rows.map(r => `
+            <tr>
+              <td class="bilan-name">${r.name}</td>
+              <td><span class="bilan-pct ${r.pct>=100?'full':(r.pct>0?'partial':'none')}">${r.pct}%</span></td>
+              ${r.dayCounts.map(c => c>0 ? `<td class="bilan-cell done">${c}</td>` : `<td class="bilan-cell empty">·</td>`).join('')}
+              <td class="bilan-total">${r.total}</td>
+              <td><input type="text" class="bilan-note" data-note="${r.id}" value="${r.note.replace(/"/g,'&quot;')}" placeholder="Bilan rapide…"></td>
+            </tr>
+          `).join('') : `<tr><td colspan="${4+data.days.length}" class="empty">Aucun client pour l'instant.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+    <div id="print-fiche"></div>
+  `;
+
+  document.getElementById('week-prev').addEventListener('click', () => { state.bilanWeekOffset -= 1; state.bilanData = null; renderApercu(screen); });
+  document.getElementById('week-next').addEventListener('click', () => { state.bilanWeekOffset += 1; state.bilanData = null; renderApercu(screen); });
+  document.getElementById('export-pdf').addEventListener('click', async () => {
+    const sel = document.getElementById('export-client-select');
+    const chosenId = sel ? sel.value : '';
+    if(!chosenId){
+      window.print();
+      return;
+    }
+    const btn = document.getElementById('export-pdf');
+    const original = btn.textContent;
+    btn.textContent = 'Préparation…';
+    btn.disabled = true;
+    const ficheEl = document.getElementById('print-fiche');
+    ficheEl.innerHTML = await buildClientFicheHtml(chosenId);
+    document.body.classList.add('printing-fiche');
+    btn.textContent = original;
+    btn.disabled = false;
+    window.print();
+  });
+  screen.querySelectorAll('[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.getAttribute('data-sort');
+      state.bilanSort = state.bilanSort.key === key ? {key, dir: -state.bilanSort.dir} : {key, dir:1};
+      drawApercu(screen);
+    });
+  });
+  screen.querySelectorAll('[data-note]').forEach(inp => {
+    inp.addEventListener('change', async () => {
+      const clientId = inp.getAttribute('data-note');
+      const ok = await saveNote(clientId, data.weekKey, inp.value);
+      if(!ok){ showSaveError(); return; }
+      const row = state.bilanData.rows.find(r => r.id === clientId);
+      if(row) row.note = inp.value;
+    });
+  });
+}
+
+async function buildClientFicheHtml(clientId){
+  const name = clientName(clientId);
+  const program = await loadProgram(clientId);
+  const weeks = program.weeks;
+  const prefix = 'session:'+clientId+':';
+  const keys = await sList(prefix, true);
+  const values = {};
+  await Promise.all(keys.map(async k => {
+    const raw = await sGet(k, true);
+    if(raw){ try{ values[k] = JSON.parse(raw); }catch(e){} }
+  }));
+  let done = 0, total = 0;
+  const allRpes = [];
+  weeks.forEach(w => {
+    w.sessions.forEach(d => {
+      total++;
+      const v = values[sessionKey(clientId, w.n, d.id)];
+      if(v && v.done){ done++; if(v.rpe != null) allRpes.push({label:'Semaine '+w.n+' · '+d.label, rpe:v.rpe, date:v.completedAt}); }
+    });
+  });
+  allRpes.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const pct = total ? Math.round((done/total)*100) : 0;
+
+  const hPrefix = 'hooper:'+clientId+':';
+  const hKeys = await sList(hPrefix, true);
+  let latestDate = null;
+  hKeys.forEach(k => { const d = k.slice(hPrefix.length); if(!latestDate || d > latestDate) latestDate = d; });
+  let hooperLine = 'Aucun ressenti enregistré.';
+  if(latestDate){
+    const raw = await sGet(hPrefix+latestDate, true);
+    if(raw){
+      try{
+        const latestData = JSON.parse(raw);
+        const idx = hooperIndex(latestData);
+        const flag = hooperFlag(idx);
+        hooperLine = fmtDate(latestDate)+' — '+flag.label+' ('+idx+'/28)';
+      }catch(e){}
+    }
+  }
+
+  const buckets = await computeTrainingBuckets(clientId);
+  const totalKm = buckets.reduce((t,b) => t+b.km, 0);
+
+  return `
+    <div class="fiche-header">
+      ${shieldSvg()}
+      <div>
+        <h1>Bilan de ${name}</h1>
+        <p class="fiche-date">Généré le ${fmtDate(todayStr())}</p>
+      </div>
+    </div>
+    <h2>Progression</h2>
+    <p><b>${done} / ${total}</b> séances réalisées sur l'ensemble du programme (${pct}%)</p>
+    <h2>Dernier ressenti (indice Hooper)</h2>
+    <p>${hooperLine}</p>
+    <h2>RPE — dernières séances renseignées</h2>
+    <ul>${allRpes.length ? allRpes.slice(0,10).map(r => `<li>${r.label} — ${r.rpe}/10${r.date ? ' ('+fmtDate(r.date)+')' : ''}</li>`).join('') : '<li>Aucun RPE renseigné pour le moment.</li>'}</ul>
+    <h2>Course à pied</h2>
+    <p>${totalKm} km sur les dernières semaines avec de l'activité enregistrée.</p>
+  `;
+}
+
+/* =========================================================
+   SUIVI ENTRAÎNEMENT (partagé coach / client)
+   ========================================================= */
+async function computeTrainingBuckets(clientId){
+  const program = await loadProgram(clientId);
+  const courseIds = new Set();
+  program.weeks.forEach(w => w.sessions.forEach(s => { if(s.kind === 'course') courseIds.add(w.n+'|'+s.id); }));
+
+  const keys = await sList('session:'+clientId+':', true);
+  const buckets = {};
+  await Promise.all(keys.map(async k => {
+    const raw = await sGet(k, true);
+    if(!raw) return;
+    let v; try{ v = JSON.parse(raw); }catch(e){ return; }
+    if(!v || !v.done || !v.completedAt) return;
+    // clé de session : "session:<clientId>:S<n>:<id>"
+    const parts = k.split(':');
+    const wN = parts[2].replace('S','');
+    const sId = parts[3];
+    if(!courseIds.has(wN+'|'+sId)) return;
+    const week = program.weeks.find(w => String(w.n) === wN);
+    const session = week ? week.sessions.find(s => s.id === sId) : null;
+    if(!session) return;
+    const d = new Date(v.completedAt);
+    const wk = isoWeekKeyOf(startOfWeek(d));
+    if(!buckets[wk]) buckets[wk] = {weekKey:wk, km:0, monday: startOfWeek(d)};
+    buckets[wk].km += (session.km || 0);
+  }));
+
+  return Object.values(buckets).sort((a,b) => a.monday - b.monday).slice(-10);
+}
+
+/* ---------- Côté coach ---------- */
+async function renderEntrainement(screen){
+  const clientId = state.coachClientId;
+  screen.innerHTML = `<div class="empty">Chargement…</div>`;
+  state.trainingData = {
+    clientId,
+    buckets: await computeTrainingBuckets(clientId),
+    rpeEntries: await computeRpeHistory(clientId)
+  };
+  drawEntrainement(screen);
+}
+
+function drawEntrainement(screen){
+  const name = clientName(state.coachClientId);
+  const buckets = state.trainingData.buckets;
+  const rpeEntries = state.trainingData.rpeEntries;
+  const totalKm = buckets.reduce((t,b) => t+b.km, 0);
+  const avgRpe = rpeEntries.length ? (rpeEntries.reduce((t,e)=>t+e.rpe,0)/rpeEntries.length).toFixed(1) : null;
+
+  screen.innerHTML = `
+    <div class="section-label">Distance — ${name}</div>
+    <p class="bilan-desc">Kilomètres de course validés, semaine par semaine (10 dernières semaines avec activité).
+      Utile pour repérer une montée en charge trop rapide ou une baisse de volume inattendue.</p>
+    <div id="training-chart-slot"></div>
+    <div class="training-total">Total sur la période affichée : <b>${totalKm} km</b></div>
+
+    <div class="section-label" style="margin-top:28px;">RPE — bilan des dernières séances</div>
+    <p class="bilan-desc">Ressenti d'effort (0-10) renseigné à chaque séance validée, dans l'ordre chronologique
+      (15 dernières séances avec RPE). Une tendance qui grimpe sans que le volume baisse peut annoncer une fatigue
+      qui s'accumule.</p>
+    <div id="rpe-chart-slot"></div>
+    ${avgRpe ? `<div class="training-total">Moyenne sur la période affichée : <b>${avgRpe}/10</b></div>` : ''}
+  `;
+  const slot = document.getElementById('training-chart-slot');
+  if(!buckets.length){
+    slot.innerHTML = `<div class="empty">Pas encore de sortie course validée pour ${name}.</div>`;
+  } else {
+    slot.innerHTML = trainingChartSvg(buckets);
+  }
+  const rpeSlot = document.getElementById('rpe-chart-slot');
+  if(!rpeEntries.length){
+    rpeSlot.innerHTML = `<div class="empty">Aucun RPE renseigné pour ${name} pour l'instant.</div>`;
+  } else {
+    rpeSlot.innerHTML = rpeChartSvg(rpeEntries);
+  }
+}
+
+/* ---------- Côté client ---------- */
+async function renderMyTraining(screen){
+  const clientId = effectiveClientId();
+  screen.innerHTML = `<div class="empty">Chargement…</div>`;
+  state.myTrainingData = {clientId, buckets: await computeTrainingBuckets(clientId)};
+  drawMyTraining(screen);
+}
+
+function drawMyTraining(screen){
+  const buckets = state.myTrainingData.buckets;
+  const totalKm = buckets.reduce((t,b) => t+b.km, 0);
+
+  screen.innerHTML = `
+    <div class="section-label">Tes km de course, semaine par semaine</div>
+    <div id="training-chart-slot"></div>
+    <div class="training-total">Total sur la période affichée : <b>${totalKm} km</b></div>
+  `;
+  const slot = document.getElementById('training-chart-slot');
+  if(!buckets.length){
+    slot.innerHTML = `<div class="empty">Pas encore de sortie course validée pour l'instant.</div>`;
+    return;
+  }
+  slot.innerHTML = trainingChartSvg(buckets);
+}
+
+function trainingChartSvg(buckets){
+  const items = buckets.map(b => ({
+    value: b.km,
+    valueLabel: String(b.km),
+    xLabel: 'S'+(b.monday ? isoWeekNumber(b.monday) : '?')
+  }));
+  return barChartSvg(items, {color:'#3DA9FC'});
+}
+
+/*
+  Petit graphique en barres générique, réutilisé pour les km de course, le RPE et l'indice Hooper.
+  items: [{value, valueLabel, xLabel}]. options.max fixe l'échelle (sinon calculée sur les données).
+*/
+function barChartSvg(items, options){
+  options = options || {};
+  const W = 640, H = 220, padL = 30, padB = 34, padT = 16, padR = 12;
+  const chartW = W - padL - padR, chartH = H - padT - padB;
+  const max = options.max || Math.max(1, ...items.map(it => it.value));
+  const barW = chartW / items.length * 0.6;
+  const gap = chartW / items.length;
+  const color = options.color || '#3DA9FC';
+
+  const bars = items.map((it,i) => {
+    const h = Math.max(1, (it.value / max) * chartH);
+    const x = padL + i*gap + (gap-barW)/2;
+    const y = padT + (chartH - h);
+    return `
+      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${color}"/>
+      <text x="${(x+barW/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="#122036">${it.valueLabel}</text>
+      <text x="${(x+barW/2).toFixed(1)}" y="${H-padB+16}" text-anchor="middle" font-size="10" fill="#54627A">${it.xLabel}</text>
+    `;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" class="training-chart">
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#DDE3E9"/>
+    <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#DDE3E9"/>
+    ${bars}
+  </svg>`;
+}
+
+async function computeRpeHistory(clientId){
+  const keys = await sList('session:'+clientId+':', true);
+  const entries = [];
+  await Promise.all(keys.map(async k => {
+    const raw = await sGet(k, true);
+    if(!raw) return;
+    let v; try{ v = JSON.parse(raw); }catch(e){ return; }
+    if(v && v.done && v.rpe != null && v.completedAt){
+      entries.push({date: v.completedAt, rpe: v.rpe});
+    }
+  }));
+  entries.sort((a,b) => a.date.localeCompare(b.date));
+  return entries.slice(-15);
+}
+function rpeChartSvg(entries){
+  const items = entries.map(e => ({value:e.rpe, valueLabel:String(e.rpe), xLabel:fmtDDMM(new Date(e.date))}));
+  return barChartSvg(items, {color:'#C98A2C', max:10});
+}
+
+async function renderCoachOverview(screen){
+  const clientId = state.coachClientId;
+  screen.innerHTML = `<div class="empty">Chargement du suivi…</div>`;
+  await buildCoachOverview(clientId);
+  if(state.coachExpandedWeek != null){
+    await refreshExpandedWeek(clientId);
+    if(!state.coachExpandedData){ state.coachExpandedWeek = null; }
+  }
+  drawCoachOverview(screen);
+}
+
+async function buildCoachOverview(clientId){
+  const program = await loadProgram(clientId);
+  const weeks = program.weeks.slice().sort((a,b) => a.n - b.n);
+  const prefix = 'session:'+clientId+':';
+  const keys = await sList(prefix, true);
+  const values = {};
+  await Promise.all(keys.map(async k => {
+    const raw = await sGet(k, true);
+    if(raw){ try{ values[k] = JSON.parse(raw); }catch(e){} }
+  }));
+  const perWeek = weeks.map(w => {
+    let done = 0;
+    const rpes = [];
+    w.sessions.forEach(d => {
+      const v = values[sessionKey(clientId, w.n, d.id)];
+      if(v && v.done){ done++; if(v.rpe != null) rpes.push({label:'S'+w.n+' · '+d.label, rpe:v.rpe, date:v.completedAt}); }
+    });
+    return {n:w.n, done, total:w.sessions.length, meso:w.meso, deload:w.deload, rpes};
+  });
+  let overallDone = 0;
+  const allRpes = [];
+  perWeek.forEach(w => { overallDone += w.done; w.rpes.forEach(r => allRpes.push(r)); });
+  allRpes.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const total = weeks.reduce((t,w) => t + w.sessions.length, 0);
+  state.coachOverview = {clientId, perWeek, overallDone, total, recentRpe: allRpes.slice(0,8)};
+}
+
+function drawCoachOverview(screen){
+  const ov = state.coachOverview;
+
+  if(!ov.perWeek.length){
+    screen.innerHTML = `
+      <div class="empty">Aucune séance créée pour ${clientName(ov.clientId)} pour l'instant.</div>
+      <div style="text-align:center;margin-top:14px;">
+        <button class="btn-primary-sm" id="goto-builder">Créer les séances</button>
+      </div>`;
+    document.getElementById('goto-builder').addEventListener('click', () => {
+      state.builderClientId = ov.clientId;
+      state.tab = 'clients';
+      render();
+    });
+    return;
+  }
+
+  const pct = ov.total ? Math.round((ov.overallDone / ov.total) * 100) : 0;
+  screen.innerHTML = `
+    <div class="scoreboard">
+      <div>
+        <span class="score-num">${ov.overallDone}</span><span class="score-den"> / ${ov.total}</span>
+        <div class="score-label">séances réalisées sur le bloc</div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%"></div></div>
+        <div class="score-label">${pct}% du programme</div>
+      </div>
+    </div>
+
+    <div class="section-label">Détail par semaine — clique une semaine pour voir et modifier ses séances</div>
+    ${ov.perWeek.map(w => `
+      <div class="coach-week-row" data-week-toggle="${w.n}">
+        <div class="cwr-left">
+          <div class="cwr-n">Semaine ${w.n}${w.deload?' · décharge':''}</div>
+          ${w.meso ? `<div class="cwr-meta">${w.meso}</div>` : ''}
+        </div>
+        <div class="cwr-frac ${w.done===w.total?'full':''}">${w.done}/${w.total}</div>
+      </div>
+      ${state.coachExpandedWeek === w.n && state.coachExpandedData
+        ? `<div class="coach-week-expand" id="coach-week-expand">
+             ${dayGroupedSessionsHtml(w.n, state.coachExpandedData.defs, state.coachExpandedData.statuses)}
+             <div class="seances-add-zone">
+               ${state.seancesAddOpen
+                 ? builderFormHtml({n: w.n, sessions: state.coachExpandedData.defs}, null)
+                 : `<button class="btn-line" id="seances-add-session-btn" style="margin-top:14px;width:100%;">+ Ajouter une séance cette semaine</button>`}
+             </div>
+           </div>`
+        : ''}
+    `).join('')}
+
+    <div class="section-label">RPE — dernières séances renseignées</div>
+    ${ov.recentRpe.length ? ov.recentRpe.map(r => `
+      <div class="rpe-list-item"><span>${r.label}</span><span class="rpe-badge">${r.rpe}/10</span></div>
+    `).join('') : '<div class="empty">Aucun RPE renseigné pour le moment.</div>'}
+
+    <div style="text-align:center;margin-top:20px;">
+      <button class="refresh-link" id="coach-refresh">Actualiser le suivi</button>
+    </div>
+  `;
+  document.getElementById('coach-refresh').addEventListener('click', async () => {
+    screen.innerHTML = `<div class="empty">Actualisation…</div>`;
+    await buildCoachOverview(ov.clientId);
+    if(state.coachExpandedWeek != null) await refreshExpandedWeek(ov.clientId);
+    drawCoachOverview(screen);
+  });
+  screen.querySelectorAll('[data-week-toggle]').forEach(row => {
+    row.addEventListener('click', () => {
+      const weekN = parseInt(row.getAttribute('data-week-toggle'), 10);
+      expandCoachWeek(screen, ov.clientId, weekN);
+    });
+  });
+  const expandEl = document.getElementById('coach-week-expand');
+  if(expandEl && state.coachExpandedData){
+    bindSessionCards(expandEl, ov.clientId, state.coachExpandedData.weekN, state.coachExpandedData.defs, state.coachExpandedData.statuses,
+      async () => { await buildCoachOverview(ov.clientId); await refreshExpandedWeek(ov.clientId); drawCoachOverview(screen); });
+
+    const addBtn = document.getElementById('seances-add-session-btn');
+    if(addBtn){
+      addBtn.addEventListener('click', () => {
+        state.seancesAddOpen = true;
+        drawCoachOverview(screen);
+      });
+    }
+    const seancesForm = expandEl.querySelector('.builder-form');
+    if(seancesForm){
+      bindBuilderForm(seancesForm, {
+        weeks: state.coachExpandedData.weeks,
+        clientId: ov.clientId,
+        onCancel: () => { state.seancesAddOpen = false; drawCoachOverview(screen); },
+        onSaved: async () => {
+          state.seancesAddOpen = false;
+          await buildCoachOverview(ov.clientId);
+          await refreshExpandedWeek(ov.clientId);
+          drawCoachOverview(screen);
+        }
+      });
+    }
+  }
+}
+
+async function refreshExpandedWeek(clientId){
+  const weekN = state.coachExpandedWeek;
+  if(weekN == null) return;
+  const program = await loadProgram(clientId);
+  const week = program.weeks.find(w => w.n === weekN);
+  if(!week){ state.coachExpandedData = null; return; }
+  const defs = week.sessions;
+  const statuses = {};
+  await Promise.all(defs.map(async d => { statuses[d.id] = await loadSession(clientId, weekN, d.id); }));
+  state.coachExpandedData = {weekN, defs, weeks: program.weeks, statuses};
+}
+
+async function expandCoachWeek(screen, clientId, weekN){
+  if(state.coachExpandedWeek === weekN){
+    state.coachExpandedWeek = null;
+    state.coachExpandedData = null;
+    state.seancesAddOpen = false;
+    drawCoachOverview(screen);
+    return;
+  }
+  state.coachExpandedWeek = weekN;
+  state.seancesAddOpen = false;
+  await refreshExpandedWeek(clientId);
+  drawCoachOverview(screen);
+}
+
+/* =========================================================
+   COACH — RESSENTI (HOOPER) HISTORY
+   ========================================================= */
+function hooperIndex(h){ return h.sommeil + h.fatigue + h.stress + h.courbatures; }
+function hooperFlag(idx){
+  if(idx <= 12) return {cls:'faible', label:'RAS'};
+  if(idx <= 18) return {cls:'modere', label:'À surveiller'};
+  return {cls:'eleve', label:'Repos conseillé'};
+}
+function zoneLabel(id){
+  const all = FRONT_ZONES.concat(BACK_ZONES);
+  const f = all.find(z => z.id===id);
+  return f ? f.label : id;
+}
+
+async function buildHealthOverview(){
+  const rows = [];
+  for(const c of state.clients){
+    const prefix = 'hooper:'+c.id+':';
+    const keys = await sList(prefix, true);
+    let latestDate = null, latestData = null;
+    for(const k of keys){
+      const d = k.slice(prefix.length);
+      if(!latestDate || d > latestDate) latestDate = d;
+    }
+    if(latestDate){
+      const raw = await sGet(prefix+latestDate, true);
+      if(raw){ try{ latestData = JSON.parse(raw); }catch(e){} }
+    }
+    if(latestData){
+      const idx = hooperIndex(latestData);
+      rows.push({id:c.id, name:c.name, date:latestDate, idx, flag:hooperFlag(idx)});
+    } else {
+      rows.push({id:c.id, name:c.name, date:null, idx:null, flag:null});
+    }
+  }
+  state.healthOverview = rows;
+}
+
+async function renderHooperHistory(screen){
+  const clientId = state.coachClientId;
+  screen.innerHTML = `<div class="empty">Chargement…</div>`;
+  await buildHealthOverview();
+  await buildHooperHistory(clientId);
+  drawHooperHistory(screen);
+}
+
+async function buildHooperHistory(clientId){
+  const prefix = 'hooper:'+clientId+':';
+  const keys = await sList(prefix, true);
+  const entries = [];
+  await Promise.all(keys.map(async k => {
+    const raw = await sGet(k, true);
+    if(raw){
+      try{
+        const v = JSON.parse(raw);
+        entries.push({date: k.slice(prefix.length), data: v});
+      }catch(e){}
+    }
+  }));
+  entries.sort((a,b) => b.date.localeCompare(a.date));
+  state.coachHooperHistory = {clientId, entries};
+}
+
+function drawHooperHistory(screen){
+  const overview = state.healthOverview;
+  const clientId = state.coachHooperHistory.clientId;
+  const entries = state.coachHooperHistory.entries;
+  screen.innerHTML = `
+    <div class="section-label">Vue rapide — dernier ressenti de chaque client</div>
+    ${overview.map(r => `
+      <div class="history-item">
+        <div>
+          <div class="hi-date">${r.name}</div>
+          <div class="hi-sub">${r.date ? fmtDate(r.date) : 'Aucun ressenti enregistré'}</div>
+        </div>
+        ${r.flag ? `<span class="flag ${r.flag.cls}">${r.flag.label} · ${r.idx}/28</span>` : '<span class="flag" style="background:#EEF1F4;color:var(--ink-soft);">—</span>'}
+      </div>
+    `).join('')}
+
+    <div class="section-label" style="margin-top:26px;">Indice Hooper — bilan, ${clientName(clientId)}</div>
+    <p class="bilan-desc">Indice global (sommeil + fatigue + stress + courbatures, sur 28) des dernières journées
+      renseignées, dans l'ordre chronologique. Une hausse continue vaut la peine d'être surveillée.</p>
+    <div id="hooper-chart-slot"></div>
+
+    <div class="section-label" style="margin-top:26px;">Historique détaillé — ${clientName(clientId)}</div>
+    <button class="btn-line" id="add-hooper-btn" style="margin-bottom:14px;">
+      ${state.coachHooperForm ? 'Fermer' : '+ Ajouter un ressenti'}
+    </button>
+    <div id="coach-hooper-form-slot"></div>
+    ${entries.length ? entries.map(e => {
+      const idx = hooperIndex(e.data);
+      const flag = hooperFlag(idx);
+      const zones = (e.data.zones||[]).map(zoneLabel).join(', ');
+      return `<div class="history-item">
+        <div>
+          <div class="hi-date">${fmtDate(e.date)}</div>
+          <div class="hi-sub">Sommeil ${e.data.sommeil} · Fatigue ${e.data.fatigue} · Stress ${e.data.stress} · Courbatures ${e.data.courbatures}</div>
+          ${zones ? `<div class="history-zones">Zones signalées : ${zones}</div>` : ''}
+          <div class="done-links" style="justify-content:flex-start;margin-top:6px;">
+            <button data-edit-hooper="${e.date}">Modifier</button>
+            <button class="danger" data-del-hooper="${e.date}">Supprimer</button>
+          </div>
+        </div>
+        <span class="flag ${flag.cls}">${flag.label} · ${idx}/28</span>
+      </div>`;
+    }).join('') : '<div class="empty">Aucun ressenti enregistré pour le moment.</div>'}
+    <div style="text-align:center;margin-top:20px;">
+      <button class="refresh-link" id="hooper-refresh">Actualiser</button>
+    </div>
+  `;
+  document.getElementById('add-hooper-btn').addEventListener('click', () => {
+    state.coachHooperForm = state.coachHooperForm ? null : {
+      date: todayStr(), draft:{sommeil:4,fatigue:4,stress:4,courbatures:1,zones:[]}, bmView:'front'
+    };
+    drawHooperHistory(screen);
+  });
+  const hooperChartSlot = document.getElementById('hooper-chart-slot');
+  const chronoEntries = entries.slice().sort((a,b) => a.date.localeCompare(b.date)).slice(-15);
+  if(!chronoEntries.length){
+    hooperChartSlot.innerHTML = `<div class="empty">Aucun ressenti enregistré pour ${clientName(clientId)} pour l'instant.</div>`;
+  } else {
+    const items = chronoEntries.map(e => ({
+      value: hooperIndex(e.data), valueLabel: String(hooperIndex(e.data)), xLabel: fmtDDMM(new Date(e.date))
+    }));
+    hooperChartSlot.innerHTML = barChartSvg(items, {color:'#B8443B', max:28});
+  }
+  screen.querySelectorAll('[data-edit-hooper]').forEach(b => {
+    b.addEventListener('click', () => {
+      const date = b.getAttribute('data-edit-hooper');
+      const entry = entries.find(e => e.date === date);
+      state.coachHooperForm = {
+        date,
+        draft: {sommeil:entry.data.sommeil, fatigue:entry.data.fatigue, stress:entry.data.stress,
+          courbatures:entry.data.courbatures, zones:(entry.data.zones||[]).slice()},
+        bmView:'front'
+      };
+      drawHooperHistory(screen);
+    });
+  });
+  screen.querySelectorAll('[data-del-hooper]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const date = b.getAttribute('data-del-hooper');
+      if(!confirm('Supprimer le ressenti du '+fmtDate(date)+' ?')) return;
+      await sDelete(hooperKey(clientId, date), true);
+      state.healthOverview = null;
+      await buildHealthOverview();
+      await buildHooperHistory(clientId);
+      drawHooperHistory(screen);
+    });
+  });
+  renderCoachHooperFormSlot(screen, clientId);
+  document.getElementById('hooper-refresh').addEventListener('click', async () => {
+    screen.innerHTML = `<div class="empty">Actualisation…</div>`;
+    state.healthOverview = null;
+    await buildHealthOverview();
+    await buildHooperHistory(state.coachHooperHistory.clientId);
+    drawHooperHistory(screen);
+  });
+}
+
+function renderCoachHooperFormSlot(screen, clientId){
+  const slot = document.getElementById('coach-hooper-form-slot');
+  if(!slot) return;
+  if(!state.coachHooperForm){ slot.innerHTML = ''; return; }
+  const form = state.coachHooperForm;
+  const d = form.draft;
+  const items = [
+    {key:'sommeil', name:'Qualité du sommeil', lo:'1 · très bonne', hi:'7 · très mauvaise'},
+    {key:'fatigue', name:'Fatigue', lo:'1 · aucune', hi:'7 · extrême'},
+    {key:'stress', name:'Stress', lo:'1 · aucun', hi:'7 · extrême'},
+    {key:'courbatures', name:'Courbatures (DOMS)', lo:'1 · aucune', hi:'7 · extrêmes'}
+  ];
+  slot.innerHTML = `
+    <div class="builder-form">
+      <div class="bf-row">
+        <label>Date</label>
+        <input type="date" id="coach-hooper-date" value="${form.date}" max="${todayStr()}">
+      </div>
+      ${items.map(it => `
+        <div class="hooper-item">
+          <div class="hooper-item-head"><span class="hi-name">${it.name}</span><span class="hi-val" data-chval="${it.key}">${d[it.key]}</span></div>
+          <input type="range" class="hooper-slider" min="1" max="7" step="1" value="${d[it.key]}" data-chslider="${it.key}">
+          <div class="hooper-labels"><span>${it.lo}</span><span>${it.hi}</span></div>
+        </div>
+      `).join('')}
+      <div id="coach-bodymap-slot"></div>
+      <div class="bf-actions" style="margin-top:16px;">
+        <button class="btn-primary-sm" id="coach-hooper-save">Enregistrer</button>
+        <button class="btn-line" id="coach-hooper-cancel">Annuler</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('coach-hooper-date').addEventListener('change', (e) => {
+    form.date = e.target.value || todayStr();
+  });
+  slot.querySelectorAll('[data-chslider]').forEach(sl => {
+    sl.addEventListener('input', () => {
+      const key = sl.getAttribute('data-chslider');
+      form.draft[key] = parseInt(sl.value,10);
+      slot.querySelector('[data-chval="'+key+'"]').textContent = sl.value;
+      if(key === 'courbatures') renderCoachBodyMapSlot(screen, clientId);
+    });
+  });
+  renderCoachBodyMapSlot(screen, clientId);
+  document.getElementById('coach-hooper-cancel').addEventListener('click', () => {
+    state.coachHooperForm = null;
+    drawHooperHistory(screen);
+  });
+  document.getElementById('coach-hooper-save').addEventListener('click', async () => {
+    const payload = Object.assign({}, form.draft, {savedAt: new Date().toISOString()});
+    const ok = await saveHooper(clientId, form.date, payload);
+    if(!ok){ showSaveError(); return; }
+    state.coachHooperForm = null;
+    state.healthOverview = null;
+    await buildHealthOverview();
+    await buildHooperHistory(clientId);
+    drawHooperHistory(screen);
+  });
+}
+
+function renderCoachBodyMapSlot(screen, clientId){
+  const slot = document.getElementById('coach-bodymap-slot');
+  if(!slot) return;
+  const form = state.coachHooperForm;
+  if(!form || form.draft.courbatures <= 1){ slot.innerHTML = ''; return; }
+  const zones = form.bmView === 'front' ? FRONT_ZONES : BACK_ZONES;
+  const selected = form.draft.zones;
+  slot.innerHTML = `
+    <div class="bodymap-wrap">
+      <p>Zones de courbatures signalées</p>
+      <div class="bm-tabs">
+        <button class="bm-tab ${form.bmView==='front'?'active':''}" data-cbmview="front">Avant</button>
+        <button class="bm-tab ${form.bmView==='back'?'active':''}" data-cbmview="back">Arrière</button>
+      </div>
+      <div class="bm-svg-wrap" id="coach-bm-svg">${form.bmView==='front' ? frontSvg(selected) : backSvg(selected)}</div>
+      <div class="bm-chips">
+        ${zones.map(z => `<button class="bm-chip ${selected.indexOf(z.id)>-1?'sel':''}" data-cbmchip="${z.id}">${z.label}</button>`).join('')}
+      </div>
+    </div>
+  `;
+  slot.querySelectorAll('[data-cbmview]').forEach(b => {
+    b.addEventListener('click', () => { form.bmView = b.getAttribute('data-cbmview'); renderCoachBodyMapSlot(screen, clientId); });
+  });
+  function toggleZone(id){
+    const i = form.draft.zones.indexOf(id);
+    if(i>-1) form.draft.zones.splice(i,1); else form.draft.zones.push(id);
+    renderCoachBodyMapSlot(screen, clientId);
+  }
+  slot.querySelectorAll('[data-cbmchip]').forEach(c => c.addEventListener('click', () => toggleZone(c.getAttribute('data-cbmchip'))));
+  slot.querySelectorAll('[data-zone]').forEach(z => z.addEventListener('click', () => toggleZone(z.getAttribute('data-zone'))));
+}
+
+/* =========================================================
+   COACH — MES CLIENTS
+   ========================================================= */
+async function renderClientsTab(screen){
+  await ensureClientsLoaded();
+  screen.innerHTML = `
+    <div class="section-label">Ajouter un·e client·e</div>
+    <div class="add-client-row">
+      <input type="text" id="new-client-name" placeholder="Prénom du/de la client·e">
+      <button class="btn-primary-sm" id="add-client-btn">Ajouter</button>
+    </div>
+    <div class="section-label">Mes clients</div>
+    <div id="clients-list"></div>
+  `;
+  drawClientsList(screen);
+
+  document.getElementById('add-client-btn').addEventListener('click', async () => {
+    const input = document.getElementById('new-client-name');
+    const name = input.value.trim();
+    if(!name) return;
+    const base = slugify(name);
+    const id = uniqueClientId(base, state.clients.map(c => c.id));
+    const newList = state.clients.concat([{id, name, code: generateClientCode()}]);
+    const ok = await sSet('clients', JSON.stringify(newList), true);
+    if(!ok){ showSaveError(); return; }
+    state.clients = newList;
+    state.globalStats = null;
+    state.bilanData = null;
+    state.healthOverview = null;
+    render(); // rafraîchit aussi le sélecteur de client dans l'en-tête
+  });
+}
+
+function drawClientsList(screen){
+  const wrap = document.getElementById('clients-list');
+  if(!wrap) return;
+  wrap.innerHTML = state.clients.map(c => {
+    const isCurrent = c.id === state.coachClientId;
+    return `<div class="client-card ${isCurrent?'current':''}">
+      <div class="client-card-head">
+        <div class="client-card-name">${c.name}${isCurrent ? ' <span class="current-tag">actuel</span>' : ''}</div>
+        <button class="btn-line" data-manage="${c.id}">Gérer</button>
+      </div>
+      <div class="client-code-row">
+        <span>Code d'accès :</span>
+        <span class="client-code">${c.code}</span>
+        <button class="btn-line" data-copy-code="${c.code}">Copier</button>
+      </div>
+      <div class="client-actions-row">
+        <button class="btn-line" data-builder="${c.id}">Créer / éditer les séances</button>
+        <button class="btn-line" data-rename="${c.id}">Renommer</button>
+        <button class="btn-line danger-line" data-delete="${c.id}">Supprimer</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  wrap.querySelectorAll('[data-manage]').forEach(b => {
+    b.addEventListener('click', async () => {
+      state.coachClientId = b.getAttribute('data-manage');
+      await sSet('coachSelectedClient', state.coachClientId, false);
+      state.coachOverview = null;
+      state.coachHooperHistory = null;
+      state.coachExpandedWeek = null;
+      state.coachExpandedData = null;
+      state.coachHooperForm = null;
+      state.seancesAddOpen = false;
+      state.tab = 'seances';
+      render();
+    });
+  });
+  wrap.querySelectorAll('[data-copy-code]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const code = b.getAttribute('data-copy-code');
+      let ok = false;
+      try{ await navigator.clipboard.writeText(code); ok = true; }catch(e){}
+      const original = b.textContent;
+      b.textContent = ok ? 'Copié !' : code;
+      setTimeout(() => { b.textContent = original; }, 1600);
+    });
+  });
+  wrap.querySelectorAll('[data-rename]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const id = b.getAttribute('data-rename');
+      const client = state.clients.find(c => c.id === id);
+      const newName = prompt('Nouveau prénom :', client.name);
+      if(newName === null) return;
+      const trimmed = newName.trim();
+      if(!trimmed) return;
+      const previousName = client.name;
+      client.name = trimmed;
+      const ok = await sSet('clients', JSON.stringify(state.clients), true);
+      if(!ok){ client.name = previousName; showSaveError(); return; }
+      state.globalStats = null;
+      state.bilanData = null;
+      state.healthOverview = null;
+      render();
+    });
+  });
+  wrap.querySelectorAll('[data-delete]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const id = b.getAttribute('data-delete');
+      const client = state.clients.find(c => c.id === id);
+      if(!confirm('Supprimer définitivement '+client.name+' et toutes ses données (programme, séances, ressenti) ? Cette action est irréversible.')) return;
+      const newList = state.clients.filter(c => c.id !== id);
+      const ok = await sSet('clients', JSON.stringify(newList), true);
+      if(!ok){ showSaveError(); return; }
+      state.clients = newList;
+      await sDelete('program:'+id, true);
+      const sKeys = await sList('session:'+id+':', true);
+      for(const k of sKeys) await sDelete(k, true);
+      const hKeys = await sList('hooper:'+id+':', true);
+      for(const k of hKeys) await sDelete(k, true);
+      const nKeys = await sList('note:'+id+':', true);
+      for(const k of nKeys) await sDelete(k, true);
+      if(state.coachClientId === id) state.coachClientId = state.clients[0] ? state.clients[0].id : null;
+      state.globalStats = null;
+      state.bilanData = null;
+      state.healthOverview = null;
+      state.coachOverview = null;
+      state.coachHooperHistory = null;
+      state.trainingData = null;
+      render();
+    });
+  });
+  wrap.querySelectorAll('[data-builder]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.builderClientId = b.getAttribute('data-builder');
+      render();
+    });
+  });
+}
+
+/* =========================================================
+   COACH — CRÉATEUR DE SÉANCES
+   ========================================================= */
+async function renderBuilder(screen, clientId){
+  if(!state.builderProgram || state.builderProgram.clientId !== clientId){
+    const p = await loadProgram(clientId);
+    state.builderProgram = {clientId, weeks: p.weeks};
+    state.builderFormFor = null;
+  }
+  const name = clientName(clientId);
+
+  screen.innerHTML = `
+    <button class="back-link" id="builder-back">← Retour à Mes clients</button>
+    <div class="section-label">Séances de ${name}</div>
+    <div id="builder-weeks"></div>
+    <button class="btn-primary-sm" id="add-week-btn" style="margin-top:16px;width:100%;">+ Ajouter une semaine</button>
+  `;
+  document.getElementById('builder-back').addEventListener('click', () => {
+    state.builderClientId = null;
+    render();
+  });
+  drawBuilderWeeks(clientId, name);
+  document.getElementById('add-week-btn').addEventListener('click', async () => {
+    const n = nextWeekNumber(state.builderProgram.weeks);
+    state.builderProgram.weeks.push({n, sessions:[]});
+    await persistBuilderProgram(clientId);
+    drawBuilderWeeks(clientId, name);
+  });
+}
+
+async function persistBuilderProgram(clientId){
+  const ok = await saveProgram(clientId, state.builderProgram.weeks);
+  if(!ok){ showSaveError(); return false; }
+  invalidateClientCaches(clientId);
+  return true;
+}
+
+function drawBuilderWeeks(clientId, name){
+  const wrap = document.getElementById('builder-weeks');
+  if(!wrap) return;
+  const weeks = state.builderProgram.weeks.slice().sort((a,b) => a.n - b.n);
+
+  if(!weeks.length){
+    wrap.innerHTML = `<div class="empty">Aucune semaine pour l'instant. Ajoute la première semaine ci-dessous.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = weeks.map(w => `
+    <div class="builder-week-card">
+      <div class="builder-week-head">
+        <div class="builder-week-title">Semaine ${w.n}</div>
+        <button class="btn-line danger-line" data-del-week="${w.n}">Supprimer</button>
+      </div>
+      <div class="builder-session-list">
+        ${w.sessions.length ? w.sessions.map(s => `
+          <div class="builder-session-row">
+            <div>
+              <div class="bsr-name">${s.kind==='renfo'?'🏋️':'🏃'} ${s.label}</div>
+              <div class="bsr-sub">${s.day ? dayLabel(s.day)+' · ' : ''}${s.kind==='renfo' ? (s.exercises||[]).length+' exercice(s)' : (s.km||0)+' km'}</div>
+            </div>
+            <div class="bsr-actions">
+              <button class="btn-line" data-edit-session="${w.n}|${s.id}">Modifier</button>
+              <button class="btn-line danger-line" data-del-session="${w.n}|${s.id}">Supprimer</button>
+            </div>
+          </div>
+        `).join('') : '<div class="empty" style="padding:14px 0;">Pas encore de séance cette semaine-là.</div>'}
+      </div>
+      ${state.builderFormFor && state.builderFormFor.weekN === w.n
+        ? builderFormHtml(w, state.builderFormFor.sessionId)
+        : `<button class="btn-line" data-add-session="${w.n}" style="margin-top:10px;">+ Ajouter une séance</button>`}
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-del-week]').forEach(b => {
+    b.addEventListener('click', async () => {
+      if(!confirm('Supprimer cette semaine et toutes ses séances ?')) return;
+      const n = parseInt(b.getAttribute('data-del-week'),10);
+      state.builderProgram.weeks = state.builderProgram.weeks.filter(x => x.n !== n);
+      await persistBuilderProgram(clientId);
+      drawBuilderWeeks(clientId, name);
+    });
+  });
+  wrap.querySelectorAll('[data-add-session]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.builderFormFor = {weekN: parseInt(b.getAttribute('data-add-session'),10), sessionId:null};
+      drawBuilderWeeks(clientId, name);
+    });
+  });
+  wrap.querySelectorAll('[data-edit-session]').forEach(b => {
+    b.addEventListener('click', () => {
+      const parts = b.getAttribute('data-edit-session').split('|');
+      state.builderFormFor = {weekN: parseInt(parts[0],10), sessionId: parts[1]};
+      drawBuilderWeeks(clientId, name);
+    });
+  });
+  wrap.querySelectorAll('[data-del-session]').forEach(b => {
+    b.addEventListener('click', async () => {
+      if(!confirm('Supprimer cette séance ?')) return;
+      const parts = b.getAttribute('data-del-session').split('|');
+      const week = state.builderProgram.weeks.find(w => w.n === parseInt(parts[0],10));
+      week.sessions = week.sessions.filter(s => s.id !== parts[1]);
+      await persistBuilderProgram(clientId);
+      drawBuilderWeeks(clientId, name);
+    });
+  });
+  const openForm = wrap.querySelector('.builder-form');
+  if(openForm){
+    bindBuilderForm(openForm, {
+      weeks: state.builderProgram.weeks,
+      clientId,
+      onCancel: () => { state.builderFormFor = null; drawBuilderWeeks(clientId, name); },
+      onSaved: () => { state.builderFormFor = null; drawBuilderWeeks(clientId, name); }
+    });
+  }
+}
+
+function builderFormHtml(week, sessionId){
+  const existing = sessionId ? week.sessions.find(s => s.id === sessionId) : null;
+  const kind = existing ? existing.kind : 'renfo';
+  const label = existing ? existing.label : '';
+  const note = existing ? (existing.note||'') : '';
+  const day = existing ? (existing.day||'') : '';
+  const km = existing && existing.km != null ? existing.km : '';
+  const exList = (existing && existing.exercises) ? existing.exercises : [];
+  return `
+    <div class="builder-form" data-week="${week.n}" data-session="${sessionId||''}">
+      <div class="bf-row">
+        <label>Type</label>
+        <select class="bf-kind">
+          <option value="renfo" ${kind==='renfo'?'selected':''}>Renforcement</option>
+          <option value="course" ${kind==='course'?'selected':''}>Course</option>
+        </select>
+      </div>
+      <div class="bf-row">
+        <label>Jour de la semaine</label>
+        <select class="bf-day">
+          <option value="" ${!day?'selected':''}>Non assigné</option>
+          ${DAYS_OF_WEEK.map(d => `<option value="${d.key}" ${day===d.key?'selected':''}>${d.label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="bf-row">
+        <label>Nom de la séance</label>
+        <input type="text" class="bf-label" value="${label}" placeholder="Ex : Séance A">
+      </div>
+      <div class="bf-row">
+        <label>Sous-titre (optionnel)</label>
+        <input type="text" class="bf-note" value="${note}" placeholder="Ex : Reprise progressive">
+      </div>
+      <div class="bf-row bf-course" style="${kind==='course'?'':'display:none;'}">
+        <label>Distance (km)</label>
+        <input type="number" step="0.5" min="0" class="bf-km" value="${km}">
+      </div>
+      <div class="bf-row bf-renfo" style="${kind==='renfo'?'':'display:none;'}">
+        <label>Exercices</label>
+        <div class="ee-list">${exList.length ? exList.map(exRowHtml).join('') : exRowHtml(null)}</div>
+        <button type="button" class="btn-line ee-add">+ Ajouter un exercice</button>
+      </div>
+      <div class="bf-actions">
+        <button class="btn-primary-sm bf-save">Enregistrer la séance</button>
+        <button class="btn-line bf-cancel">Annuler</button>
+      </div>
+    </div>
+  `;
+}
+
+function exRowHtml(ex){
+  ex = ex || {name:'', dose:'', how:'', photo:''};
+  const esc = (s) => (s||'').toString().replace(/"/g,'&quot;');
+  return `
+    <div class="ex-edit-row">
+      <div class="ex-edit-top">
+        <input type="text" class="ee-name" placeholder="Nom de l'exercice" value="${esc(ex.name)}">
+        <input type="text" class="ee-dose" placeholder="Dose (ex : 3x12)" value="${esc(ex.dose)}">
+        <button type="button" class="ee-remove" title="Supprimer cet exercice">✕</button>
+      </div>
+      <textarea class="ee-how" placeholder="Explication (optionnelle)" rows="2">${ex.how||''}</textarea>
+      <div class="ee-photo-row">
+        <input type="file" accept="image/*" class="ee-photo-input" style="display:none;">
+        <button type="button" class="btn-line ee-photo-btn">${ex.photo ? 'Changer la photo' : '📷 Ajouter une photo'}</button>
+        <button type="button" class="btn-line danger-line ee-photo-remove" style="${ex.photo?'':'display:none;'}">Retirer</button>
+        <img class="ee-photo-preview" src="${ex.photo||''}" style="${ex.photo?'':'display:none;'}">
+      </div>
+    </div>
+  `;
+}
+
+/*
+  Réduit une photo prise depuis le téléphone/ordi à une taille raisonnable avant de l'enregistrer
+  (sinon des photos en pleine résolution rempliraient très vite le stockage et ralentiraient l'appli).
+*/
+function compressImageFile(file, maxDim, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read error'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('image error'));
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        const scale = Math.min(1, maxDim / Math.max(w, h));
+        w = Math.max(1, Math.round(w * scale));
+        h = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function bindExerciseRow(row){
+  row.querySelector('.ee-remove').addEventListener('click', () => row.remove());
+  const fileInput = row.querySelector('.ee-photo-input');
+  const photoBtn = row.querySelector('.ee-photo-btn');
+  const removeBtn = row.querySelector('.ee-photo-remove');
+  const preview = row.querySelector('.ee-photo-preview');
+  photoBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if(!file) return;
+    const originalLabel = photoBtn.textContent;
+    photoBtn.textContent = 'Compression…';
+    try{
+      const dataUrl = await compressImageFile(file, 900, 0.72);
+      preview.setAttribute('src', dataUrl);
+      preview.style.display = '';
+      removeBtn.style.display = '';
+      photoBtn.textContent = 'Changer la photo';
+    }catch(e){
+      alert("Impossible de charger cette image, réessaie avec une autre.");
+      photoBtn.textContent = originalLabel;
+    }
+  });
+  removeBtn.addEventListener('click', () => {
+    preview.setAttribute('src', '');
+    preview.style.display = 'none';
+    removeBtn.style.display = 'none';
+    photoBtn.textContent = '📷 Ajouter une photo';
+  });
+}
+
+/*
+  ctx = {weeks, clientId, onCancel(), onSaved()} — permet de réutiliser ce même formulaire
+  aussi bien depuis "Mes clients → Créer/éditer les séances" que depuis un ajout rapide
+  dans l'onglet "Séances".
+*/
+function bindBuilderForm(form, ctx){
+  if(!form) return;
+  const kindSel = form.querySelector('.bf-kind');
+  kindSel.addEventListener('change', () => {
+    const isRenfo = kindSel.value === 'renfo';
+    form.querySelector('.bf-renfo').style.display = isRenfo ? '' : 'none';
+    form.querySelector('.bf-course').style.display = isRenfo ? 'none' : '';
+  });
+  form.querySelectorAll('.ex-edit-row').forEach(bindExerciseRow);
+  const eeAdd = form.querySelector('.ee-add');
+  if(eeAdd){
+    eeAdd.addEventListener('click', () => {
+      const list = form.querySelector('.ee-list');
+      const tmp = document.createElement('div');
+      tmp.innerHTML = exRowHtml(null).trim();
+      const row = tmp.firstChild;
+      list.appendChild(row);
+      bindExerciseRow(row);
+    });
+  }
+  form.querySelector('.bf-cancel').addEventListener('click', ctx.onCancel);
+  form.querySelector('.bf-save').addEventListener('click', async () => {
+    const weekN = parseInt(form.getAttribute('data-week'),10);
+    const sessionId = form.getAttribute('data-session') || null;
+    const kind = kindSel.value;
+    const label = form.querySelector('.bf-label').value.trim() || (kind==='renfo' ? 'Séance' : 'Sortie');
+    const note = form.querySelector('.bf-note').value.trim();
+    const day = form.querySelector('.bf-day').value || null;
+    const week = ctx.weeks.find(w => w.n === weekN);
+    let sessionObj;
+    if(kind === 'course'){
+      const km = parseFloat(form.querySelector('.bf-km').value) || 0;
+      sessionObj = {id: sessionId || nextSessionId(week,'course'), kind:'course', label, note, day, km};
+    } else {
+      const exercises = Array.from(form.querySelectorAll('.ex-edit-row')).map(row => {
+        const nm = row.querySelector('.ee-name').value.trim();
+        const dose = row.querySelector('.ee-dose').value.trim();
+        const how = row.querySelector('.ee-how').value.trim();
+        const preview = row.querySelector('.ee-photo-preview');
+        const photo = (preview && preview.style.display !== 'none' && preview.getAttribute('src')) ? preview.getAttribute('src') : '';
+        return {name: nm || '', dose, how, photo};
+      }).filter(e => e.name || e.dose || e.how || e.photo)
+        .map(e => ({name: e.name || 'Exercice', dose: e.dose, how: e.how, photo: e.photo}));
+      sessionObj = {id: sessionId || nextSessionId(week,'renfo'), kind:'renfo', label, note, day, exercises};
+    }
+    if(sessionId){
+      week.sessions = week.sessions.map(s => s.id === sessionId ? sessionObj : s);
+    } else {
+      week.sessions.push(sessionObj);
+    }
+    const ok = await saveProgram(ctx.clientId, ctx.weeks);
+    if(!ok){ showSaveError(); return; }
+    invalidateClientCaches(ctx.clientId);
+    ctx.onSaved();
+  });
+}
+
+/* =========================================================
+   COACH — PARAMÈTRES
+   ========================================================= */
+async function renderParametres(screen){
+  const creds = await loadCoachCredentials();
+  screen.innerHTML = `
+    <div class="section-label">Tes identifiants coach</div>
+    <div class="builder-form">
+      <div class="bf-row">
+        <label>Identifiant</label>
+        <input type="text" id="set-username" value="${creds.username}">
+      </div>
+      <div class="bf-row">
+        <label>Nouveau mot de passe (laisser vide pour garder l'actuel)</label>
+        <input type="password" id="set-password" placeholder="•••">
+      </div>
+      <div class="bf-actions">
+        <button class="btn-primary-sm" id="save-creds">Enregistrer</button>
+      </div>
+      <div id="creds-confirm" class="save-confirm" style="display:none;"></div>
+    </div>
+
+    <div class="section-label" style="margin-top:28px;">Mots de passe de mes clients</div>
+    <p class="bilan-desc">Modifie directement le mot de passe d'un·e client·e (par exemple pour lui donner
+      quelque chose de plus facile à retenir), ou clique "Aléatoire" pour lui en générer un nouveau
+      si l'ancien a été perdu ou partagé par erreur — l'ancien cesse aussitôt de fonctionner.</p>
+    <div id="settings-clients-list"></div>
+  `;
+
+  document.getElementById('save-creds').addEventListener('click', async () => {
+    const newUser = document.getElementById('set-username').value.trim();
+    const newPass = document.getElementById('set-password').value.trim();
+    if(!newUser){ return; }
+    const finalUser = newUser;
+    const finalPass = newPass || creds.password;
+    const ok = await saveCoachCredentials(finalUser, finalPass);
+    if(!ok){ showSaveError(); return; }
+    state.coachUsername = finalUser;
+    document.getElementById('set-password').value = '';
+    const confirmEl = document.getElementById('creds-confirm');
+    confirmEl.style.display = 'block';
+    confirmEl.textContent = 'Identifiants mis à jour ✓';
+    render(); // rafraîchit le badge STAFF dans l'en-tête
+  });
+
+  const listWrap = document.getElementById('settings-clients-list');
+  listWrap.innerHTML = state.clients.map(c => `
+    <div class="client-card">
+      <div class="client-card-head">
+        <div class="client-card-name">${c.name}</div>
+      </div>
+      <div class="client-code-row">
+        <span>Identifiant :</span><span class="client-code">${c.id}</span>
+      </div>
+      <div class="client-code-edit-row">
+        <input type="text" class="client-code-input" data-code-input="${c.id}" value="${c.code}">
+        <button class="btn-line" data-save-code="${c.id}">Enregistrer</button>
+        <button class="btn-line" data-regen="${c.id}">Aléatoire</button>
+      </div>
+      <div class="save-confirm" data-code-confirm="${c.id}" style="display:none;text-align:left;margin-top:6px;"></div>
+    </div>
+  `).join('');
+  listWrap.querySelectorAll('[data-save-code]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const id = b.getAttribute('data-save-code');
+      const input = document.querySelector('[data-code-input="'+id+'"]');
+      const newCode = input.value.trim();
+      if(!newCode) return;
+      const client = state.clients.find(c => c.id === id);
+      const previousCode = client.code;
+      client.code = newCode;
+      const ok = await sSet('clients', JSON.stringify(state.clients), true);
+      if(!ok){ client.code = previousCode; showSaveError(); return; }
+      const confirmEl = document.querySelector('[data-code-confirm="'+id+'"]');
+      confirmEl.style.display = 'block';
+      confirmEl.textContent = 'Mot de passe mis à jour ✓';
+    });
+  });
+  listWrap.querySelectorAll('[data-regen]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const id = b.getAttribute('data-regen');
+      const client = state.clients.find(c => c.id === id);
+      if(!confirm("Générer un nouveau mot de passe pour "+client.name+" ? L'ancien ne fonctionnera plus.")) return;
+      const previousCode = client.code;
+      client.code = generateClientCode();
+      const ok = await sSet('clients', JSON.stringify(state.clients), true);
+      if(!ok){ client.code = previousCode; showSaveError(); return; }
+      document.querySelector('[data-code-input="'+id+'"]').value = client.code;
+    });
+  });
+}
+
+/* =========================================================
+   NUTRITION — anamnèse, calcul du programme, journal, ressources
+   ========================================================= */
+
+function nutriAnamKey(clientId){ return "nutriAnam:"+clientId; }
+function nutriDaytypeKey(clientId){ return "nutriDaytype:"+clientId; }
+function nutriJournalKey(clientId, date){ return "nutriJournal:"+clientId+":"+date; }
+
+async function loadNutriAnam(clientId){
+  const raw = await sGet(nutriAnamKey(clientId), true);
+  if(!raw) return null;
+  try{ return JSON.parse(raw); }catch(e){ return null; }
+}
+async function saveNutriAnam(clientId, data){
+  return await sSet(nutriAnamKey(clientId), JSON.stringify(data), true);
+}
+async function loadNutriDaytype(clientId){
+  const raw = await sGet(nutriDaytypeKey(clientId), true);
+  return (raw === 'repos' || raw === 'modere' || raw === 'intense') ? raw : 'modere';
+}
+async function saveNutriDaytype(clientId, dayType){
+  state.nutriDaytypeCache[clientId] = dayType;
+  return await sSet(nutriDaytypeKey(clientId), dayType, true);
+}
+async function loadNutriJournal(clientId, date){
+  const raw = await sGet(nutriJournalKey(clientId, date), true);
+  if(!raw) return [];
+  try{ const v = JSON.parse(raw); return Array.isArray(v) ? v : []; }catch(e){ return []; }
+}
+async function saveNutriJournal(clientId, date, entries){
+  return await sSet(nutriJournalKey(clientId, date), JSON.stringify(entries), true);
+}
+
+const NUTRI_DAY_LABELS = {repos:'Repos', modere:'Entraînement modéré', intense:'Entraînement intense'};
+const NUTRI_ACTIVITY_MULT = {repos:1.375, modere:1.55, intense:1.725};
+const NUTRI_CARB_PER_KG = {repos:4, modere:6, intense:8};
+const NUTRI_PROTEIN_PER_KG = 1.8;
+const NUTRI_WATER_BONUS = {repos:0, modere:0.5, intense:0.8};
+
+// Repère indicatif (pas un calcul clinique) : population sportive en bonne santé uniquement,
+// aucun profil avec pathologie ne doit être renseigné dans l'anamnèse de ce module.
+const NUTRI_FOOD_BASE = { // grammages pour un poids de référence de 60 kg
+  repos: [
+    {id:'feculents', icon:'🥔', name:'Féculents / céréales complètes', grams:170, unit:'g cuits', note:"1 poing fermé par repas"},
+    {id:'legumes', icon:'🥦', name:'Légumes', grams:400, unit:'g', note:"moitié de l'assiette midi et soir"},
+    {id:'fruits', icon:'🍎', name:'Fruits', grams:300, unit:'g (≈2 fruits)', note:"1 fruit ≈ 150 g"},
+    {id:'laitiers', icon:'🥛', name:'Produits laitiers', grams:250, unit:'g (≈2 portions)', note:"yaourt nature ou 30 g de fromage"},
+    {id:'lipides', icon:'🫒', name:'Matières grasses ajoutées', grams:30, unit:'g (≈3 c. à soupe)', note:"huile de colza / olive à privilégier"},
+    {id:'extras', icon:'🍬', name:'Extras / plaisir', grams:null, unit:'selon envie', note:"sans culpabiliser, en conscience"}
+  ],
+  modere: [
+    {id:'feculents', icon:'🥔', name:'Féculents / céréales complètes', grams:230, unit:'g cuits', note:"1 grand poing par repas + collation post-séance"},
+    {id:'legumes', icon:'🥦', name:'Légumes', grams:400, unit:'g', note:"moitié de l'assiette midi et soir"},
+    {id:'fruits', icon:'🍎', name:'Fruits', grams:375, unit:'g (2 à 3 fruits)', note:"dont 1 juste après la séance"},
+    {id:'laitiers', icon:'🥛', name:'Produits laitiers', grams:300, unit:'g (2 à 3 portions)', note:"yaourt / skyr après l'entraînement"},
+    {id:'lipides', icon:'🫒', name:'Matières grasses ajoutées', grams:30, unit:'g (≈3 c. à soupe)', note:"huile de colza / olive à privilégier"},
+    {id:'extras', icon:'🍬', name:'Extras / plaisir', grams:null, unit:'selon envie', note:"sans culpabiliser, en conscience"}
+  ],
+  intense: [
+    {id:'feculents', icon:'🥔', name:'Féculents / céréales complètes', grams:290, unit:'g cuits', note:"majorés sur les repas encadrant la séance"},
+    {id:'legumes', icon:'🥦', name:'Légumes', grams:400, unit:'g', note:"quantité stable, cuisson douce si séance proche"},
+    {id:'fruits', icon:'🍎', name:'Fruits', grams:450, unit:'g (≈3 fruits)', note:"dont 1 avant et 1 après la séance"},
+    {id:'laitiers', icon:'🥛', name:'Produits laitiers', grams:300, unit:'g (2 à 3 portions)', note:"utile pour la récupération musculaire"},
+    {id:'lipides', icon:'🫒', name:'Matières grasses ajoutées', grams:30, unit:'g (≈3 c. à soupe)', note:"limiter juste avant l'effort (digestion)"},
+    {id:'extras', icon:'🍬', name:'Extras / plaisir', grams:null, unit:'selon envie', note:"sans culpabiliser, en conscience"}
+  ]
+};
+
+const NUTRI_PLATES = {
+  repos: [
+    {title:"Repas principal", sub:"déjeuner / dîner", segs:[
+      {label:"Légumes", pct:50, color:"var(--grass)"}, {label:"Protéines", pct:25, color:"var(--protein)"}, {label:"Féculents", pct:25, color:"var(--carb)"}
+    ]},
+    {title:"Collation", sub:"si besoin, milieu d'après-midi", segs:[
+      {label:"Fruit", pct:55, color:"var(--carb)"}, {label:"Oléagineux / laitage", pct:45, color:"var(--lipid)"}
+    ]}
+  ],
+  modere: [
+    {title:"Repas principal", sub:"déjeuner / dîner", segs:[
+      {label:"Légumes", pct:40, color:"var(--grass)"}, {label:"Protéines", pct:25, color:"var(--protein)"}, {label:"Féculents", pct:35, color:"var(--carb)"}
+    ]},
+    {title:"Collation post-séance", sub:"dans les 45 min après l'effort", segs:[
+      {label:"Glucides rapides", pct:65, color:"var(--carb)"}, {label:"Protéines", pct:35, color:"var(--protein)"}
+    ]}
+  ],
+  intense: [
+    {title:"Repas principal", sub:"déjeuner / dîner", segs:[
+      {label:"Légumes", pct:35, color:"var(--grass)"}, {label:"Protéines", pct:22, color:"var(--protein)"}, {label:"Féculents", pct:43, color:"var(--carb)"}
+    ]},
+    {title:"Collation post-séance", sub:"dans les 30 min après l'effort", segs:[
+      {label:"Glucides rapides", pct:70, color:"var(--carb)"}, {label:"Protéines", pct:30, color:"var(--protein)"}
+    ]}
+  ]
+};
+
+const NUTRI_TIMELINE = {
+  repos: [
+    ["Journée sans séance", "Rythme de repas habituel, pas d'ajustement particulier autour d'un entraînement.", "Continuer à bien s'hydrater et privilégier les fibres (légumes, légumineuses)."]
+  ],
+  modere: [
+    ["2-3h avant la séance", "Repas normal avec féculents + protéines, quantité modérée pour digérer facilement.", "Ex. riz, poulet, légumes vapeur."],
+    ["Pendant l'effort", "Eau suffisante dans la majorité des cas sur ce format.", "Pas besoin de boisson d'effort en dessous d'1h."],
+    ["Dans les 45 min après", "Collation glucides + protéines pour lancer la récupération.", "Ex. yaourt + banane, ou pain + fromage blanc + miel."]
+  ],
+  intense: [
+    ["3h avant la séance", "Repas riche en glucides complexes, protéines modérées, peu de fibres/gras pour bien digérer.", "Ex. pâtes, blanc de poulet, carottes cuites."],
+    ["Pendant l'effort", "Eau régulière ± glucides si plus d'1h d'effort continu.", "Petites gorgées toutes les 15-20 min."],
+    ["Dans les 30 min après", "Fenêtre de récupération prioritaire : glucides + protéines rapidement assimilables.", "Ex. boisson lactée + fruit, ou pain blanc + jambon + compote."]
+  ]
+};
+
+const NUTRI_MICROS = [
+  {name:'Fer', val:'16 mg/j', note:'femme en âge de procréer / endurance'},
+  {name:'Calcium', val:'1 000 mg/j', note:''},
+  {name:'Vitamine D', val:'15 µg/j', note:''},
+  {name:'Magnésium', val:'360 mg/j', note:''},
+  {name:'Oméga-3 (EPA + DHA)', val:'250 à 500 mg/j', note:''}
+];
+
+function nutriBMR(sex, weightKg, heightCm, age){
+  const heightM = heightCm / 100;
+  const coeff = sex === 'Homme' ? 1.083 : 0.963;
+  const mj = coeff * Math.pow(weightKg, 0.48) * Math.pow(heightM, 0.5) * Math.pow(Math.max(age,1), -0.13);
+  return mj * 1000 / 4.1855;
+}
+
+function nutriCompute(anam, dayType){
+  const weight = anam.weight;
+  const bmr = nutriBMR(anam.sex, weight, anam.height, anam.age);
+  const tdee = bmr * (NUTRI_ACTIVITY_MULT[dayType] || 1.55);
+  const proteinG = Math.round(weight * NUTRI_PROTEIN_PER_KG);
+  const carbG = Math.round((weight * (NUTRI_CARB_PER_KG[dayType] || 6)) / 5) * 5;
+  const proteinKcal = proteinG * 4, carbKcal = carbG * 4;
+  let lipG = Math.round((tdee - proteinKcal - carbKcal) / 9);
+  const lipFloor = Math.round(weight);
+  if(lipG < lipFloor) lipG = lipFloor;
+  const kcalTotal = Math.round((proteinKcal + carbKcal + lipG*9) / 10) * 10;
+  const waterL = Math.round((weight * 0.035 + (NUTRI_WATER_BONUS[dayType] || 0)) * 10) / 10;
+
+  const ratio = weight / 60;
+  const foods = NUTRI_FOOD_BASE[dayType].map(f => {
+    if(f.grams == null) return Object.assign({}, f);
+    let g = Math.round((f.grams * ratio) / 5) * 5;
+    if(g < 5) g = 5;
+    return Object.assign({}, f, {grams:g});
+  });
+  const proteinFoodGrams = Math.round((proteinG / 0.22) / 5) * 5; // ≈22g protéine / 100g viande maigre cuite — repère indicatif
+  foods.splice(3, 0, {id:'proteines', icon:'🍗', name:'Protéines (viande, poisson, œufs, légumineuses)', grams:proteinFoodGrams, unit:'g cuit', note:"réparti sur les repas principaux"});
+
+  return {kcal:kcalTotal, prot:proteinG, carb:carbG, lip:lipG, water:waterL, foods, bmr:Math.round(bmr), tdee:Math.round(tdee)};
+}
+
+function nutriFoodLabel(f){ return f.grams == null ? f.unit : (f.grams + " " + f.unit); }
+
+function nutriConic(segs){
+  let acc = 0; const parts = [];
+  segs.forEach(s => { const start=acc, end=acc+s.pct; parts.push(s.color+" "+start+"% "+end+"%"); acc=end; });
+  return "conic-gradient("+parts.join(",")+")";
+}
+
+async function getEffectiveNutriAnam(clientId){
+  if(state.nutriAnamLoadedClientId !== clientId){
+    state.nutriAnamDraft = await loadNutriAnam(clientId);
+    state.nutriAnamLoadedClientId = clientId;
+    state.nutriAnamSaved = false;
+  }
+  return state.nutriAnamDraft;
+}
+
+async function getNutriDaytype(clientId){
+  if(!(clientId in state.nutriDaytypeCache)){
+    state.nutriDaytypeCache[clientId] = await loadNutriDaytype(clientId);
+  }
+  return state.nutriDaytypeCache[clientId];
+}
+
+function nutriDaytypeSelectorHtml(active){
+  return `
+    <div class="daytype-tabs">
+      ${['repos','modere','intense'].map(k => `<button class="daytype-tab ${active===k?'active':''}" data-daytype="${k}">${NUTRI_DAY_LABELS[k]}</button>`).join('')}
+    </div>`;
+}
+function bindNutriDaytypeSelector(screen, clientId, onChange){
+  screen.querySelectorAll('[data-daytype]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const k = b.getAttribute('data-daytype');
+      await saveNutriDaytype(clientId, k);
+      onChange(k);
+    });
+  });
+}
+
+function nutriProgrammeBodyHtml(anam, dayType){
+  const r = nutriCompute(anam, dayType);
+  const protKcal = r.prot*4, carbKcal = r.carb*4, lipKcal = r.lip*9;
+  const total = protKcal+carbKcal+lipKcal;
+  const pctP = Math.round(protKcal/total*100), pctC = Math.round(carbKcal/total*100), pctL = 100-pctP-pctC;
+  const plates = NUTRI_PLATES[dayType];
+  const timeline = NUTRI_TIMELINE[dayType];
+
+  return `
+    <div class="nutri-stat-grid">
+      <div class="nutri-stat st-kcal"><div class="ns-label">Besoin énergétique</div><div class="ns-val">${r.kcal} kcal</div><div class="ns-sub">estimé, à ajuster selon appétit</div></div>
+      <div class="nutri-stat st-prot"><div class="ns-label">Protéines</div><div class="ns-val">${r.prot} g</div><div class="ns-sub">${NUTRI_PROTEIN_PER_KG} g/kg de poids de corps</div></div>
+      <div class="nutri-stat st-carb"><div class="ns-label">Glucides</div><div class="ns-val">${r.carb} g</div><div class="ns-sub">variable selon la charge du jour</div></div>
+      <div class="nutri-stat st-water"><div class="ns-label">Hydratation</div><div class="ns-val">${r.water.toString().replace('.',',')} L</div><div class="ns-sub">ajustée à l'entraînement</div></div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>Répartition des macronutriments</h3>
+      <div class="macro-bar">
+        <span style="width:${pctP}%;background:var(--protein)"></span>
+        <span style="width:${pctC}%;background:var(--carb)"></span>
+        <span style="width:${pctL}%;background:var(--lipid)"></span>
+      </div>
+      <div class="macro-legend">
+        <span><span class="dot" style="background:var(--protein)"></span>Protéines <b>${pctP}%</b></span>
+        <span><span class="dot" style="background:var(--carb)"></span>Glucides <b>${pctC}%</b></span>
+        <span><span class="dot" style="background:var(--lipid)"></span>Lipides <b>${pctL}%</b></span>
+      </div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>Composition de l'assiette</h3>
+      <div class="plate-row">
+        ${plates.map(p => `
+          <div class="plate-block">
+            <div class="pb-title">${p.title}</div>
+            <div class="pb-sub">${p.sub}</div>
+            <div style="width:104px;height:104px;border-radius:50%;background:${nutriConic(p.segs)};box-shadow:inset 0 0 0 5px var(--paper), 0 0 0 1px var(--line);"></div>
+            <div class="plate-legend">
+              ${p.segs.map(s => `<div class="item"><span class="dot" style="background:${s.color}"></span>${s.label}<span class="pct">${s.pct}%</span></div>`).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>Groupes d'aliments — quantités du jour</h3>
+      ${r.foods.map(f => `
+        <div class="nutri-food-row">
+          <span class="nf-ic">${f.icon}</span>
+          <div class="nf-name">${f.name}<div class="nf-note">${f.note}</div></div>
+          <span class="nf-qty">${nutriFoodLabel(f)}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="nutri-card">
+      <h3>Micronutriments — repères journaliers</h3>
+      ${NUTRI_MICROS.map(m => `<div class="micro-row"><span class="mr-name">${m.name}</span><span class="mr-val">${m.val}</span></div>`).join('')}
+    </div>
+
+    <div class="nutri-card">
+      <h3>Autour de l'entraînement</h3>
+      <div class="nutri-timeline">
+        ${timeline.map(t => `<div class="tl-row"><div class="tl-time">${t[0]}</div><div class="tl-title">${t[1]}</div><div class="tl-desc">${t[2]}</div></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="nutri-tip"><b>Base flexible.</b> Ces grammages sont des repères, pas des cases à cocher — à ajuster selon la faim, l'appétit et les journées plus ou moins actives. Ce n'est pas un régime strict.</div>
+    <div class="nutri-tip"><b>Évolutif.</b> Le programme se recalcule à chaque mise à jour de l'anamnèse (poids, sensations, retours).</div>
+  `;
+}
+
+async function renderNutriAnamnese(screen){
+  const isCoachView = state.viewAs === 'coach';
+  const clientId = effectiveClientId();
+  const anam = await getEffectiveNutriAnam(clientId) || {};
+  const a = Object.assign({
+    age:'', sex:'Femme', height:'', weight:'', objectifs:[],
+    seancesSemaine:'', dureeSeance:'', rpeMoyen:6, repasParJour:3, collations:'1 collation',
+    aimes:'', evites:'', allergies:'', regime:'Omnivore', sommeil:'', eauLitres:''
+  }, anam || {});
+  // rétrocompatibilité : les anamnèses enregistrées avant l'ajout du multi-objectifs
+  // n'avaient qu'un seul champ texte "objectif"
+  if((!a.objectifs || !a.objectifs.length) && anam && anam.objectif){ a.objectifs = [anam.objectif]; }
+  if(!Array.isArray(a.objectifs)) a.objectifs = [];
+
+  const readOnly = !isCoachView;
+
+  screen.innerHTML = `
+    <div class="nutri-intro">💬 <span><b>Cadre du module —</b> pensé pour des profils sportifs en bonne santé. Aucun profil avec pathologie n'est pris en charge ici : dans ce cas, orienter vers un·e diététicien·ne-nutritionniste ou un médecin du sport.</span></div>
+
+    <div class="nutri-card">
+      <h3>Identité &amp; objectif</h3>
+      <div class="bf-row"><label>Âge</label><input type="number" id="na-age" value="${a.age}" ${readOnly?'disabled':''}></div>
+      <div class="bf-row"><label>Sexe</label>
+        <select id="na-sex" ${readOnly?'disabled':''}><option ${a.sex==='Femme'?'selected':''}>Femme</option><option ${a.sex==='Homme'?'selected':''}>Homme</option></select>
+      </div>
+      <div class="bf-row"><label>Taille (cm)</label><input type="number" id="na-height" value="${a.height}" ${readOnly?'disabled':''}></div>
+      <div class="bf-row"><label>Poids actuel (kg)</label><input type="number" step="0.1" id="na-weight" value="${a.weight}" ${readOnly?'disabled':''}></div>
+      <div class="bf-row bf-row-col"><label>Objectifs (plusieurs choix possibles)</label>
+        <div class="na-check-group" id="na-objectifs">
+          ${['Performance / progression sportive','Recomposition corporelle','Prise de masse','Perte de poids','Meilleure récupération'].map((o,i) => `
+            <label class="na-check"><input type="checkbox" data-objectif="${o}" ${a.objectifs.includes(o)?'checked':''} ${readOnly?'disabled':''}> ${o}</label>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>Pratique sportive &amp; charge d'entraînement</h3>
+      <div class="bf-row"><label>Séances / semaine</label><input type="number" id="na-seances" value="${a.seancesSemaine}" ${readOnly?'disabled':''}></div>
+      <div class="bf-row"><label>Durée moyenne / séance</label><input type="text" id="na-duree" value="${a.dureeSeance}" ${readOnly?'disabled':''}></div>
+      <div class="bf-row"><label>Intensité perçue habituelle (RPE moyen /10)</label>
+        <div class="rpe-row"><input type="range" min="1" max="10" id="na-rpe" value="${a.rpeMoyen}" ${readOnly?'disabled':''}><span class="rpe-val" id="na-rpe-val">${a.rpeMoyen}</span></div>
+      </div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>Habitudes alimentaires</h3>
+      <div class="bf-row"><label>Repas / jour</label><input type="number" id="na-repas" value="${a.repasParJour}" ${readOnly?'disabled':''}></div>
+      <div class="bf-row"><label>Collations</label>
+        <select id="na-collations" ${readOnly?'disabled':''}>
+          ${['Aucune','1 collation','2 collations'].map(o => `<option ${a.collations===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="bf-row"><label>Aliments appréciés</label><textarea id="na-aimes" rows="2" ${readOnly?'disabled':''}>${a.aimes}</textarea></div>
+      <div class="bf-row"><label>Aliments non désirés (choix personnel, hors allergie)</label><textarea id="na-evites" rows="2" ${readOnly?'disabled':''}>${a.evites}</textarea></div>
+      <div class="bf-row"><label>Allergies / intolérances alimentaires</label><textarea id="na-allergies" rows="2" placeholder="Ex : arachides, fruits de mer, gluten…" ${readOnly?'disabled':''}>${a.allergies}</textarea></div>
+      <div class="bf-row"><label>Régime / préférence alimentaire</label>
+        <select id="na-regime" ${readOnly?'disabled':''}>
+          ${['Omnivore','Végétarien','Végan','Sans porc','Sans lactose (choix)'].map(o => `<option ${a.regime===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>Hydratation &amp; sommeil</h3>
+      <div class="bf-row"><label>Heures de sommeil / nuit</label><input type="text" id="na-sommeil" value="${a.sommeil}" ${readOnly?'disabled':''}></div>
+      <div class="bf-row"><label>Eau consommée (litres / jour)</label><input type="number" step="0.1" min="0" id="na-eau" value="${a.eauLitres}" placeholder="Ex : 1,5" ${readOnly?'disabled':''}></div>
+    </div>
+
+    ${isCoachView ? `
+      <div class="save-bar">
+        <button class="save-btn" id="na-save">Enregistrer et générer le programme</button>
+        ${state.nutriAnamSaved ? '<div class="save-confirm">Anamnèse enregistrée ✓</div>' : ''}
+      </div>
+    ` : `<div class="nutri-tip">Cette anamnèse est renseignée par ton coach. Retrouve ton programme dans l'onglet "Mon programme".</div>`}
+  `;
+
+  if(isCoachView){
+    const rpeInput = document.getElementById('na-rpe');
+    rpeInput.addEventListener('input', () => { document.getElementById('na-rpe-val').textContent = rpeInput.value; });
+
+    document.getElementById('na-save').addEventListener('click', async () => {
+      const objectifsChecked = Array.from(document.querySelectorAll('#na-objectifs input[type="checkbox"]:checked')).map(cb => cb.getAttribute('data-objectif'));
+      const data = {
+        age: parseInt(document.getElementById('na-age').value,10) || 0,
+        sex: document.getElementById('na-sex').value,
+        height: parseFloat(document.getElementById('na-height').value) || 0,
+        weight: parseFloat(document.getElementById('na-weight').value) || 0,
+        objectifs: objectifsChecked,
+        seancesSemaine: document.getElementById('na-seances').value,
+        dureeSeance: document.getElementById('na-duree').value,
+        rpeMoyen: parseInt(rpeInput.value,10),
+        repasParJour: document.getElementById('na-repas').value,
+        collations: document.getElementById('na-collations').value,
+        aimes: document.getElementById('na-aimes').value,
+        evites: document.getElementById('na-evites').value,
+        allergies: document.getElementById('na-allergies').value,
+        regime: document.getElementById('na-regime').value,
+        sommeil: document.getElementById('na-sommeil').value,
+        eauLitres: document.getElementById('na-eau').value,
+        updatedAt: new Date().toISOString()
+      };
+      if(!data.age || !data.height || !data.weight){
+        showSaveError();
+        return;
+      }
+      const ok = await saveNutriAnam(clientId, data);
+      if(!ok){ showSaveError(); return; }
+      state.nutriAnamDraft = data;
+      state.nutriAnamSaved = true;
+      state.tab = 'nutri-programme';
+      render();
+    });
+  }
+}
+
+async function renderNutriProgramme(screen){
+  const isCoachView = state.viewAs === 'coach';
+  const clientId = effectiveClientId();
+  const anam = await getEffectiveNutriAnam(clientId);
+
+  if(!anam || !anam.age || !anam.height || !anam.weight){
+    screen.innerHTML = `
+      <div class="nutri-empty">
+        ${isCoachView
+          ? `Complète d'abord l'anamnèse (âge, taille, poids) pour générer le programme nutritionnel de ${clientName(clientId)}.
+             <br><button class="btn-primary-sm" id="na-goto">Aller à l'anamnèse</button>`
+          : `Ton coach n'a pas encore complété ton profil nutrition. Reviens un peu plus tard !`}
+      </div>`;
+    const goto = document.getElementById('na-goto');
+    if(goto) goto.addEventListener('click', () => { state.tab = 'nutri-anamnese'; render(); });
+    return;
+  }
+
+  const dayType = await getNutriDaytype(clientId);
+
+  screen.innerHTML = `
+    ${nutriDaytypeSelectorHtml(dayType)}
+    <div class="daytype-note">Sélectionne le type de journée pour ajuster les quantités (surtout les glucides).</div>
+    <div id="nutri-programme-body">${nutriProgrammeBodyHtml(anam, dayType)}</div>
+    ${isCoachView ? `<div class="nutri-tip">Les formules utilisées (métabolisme de base, macros, hydratation) sont détaillées dans l'onglet <b>Ressources</b>.</div>` : ''}
+  `;
+
+  bindNutriDaytypeSelector(screen, clientId, (newDayType) => {
+    document.getElementById('nutri-programme-body').innerHTML = nutriProgrammeBodyHtml(anam, newDayType);
+    screen.querySelectorAll('.daytype-tab').forEach(b => b.classList.toggle('active', b.getAttribute('data-daytype') === newDayType));
+  });
+}
+
+async function renderNutriJournal(screen){
+  const clientId = effectiveClientId();
+  const anam = await getEffectiveNutriAnam(clientId);
+  if(!state.nutriJournalDate) state.nutriJournalDate = todayStr();
+  const date = state.nutriJournalDate;
+  const loadKey = clientId+":"+date;
+
+  if(!anam || !anam.age || !anam.height || !anam.weight){
+    screen.innerHTML = `<div class="nutri-empty">Le profil nutrition n'est pas encore complété pour ${clientName(clientId)} — rien à suivre pour le moment.</div>`;
+    return;
+  }
+
+  if(state.nutriJournalLoadedKey !== loadKey){
+    state.nutriJournalEntries = await loadNutriJournal(clientId, date);
+    state.nutriJournalLoadedKey = loadKey;
+  }
+
+  const dayType = await getNutriDaytype(clientId);
+  const r = nutriCompute(anam, dayType);
+
+  function consumedFor(groupId){
+    return state.nutriJournalEntries.filter(e => e.groupId === groupId).reduce((s,e) => s+e.grams, 0);
+  }
+  function friendlyTip(group, consumed){
+    const overPct = Math.round((consumed/group.grams)*100) - 100;
+    if(overPct < 15) return null;
+    return `Objectif pour la prochaine fois : viser plutôt autour de ${group.grams} ${group.unit} pour « ${group.name.toLowerCase()} ». Pas grave pour aujourd'hui, c'est juste un repère à garder en tête.`;
+  }
+
+  function groupsHtml(){
+    return r.foods.filter(f => f.grams != null).map(group => {
+      const consumed = consumedFor(group.id);
+      const pct = Math.min(100, Math.round((consumed/group.grams)*100));
+      let fillClass = '';
+      if(consumed > group.grams*1.15) fillClass = 'over'; else if(consumed > group.grams) fillClass = 'watch';
+      const remaining = group.grams - consumed;
+      let statusHtml;
+      if(remaining > 0) statusHtml = `Il reste environ <b>${remaining} g</b> pour aujourd'hui.`;
+      else if(remaining === 0) statusHtml = `<b>Objectif du jour atteint</b> — le reste de la journée est libre sur ce groupe.`;
+      else statusHtml = `<b>Repère du jour dépassé</b> — pas grave, on ajuste la prochaine fois.`;
+      const tip = friendlyTip(group, consumed);
+      return `
+        <div class="nutri-journal-group" data-group-card="${group.id}">
+          <div class="njg-head"><span class="njg-ic">${group.icon}</span><span class="njg-name">${group.name}</span><span class="njg-target">Repère : ${group.grams} ${group.unit}</span></div>
+          <div class="njg-track"><div class="njg-fill ${fillClass}" style="width:${pct}%"></div></div>
+          <div class="njg-status">${statusHtml} <span style="color:var(--ink-soft)">(${consumed} g notés)</span></div>
+          ${tip ? `<div class="njg-tip">🌱 ${tip}</div>` : ''}
+          <div class="njg-add">
+            <button class="njg-quick" data-add="${group.id}" data-grams="50">+ 50 g</button>
+            <button class="njg-quick" data-add="${group.id}" data-grams="100">+ 100 g</button>
+            <button class="njg-quick" data-add="${group.id}" data-grams="200">+ 200 g</button>
+            <span class="njg-custom">
+              <input type="number" min="1" placeholder="qté" id="njg-custom-${group.id}">
+              <button data-addcustom="${group.id}">Ajouter</button>
+            </span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function logHtml(){
+    if(state.nutriJournalEntries.length === 0) return '<div class="nutri-log-empty">Rien de noté pour l\'instant aujourd\'hui.</div>';
+    return state.nutriJournalEntries.slice().reverse().map(e => {
+      const group = r.foods.find(f => f.id === e.groupId) || {icon:'🍽️', name:e.groupId};
+      return `<div class="nutri-log-row"><span>${group.icon}</span><span class="nl-name">${group.name}</span><span class="nl-grams">${e.grams} g</span><span class="nl-time">${e.time}</span><button class="nl-del" data-del="${e.id}">×</button></div>`;
+    }).join('');
+  }
+
+  screen.innerHTML = `
+    <div class="nutri-intro">💬 <span>Note ce que tu manges au fil de la journée — l'app t'indique simplement ce qu'il te reste par groupe d'aliment. Aucun message n'est là pour dire que c'était raté : juste un repère pour la prochaine fois.</span></div>
+    <div class="bf-row" style="margin-top:14px;"><label>Journée</label><input type="date" id="nj-date" value="${date}" max="${todayStr()}"></div>
+    <p class="daytype-note">Type de journée sélectionné dans "Programme" : <b>${NUTRI_DAY_LABELS[dayType]}</b></p>
+    <div id="nutri-journal-groups">${groupsHtml()}</div>
+    <div class="nutri-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <h3 style="margin:0;">Journal du jour</h3>
+        <button class="btn-line" id="nj-reset">Réinitialiser</button>
+      </div>
+      <div id="nutri-journal-log">${logHtml()}</div>
+    </div>
+  `;
+
+  document.getElementById('nj-date').addEventListener('change', (e) => {
+    state.nutriJournalDate = e.target.value || todayStr();
+    renderNutriJournal(screen);
+  });
+
+  function rebindGroupButtons(){
+    screen.querySelectorAll('[data-add]').forEach(b => {
+      b.addEventListener('click', () => addEntry(b.getAttribute('data-add'), parseInt(b.getAttribute('data-grams'),10)));
+    });
+    screen.querySelectorAll('[data-addcustom]').forEach(b => {
+      b.addEventListener('click', () => {
+        const gid = b.getAttribute('data-addcustom');
+        const input = document.getElementById('njg-custom-'+gid);
+        const val = parseInt(input.value,10);
+        if(!val || val <= 0) return;
+        addEntry(gid, val);
+      });
+    });
+    screen.querySelectorAll('[data-del]').forEach(b => {
+      b.addEventListener('click', () => removeEntry(b.getAttribute('data-del')));
+    });
+  }
+  rebindGroupButtons();
+
+  async function persistAndRerender(){
+    const ok = await saveNutriJournal(clientId, date, state.nutriJournalEntries);
+    if(!ok){ showSaveError(); }
+    document.getElementById('nutri-journal-groups').innerHTML = groupsHtml();
+    document.getElementById('nutri-journal-log').innerHTML = logHtml();
+    rebindGroupButtons();
+  }
+
+  async function addEntry(groupId, grams){
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2,'0'), mm = String(now.getMinutes()).padStart(2,'0');
+    state.nutriJournalEntries.push({id:'e'+Date.now()+Math.random().toString(16).slice(2,6), groupId, grams, time:hh+":"+mm});
+    await persistAndRerender();
+  }
+  async function removeEntry(entryId){
+    state.nutriJournalEntries = state.nutriJournalEntries.filter(e => e.id !== entryId);
+    await persistAndRerender();
+  }
+
+  document.getElementById('nj-reset').addEventListener('click', async () => {
+    if(!confirm("Réinitialiser le journal de cette journée ?")) return;
+    state.nutriJournalEntries = [];
+    await persistAndRerender();
+  });
+}
+
+async function renderNutriRessources(screen){
+  screen.innerHTML = `
+    <div class="nutri-intro">🧮 <span><b>Onglet réservé au coach —</b> les formules et repères utilisés pour construire les chiffres du programme. Elles servent de base au calcul, à ajuster ensuite au ressenti et au suivi de chaque personne.</span></div>
+
+    <div class="nutri-card">
+      <h3>1. Métabolisme de base (BMR) <span class="res-tag">Black &amp; al., 1996</span></h3>
+      <p style="font-size:12.5px;color:var(--ink-soft);">Équation en puissance (poids, taille, âge), issue de 574 mesures par eau doublement marquée — enseignée en BTS Diététique.</p>
+      <div class="res-formula"><code>Femme : BMR(MJ/j) = 0,963 × P^0,48 × T^0,5 × Â^−0,13
+Homme : BMR(MJ/j) = 1,083 × P^0,48 × T^0,5 × Â^−0,13
+P = poids (kg)   T = taille (m)   Â = âge (années)
+BMR(kcal/j) = BMR(MJ/j) × 1000 ÷ 4,1855</code></div>
+      <div class="res-source">Black AE, Coward WA, Cole TJ, Prentice AM. Eur J Clin Nutr, 1996;50(2):72-92.</div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>2. Dépense totale (TDEE) &amp; coefficients d'activité</h3>
+      <div class="res-formula"><code>TDEE = BMR × NAP (niveau d'activité physique)</code></div>
+      <table class="res-table"><thead><tr><th>Type de journée (dans ce module)</th><th>Coefficient</th></tr></thead>
+        <tbody>
+          <tr><td>Repos</td><td>× 1,375</td></tr>
+          <tr><td>Entraînement modéré</td><td>× 1,55</td></tr>
+          <tr><td>Entraînement intense</td><td>× 1,725</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="nutri-card">
+      <h3>3. Protéines</h3>
+      <div class="res-formula"><code>Protéines (g/j) = poids(kg) × 1,8</code></div>
+      <p style="font-size:12.5px;color:var(--ink-soft);">Repère 1,6 à 2,2 g/kg pour une population sportive générale (jusqu'à 2,2-2,5 g/kg en restriction calorique).</p>
+      <div class="res-source">ISSN Position Stand, Jäger et al., J Int Soc Sports Nutr, 2017.</div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>4. Glucides</h3>
+      <table class="res-table"><thead><tr><th>Charge d'entraînement</th><th>Repère</th></tr></thead>
+        <tbody>
+          <tr><td>Repos / faible</td><td>4 g/kg/j (dans ce module)</td></tr>
+          <tr><td>Modérée</td><td>6 g/kg/j</td></tr>
+          <tr><td>Élevée / intense</td><td>8 g/kg/j</td></tr>
+        </tbody>
+      </table>
+      <div class="res-source">Repères CIO — Burke LM et al., J Sports Sci, 2011.</div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>5. Lipides &amp; hydratation</h3>
+      <div class="res-formula"><code>Lipides (g) = (TDEE − kcal protéines − kcal glucides) ÷ 9, plancher 1 g/kg
+Eau (L/j)  = poids(kg) × 0,035 + bonus entraînement (0 / 0,5 / 0,8 L)</code></div>
+      <div class="res-source">Repères ANSES / consensus nutrition sportive.</div>
+    </div>
+
+    <div class="nutri-card">
+      <h3>6. Micronutriments — repères utilisés</h3>
+      ${NUTRI_MICROS.map(m => `<div class="micro-row"><span class="mr-name">${m.name}</span><span class="mr-val">${m.val}</span></div>`).join('')}
+      <div class="res-source">ANSES — Références Nutritionnelles pour la Population française (2021) / EFSA.</div>
+    </div>
+
+    <div class="nutri-tip">Ces formules donnent un point de départ chiffré ; les valeurs affichées pour chaque personne sont à recalculer et ajuster au ressenti et au suivi réel, jamais appliquées à un profil avec pathologie.</div>
+  `;
+}
+
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('printing-fiche');
+});
+
+init();
+</script>
+</body>
+</html>
