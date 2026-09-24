@@ -69,16 +69,20 @@ async function kvSet(key,obj){
 }
 
 let PLAYER=null; // {id,name,cat,...}
+let SPACE='aca'; // 'aca' = football, 'ci' = coaching individuel — détecté à la connexion
 
 /* ---------- Auth ---------- */
 function norm(s){return (s||'').toString().trim().toLowerCase();}
 async function tryLogin(login,pass){
-  const players=await kvGet('aca:players');
-  const p=Object.values(players).find(x=>x&&norm(x.login)===norm(login)&&(x.pass||'')===pass&&norm(x.login)!=='');
-  return p||null;
+  for(const sp of ['aca','ci']){
+    const players=await kvGet(sp+':players');
+    const p=Object.values(players).find(x=>x&&norm(x.login)===norm(login)&&(x.pass||'')===pass&&norm(x.login)!=='');
+    if(p){SPACE=sp;return p;}
+  }
+  return null;
 }
-function saveSession(pid){try{sessionStorage.setItem('espace_pid',pid);}catch(e){}}
-function clearSession(){try{sessionStorage.removeItem('espace_pid');}catch(e){}}
+function saveSession(pid){try{sessionStorage.setItem('espace_pid',pid);sessionStorage.setItem('espace_space',SPACE);}catch(e){}}
+function clearSession(){try{sessionStorage.removeItem('espace_pid');sessionStorage.removeItem('espace_space');}catch(e){}}
 
 function renderLogin(msg){
   $('#app').innerHTML=`
@@ -235,7 +239,7 @@ function rpeScale(id,val){
 }
 
 async function loadSessionsToday(){
-  const all=await kvGet('aca:sessions');
+  const all=await kvGet(SPACE+':sessions');
   SESSIONS_TODAY=Object.values(all).filter(s=>s&&s.date===FEEL_DATE&&s.cat===PLAYER.cat)
     .map(s=>{
       const me=(s.players&&s.players[PLAYER.id])||{};
@@ -285,34 +289,34 @@ function bindRpeScale(id,cb){
 }
 
 async function saveSessionRpe(sid,rpe){
-  const all=await kvGet('aca:sessions');
+  const all=await kvGet(SPACE+':sessions');
   const s=all[sid];if(!s)throw new Error('no session');
   s.players=s.players||{};
   s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{rpe:rpe,min:(s.players[PLAYER.id]&&s.players[PLAYER.id].min)||s.duration||60});
   all[sid]=s;
-  await kvSet('aca:sessions',all);
+  await kvSet(SPACE+':sessions',all);
 }
 async function saveSessionParts(sid,vals){
-  const all=await kvGet('aca:sessions');
+  const all=await kvGet(SPACE+':sessions');
   const s=all[sid];if(!s)throw new Error('no session');
   s.players=s.players||{};
   const partRpe={};vals.forEach((v,j)=>partRpe[j]=v);
   const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
   s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{partRpe:partRpe,rpe:avg,min:(s.players[PLAYER.id]&&s.players[PLAYER.id].min)||s.duration||60});
   all[sid]=s;
-  await kvSet('aca:sessions',all);
+  await kvSet(SPACE+':sessions',all);
 }
 async function addPersonalSession(type,dur,rpe){
-  const all=await kvGet('aca:sessions');
+  const all=await kvGet(SPACE+':sessions');
   const sid='ps-'+PLAYER.id+'-'+FEEL_DATE+'-'+Math.random().toString(36).slice(2,6);
   all[sid]={id:sid,date:FEEL_DATE,cat:PLAYER.cat,type:type||'Perso',title:type||'Séance perso',duration:dur||60,objective:'',content:'',source:'joueur',
     players:{[PLAYER.id]:{rpe:rpe,min:dur||60}}};
-  await kvSet('aca:sessions',all);
+  await kvSet(SPACE+':sessions',all);
 }
 
 async function saveWellness(){
   const date=FEEL_DATE;
-  const all=await kvGet('aca:wellness');
+  const all=await kvGet(SPACE+':wellness');
   const doc=all[date]&&all[date].entries?all[date]:{date,entries:{}};
   doc.entries=doc.entries||{};
   // Conversion vers l'échelle coach (5 = bon / aucune fatigue-courbature-stress)
@@ -321,7 +325,7 @@ async function saveWellness(){
   WELL.forEach(w=>entry[w.k]=conv(w));
   doc.entries[PLAYER.id]=Object.assign({},doc.entries[PLAYER.id]||{},entry);
   all[date]=doc;
-  await kvSet('aca:wellness',all);
+  await kvSet(SPACE+':wellness',all);
 }
 
 function bindWellness(){
@@ -346,7 +350,7 @@ function bindWellness(){
 
 async function refreshForDate(){
   // reload existing wellness entry for the date + sessions
-  const all=await kvGet('aca:wellness');
+  const all=await kvGet(SPACE+':wellness');
   const ent=all[FEEL_DATE]&&all[FEEL_DATE].entries&&all[FEEL_DATE].entries[PLAYER.id];
   if(ent){const inv=v=>6-v;WVAL={sleep:ent.sleep||3,fatigue:ent.fatigue!=null?inv(ent.fatigue):2,soreness:ent.soreness!=null?inv(ent.soreness):1,stress:ent.stress!=null?inv(ent.stress):2,mood:ent.mood||4};SORE=new Set(ent.soreZones||[]);}
   await loadSessionsToday();
@@ -354,7 +358,7 @@ async function refreshForDate(){
 }
 
 async function loadHistory(){
-  const all=await kvGet('aca:wellness');
+  const all=await kvGet(SPACE+':wellness');
   const rows=Object.values(all).filter(d=>d&&d.entries&&d.entries[PLAYER.id]).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);
   const el=$('#hist');if(!el)return;
   el.innerHTML=rows.length?rows.map(d=>{const e=d.entries[PLAYER.id];const score=Math.round((e.sleep+e.fatigue+e.soreness+e.stress+e.mood)/25*100);return `<div class="hist"><span>${isoLong(d.date)}</span><span class="pill">${score}%${(e.soreZones&&e.soreZones.length)?' · '+e.soreZones.length+' zone(s)':''}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucun wellness enregistré pour l\'instant.</p>';
@@ -387,9 +391,10 @@ async function renderSpace(skipLoad){
 
 /* ---------- boot ---------- */
 (async function(){
-  let pid=null;try{pid=sessionStorage.getItem('espace_pid');}catch(e){}
-  if(pid){
-    const players=await kvGet('aca:players');
+  let pid=null,sp=null;try{pid=sessionStorage.getItem('espace_pid');sp=sessionStorage.getItem('espace_space');}catch(e){}
+  if(pid&&sp){
+    SPACE=sp;
+    const players=await kvGet(SPACE+':players');
     if(players[pid]&&players[pid].login){PLAYER=players[pid];await loadSessionsToday();renderSpace(true);return;}
   }
   renderLogin();

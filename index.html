@@ -1637,7 +1637,7 @@ const PROGRAMME_TABS_CLIENT = [
 // Onglet "Football" = l'app Blueperf Académie complète, affichée en iframe (page /academie/).
 const FOOTBALL_TABS = [{id:'football', label:'Académie'}];
 function tabsFor(section, isCoachView){
-  if(section === 'football') return FOOTBALL_TABS;
+  if(section === 'football' || section === 'individuel') return FOOTBALL_TABS;
   if(section === 'nutrition') return isCoachView ? NUTRI_TABS_COACH : NUTRI_TABS_CLIENT;
   return isCoachView ? PROGRAMME_TABS_COACH : PROGRAMME_TABS_CLIENT;
 }
@@ -1655,6 +1655,7 @@ const COACH_NAV_GROUPS = [
   {id:'entrainement', label:'Entraînement', icon:'💪'},
   {id:'nutrition', label:'Nutrition', icon:'🥗', section:'nutrition', children: NUTRI_TABS_COACH},
   {id:'football', label:'Football', icon:'⚽', section:'football'},
+  {id:'individuel', label:'Coaching individuel', icon:'🧍', section:'individuel'},
   {id:'clients', label:'Mes clients', icon:'👥'},
   {id:'parametres', label:'Paramètres', icon:'⚙️'}
 ];
@@ -1670,8 +1671,8 @@ function coachNavItemHtml(item){
   const isGroup = !!item.children;
   const isActive = isGroup
     ? state.section === 'nutrition'
-    : (item.section === 'football'
-        ? state.section === 'football'
+    : (item.section
+        ? state.section === item.section
         : (state.section === 'programme' && state.tab === item.id));
   const isOpen = state.navOpenGroup === item.id;
   return `
@@ -1753,7 +1754,7 @@ function bindCoachNavbar(stats){
       state.navOpenGroup = null;
       state.section = item.section || 'programme';
       state.tab = id;
-      if(state.section === 'football'){ render(); return; }
+      if(state.section === 'football' || state.section === 'individuel'){ render(); return; }
       drawCoachNavbar(stats);
       document.getElementById('dash-page-title').textContent = coachTabLabel();
       renderScreen();
@@ -1794,18 +1795,25 @@ async function renderCoachDashboard(){
   renderScreen();
 }
 
-function renderFootballFull(){
+function renderFullApp(section){
+  const src = section === 'individuel' ? '/academie/?mode=individuel' : '/academie/';
+  const label = section === 'individuel' ? 'COACHING INDIVIDUEL' : 'FOOTBALL';
+  const swBtn = (sec, txt) => {
+    const active = section === sec;
+    return `<button data-fbsec="${sec}" style="appearance:none;cursor:pointer;border:1px solid ${active?'#3DA9FC':'rgba(255,255,255,.25)'};background:${active?'#3DA9FC':'transparent'};color:${active?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${txt}</button>`;
+  };
   app.innerHTML = `
     <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--nav,#0E1A2C)">
-      <div style="flex:none;height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08)">
-        <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3DA9FC">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">FOOTBALL</span></div>
+      <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
+        <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3DA9FC">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${label}</span></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button data-fbsec="programme" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">Coaching individuel</button>
+          ${swBtn('football','Football')}
+          ${swBtn('individuel','Coaching individuel')}
           <button data-fbsec="nutrition" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">Nutrition</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">Déconnexion</button>
         </div>
       </div>
-      <iframe src="/academie/" title="Blueperf Académie" style="flex:1;width:100%;border:0;display:block"></iframe>
+      <iframe src="${src}" title="Blueperf" style="flex:1;width:100%;border:0;display:block"></iframe>
     </div>`;
   app.querySelectorAll('[data-fbsec]').forEach(b => b.addEventListener('click', () => {
     state.section = b.getAttribute('data-fbsec');
@@ -1818,7 +1826,8 @@ function renderFootballFull(){
 }
 
 async function render(){
-  if(state.section === 'football'){ renderFootballFull(); return; }
+  if(state.section === 'football'){ renderFullApp('football'); return; }
+  if(state.section === 'individuel'){ renderFullApp('individuel'); return; }
   const isCoachView = state.viewAs === 'coach';
   const isNutrition = state.section === 'nutrition';
   const tabs = tabsFor(state.section, isCoachView);

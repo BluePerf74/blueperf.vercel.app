@@ -263,6 +263,9 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 
 /* ===================== SETTINGS ===================== */
+const MODE=(function(){try{return new URLSearchParams(location.search).get('mode')==='individuel'?'individuel':'football';}catch(e){return 'football';}})();
+const DB_PREFIX=MODE==='individuel'?'ci':'aca';               // espace de données séparé pour le coaching individuel
+const HIDDEN_TABS=MODE==='individuel'?['gps','comp']:[];      // onglets retirés en coaching individuel
 const TABS=[
  {id:'overview',label:"Vue d'ensemble"},
  {id:'health',label:'Santé & forme'},
@@ -274,7 +277,7 @@ const TABS=[
  {id:'perf',label:'Performance',children:[{id:'testing',label:'Testing'},{id:'reathle',label:'Réathlétisation'},{id:'muscu',label:'Musculation'}]},
  {id:'medical',label:'Médical'},
  {id:'entry',label:'Saisie'},
- {id:'settings',label:'Paramètres'}];
+ {id:'settings',label:'Paramètres'}].filter(t=>!HIDDEN_TABS.includes(t.id));
 const DEF={
  appName:'Académy', categories:['U15','U18'],
  positions:['GB','DC','DL','MDC','MC','MO','AIL','ATT'],
@@ -304,7 +307,7 @@ const tabOn=id=>S().tabs[id]!==false;
 
 /* ===================== STORE ===================== */
 const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes'];
-const LSKEY='blueperf-academie-v1';
+const LSKEY='blueperf-'+MODE+'-v1';
 const empty=()=>{const o={};COLS.forEach(c=>o[c]={});return o;};
 let DATA=empty();
 const Store={mode:'pending',demo:false,db:null,fresh:null,ready:false,downloads:null,sample:null};
@@ -338,14 +341,14 @@ function scheduleRender(force){if(!force&&(formDirty||isEditingField())){pending
 function makeApiDb(){
   const cache={},listeners={},timers={},queue={},pending={};
   async function fetchCol(col){
-    try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent('aca:'+col)+'&_='+Date.now(),{cache:'no-store'});
+    try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(DB_PREFIX+':'+col)+'&_='+Date.now(),{cache:'no-store'});
       if(!r.ok)return null;const j=await r.json();return j&&j.value?JSON.parse(j.value):{};}catch(e){return null;}
   }
   function emit(col){const map=cache[col]||{};const docs=Object.keys(map).map(id=>({id,data:()=>map[id]}));(listeners[col]||[]).forEach(cb=>{try{cb({docs});}catch(e){}});}
   function save(col){
     pending[col]=(pending[col]||0)+1;
     queue[col]=(queue[col]||Promise.resolve()).then(async()=>{
-      try{await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key:'aca:'+col,value:JSON.stringify(cache[col]||{})})});}catch(e){}
+      try{await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key:DB_PREFIX+':'+col,value:JSON.stringify(cache[col]||{})})});}catch(e){}
       pending[col]=Math.max(0,(pending[col]||1)-1);
     });
     return queue[col];
@@ -680,7 +683,7 @@ function zbars(items){ // diverging, value = z (−3..3)
 
 /* ===================== UI STATE ===================== */
 const UI={tab:'overview',cat:'Tous',ref:TODAY,drawer:null,entryTab:'session',edit:null,planView:'week',planWeek:mondayOf(TODAY),planMonth:TODAY.slice(0,7),
-  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'tabs',ai:null};
+  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null};
 try{const t=JSON.parse(localStorage.getItem(LSKEY+'-ui')||'{}');if(t.tab)UI.tab=t.tab;if(t.cat)UI.cat=t.cat;}catch(e){}
 if(/^#[a-z]+$/.test(location.hash)){const h=location.hash.slice(1);if(allTabIds().includes(h))UI.tab=h;}
 function allTabIds(){const o=[];TABS.forEach(t=>{if(t.children)t.children.forEach(c=>o.push(c.id));else o.push(t.id);});return o;}
@@ -698,7 +701,7 @@ function counts(){const ps=playersOf(UI.cat);let red=0,orange=0;ps.forEach(p=>{c
 function renderNav(){
   const c=counts();const badge={overview:c.red?`<span class="badge crit">${c.red}</span>`:c.orange?`<span class="badge warn">${c.orange}</span>`:'',medical:c.inj?`<span class="badge">${c.inj}</span>`:'',reathle:c.rea?`<span class="badge">${c.rea}</span>`:''};
   const inPerf=['testing','reathle','muscu'].includes(UI.tab);
-  let h=`<div class="brand"><b>Blueperf</b><span>${esc(S().appName)}</span></div><ul>`;
+  let h=`<div class="brand"><b>Blueperf</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
   TABS.forEach(t=>{
     if(t.children){const kids=t.children.filter(k=>tabOn(k.id));if(!tabOn('perf')||!kids.length)return;const open=!!UI.perfOpen||inPerf;
       h+=`<li class="${open?'open':''}"><button class="ni ${inPerf&&!open?'on':''}" data-act="perfToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${kids.map(k=>`<li><button class="ni ${UI.tab===k.id?'on':''}" data-act="tab" data-id="${k.id}"><span>${k.label}</span>${badge[k.id]||''}</button></li>`).join('')}</ul>`:''}</li>`;return;}
@@ -760,6 +763,18 @@ VIEWS.overview=()=>{
   const td=teamDaily(ps,ref,28);const tw=teamWell(ps,ref,28);
   const today=Object.values(DATA.plan).filter(p=>p.date===ref&&inCat(p));
   const recos=buildRecos().slice(0,4);
+  const toFill=ps.map(p=>{
+    const noWell=!wEntry(p.id,ref);
+    const sess=Object.values(DATA.sessions).filter(s=>s.date===ref&&s.cat===p.cat&&s.players&&s.players[p.id]);
+    const noRpe=sess.some(s=>s.players[p.id].rpe==null);
+    return {p,noWell,noRpe};
+  }).filter(x=>x.noWell||x.noRpe);
+  const toFillCard=`<div class="card"><div class="hrow"><h2>À saisir aujourd'hui</h2><span class="small muted">${toFill.length?toFill.length+' joueur·se(s) sans RPE ou wellness':'Tout est saisi'}</span></div>
+    ${toFill.length?`<div class="tw"><table><thead><tr><th>Joueur</th><th>Manque</th><th></th></tr></thead><tbody>
+      ${toFill.map(x=>`<tr><td>${plink(x.p.id)}</td>
+        <td>${[x.noWell?'<span class="pill warn">Wellness</span>':'',x.noRpe?'<span class="pill warn">RPE séance</span>':''].filter(Boolean).join(' ')}</td>
+        <td><button class="btn sm pri" data-act="fillPlayer" data-id="${esc(x.p.id)}">Saisir</button></td></tr>`).join('')}
+      </tbody></table></div>`:'<p class="muted" style="margin:0">Tous les RPE et wellness du jour sont saisis. 👍</p>'}</div>`;
   return `<div class="grid g6">
     ${kpi('Disponibles',ps.length-unavail,'/'+ps.length,unavail?unavail+' blessé'+(unavail>1?'s':'')+' ou en réathlé':'Tout le groupe est disponible')}
     ${kpi('Alertes',red,'',`<span class="pill crit">${red} rouge${red>1?'s':''}</span> <span class="pill warn">${orange} orange</span>`,red?'crit':null)}
@@ -768,6 +783,7 @@ VIEWS.overview=()=>{
     ${kpi('ACWR moyen',ac!=null?r2(ac):'–','',`Zone cible ${r1(th.acwrLo)}–${r1(th.acwrHi)} (EWMA 7/28 j)`,ac!=null?(acwrCls(ac)==='good'?null:acwrCls(ac)):null)}
     ${kpi('Prochain match',nm?(dayDiff(nm.date,ref)===0?'J':'J-'+dayDiff(nm.date,ref)):'–','',nm?esc(fmtD(nm.date)+' · '+nm.label):'Aucun match planifié')}
   </div>
+  ${toFillCard}
   <div class="grid g2">
     <div class="card"><div class="hrow"><h2>Charge d'équipe, 28 jours</h2><span class="small muted">sRPE moyen par joueur présent</span></div>
       ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
@@ -1406,7 +1422,7 @@ FORMS.settingsTests=async f=>{const rows=$$('#testRows tr');const tests=rows.map
 FORMS.settingsRtp=async f=>{const rtp=$$('[data-rtp]').map(b=>({name:b.querySelector('input').value.trim(),criteria:b.querySelector('textarea').value.split('\n').map(x=>x.trim()).filter(Boolean)})).filter(r=>r.name);await saveSettings({rtp});toast('Protocole enregistré');};
 
 /* ---------- PARAMÈTRES ---------- */
-VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['tabs','Onglets'],['lists','Club et listes'],['th','Seuils d’alerte'],['tests','Tests'],['rtp','Protocole réathlé'],['data','Données']];
+VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['players','Joueur·ses & accès'],['tabs','Onglets'],['lists','Club et listes'],['th','Seuils d’alerte'],['tests','Tests'],['rtp','Protocole réathlé'],['data','Données']];
   let body='';
   if(t==='tabs'){body=`<h3>Onglets affichés</h3><p class="note" style="margin-top:0">Masque les onglets que tu n’utilises pas. Les données restent conservées.</p><div class="stack">
     ${TABS.filter(x=>x.id!=='settings').map(x=>`<label class="chk"><input type="checkbox" data-chg="tabOn" data-id="${x.id}" ${s.tabs[x.id]!==false?'checked':''}> ${esc(x.label)}</label>${x.children?`<div class="stack" style="padding-left:26px">${x.children.map(c=>`<label class="chk"><input type="checkbox" data-chg="tabOn" data-id="${c.id}" ${s.tabs[c.id]!==false?'checked':''}> ${esc(c.label)}</label>`).join('')}</div>`:''}`).join('')}</div>`;}
@@ -1424,7 +1440,9 @@ VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['tabs','Ongl
     <div class="row"><button class="btn" data-act="export">Exporter (JSON)</button><label class="btn" for="impFile">Importer un fichier JSON</label><input type="file" id="impFile" accept=".json,application/json" hidden data-chg="import"></div>
     <div id="expOut"></div>
     <div class="card flat"><h3>Tout effacer</h3><p class="note" style="margin-top:0">Supprime définitivement joueurs, séances, matchs, tests, blessures et paramètres. Exporte d’abord une sauvegarde.</p><button class="btn danger" data-act="resetAll">Tout effacer</button> <span id="resetProg" class="small muted"></span></div></div>`;}
-  return `<div class="subtabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="settingsTab" data-id="${k}">${l}</button>`).join('')}</div><div class="card">${body}</div>`;};
+  const subtabs=`<div class="subtabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="settingsTab" data-id="${k}">${l}</button>`).join('')}</div>`;
+  if(t==='players')return subtabs+`<p class="note">Ajoute tes joueur·ses et donne à chacun·e un <b>identifiant</b> + <b>mot de passe</b> pour son espace perso (RPE + wellness) : <b>/academie/espace.html</b>.</p>`+ENTRY.player();
+  return subtabs+`<div class="card">${body}</div>`;};
 function testRow(x){return `<tr data-id="${esc(x.id||'')}"><td><input class="w" type="text" name="tn" value="${esc(x.name||'')}" aria-label="Nom"></td><td><input type="text" name="tu" value="${esc(x.unit||'')}" aria-label="Unité"></td><td><select name="tb" style="width:auto" aria-label="Meilleur si">${opt([['high','valeur haute'],['low','valeur basse']],x.better||'high')}</select></td><td><button type="button" class="btn sm danger" data-act="rmRow">×</button></td></tr>`;}
 
 /* ---------- FICHE JOUEUR (panneau) ---------- */
@@ -1465,6 +1483,11 @@ const ACT={
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
   edit:b=>{UI.edit={col:b.dataset.col,id:b.dataset.id};UI.entryTab=COL2TAB[b.dataset.col];UI.drawer=null;if(b.dataset.col==='tests')UI.tSel=null;go('entry');},
+  fillPlayer:b=>{const p=DATA.players[b.dataset.id];if(!p)return;const ref=UI.ref;UI.drawer=null;
+    if(!wEntry(p.id,ref)){UI.edit=null;UI.entryTab='wellness';UI.wCat=p.cat;UI.wDate=ref;go('entry');return;}
+    const sess=Object.values(DATA.sessions).filter(s=>s.date===ref&&s.cat===p.cat&&s.players&&s.players[p.id]&&s.players[p.id].rpe==null);
+    if(sess.length){UI.edit={col:'sessions',id:sess[0].id};UI.entryTab='session';go('entry');}
+    else{UI.edit=null;UI.entryTab='wellness';UI.wCat=p.cat;UI.wDate=ref;go('entry');}},
   del:b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
     const col=b.dataset.col,id=b.dataset.id;if(col==='players'&&UI.drawer===id)UI.drawer=null;if(col==='injuries'&&UI.medSel===id)UI.medSel=null;del(col,id);toast('Supprimé');},
   keepDemo:async b=>{b.disabled=true;await keepDemo();},
