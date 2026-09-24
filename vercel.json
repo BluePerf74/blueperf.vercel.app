@@ -1,0 +1,6 @@
+{
+  "functions": {
+    "api/reco.js": { "maxDuration": 60 },
+    "api/storage.js": { "maxDuration": 15 }
+  }
+}
