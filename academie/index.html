@@ -48,29 +48,30 @@ html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--accent)}
-.app{display:grid;grid-template-columns:232px 1fr;min-height:100%}
-/* NAV */
-.nav{background:var(--nav);color:var(--nav-ink);padding:18px 12px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
-.brand{padding:4px 10px 10px;border-bottom:1px solid rgba(255,255,255,.08)}
-.brand b{font-family:var(--fd);font-size:24px;letter-spacing:.02em;color:#fff;display:block;line-height:1}
-.brand span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--nav-ink-2)}
-.nav ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
-.nav button.ni{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:none;border:0;color:var(--nav-ink);padding:8px 10px;border-radius:7px;cursor:pointer;text-align:left;font-weight:500}
+.app{display:block;min-height:100%}
+/* NAV — barre horizontale en haut */
+.nav{background:var(--nav);color:var(--nav-ink);padding:8px 14px;position:sticky;top:0;z-index:30;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 10px}
+.brand{padding:0 10px 0 0;margin-right:4px;flex:none;display:flex;flex-direction:column;justify-content:center;line-height:1}
+.brand b{font-family:var(--fd);font-size:19px;letter-spacing:.02em;color:#fff;display:block;line-height:1}
+.brand span{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--nav-ink-2)}
+.nav ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:row;flex-wrap:wrap;gap:2px 3px;align-items:center}
+.nav li{position:relative;flex:none}
+.nav button.ni{width:auto;display:flex;align-items:center;justify-content:space-between;gap:6px;background:none;border:0;color:var(--nav-ink);padding:8px 11px;border-radius:7px;cursor:pointer;text-align:left;font-weight:500;white-space:nowrap}
 .nav button.ni:hover{background:rgba(255,255,255,.05);color:#fff}
-.nav button.ni.on{background:var(--nav-active);color:#fff;box-shadow:inset 3px 0 0 #6E8FFF}
-.nav .sub{padding-left:12px}
-.nav .sub button.ni{font-size:13px;padding:6px 10px}
+.nav button.ni.on{background:var(--nav-active);color:#fff;box-shadow:inset 0 -3px 0 #6E8FFF}
+.nav .sub{position:absolute;top:100%;left:0;margin-top:4px;background:var(--nav);border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:6px;min-width:170px;box-shadow:0 10px 26px rgba(0,0,0,.5);z-index:40;display:flex;flex-direction:column}
+.nav .sub button.ni{font-size:13px;padding:7px 10px;width:100%}
 .nav .chev{font-size:10px;opacity:.7;transition:transform .15s}
 .nav .open .chev{transform:rotate(90deg)}
 .badge{font-size:11px;font-weight:700;min-width:20px;text-align:center;padding:1px 6px;border-radius:20px;background:rgba(255,255,255,.1)}
 .badge.crit{background:#C23A2E;color:#fff}
 .badge.warn{background:#B7760A;color:#fff}
-.navfoot{margin-top:auto;font-size:11px;color:var(--nav-ink-2);padding:8px 10px;border-top:1px solid rgba(255,255,255,.08)}
+.navfoot{margin-left:auto;font-size:11px;color:var(--nav-ink-2);padding:4px 8px;white-space:nowrap;flex:none}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-right:6px;vertical-align:middle}
 .dot.ok{background:#43C283}.dot.loc{background:#E3AA3E}
 /* MAIN */
 .main{min-width:0;display:flex;flex-direction:column}
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding-block:12px;padding-inline:24px;display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;justify-content:space-between}
+.top{position:static;background:transparent;border-bottom:1px solid var(--line);padding-block:12px;padding-inline:24px;display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;justify-content:space-between}
 .top h1{font-family:var(--fd);font-weight:700;font-size:28px;line-height:1;margin:0;letter-spacing:.01em;text-wrap:balance}
 .top .ctx{font-size:12px;color:var(--muted);margin-top:3px}
 .tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
@@ -275,7 +276,7 @@ const TABS=[
  {id:'entry',label:'Saisie'},
  {id:'settings',label:'Paramètres'}];
 const DEF={
- appName:'PSG Academy', categories:['U15','U18'],
+ appName:'Académy', categories:['U15','U18'],
  positions:['GB','DC','DL','MDC','MC','MO','AIL','ATT'],
  sessionTypes:['Terrain','Salle','Mixte','Récupération','Réathlé'],
  objectives:['Récupération','Force','Puissance / explosivité','Endurance intermittente','Vitesse','Activation','Technique / tactique','Prévention','Compensation','Match'],
@@ -699,7 +700,7 @@ function renderNav(){
   const inPerf=['testing','reathle','muscu'].includes(UI.tab);
   let h=`<div class="brand"><b>Blueperf</b><span>${esc(S().appName)}</span></div><ul>`;
   TABS.forEach(t=>{
-    if(t.children){const kids=t.children.filter(k=>tabOn(k.id));if(!tabOn('perf')||!kids.length)return;const open=UI.perfOpen!==false||inPerf;
+    if(t.children){const kids=t.children.filter(k=>tabOn(k.id));if(!tabOn('perf')||!kids.length)return;const open=!!UI.perfOpen||inPerf;
       h+=`<li class="${open?'open':''}"><button class="ni ${inPerf&&!open?'on':''}" data-act="perfToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${kids.map(k=>`<li><button class="ni ${UI.tab===k.id?'on':''}" data-act="tab" data-id="${k.id}"><span>${k.label}</span>${badge[k.id]||''}</button></li>`).join('')}</ul>`:''}</li>`;return;}
     if(!tabOn(t.id)&&t.id!=='settings')return;
     h+=`<li><button class="ni ${UI.tab===t.id?'on':''}" data-act="tab" data-id="${t.id}"><span>${t.label}</span>${badge[t.id]||''}</button></li>`;});
@@ -1337,14 +1338,17 @@ ENTRY.player=()=>{const e=editing('players');const s=S();const all=playersOf('To
     ${fld('pp-h','Taille (cm)',`<input type="number" id="pp-h" name="height" value="${esc(e&&e.height||'')}">`)}
     ${fld('pp-m','Masse (kg)',`<input type="number" id="pp-m" name="mass" step="0.1" value="${esc(e&&e.mass||'')}">`)}
     ${fld('pp-v','Vmax de référence (km/h)',`<input type="number" id="pp-v" name="vmax" step="0.1" value="${esc(e&&e.vmax||'')}">`)}
+    ${fld('pp-login','Identifiant (espace joueur·se)',`<input type="text" id="pp-login" name="login" autocomplete="off" value="${esc(e&&e.login||'')}" placeholder="ex: sarah">`)}
+    ${fld('pp-pass','Mot de passe',`<input type="text" id="pp-pass" name="pass" autocomplete="off" value="${esc(e&&e.pass||'')}" placeholder="ex: 4 chiffres">`)}
     <label class="chk"><input type="checkbox" name="active" ${!e||e.active!==false?'checked':''}> Actif dans l'effectif</label></div>
+    <p class="note" style="margin:0">Espace perso du joueur·se pour saisir RPE + wellness : <b>/academie/espace.html</b> (identifiant + mot de passe ci-dessus).</p>
     <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">${e?'Enregistrer':'Ajouter le joueur'}</button></div></form>
   <form data-form="bulk" class="card flat stack"><h3>Ajout rapide</h3><p class="note" style="margin:0">Un joueur par ligne : Nom ; poste ; numéro (poste et numéro facultatifs).</p>
     ${fld('bk-cat','Catégorie',`<select id="bk-cat" name="cat">${opt(cats(),defCat())}</select>`)}
     <textarea name="list" aria-label="Liste de joueurs" style="min-height:140px" placeholder="Adam B. ; DC ; 4&#10;Ilyes K. ; MC ; 8"></textarea><div class="row"><button class="btn pri">Ajouter la liste</button></div></form></div>
-  <div class="card"><h3>Effectif (${all.length})</h3><div class="tw"><table><thead><tr><th>Nom</th><th>Cat.</th><th>Poste</th><th class="n">N°</th><th class="n">Âge</th><th class="n">Taille</th><th class="n">Masse</th><th class="n">Vmax réf.</th><th>Statut</th><th></th></tr></thead><tbody>
-  ${all.map(p=>`<tr><td>${plink(p.id)}</td><td>${esc(p.cat)}</td><td>${esc(p.pos||'')}</td><td class="n">${esc(p.number||'')}</td><td class="n">${r1(age(p.birth,UI.ref))}</td><td class="n">${r0(num(p.height))}</td><td class="n">${r1(num(p.mass))}</td><td class="n">${r1(vref(p))}</td><td>${p.active===false?'<span class="pill neutral">Inactif</span>':'<span class="pill good">Actif</span>'}</td>
-    <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="players" data-id="${esc(p.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="players" data-id="${esc(p.id)}">×</button></div></td></tr>`).join('')||'<tr><td colspan="10" class="muted">Aucun joueur</td></tr>'}</tbody></table></div></div>`;};
+  <div class="card"><h3>Effectif (${all.length})</h3><div class="tw"><table><thead><tr><th>Nom</th><th>Cat.</th><th>Poste</th><th class="n">N°</th><th class="n">Âge</th><th class="n">Vmax réf.</th><th>Accès (id · mdp)</th><th>Statut</th><th></th></tr></thead><tbody>
+  ${all.map(p=>`<tr><td>${plink(p.id)}</td><td>${esc(p.cat)}</td><td>${esc(p.pos||'')}</td><td class="n">${esc(p.number||'')}</td><td class="n">${r1(age(p.birth,UI.ref))}</td><td class="n">${r1(vref(p))}</td><td>${p.login?esc(p.login)+' · '+esc(p.pass||''):'<span class="muted">—</span>'}</td><td>${p.active===false?'<span class="pill neutral">Inactif</span>':'<span class="pill good">Actif</span>'}</td>
+    <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="players" data-id="${esc(p.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="players" data-id="${esc(p.id)}">×</button></div></td></tr>`).join('')||'<tr><td colspan="9" class="muted">Aucun joueur</td></tr>'}</tbody></table></div></div>`;};
 ENTRY.gps=()=>{const evs=[...Object.values(DATA.sessions).map(s=>({...s,col:'sessions'})),...Object.values(DATA.matches).map(m=>({...m,col:'matches',title:'Match vs '+m.opponent}))].filter(inCat).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40);
   return `<div class="card flat stack"><p class="note" style="margin:0">Colle un export CSV de ton logiciel GPS (Catapult, STATSports, Polar…). Première ligne = en-têtes. Colonnes reconnues : nom du joueur, distance, HSR / haute intensité, sprint, accélérations, décélérations, vitesse max, minutes. Le séparateur (; , tabulation) est détecté automatiquement.</p>
     ${fld('gp-ev','Séance ou match à compléter',`<select id="gp-ev">${evs.map(e=>`<option value="${esc(e.col+'|'+e.id)}">${fmtD(e.date)} · ${esc(e.cat)} · ${esc(e.title||e.type)}</option>`).join('')}</select>`)}
@@ -1383,7 +1387,8 @@ FORMS.tests=async f=>{const e=editing('tests');const v=Object.fromEntries(new Fo
   if(!Object.keys(res).length){toast('Aucun résultat saisi');return;}
   await put('tests',id,{id,date:v.date,cat,label:v.label,results:res});UI.edit=null;UI.tSel=null;toast('Résultats enregistrés');go('testing');};
 FORMS.player=async f=>{const e=editing('players');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
-  await put('players',id,Object.assign({},e||{},{id,name:v.name.trim(),cat:v.cat,pos:v.pos,number:num(v.number),birth:v.birth,height:num(v.height),mass:num(v.mass),vmax:num(v.vmax),active:!!v.active}));UI.edit=null;toast(e?'Joueur modifié':'Joueur ajouté');render();};
+  const login=(v.login||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'');
+  await put('players',id,Object.assign({},e||{},{id,name:v.name.trim(),cat:v.cat,pos:v.pos,number:num(v.number),birth:v.birth,height:num(v.height),mass:num(v.mass),vmax:num(v.vmax),login,pass:(v.pass||'').trim(),active:!!v.active}));UI.edit=null;toast(e?'Joueur modifié':'Joueur ajouté');render();};
 FORMS.bulk=async f=>{const v=Object.fromEntries(new FormData(f));const lines=v.list.split('\n').map(l=>l.trim()).filter(Boolean);for(const l of lines){const [n,pos,nb]=l.split(/[;,\t]/).map(x=>(x||'').trim());const id=uid();await put('players',id,{id,name:n,cat:v.cat,pos:pos||'',number:num(nb),active:true});}toast(lines.length+' joueur'+(lines.length>1?'s':'')+' ajouté'+(lines.length>1?'s':''));render();};
 FORMS.followup=async f=>{const v=Object.fromEntries(new FormData(f));const i=JSON.parse(JSON.stringify(DATA.injuries[f.dataset.id]));i.followups=(i.followups||[]);i.followups.push({date:v.date,text:v.text,pain:num(v.pain)});i.followups.sort((a,b)=>a.date.localeCompare(b.date));await put('injuries',i.id,i);toast('Suivi ajouté');};
 FORMS.rlog=async f=>{const v=Object.fromEntries(new FormData(f));const i=JSON.parse(JSON.stringify(DATA.injuries[f.dataset.id]));i.log=i.log||[];i.log.push({date:v.date,content:v.content,min:num(v.min),rpe:num(v.rpe),dist:num(v.dist),hsr:num(v.hsr),vmax:num(v.vmax)});await put('injuries',i.id,i);toast('Séance de réathlé ajoutée');};
@@ -1451,7 +1456,7 @@ const ACT={
   today:()=>{UI.ref=TODAY;render();},
   player:b=>{UI.drawer=b.dataset.id;renderDrawer();},
   closeDrawer:()=>{UI.drawer=null;renderDrawer();},
-  perfToggle:()=>{UI.perfOpen=UI.perfOpen===false;renderNav();},
+  perfToggle:()=>{UI.perfOpen=!UI.perfOpen;renderNav();},
   goEntry:b=>{UI.edit=null;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},

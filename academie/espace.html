@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Blueperf — Mon espace</title>
+<style>
+:root{
+  --bg:#0E1A2C; --surface:#152439; --surface-2:#0f1d30; --line:#25344b; --line-2:#33465f;
+  --ink:#EAF1FB; --ink-2:#B7C4D6; --muted:#7E90A8; --accent:#3DA9FC; --accent-ink:#04121f;
+  --good:#2FBF71; --warn:#E7A13B; --crit:#E5604D; --r:12px;
+  --fd:"Space Grotesk",system-ui,sans-serif; --fb:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:15px;line-height:1.5}
+.wrap{max-width:640px;margin:0 auto;padding:18px 16px 60px}
+h1{font-family:var(--fd);font-weight:700;font-size:22px;margin:0 0 2px}
+h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
+label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin:0 0 5px;letter-spacing:.02em}
+input,select{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px 11px;font:inherit;font-size:15px}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
+.btn{appearance:none;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:11px 16px;font-weight:700;font-size:15px}
+.btn.sec{background:transparent;color:var(--ink);border-color:var(--line-2)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.brand{font-family:var(--fd);font-weight:700;font-size:20px;letter-spacing:.02em}
+.brand span{color:var(--accent)}
+.err{color:#ffb4a8;font-size:13px;min-height:18px;margin-top:8px}
+.ok{color:var(--good);font-size:13px;min-height:18px}
+.muted{color:var(--muted)}
+.scale{display:flex;gap:6px;flex-wrap:wrap}
+.scale button{flex:1;min-width:42px;appearance:none;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);border-radius:9px;padding:9px 0;font-weight:700;font-size:15px}
+.scale button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.field{margin-bottom:14px}
+.hint{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between}
+.bodywrap{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.bodyfig{text-align:center}
+.bodyfig .cap{font-size:12px;color:var(--muted);margin-top:2px}
+.zone{fill:var(--surface-2);stroke:var(--line-2);stroke-width:1.2;cursor:pointer;transition:fill .1s}
+.zone:hover{fill:#20344e}
+.zone.on{fill:var(--crit);stroke:#ff8f7f}
+.silhouette{fill:#1b2c44}
+.zones-list{font-size:12.5px;color:var(--ink-2);margin-top:8px;min-height:18px}
+.session{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--surface-2)}
+.session .t{font-weight:600;font-size:14px}
+.session .m{font-size:12px;color:var(--muted);margin:2px 0 8px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.pill{display:inline-block;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px}
+.hist{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:8px 0;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const $=s=>document.querySelector(s);
+const TODAY=new Date().toISOString().slice(0,10);
+function isoLong(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
+
+async function kvGet(key){
+  try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(key)+'&_='+Date.now(),{cache:'no-store'});
+    if(!r.ok)return {};const j=await r.json();return j&&j.value?JSON.parse(j.value):{};}catch(e){return {};}
+}
+async function kvSet(key,obj){
+  const r=await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key,value:JSON.stringify(obj)})});
+  if(!r.ok)throw new Error('save');
+}
+
+let PLAYER=null; // {id,name,cat,...}
+
+/* ---------- Auth ---------- */
+function norm(s){return (s||'').toString().trim().toLowerCase();}
+async function tryLogin(login,pass){
+  const players=await kvGet('aca:players');
+  const p=Object.values(players).find(x=>x&&norm(x.login)===norm(login)&&(x.pass||'')===pass&&norm(x.login)!=='');
+  return p||null;
+}
+function saveSession(pid){try{sessionStorage.setItem('espace_pid',pid);}catch(e){}}
+function clearSession(){try{sessionStorage.removeItem('espace_pid');}catch(e){}}
+
+function renderLogin(msg){
+  $('#app').innerHTML=`
+    <div style="text-align:center;margin:28px 0 22px">
+      <div class="brand">BLUE<span>PERF</span></div>
+      <div class="muted" style="font-size:12px;letter-spacing:.14em;text-transform:uppercase">Mon espace</div>
+    </div>
+    <div class="card">
+      <h2>Connexion</h2>
+      <p class="sub" style="margin-bottom:14px">Entre l'identifiant et le mot de passe donnés par ton coach.</p>
+      <div class="field"><label>Identifiant</label><input id="lg-user" autocomplete="username" placeholder="ton identifiant"></div>
+      <div class="field"><label>Mot de passe</label><input id="lg-pass" type="password" autocomplete="current-password" placeholder="ton mot de passe"></div>
+      <button class="btn block" id="lg-btn">Se connecter</button>
+      <div class="err" id="lg-err">${msg||''}</div>
+    </div>`;
+  const go=async()=>{
+    const u=$('#lg-user').value,p=$('#lg-pass').value;
+    if(!u||!p){$('#lg-err').textContent='Renseigne identifiant et mot de passe.';return;}
+    $('#lg-btn').disabled=true;$('#lg-err').textContent='Connexion…';
+    const pl=await tryLogin(u,p);
+    $('#lg-btn').disabled=false;
+    if(!pl){$('#lg-err').textContent='Identifiant ou mot de passe incorrect.';return;}
+    PLAYER=pl;saveSession(pl.id);renderSpace();
+  };
+  $('#lg-btn').onclick=go;
+  $('#lg-pass').onkeydown=e=>{if(e.key==='Enter')go();};
+  $('#lg-user').onkeydown=e=>{if(e.key==='Enter')$('#lg-pass').focus();};
+}
+
+/* ---------- Body map ---------- */
+// Chaque zone : {id,label} ; les <path>/<ellipse> portent data-zone
+const FRONT_ZONES=[
+  ['f-head','Tête'],['f-neck','Cou'],['f-sh-l','Épaule G'],['f-sh-r','Épaule D'],
+  ['f-chest','Pectoraux'],['f-abs','Abdominaux'],['f-arm-l','Bras G'],['f-arm-r','Bras D'],
+  ['f-hip','Aine / hanches'],['f-quad-l','Cuisse G (avant)'],['f-quad-r','Cuisse D (avant)'],
+  ['f-knee-l','Genou G'],['f-knee-r','Genou D'],['f-shin-l','Tibia G'],['f-shin-r','Tibia D']
+];
+const BACK_ZONES=[
+  ['b-nape','Nuque'],['b-traps','Trapèzes'],['b-upback','Haut du dos'],['b-lowback','Lombaires'],
+  ['b-arm-l','Bras G'],['b-arm-r','Bras D'],['b-glutes','Fessiers'],
+  ['b-ham-l','Ischios G'],['b-ham-r','Ischios D'],['b-calf-l','Mollet G'],['b-calf-r','Mollet D'],
+  ['b-achi-l','Achille G'],['b-achi-r','Achille D']
+];
+let SORE=new Set();
+function zoneLabel(id){const a=FRONT_ZONES.concat(BACK_ZONES).find(z=>z[0]===id);return a?a[1]:id;}
+function frontSvg(){
+  return `<svg viewBox="0 0 140 320" width="130" height="300" aria-label="Corps vu de face">
+    <path class="silhouette" d="M70 8c9 0 15 7 15 16 0 6-3 11-7 14 8 2 16 6 18 14l6 34c1 6-1 10-6 11l-3 40-4 40h-1l-3-52h-2l-3 52-4 60-3 30h-9l-2-30-4-60-3-52h-2l-3 52h-1l-4-40-3-40c-5-1-7-5-6-11l6-34c2-8 10-12 18-14-4-3-7-8-7-14 0-9 6-16 15-16z"/>
+    <ellipse class="zone" data-zone="f-head" cx="70" cy="24" rx="13" ry="15"/>
+    <rect class="zone" data-zone="f-neck" x="63" y="39" width="14" height="9" rx="4"/>
+    <ellipse class="zone" data-zone="f-sh-l" cx="50" cy="58" rx="9" ry="8"/>
+    <ellipse class="zone" data-zone="f-sh-r" cx="90" cy="58" rx="9" ry="8"/>
+    <rect class="zone" data-zone="f-chest" x="55" y="55" width="30" height="24" rx="7"/>
+    <rect class="zone" data-zone="f-abs" x="57" y="80" width="26" height="30" rx="6"/>
+    <rect class="zone" data-zone="f-arm-l" x="38" y="66" width="12" height="46" rx="6"/>
+    <rect class="zone" data-zone="f-arm-r" x="90" y="66" width="12" height="46" rx="6"/>
+    <path class="zone" data-zone="f-hip" d="M57 110h26v14c0 5-26 5-26 0z"/>
+    <rect class="zone" data-zone="f-quad-l" x="56" y="128" width="13" height="46" rx="6"/>
+    <rect class="zone" data-zone="f-quad-r" x="71" y="128" width="13" height="46" rx="6"/>
+    <ellipse class="zone" data-zone="f-knee-l" cx="62" cy="182" rx="7" ry="7"/>
+    <ellipse class="zone" data-zone="f-knee-r" cx="78" cy="182" rx="7" ry="7"/>
+    <rect class="zone" data-zone="f-shin-l" x="57" y="192" width="11" height="46" rx="5"/>
+    <rect class="zone" data-zone="f-shin-r" x="72" y="192" width="11" height="46" rx="5"/>
+  </svg>`;
+}
+function backSvg(){
+  return `<svg viewBox="0 0 140 320" width="130" height="300" aria-label="Corps vu de dos">
+    <path class="silhouette" d="M70 8c9 0 15 7 15 16 0 6-3 11-7 14 8 2 16 6 18 14l6 34c1 6-1 10-6 11l-3 40-4 40h-1l-3-52h-2l-3 52-4 60-3 30h-9l-2-30-4-60-3-52h-2l-3 52h-1l-4-40-3-40c-5-1-7-5-6-11l6-34c2-8 10-12 18-14-4-3-7-8-7-14 0-9 6-16 15-16z"/>
+    <ellipse class="zone" data-zone="b-nape" cx="70" cy="26" rx="10" ry="9"/>
+    <rect class="zone" data-zone="b-traps" x="55" y="50" width="30" height="14" rx="6"/>
+    <rect class="zone" data-zone="b-upback" x="56" y="64" width="28" height="24" rx="6"/>
+    <rect class="zone" data-zone="b-lowback" x="58" y="89" width="24" height="22" rx="6"/>
+    <rect class="zone" data-zone="b-arm-l" x="38" y="66" width="12" height="46" rx="6"/>
+    <rect class="zone" data-zone="b-arm-r" x="90" y="66" width="12" height="46" rx="6"/>
+    <path class="zone" data-zone="b-glutes" d="M56 112h28v16c0 6-28 6-28 0z"/>
+    <rect class="zone" data-zone="b-ham-l" x="56" y="132" width="13" height="46" rx="6"/>
+    <rect class="zone" data-zone="b-ham-r" x="71" y="132" width="13" height="46" rx="6"/>
+    <rect class="zone" data-zone="b-calf-l" x="57" y="190" width="11" height="42" rx="5"/>
+    <rect class="zone" data-zone="b-calf-r" x="72" y="190" width="11" height="42" rx="5"/>
+    <rect class="zone" data-zone="b-achi-l" x="59" y="234" width="7" height="14" rx="3"/>
+    <rect class="zone" data-zone="b-achi-r" x="74" y="234" width="7" height="14" rx="3"/>
+  </svg>`;
+}
+function bindZones(){
+  document.querySelectorAll('.zone').forEach(z=>{
+    const id=z.getAttribute('data-zone');
+    if(SORE.has(id))z.classList.add('on');
+    z.onclick=()=>{ if(SORE.has(id)){SORE.delete(id);z.classList.remove('on');}else{SORE.add(id);z.classList.add('on');} updateZonesList(); };
+  });
+  updateZonesList();
+}
+function updateZonesList(){
+  const el=$('#zones-list');if(!el)return;
+  el.textContent=SORE.size?('Zones : '+[...SORE].map(zoneLabel).join(', ')):'Touche les zones où tu as mal.';
+}
+
+/* ---------- Space ---------- */
+const WELL=[
+  {k:'sleep',label:'Sommeil',lo:'1 · très mauvais',hi:'5 · excellent',invert:false},
+  {k:'fatigue',label:'Fatigue',lo:'1 · aucune',hi:'5 · épuisée',invert:true},
+  {k:'soreness',label:'Courbatures',lo:'1 · aucune',hi:'5 · fortes',invert:true,body:true},
+  {k:'stress',label:'Stress',lo:'1 · aucun',hi:'5 · fort',invert:true},
+  {k:'mood',label:'Humeur',lo:'1 · mauvaise',hi:'5 · super',invert:false}
+];
+let WVAL={sleep:3,fatigue:2,soreness:1,stress:2,mood:4};
+let FEEL_DATE=TODAY;
+
+function scaleHtml(k){
+  return `<div class="scale" data-scale="${k}">${[1,2,3,4,5].map(v=>`<button data-v="${v}" class="${WVAL[k]===v?'on':''}">${v}</button>`).join('')}</div>`;
+}
+function wellnessCard(){
+  return `<div class="card">
+    <h2>Mon wellness du jour</h2>
+    <div class="field"><label>Date</label><input type="date" id="w-date" value="${FEEL_DATE}"></div>
+    ${WELL.map(w=>`<div class="field">
+        <label>${w.label}</label>
+        ${scaleHtml(w.k)}
+        <div class="hint"><span>${w.lo}</span><span>${w.hi}</span></div>
+        ${w.body?`<div id="bodymap" ${WVAL.soreness>1?'':'hidden'}>
+           <p class="muted" style="font-size:12.5px;margin:10px 0 4px">Indique où tu as mal :</p>
+           <div class="bodywrap">
+             <div class="bodyfig">${frontSvg()}<div class="cap">Avant</div></div>
+             <div class="bodyfig">${backSvg()}<div class="cap">Arrière</div></div>
+           </div>
+           <div class="zones-list" id="zones-list"></div>
+        </div>`:''}
+      </div>`).join('')}
+    <div class="field"><label>Commentaire (optionnel)</label><input id="w-note" placeholder="ex: mal dormi, genou sensible…"></div>
+    <button class="btn block" id="w-save">Enregistrer mon wellness</button>
+    <div class="ok" id="w-ok"></div>
+  </div>`;
+}
+
+let SESSIONS_TODAY=[]; // {sid, session, rpe}
+function sessionsCard(){
+  return `<div class="card">
+    <h2>Mes séances du jour</h2>
+    <div id="sess-list"></div>
+    <div style="border-top:1px dashed var(--line);margin-top:6px;padding-top:12px">
+      <label>Ajouter ma séance (RPE ressenti)</label>
+      <div class="row">
+        <input id="ps-type" placeholder="Type (course, muscu…)" style="flex:2;min-width:120px">
+        <input id="ps-dur" type="number" placeholder="min" style="flex:1;min-width:70px">
+      </div>
+      <div class="field" style="margin-top:10px"><label>RPE (0 très facile → 10 maximal)</label>${rpeScale('ps-rpe',6)}</div>
+      <button class="btn sec block" id="ps-add">Ajouter la séance</button>
+      <div class="ok" id="ps-ok"></div>
+    </div>
+  </div>`;
+}
+let PS_RPE=6;
+function rpeScale(id,val){
+  return `<div class="scale" data-rpe="${id}">${[0,1,2,3,4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" style="min-width:30px;padding:8px 0" class="${val===v?'on':''}">${v}</button>`).join('')}</div>`;
+}
+
+async function loadSessionsToday(){
+  const all=await kvGet('aca:sessions');
+  SESSIONS_TODAY=Object.values(all).filter(s=>s&&s.date===FEEL_DATE&&s.cat===PLAYER.cat)
+    .map(s=>({sid:s.id,session:s,rpe:(s.players&&s.players[PLAYER.id]&&s.players[PLAYER.id].rpe)!=null?s.players[PLAYER.id].rpe:null}));
+}
+function drawSessions(){
+  const el=$('#sess-list');if(!el)return;
+  if(!SESSIONS_TODAY.length){el.innerHTML='<p class="muted" style="font-size:13px;margin:0 0 8px">Aucune séance programmée aujourd\'hui. Tu peux ajouter la tienne ci-dessous.</p>';return;}
+  el.innerHTML=SESSIONS_TODAY.map((o,i)=>`<div class="session">
+    <div class="t">${(o.session.title||o.session.type||'Séance')}</div>
+    <div class="m">${o.session.type||''}${o.session.duration?' · '+o.session.duration+' min':''}${o.rpe!=null?' · RPE saisi : '+o.rpe:''}</div>
+    <label>RPE ressenti (0 → 10)</label>${rpeScale('sess-'+i,o.rpe!=null?o.rpe:6)}
+    <button class="btn sec" data-savesess="${i}" style="margin-top:10px">Enregistrer le RPE</button>
+    <span class="ok" id="sess-ok-${i}" style="margin-left:8px"></span>
+  </div>`).join('');
+  SESSIONS_TODAY.forEach((o,i)=>bindRpeScale('sess-'+i,v=>{SESSIONS_TODAY[i].rpe=v;}));
+  document.querySelectorAll('[data-savesess]').forEach(b=>b.onclick=async()=>{
+    const i=+b.getAttribute('data-savesess');b.disabled=true;
+    try{await saveSessionRpe(SESSIONS_TODAY[i].sid,SESSIONS_TODAY[i].rpe==null?6:SESSIONS_TODAY[i].rpe);$('#sess-ok-'+i).textContent='✓ enregistré';}
+    catch(e){$('#sess-ok-'+i).textContent='échec';}
+    b.disabled=false;
+  });
+}
+function bindRpeScale(id,cb){
+  const sc=document.querySelector(`[data-rpe="${id}"]`);if(!sc)return;
+  sc.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{sc.querySelectorAll('button').forEach(x=>x.classList.remove('on'));btn.classList.add('on');cb(+btn.getAttribute('data-v'));});
+}
+
+async function saveSessionRpe(sid,rpe){
+  const all=await kvGet('aca:sessions');
+  const s=all[sid];if(!s)throw new Error('no session');
+  s.players=s.players||{};
+  s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{rpe:rpe,min:(s.players[PLAYER.id]&&s.players[PLAYER.id].min)||s.duration||60});
+  all[sid]=s;
+  await kvSet('aca:sessions',all);
+}
+async function addPersonalSession(type,dur,rpe){
+  const all=await kvGet('aca:sessions');
+  const sid='ps-'+PLAYER.id+'-'+FEEL_DATE+'-'+Math.random().toString(36).slice(2,6);
+  all[sid]={id:sid,date:FEEL_DATE,cat:PLAYER.cat,type:type||'Perso',title:type||'Séance perso',duration:dur||60,objective:'',content:'',source:'joueur',
+    players:{[PLAYER.id]:{rpe:rpe,min:dur||60}}};
+  await kvSet('aca:sessions',all);
+}
+
+async function saveWellness(){
+  const date=FEEL_DATE;
+  const all=await kvGet('aca:wellness');
+  const doc=all[date]&&all[date].entries?all[date]:{date,entries:{}};
+  doc.entries=doc.entries||{};
+  // Conversion vers l'échelle coach (5 = bon / aucune fatigue-courbature-stress)
+  const conv=w=>w.invert?(6-WVAL[w.k]):WVAL[w.k];
+  const entry={note:$('#w-note')?$('#w-note').value:'', soreZones:[...SORE], source:'joueur'};
+  WELL.forEach(w=>entry[w.k]=conv(w));
+  doc.entries[PLAYER.id]=Object.assign({},doc.entries[PLAYER.id]||{},entry);
+  all[date]=doc;
+  await kvSet('aca:wellness',all);
+}
+
+function bindWellness(){
+  // scales
+  WELL.forEach(w=>{
+    const sc=document.querySelector(`[data-scale="${w.k}"]`);if(!sc)return;
+    sc.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+      WVAL[w.k]=+btn.getAttribute('data-v');
+      sc.querySelectorAll('button').forEach(x=>x.classList.remove('on'));btn.classList.add('on');
+      if(w.body){const bm=$('#bodymap');if(bm){if(WVAL.soreness>1){bm.hidden=false;bindZones();}else{bm.hidden=true;}}}
+    });
+  });
+  const d=$('#w-date');if(d)d.onchange=async()=>{FEEL_DATE=d.value||TODAY;await refreshForDate();};
+  bindZones();
+  $('#w-save').onclick=async()=>{
+    $('#w-save').disabled=true;$('#w-ok').textContent='Enregistrement…';
+    try{await saveWellness();$('#w-ok').textContent='✓ Wellness enregistré';await loadHistory();}
+    catch(e){$('#w-ok').textContent='Échec de l\'enregistrement';}
+    $('#w-save').disabled=false;
+  };
+}
+
+async function refreshForDate(){
+  // reload existing wellness entry for the date + sessions
+  const all=await kvGet('aca:wellness');
+  const ent=all[FEEL_DATE]&&all[FEEL_DATE].entries&&all[FEEL_DATE].entries[PLAYER.id];
+  if(ent){const inv=v=>6-v;WVAL={sleep:ent.sleep||3,fatigue:ent.fatigue!=null?inv(ent.fatigue):2,soreness:ent.soreness!=null?inv(ent.soreness):1,stress:ent.stress!=null?inv(ent.stress):2,mood:ent.mood||4};SORE=new Set(ent.soreZones||[]);}
+  await loadSessionsToday();
+  renderSpace(true);
+}
+
+async function loadHistory(){
+  const all=await kvGet('aca:wellness');
+  const rows=Object.values(all).filter(d=>d&&d.entries&&d.entries[PLAYER.id]).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);
+  const el=$('#hist');if(!el)return;
+  el.innerHTML=rows.length?rows.map(d=>{const e=d.entries[PLAYER.id];const score=Math.round((e.sleep+e.fatigue+e.soreness+e.stress+e.mood)/25*100);return `<div class="hist"><span>${isoLong(d.date)}</span><span class="pill">${score}%${(e.soreZones&&e.soreZones.length)?' · '+e.soreZones.length+' zone(s)':''}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucun wellness enregistré pour l\'instant.</p>';
+}
+
+async function renderSpace(skipLoad){
+  $('#app').innerHTML=`
+    <div class="topbar">
+      <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">Bonjour ${PLAYER.name} · ${PLAYER.cat||''}</div></div>
+      <button class="btn sec" id="logout">Déconnexion</button>
+    </div>
+    ${wellnessCard()}
+    ${sessionsCard()}
+    <div class="card"><h2>Mes derniers wellness</h2><div id="hist"></div></div>`;
+  $('#logout').onclick=()=>{clearSession();PLAYER=null;renderLogin();};
+  bindWellness();
+  drawSessions();
+  // personal session add
+  bindRpeScale('ps-rpe',v=>PS_RPE=v);
+  $('#ps-add').onclick=async()=>{
+    const type=$('#ps-type').value.trim();const dur=+$('#ps-dur').value||60;
+    $('#ps-add').disabled=true;$('#ps-ok').textContent='Ajout…';
+    try{await addPersonalSession(type,dur,PS_RPE);$('#ps-ok').textContent='✓ Séance ajoutée';await loadSessionsToday();drawSessions();$('#ps-type').value='';$('#ps-dur').value='';}
+    catch(e){$('#ps-ok').textContent='échec';}
+    $('#ps-add').disabled=false;
+  };
+  if(!skipLoad){await loadSessionsToday();drawSessions();}
+  loadHistory();
+}
+
+/* ---------- boot ---------- */
+(async function(){
+  let pid=null;try{pid=sessionStorage.getItem('espace_pid');}catch(e){}
+  if(pid){
+    const players=await kvGet('aca:players');
+    if(players[pid]&&players[pid].login){PLAYER=players[pid];await loadSessionsToday();renderSpace(true);return;}
+  }
+  renderLogin();
+})();
+</script>
+</body>
+</html>
