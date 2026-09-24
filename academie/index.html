@@ -1261,6 +1261,7 @@ ENTRY.session=()=>{const e=editing('sessions');const cat=e?e.cat:defCat();const 
     ${fld('se-title','Intitulé',`<input type="text" id="se-title" name="title" value="${esc(e&&e.title||'')}" placeholder="ex. Force + jeu réduit">`,2)}
     ${fld('se-dur','Durée (min)',`<input type="number" id="se-dur" name="duration" value="${esc(e?e.duration:90)}" min="0" required>`)}
     ${fld('se-content','Contenu',`<input type="text" id="se-content" name="content" value="${esc(e&&e.content||'')}" placeholder="Exercices, consignes…">`,3)}
+    ${fld('se-parts','Parties de la séance (une par ligne — le joueur note le RPE de chaque partie)',`<textarea id="se-parts" name="parts" placeholder="Échauffement&#10;Travail technique&#10;Jeu réduit&#10;Physique" style="min-height:74px">${esc((e&&e.parts||[]).join('\n'))}</textarea>`,3)}
   </div>
   <p class="note" style="margin:0">Décoche les absents. Minutes vides = durée de la séance. RPE (échelle CR-10) recueilli 20 à 30 min après la séance. Les colonnes GPS sont facultatives.</p>
   <div class="tw"><table class="gridin"><thead><tr><th>Joueur</th>${GF.session.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody id="grid">${gridHTML('session',cat,e&&e.players,e?e.duration:90)}</tbody></table></div>
@@ -1364,7 +1365,10 @@ POST.entry=()=>{
 };
 const FORMS={};
 FORMS.session=async f=>{const e=editing('sessions');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
-  const o={id,date:v.date,cat:v.cat,type:v.type,objective:v.objective,title:v.title,duration:num(v.duration)||0,content:v.content,players:readGrid(f,'session',v.cat)};
+  const parts=(v.parts||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  const o={id,date:v.date,cat:v.cat,type:v.type,objective:v.objective,title:v.title,duration:num(v.duration)||0,content:v.content,parts,players:readGrid(f,'session',v.cat)};
+  // préserver le RPE par partie déjà saisi par les joueuses lors d'une réédition coach
+  if(e&&e.players)Object.keys(o.players).forEach(pid=>{if(e.players[pid]&&e.players[pid].partRpe)o.players[pid].partRpe=e.players[pid].partRpe;});
   if(!Object.keys(o.players).length){toast('Coche au moins un joueur');return;}
   await put('sessions',id,o);UI.edit=null;UI.prefDate=null;toast(e?'Séance modifiée':'Séance enregistrée');render();};
 FORMS.match=async f=>{const e=editing('matches');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();

@@ -237,23 +237,45 @@ function rpeScale(id,val){
 async function loadSessionsToday(){
   const all=await kvGet('aca:sessions');
   SESSIONS_TODAY=Object.values(all).filter(s=>s&&s.date===FEEL_DATE&&s.cat===PLAYER.cat)
-    .map(s=>({sid:s.id,session:s,rpe:(s.players&&s.players[PLAYER.id]&&s.players[PLAYER.id].rpe)!=null?s.players[PLAYER.id].rpe:null}));
+    .map(s=>{
+      const me=(s.players&&s.players[PLAYER.id])||{};
+      const parts=Array.isArray(s.parts)?s.parts:[];
+      const partRpe=me.partRpe||{};
+      return {sid:s.id,session:s,parts,
+        rpe:me.rpe!=null?me.rpe:null,
+        partVals:parts.map((_,j)=>partRpe[j]!=null?partRpe[j]:6)};
+    });
 }
 function drawSessions(){
   const el=$('#sess-list');if(!el)return;
   if(!SESSIONS_TODAY.length){el.innerHTML='<p class="muted" style="font-size:13px;margin:0 0 8px">Aucune séance programmée aujourd\'hui. Tu peux ajouter la tienne ci-dessous.</p>';return;}
-  el.innerHTML=SESSIONS_TODAY.map((o,i)=>`<div class="session">
-    <div class="t">${(o.session.title||o.session.type||'Séance')}</div>
-    <div class="m">${o.session.type||''}${o.session.duration?' · '+o.session.duration+' min':''}${o.rpe!=null?' · RPE saisi : '+o.rpe:''}</div>
-    <label>RPE ressenti (0 → 10)</label>${rpeScale('sess-'+i,o.rpe!=null?o.rpe:6)}
-    <button class="btn sec" data-savesess="${i}" style="margin-top:10px">Enregistrer le RPE</button>
-    <span class="ok" id="sess-ok-${i}" style="margin-left:8px"></span>
-  </div>`).join('');
-  SESSIONS_TODAY.forEach((o,i)=>bindRpeScale('sess-'+i,v=>{SESSIONS_TODAY[i].rpe=v;}));
+  el.innerHTML=SESSIONS_TODAY.map((o,i)=>{
+    const head=`<div class="t">${(o.session.title||o.session.type||'Séance')}</div>
+      <div class="m">${o.session.type||''}${o.session.duration?' · '+o.session.duration+' min':''}${o.rpe!=null?' · RPE moyen saisi : '+o.rpe:''}</div>`;
+    let body;
+    if(o.parts.length){
+      body=o.parts.map((name,j)=>`<div style="margin-bottom:10px">
+        <label>${(j+1)+'. '+name} — RPE (0 → 10)</label>${rpeScale('sess-'+i+'-'+j,o.partVals[j])}
+      </div>`).join('');
+    }else{
+      body=`<label>RPE ressenti (0 → 10)</label>${rpeScale('sess-'+i+'-0',o.rpe!=null?o.rpe:6)}`;
+    }
+    return `<div class="session">${head}${body}
+      <button class="btn sec" data-savesess="${i}" style="margin-top:6px">Enregistrer ${o.parts.length?'les RPE':'le RPE'}</button>
+      <span class="ok" id="sess-ok-${i}" style="margin-left:8px"></span></div>`;
+  }).join('');
+  SESSIONS_TODAY.forEach((o,i)=>{
+    const n=o.parts.length||1;
+    for(let j=0;j<n;j++){bindRpeScale('sess-'+i+'-'+j,v=>{if(o.parts.length){o.partVals[j]=v;}else{o.rpe=v;}});}
+  });
   document.querySelectorAll('[data-savesess]').forEach(b=>b.onclick=async()=>{
     const i=+b.getAttribute('data-savesess');b.disabled=true;
-    try{await saveSessionRpe(SESSIONS_TODAY[i].sid,SESSIONS_TODAY[i].rpe==null?6:SESSIONS_TODAY[i].rpe);$('#sess-ok-'+i).textContent='✓ enregistré';}
-    catch(e){$('#sess-ok-'+i).textContent='échec';}
+    try{
+      const o=SESSIONS_TODAY[i];
+      if(o.parts.length)await saveSessionParts(o.sid,o.partVals);
+      else await saveSessionRpe(o.sid,o.rpe==null?6:o.rpe);
+      $('#sess-ok-'+i).textContent='✓ enregistré';
+    }catch(e){$('#sess-ok-'+i).textContent='échec';}
     b.disabled=false;
   });
 }
@@ -267,6 +289,16 @@ async function saveSessionRpe(sid,rpe){
   const s=all[sid];if(!s)throw new Error('no session');
   s.players=s.players||{};
   s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{rpe:rpe,min:(s.players[PLAYER.id]&&s.players[PLAYER.id].min)||s.duration||60});
+  all[sid]=s;
+  await kvSet('aca:sessions',all);
+}
+async function saveSessionParts(sid,vals){
+  const all=await kvGet('aca:sessions');
+  const s=all[sid];if(!s)throw new Error('no session');
+  s.players=s.players||{};
+  const partRpe={};vals.forEach((v,j)=>partRpe[j]=v);
+  const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
+  s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{partRpe:partRpe,rpe:avg,min:(s.players[PLAYER.id]&&s.players[PLAYER.id].min)||s.duration||60});
   all[sid]=s;
   await kvSet('aca:sessions',all);
 }
