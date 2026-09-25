@@ -239,16 +239,26 @@ function rpeScale(id,val){
   return `<div class="scale" data-rpe="${id}">${[0,1,2,3,4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" style="min-width:30px;padding:8px 0" class="${val===v?'on':''}">${v}</button>`).join('')}</div>`;
 }
 
+const RPE_WINDOW_MS=4*3600*1000;
 async function loadSessionsToday(){
   const all=await kvGet(SPACE+':sessions');
-  SESSIONS_TODAY=Object.values(all).filter(s=>s&&s.date===FEEL_DATE&&s.cat===PLAYER.cat)
+  const now=Date.now();
+  SESSIONS_TODAY=Object.values(all).filter(s=>{
+      if(!s||s.date!==FEEL_DATE||s.cat!==PLAYER.cat)return false;
+      const me=(s.players&&s.players[PLAYER.id])||null;if(!me&&s.source!=='joueur')return false;
+      const submitted=me&&(me.rpe!=null||(me.partRpe&&Object.keys(me.partRpe).length));
+      const openWin=s.source==='joueur'||(s.rpeOpenedAt&&(now-s.rpeOpenedAt)<RPE_WINDOW_MS);
+      return openWin||submitted;
+    })
     .map(s=>{
       const me=(s.players&&s.players[PLAYER.id])||{};
       const parts=(Array.isArray(s.procedes)&&s.procedes.length)
         ? s.procedes.map((p,j)=>p.type||('Procédé '+(j+1)))
         : (Array.isArray(s.parts)?s.parts:[]);
       const partRpe=me.partRpe||{};
-      return {sid:s.id,session:s,parts,
+      const open=s.source==='joueur'||(s.rpeOpenedAt&&(now-s.rpeOpenedAt)<RPE_WINDOW_MS);
+      const remain=s.rpeOpenedAt?(s.rpeOpenedAt+RPE_WINDOW_MS-now):null;
+      return {sid:s.id,session:s,parts,open:!!open,remain,
         rpe:me.rpe!=null?me.rpe:null,
         partVals:parts.map((_,j)=>partRpe[j]!=null?partRpe[j]:6)};
     });
@@ -257,8 +267,9 @@ function drawSessions(){
   const el=$('#sess-list');if(!el)return;
   if(!SESSIONS_TODAY.length){el.innerHTML='<p class="muted" style="font-size:13px;margin:0 0 8px">Aucune séance programmée aujourd\'hui. Tu peux ajouter la tienne ci-dessous.</p>';return;}
   el.innerHTML=SESSIONS_TODAY.map((o,i)=>{
+    const chrono=o.session.source==='joueur'?'':(o.open&&o.remain!=null?` · <span class="chrono" data-remain="${o.session.rpeOpenedAt+RPE_WINDOW_MS}" style="color:#0a7d3a;font-weight:600">ferme dans ${fmtRemainE(o.remain)}</span>`:(!o.open?' · <span style="color:#b45309;font-weight:600">fenêtre fermée</span>':''));
     const head=`<div class="t">${(o.session.title||o.session.type||'Séance')}</div>
-      <div class="m">${o.session.type||''}${o.session.duration?' · '+o.session.duration+' min':''}${o.rpe!=null?' · RPE moyen saisi : '+o.rpe:''}</div>`;
+      <div class="m">${o.session.type||''}${o.session.duration?' · '+o.session.duration+' min':''}${o.rpe!=null?' · RPE moyen saisi : '+o.rpe:''}${chrono}</div>`;
     let body;
     if(o.parts.length){
       body=o.parts.map((name,j)=>`<div style="margin-bottom:10px">
@@ -267,14 +278,16 @@ function drawSessions(){
     }else{
       body=`<label>RPE ressenti (0 → 10)</label>${rpeScale('sess-'+i+'-0',o.rpe!=null?o.rpe:6)}`;
     }
-    return `<div class="session">${head}${body}
-      <button class="btn sec" data-savesess="${i}" style="margin-top:6px">Enregistrer ${o.parts.length?'les RPE':'le RPE'}</button>
-      <span class="ok" id="sess-ok-${i}" style="margin-left:8px"></span></div>`;
+    const btn=o.open?`<button class="btn sec" data-savesess="${i}" style="margin-top:6px">Enregistrer ${o.parts.length?'les RPE':'le RPE'}</button>
+      <span class="ok" id="sess-ok-${i}" style="margin-left:8px"></span>`:`<p class="muted" style="font-size:12.5px;margin:6px 0 0">La fenêtre de saisie (4 h) est fermée${o.rpe!=null?' — ton RPE a bien été enregistré.':'. Contacte ton coach s\'il faut la rouvrir.'}</p>`;
+    return `<div class="session"${o.open?'':' style="opacity:.8"'}>${head}${body}${btn}</div>`;
   }).join('');
   SESSIONS_TODAY.forEach((o,i)=>{
+    if(!o.open)return;
     const n=o.parts.length||1;
     for(let j=0;j<n;j++){bindRpeScale('sess-'+i+'-'+j,v=>{if(o.parts.length){o.partVals[j]=v;}else{o.rpe=v;}});}
   });
+  startEspaceChrono();
   document.querySelectorAll('[data-savesess]').forEach(b=>b.onclick=async()=>{
     const i=+b.getAttribute('data-savesess');b.disabled=true;
     try{
@@ -286,6 +299,13 @@ function drawSessions(){
     b.disabled=false;
   });
 }
+function fmtRemainE(ms){if(ms<=0)return '0 min';const m=Math.floor(ms/60000),h=Math.floor(m/60);return h?h+' h '+String(m%60).padStart(2,'0'):m+' min';}
+let ESPACE_CHRONO=null;
+function startEspaceChrono(){if(ESPACE_CHRONO){clearInterval(ESPACE_CHRONO);ESPACE_CHRONO=null;}
+  const tick=async()=>{const els=document.querySelectorAll('.chrono[data-remain]');if(!els.length){clearInterval(ESPACE_CHRONO);ESPACE_CHRONO=null;return;}
+    let expired=false;els.forEach(el=>{const r=(+el.dataset.remain)-Date.now();if(r<=0){expired=true;}else el.textContent='ferme dans '+fmtRemainE(r);});
+    if(expired){clearInterval(ESPACE_CHRONO);ESPACE_CHRONO=null;await loadSessionsToday();drawSessions();}};
+  if(document.querySelectorAll('.chrono[data-remain]').length)ESPACE_CHRONO=setInterval(tick,1000);}
 function bindRpeScale(id,cb){
   const sc=document.querySelector(`[data-rpe="${id}"]`);if(!sc)return;
   sc.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{sc.querySelectorAll('button').forEach(x=>x.classList.remove('on'));btn.classList.add('on');cb(+btn.getAttribute('data-v'));});

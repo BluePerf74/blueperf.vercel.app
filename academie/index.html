@@ -699,7 +699,7 @@ function zbars(items){ // diverging, value = z (−3..3)
 })();
 
 /* ===================== UI STATE ===================== */
-const UI={tab:'overview',cat:'Tous',ref:TODAY,drawer:null,entryTab:'session',edit:null,planView:'week',planWeek:mondayOf(TODAY),planMonth:TODAY.slice(0,7),
+const UI={tab:'overview',cat:'Tous',ref:TODAY,drawer:null,entryTab:'assign',edit:null,planView:'week',planWeek:mondayOf(TODAY),planMonth:TODAY.slice(0,7),
   gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null};
 try{const t=JSON.parse(localStorage.getItem(LSKEY+'-ui')||'{}');if(t.tab)UI.tab=t.tab;if(t.cat)UI.cat=t.cat;}catch(e){}
 if(/^#[a-z]+$/.test(location.hash)){const h=location.hash.slice(1);if(allTabIds().includes(h))UI.tab=h;}
@@ -1301,6 +1301,7 @@ VIEWS.medical=()=>{
 <script>
 /* ---------- SAISIE ---------- */
 const ENTRY_TABS=[['session','Séance'],['wellness','Wellness'],['match','Match'],['injury','Blessure'],['plan','Planification'],['season','Phase de saison'],['tests','Tests'],['player','Joueurs'],['gps','Import GPS']];
+const ENTRY_MENU=[['assign','⚑ Affectation des joueur·ses'],['session','Saisir une séance'],['rpe','Saisir les RPE'],['gps','Importer les GPS'],['match','Match'],['wellness','Wellness'],['injury','Blessure'],['plan','Planification'],['season','Phase de saison'],['tests','Tests'],['player','Joueur·ses']].filter(x=>!(MODE==='individuel'&&(x[0]==='gps'||x[0]==='match')));
 const COL2TAB={sessions:'session',matches:'match',injuries:'injury',plan:'plan',phases:'season',players:'player',tests:'tests'};
 const GF={session:[['min','Min'],['rpe','RPE'],['dist','Dist. (m)'],['hsr','HSR (m)'],['sprint','Sprint (m)'],['acc','Acc.'],['dec','Déc.'],['vmax','Vmax']],
  match:[['min','Min'],['starter','Tit.','chk'],['goals','Buts'],['assists','PD'],['yellow','J'],['red','R'],['rating','Note'],['rpe','RPE'],['dist','Dist. (m)'],['hsr','HSR (m)'],['sprint','Sprint (m)'],['acc','Acc.'],['dec','Déc.'],['vmax','Vmax']]};
@@ -1318,6 +1319,61 @@ function gridHTML(kind,cat,existing,dur){
 function readGrid(form,kind,cat){const F=GF[kind];const out={};playersOf(cat).forEach(p=>{const on=form.elements['on-'+p.id];if(!on||!on.checked)return;const o={};
   F.forEach(([k,l,t])=>{const el=form.elements[k+'-'+p.id];if(!el)return;if(t==='chk')o[k]=el.checked;else{const v=num(el.value);if(v!=null)o[k]=v;}});out[p.id]=o;});return out;}
 const ENTRY={};
+/* ---------- AFFECTATION DES JOUEURS À UNE SÉANCE + FENÊTRE RPE 4h ---------- */
+const RPE_WINDOW_MS=4*3600*1000;
+function rpeState(s){if(!s||!s.rpeOpenedAt)return {sent:false,open:false};const end=s.rpeOpenedAt+RPE_WINDOW_MS;const now=Date.now();return {sent:true,end,open:now<end,remain:end-now};}
+function rpeFilledCount(s){if(!s||!s.players)return 0;return Object.values(s.players).filter(x=>x&&(x.rpe!=null||(x.partRpe&&Object.keys(x.partRpe).length))).length;}
+function fmtRemain(ms){if(ms<=0)return '0 min';const m=Math.floor(ms/60000);const h=Math.floor(m/60);return h?h+' h '+String(m%60).padStart(2,'0'):m+' min';}
+ENTRY.assign=()=>{
+  const cat=UI.assignCat||(cats().find(c=>playersOf(c).length))||defCat();const date=UI.assignDate||UI.ref;
+  const ps=playersOf(cat);
+  const templates=Object.values(DATA.templates||{}).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const todays=Object.values(DATA.sessions).filter(s=>s.date===date&&s.cat===cat).sort((a,b)=>(a.title||a.type||'').localeCompare(b.title||b.type||''));
+  const presence=ps.map(p=>{const inj=activeInjury(p.id,date);const def=!inj||inj.status==='reprise';
+    return `<label class="chk" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px"><input type="checkbox" name="ap-${p.id}" ${def?'checked':''}> ${esc(p.name)}${p.number!=null?' <span class="small muted">#'+p.number+'</span>':''}${inj?` <span class="pill ${inj.status==='soins'?'crit':'info'}">${STATUS_LABEL[inj.status]}</span>`:''}</label>`;}).join('');
+  const form=`<form data-form="assign" class="stack">
+    <div class="fgrid">
+      ${fld('as-date','Date',`<input type="date" id="as-date" name="date" value="${date}" data-chg="assignDate">`)}
+      ${fld('as-cat','Catégorie',`<select id="as-cat" name="cat" data-chg="assignCat">${opt(cats(),cat)}</select>`)}
+      ${fld('as-tpl','Séance type à affecter',`<select id="as-tpl" name="tpl"><option value="">— Séance vierge —</option>${templates.map(t=>`<option value="${esc(t.id)}">${esc(t.name||t.type||'Modèle')}</option>`).join('')}</select>`,2)}
+      ${fld('as-title','Intitulé',`<input type="text" id="as-title" name="title" placeholder="ex. Entraînement du soir">`,2)}
+      ${fld('as-dur','Durée (min)',`<input type="number" id="as-dur" name="duration" value="90" min="0">`)}
+    </div>
+    ${ps.length?`<div><b>Qui était là ?</b> <span class="small muted">— coche les présents (${ps.length} joueur·ses)</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">${presence}</div>
+    <div class="row"><button class="btn pri">Créer et affecter la séance</button></div>`:`<p class="muted">Aucun·e joueur·se en ${esc(cat)}. Choisis une autre catégorie ou ajoute des joueur·ses dans « Saisie › Joueur·ses ».</p>`}
+  </form>`;
+  const dayList=!todays.length?`<p class="muted">Aucune séance ${fmtD(date)} en ${esc(cat)}.</p>`:todays.map(s=>{
+    const st=rpeState(s);const nP=s.players?Object.keys(s.players).length:0;const nR=rpeFilledCount(s);
+    let badge,btn;
+    if(!st.sent){badge='<span class="pill neutral">RPE non envoyé</span>';btn=`<button class="btn pri sm" data-act="sendRpe" data-id="${esc(s.id)}">Envoyer RPE (fenêtre 4 h)</button>`;}
+    else if(st.open){badge=`<span class="pill good">Ouvert · ferme dans <b data-chrono="${st.end}">${fmtRemain(st.remain)}</b></span>`;btn=`<button class="btn sm" data-act="sendRpe" data-id="${esc(s.id)}">Prolonger 4 h</button>`;}
+    else{badge='<span class="pill warn">Fenêtre fermée</span>';btn=`<button class="btn sm" data-act="sendRpe" data-id="${esc(s.id)}">Rouvrir 4 h</button>`;}
+    return `<div class="card flat" style="margin-top:8px"><div class="hrow" style="margin:0"><div><b>${esc(s.title||s.type||'Séance')}</b> <span class="small muted">${esc(s.type||'')}${s.duration?' · '+s.duration+' min':''}</span></div>${badge}</div>
+      <div class="hrow" style="margin:6px 0 0"><span class="small muted">${nP} affecté·es · <b>${nR}</b> RPE reçu${nR>1?'s':''}</span><div class="row" style="flex-wrap:nowrap">${btn}<button class="btn sm" data-act="edit" data-col="sessions" data-id="${esc(s.id)}">Ouvrir la séance</button></div></div></div>`;
+  }).join('');
+  return `<div class="hrow"><h2>Affectation des joueur·ses</h2></div>
+    <p class="note" style="margin:0 0 10px">Crée la séance du jour et coche les présents. Puis clique <b>Envoyer RPE</b> : chaque joueur·se dispose alors de <b>4 h</b> pour saisir son RPE depuis son espace perso.</p>
+    ${form}
+    <h3 style="margin:16px 0 4px">Séances du jour</h3>
+    ${dayList}`;
+};
+ENTRY.rpe=()=>{
+  const cat=UI.assignCat||(cats().find(c=>playersOf(c).length))||defCat();const date=UI.assignDate||UI.ref;
+  const sess=Object.values(DATA.sessions).filter(s=>s.date===date&&s.cat===cat).sort((a,b)=>(a.title||a.type||'').localeCompare(b.title||b.type||''));
+  const dc=`${fld('rp-date','Date',`<input type="date" id="rp-date" value="${date}" data-chg="assignDate">`)}${fld('rp-cat','Catégorie',`<select id="rp-cat" data-chg="assignCat">${opt(cats(),cat)}</select>`)}`;
+  if(!sess.length)return `<div class="hrow"><h2>Saisir les RPE</h2></div><div class="fgrid">${dc}</div><p class="muted">Aucune séance ${fmtD(date)} en ${esc(cat)}. Crée-la d'abord dans « Affectation ».</p>`;
+  const sid=(UI.rpeSess&&sess.find(s=>s.id===UI.rpeSess))?UI.rpeSess:sess[0].id;
+  const s=DATA.sessions[sid];
+  const affected=Object.keys(s.players||{}).map(id=>DATA.players[id]).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
+  const st=rpeState(s);
+  const sel=sess.length>1?fld('rp-sess','Séance',`<select id="rp-sess" data-chg="rpeSess">${sess.map(x=>`<option value="${esc(x.id)}" ${x.id===sid?'selected':''}>${esc((x.title||x.type||'Séance'))}</option>`).join('')}</select>`,2):'';
+  const rows=affected.length?affected.map(p=>{const me=s.players[p.id]||{};return `<tr><td>${esc(p.name)}</td><td><input type="number" step="any" min="0" max="10" name="rpe-${p.id}" value="${esc(me.rpe!=null?me.rpe:'')}" placeholder="0-10"></td><td class="small muted">${me.partRpe&&Object.keys(me.partRpe).length?'saisi par le/la joueur·se':(me.rpe!=null?'':'—')}</td></tr>`;}).join(''):`<tr><td colspan="3" class="muted">Aucun·e joueur·se affecté·e à cette séance.</td></tr>`;
+  return `<div class="hrow"><h2>Saisir les RPE</h2>${st.sent?(st.open?`<span class="pill good">Fenêtre joueur·ses ouverte · <b data-chrono="${st.end}">${fmtRemain(st.remain)}</b></span>`:'<span class="pill warn">Fenêtre joueur·ses fermée</span>'):'<span class="pill neutral">RPE non envoyé aux joueur·ses</span>'}</div>
+    <form data-form="rpe" class="stack"><input type="hidden" name="sid" value="${esc(sid)}"><div class="fgrid">${dc}${sel}</div>
+    <div class="tw"><table class="gridin"><thead><tr><th>Joueur·se</th><th>RPE (0-10)</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="row">${!st.sent?`<button type="button" class="btn" data-act="sendRpe" data-id="${esc(sid)}">Envoyer aux joueur·ses (4 h)</button>`:''}<button class="btn pri">Enregistrer les RPE</button></div></form>`;
+};
 ENTRY.session=()=>{const e=editing('sessions');const pf=e?null:(UI.sessionPrefill||null);const src=e||pf||{};const cat=src.cat||defCat();const s=S();
   const templates=Object.values(DATA.templates||{}).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   const recent=Object.values(DATA.sessions).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15);
@@ -1438,14 +1494,23 @@ ENTRY.gps=()=>{const evs=[...Object.values(DATA.sessions).map(s=>({...s,col:'ses
     ${fld('gp-ev','Séance ou match à compléter',`<select id="gp-ev">${evs.map(e=>`<option value="${esc(e.col+'|'+e.id)}">${fmtD(e.date)} · ${esc(e.cat)} · ${esc(e.title||e.type)}</option>`).join('')}</select>`)}
     <textarea id="gp-csv" style="min-height:160px;font-family:ui-monospace,monospace;font-size:12px" aria-label="Données CSV" placeholder="Joueur;Distance;HSR;Sprint;Acc;Dec;Vmax&#10;Adam B.;6120;410;52;60;55;31.2"></textarea>
     <div class="row"><button class="btn" data-act="gpsParse">Analyser</button></div><div id="gp-prev"></div></div>`;};
-VIEWS.entry=()=>{const t=UI.entryTab;return `<div class="subtabs">${ENTRY_TABS.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="entryTab" data-id="${k}">${l}</button>`).join('')}</div>
-  ${UI.edit?`<div class="banner"><p>Modification d'un élément existant.</p></div>`:''}<div class="card">${(ENTRY[t]||ENTRY.session)()}</div>`;};
+VIEWS.entry=()=>{let t=UI.entryTab;if(!ENTRY_MENU.some(m=>m[0]===t)&&!ENTRY[t])t='assign';
+  return `<div class="row" style="margin-bottom:14px;align-items:center"><label for="entry-pick" class="small muted" style="margin:0">Que veux-tu saisir ?</label>
+    <select id="entry-pick" data-chg="entryPick" style="width:auto;font-weight:600">${ENTRY_MENU.map(([k,l])=>`<option value="${k}" ${t===k?'selected':''}>${l}</option>`).join('')}</select></div>
+  ${UI.edit?`<div class="banner"><p>Modification d'un élément existant.</p></div>`:''}<div class="card">${(ENTRY[t]||ENTRY.assign)()}</div>`;};
 POST.entry=()=>{
   $$('select[data-regrid]').forEach(s=>s.onchange=()=>{const k=s.dataset.regrid;const e=k==='session'?editing('sessions'):editing('matches');const dur=$('#se-dur')?$('#se-dur').value:null;$('#grid').innerHTML=gridHTML(k,s.value,e&&e.cat===s.value?e.players:null,dur);});
   $$('[data-rew]').forEach(s=>s.onchange=()=>{UI.wDate=$('#we-date').value;UI.wCat=$('#we-cat').value;formDirty=false;render();});
   const tc=$('#te-cat');if(tc&&!tc.disabled)tc.onchange=()=>{UI.tCat=tc.value;render();};
   $$('[data-tsel]').forEach(c=>c.onchange=()=>{UI.tSel=$$('[data-tsel]').filter(x=>x.checked).map(x=>x.dataset.tsel);render();});
+  startChrono();
 };
+let CHRONO_TIMER=null;
+function startChrono(){if(CHRONO_TIMER){clearInterval(CHRONO_TIMER);CHRONO_TIMER=null;}
+  const tick=()=>{const els=$$('[data-chrono]');if(!els.length){clearInterval(CHRONO_TIMER);CHRONO_TIMER=null;return;}
+    let closed=false;els.forEach(el=>{const remain=(+el.dataset.chrono)-Date.now();if(remain<=0){closed=true;el.textContent='0 min';}else el.textContent=fmtRemain(remain);});
+    if(closed&&UI.tab==='entry')render();};
+  if($$('[data-chrono]').length){tick();CHRONO_TIMER=setInterval(tick,1000);}}
 const FORMS={};
 FORMS.session=async f=>{const e=editing('sessions');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
   const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
@@ -1455,6 +1520,16 @@ FORMS.session=async f=>{const e=editing('sessions');const v=Object.fromEntries(n
   if(e&&e.players)Object.keys(o.players).forEach(pid=>{if(e.players[pid]&&e.players[pid].partRpe)o.players[pid].partRpe=e.players[pid].partRpe;});
   if(!Object.keys(o.players).length){toast('Coche au moins un joueur');return;}
   await put('sessions',id,o);UI.edit=null;UI.prefDate=null;UI.sessionPrefill=null;toast(e?'Séance modifiée':'Séance enregistrée');render();};
+FORMS.assign=async f=>{const v=Object.fromEntries(new FormData(f));const cat=v.cat;const date=v.date;
+  const players={};playersOf(cat).forEach(p=>{const on=f.elements['ap-'+p.id];if(on&&on.checked)players[p.id]={min:num(v.duration)||90};});
+  if(!Object.keys(players).length){toast('Coche au moins un·e joueur·se');return;}
+  const tpl=v.tpl?(DATA.templates||{})[v.tpl]:null;const id=uid();
+  const o={id,date,cat,type:tpl?tpl.type:'Terrain',objective:tpl?tpl.objective:'',title:v.title||(tpl?tpl.name||tpl.title:'')||'Séance',duration:num(v.duration)||90,content:tpl?tpl.content:'',procedes:tpl?(tpl.procedes||[]).slice():[],staffNotes:tpl?Object.assign({},tpl.staffNotes||{}):{},players};
+  await put('sessions',id,o);UI.assignCat=cat;UI.assignDate=date;toast('Séance affectée à '+Object.keys(players).length+' joueur·ses');render();};
+FORMS.rpe=async f=>{const v=Object.fromEntries(new FormData(f));const s=DATA.sessions[v.sid];if(!s){toast('Séance introuvable');return;}
+  const o=JSON.parse(JSON.stringify(s));o.players=o.players||{};let n=0;
+  Object.keys(o.players).forEach(pid=>{const x=num(v['rpe-'+pid]);if(x!=null){o.players[pid].rpe=clamp(x,0,10);n++;}});
+  await put('sessions',v.sid,o);UI.rpeSess=v.sid;toast(n+' RPE enregistré'+(n>1?'s':''));render();};
 FORMS.match=async f=>{const e=editing('matches');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
   const o={id,date:v.date,cat:v.cat,opponent:v.opponent,competition:v.competition,venue:v.venue,gf:num(v.gf)??0,ga:num(v.ga)??0,duration:num(v.duration)||90,players:readGrid(f,'match',v.cat)};
   await put('matches',id,o);UI.edit=null;toast(e?'Match modifié':'Match enregistré');UI.compMatch=id;render();};
@@ -1607,7 +1682,8 @@ const ACT={
   progWeek:b=>{UI.progWeek=+b.dataset.id;UI.progOpen=null;render();},
   progToggle:b=>{const ref=b.dataset.id;UI.progOpen=UI.progOpen===ref?null:ref;render();},
   progValidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,{date:UI.ref,rpe:null});toast('Séance validée');},
-  progUnvalidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,null);toast('Validation annulée');}
+  progUnvalidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,null);toast('Validation annulée');},
+  sendRpe:async b=>{const s=DATA.sessions[b.dataset.id];if(!s)return;await put('sessions',s.id,Object.assign({},s,{rpeOpenedAt:Date.now()}));toast('Fenêtre RPE ouverte · 4 h');}
 };
 let PENDING_IMPORT=null;
 const CHG={
@@ -1619,7 +1695,11 @@ const CHG={
   import:t=>{const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.players)throw 0;PENDING_IMPORT=o;const n=COLS.reduce((a,c)=>a+Object.keys(o[c]||{}).length,0);
     $('#expOut').innerHTML=`<div class="banner"><p>${n} éléments trouvés dans « ${esc(f.name)} ». Ils seront ajoutés aux données actuelles (les éléments de même identifiant sont remplacés).</p><span id="bulkProg" class="small muted"></span><button class="btn pri" data-act="importGo">Importer</button></div>`;}catch(e){toast('Fichier non reconnu');}};r.readAsText(f);},
   progClient:t=>{UI.progClient=t.value;UI.progWeek=null;UI.progOpen=null;render();},
-  progRpe:async t=>{const v=num(t.value);await progSet(t.dataset.cid,t.dataset.ref,{rpe:v==null?null:clamp(v,0,10)});}
+  progRpe:async t=>{const v=num(t.value);await progSet(t.dataset.cid,t.dataset.ref,{rpe:v==null?null:clamp(v,0,10)});},
+  entryPick:t=>{UI.edit=null;UI.entryTab=t.value;formDirty=false;render();},
+  assignCat:t=>{UI.assignCat=t.value;render();},
+  assignDate:t=>{UI.assignDate=t.value;render();},
+  rpeSess:t=>{UI.rpeSess=t.value;render();}
 };
 /* GPS CSV */
 let GPS_PARSED=null;
