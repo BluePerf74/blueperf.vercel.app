@@ -243,7 +243,9 @@ async function loadSessionsToday(){
   SESSIONS_TODAY=Object.values(all).filter(s=>s&&s.date===FEEL_DATE&&s.cat===PLAYER.cat)
     .map(s=>{
       const me=(s.players&&s.players[PLAYER.id])||{};
-      const parts=Array.isArray(s.parts)?s.parts:[];
+      const parts=(Array.isArray(s.procedes)&&s.procedes.length)
+        ? s.procedes.map((p,j)=>p.type||('Procédé '+(j+1)))
+        : (Array.isArray(s.parts)?s.parts:[]);
       const partRpe=me.partRpe||{};
       return {sid:s.id,session:s,parts,
         rpe:me.rpe!=null?me.rpe:null,

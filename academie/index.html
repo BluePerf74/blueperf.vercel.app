@@ -632,8 +632,9 @@ function lineChart(o){
   if(o.band)g+=`<rect x="${L}" width="${W-L-Rp}" y="${y(o.band[1])}" height="${Math.max(0,y(o.band[0])-y(o.band[1]))}" fill="var(--good)" opacity=".09"/>`;
   (o.refs||[]).forEach(r=>{g+=`<line x1="${L}" x2="${W-Rp}" y1="${y(r.v)}" y2="${y(r.v)}" stroke="${r.color||'var(--crit)'}" stroke-dasharray="4 4" stroke-width="1.2"/><text x="${W-Rp}" y="${y(r.v)-4}" text-anchor="end" style="fill:${r.color||'var(--crit)'}">${esc(r.label||'')}</text>`;});
   const step=Math.max(1,Math.ceil(n/8));o.labels.forEach((l,i)=>{if(i%step===0||i===n-1&&n<=10)g+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle">${esc(o.xfmt?o.xfmt(l):fmtShort(l))}</text>`;});
-  o.series.forEach(s=>{let d='',pen=false,area='',segStart=null;
-    s.values.forEach((v,i)=>{if(v==null||!isFinite(v)){pen=false;return;}d+=(pen?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' ';pen=true;});
+  o.series.forEach(s=>{let d='',area='',first=true;
+    // ligne continue : on relie tous les points connus, sans couper aux jours sans donnée
+    s.values.forEach((v,i)=>{if(v==null||!isFinite(v))return;d+=(first?'M':'L')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' ';first=false;});
     if(s.area){const pts=s.values.map((v,i)=>v==null?null:[x(i),y(v)]).filter(Boolean);if(pts.length>1)area=`<path d="M${pts[0][0]} ${y(y0)} `+pts.map(p=>`L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')+` L${pts[pts.length-1][0]} ${y(y0)} Z" fill="${s.color}" opacity=".10"/>`;}
     g+=area+`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${s.dash?'stroke-dasharray="5 4"':''}/>`;
     const li=s.values.map((v,i)=>v!=null&&isFinite(v)?i:-1).filter(i=>i>=0);
@@ -1277,9 +1278,18 @@ ENTRY.session=()=>{const e=editing('sessions');const cat=e?e.cat:defCat();const 
     ${fld('se-title','Intitulé',`<input type="text" id="se-title" name="title" value="${esc(e&&e.title||'')}" placeholder="ex. Force + jeu réduit">`,2)}
     ${fld('se-dur','Durée (min)',`<input type="number" id="se-dur" name="duration" value="${esc(e?e.duration:90)}" min="0" required>`)}
     ${fld('se-content','Contenu',`<input type="text" id="se-content" name="content" value="${esc(e&&e.content||'')}" placeholder="Exercices, consignes…">`,3)}
-    ${fld('se-parts','Parties de la séance (une par ligne — le joueur note le RPE de chaque partie)',`<textarea id="se-parts" name="parts" placeholder="Échauffement&#10;Travail technique&#10;Jeu réduit&#10;Physique" style="min-height:74px">${esc((e&&e.parts||[]).join('\n'))}</textarea>`,3)}
   </div>
-  <p class="note" style="margin:0">Décoche les absents. Minutes vides = durée de la séance. RPE (échelle CR-10) recueilli 20 à 30 min après la séance. Les colonnes GPS sont facultatives.</p>
+  <div style="margin-top:4px"><b>Procédés (jusqu'à 8)</b> <span class="small muted">— chaque joueur·se note son RPE ressenti pour chaque procédé dans son espace perso</span></div>
+  <div class="tw"><table class="gridin"><thead><tr><th>#</th><th>Temps (min)</th><th>Type</th><th>Zone</th><th>RPE cible</th></tr></thead><tbody>
+    ${[0,1,2,3,4,5,6,7].map(i=>{const pr=(e&&e.procedes&&e.procedes[i])||{};return `<tr>
+      <td class="small muted">P${i+1}</td>
+      <td><input type="number" step="any" name="pc-temps-${i}" value="${esc(pr.temps??'')}" placeholder="0" aria-label="Temps procédé ${i+1}"></td>
+      <td><input type="text" name="pc-type-${i}" value="${esc(pr.type||'')}" placeholder="Échauffement, jeu réduit, W/E/A…" aria-label="Type procédé ${i+1}"></td>
+      <td><input type="number" step="any" name="pc-zone-${i}" value="${esc(pr.zone??'')}" placeholder="1-5" aria-label="Zone procédé ${i+1}"></td>
+      <td><input type="number" step="any" name="pc-rpe-${i}" value="${esc(pr.rpe??'')}" placeholder="0-10" aria-label="RPE cible procédé ${i+1}"></td>
+    </tr>`;}).join('')}
+  </tbody></table></div>
+  <p class="note" style="margin:0"><b>Présence :</b> coche/décoche chaque joueur·se pour indiquer qui était là. Minutes vides = durée de la séance. RPE (CR-10) recueilli 20 à 30 min après la séance. Colonnes GPS facultatives.</p>
   <div class="tw"><table class="gridin"><thead><tr><th>Joueur</th>${GF.session.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody id="grid">${gridHTML('session',cat,e&&e.players,e?e.duration:90)}</tbody></table></div>
   <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">${e?'Enregistrer les modifications':'Enregistrer la séance'}</button></div></form>`;};
 ENTRY.match=()=>{const e=editing('matches');const cat=e?e.cat:defCat();
@@ -1381,8 +1391,8 @@ POST.entry=()=>{
 };
 const FORMS={};
 FORMS.session=async f=>{const e=editing('sessions');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
-  const parts=(v.parts||'').split('\n').map(x=>x.trim()).filter(Boolean);
-  const o={id,date:v.date,cat:v.cat,type:v.type,objective:v.objective,title:v.title,duration:num(v.duration)||0,content:v.content,parts,players:readGrid(f,'session',v.cat)};
+  const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
+  const o={id,date:v.date,cat:v.cat,type:v.type,objective:v.objective,title:v.title,duration:num(v.duration)||0,content:v.content,procedes,players:readGrid(f,'session',v.cat)};
   // préserver le RPE par partie déjà saisi par les joueuses lors d'une réédition coach
   if(e&&e.players)Object.keys(o.players).forEach(pid=>{if(e.players[pid]&&e.players[pid].partRpe)o.players[pid].partRpe=e.players[pid].partRpe;});
   if(!Object.keys(o.players).length){toast('Coche au moins un joueur');return;}
