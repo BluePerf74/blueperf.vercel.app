@@ -1796,20 +1796,26 @@ async function renderCoachDashboard(){
 }
 
 function renderFullApp(section){
-  const src = section === 'individuel' ? '/academie/?mode=individuel' : '/academie/';
-  const label = section === 'individuel' ? 'COACHING INDIVIDUEL' : 'FOOTBALL';
+  const src = section === 'individuel' ? '/academie/?mode=individuel'
+    : section === 'nutrition' ? '/academie/nutrition.html'
+    : '/academie/';
+  const label = section === 'individuel' ? 'COACHING INDIVIDUEL' : section === 'nutrition' ? 'NUTRITION' : 'FOOTBALL';
   const swBtn = (sec, txt) => {
     const active = section === sec;
     return `<button data-fbsec="${sec}" style="appearance:none;cursor:pointer;border:1px solid ${active?'#3DA9FC':'rgba(255,255,255,.25)'};background:${active?'#3DA9FC':'transparent'};color:${active?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${txt}</button>`;
   };
+  const dashBtn = state.access === 'coach'
+    ? `<button data-fbdash style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">← Tableau de bord</button>`
+    : '';
   app.innerHTML = `
     <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--nav,#0E1A2C)">
       <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
         <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3DA9FC">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${label}</span></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${dashBtn}
           ${swBtn('football','Football')}
           ${swBtn('individuel','Coaching individuel')}
-          <button data-fbsec="nutrition" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">Nutrition</button>
+          ${swBtn('nutrition','Nutrition')}
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">Déconnexion</button>
         </div>
       </div>
@@ -1821,6 +1827,14 @@ function renderFullApp(section){
     state.tab = nt[0].id;
     render();
   }));
+  const dash = app.querySelector('[data-fbdash]');
+  if(dash) dash.addEventListener('click', () => {
+    state.section = 'programme';
+    state.viewAs = 'coach';
+    const nt = tabsFor('programme', true);
+    state.tab = nt[0].id;
+    render();
+  });
   const lo = app.querySelector('[data-fblogout]');
   if(lo) lo.addEventListener('click', logout);
 }
@@ -1828,6 +1842,7 @@ function renderFullApp(section){
 async function render(){
   if(state.section === 'football'){ renderFullApp('football'); return; }
   if(state.section === 'individuel'){ renderFullApp('individuel'); return; }
+  if(state.section === 'nutrition' && state.access === 'coach'){ renderFullApp('nutrition'); return; }
   const isCoachView = state.viewAs === 'coach';
   const isNutrition = state.section === 'nutrition';
   const tabs = tabsFor(state.section, isCoachView);

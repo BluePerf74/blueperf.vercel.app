@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Blueperf · Nutrition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0D1B2A; --navy-3:#1F3350; --chalk:#D9E8DE; --paper:#EBF6F0; --ink:#122036; --ink-soft:#54627A;
+  --line:#C4D9CC; --grass:#2E7D4F; --grass-dark:#1F5D3A; --grass-tint:#E3F2E9; --amber:#C98A2C; --red:#B8443B;
+  --radius:14px; --protein:#7C5CD9; --carb:#C98A2C; --lipid:#2E7FC9; --navy2:#0E1A2C;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Inter',system-ui,sans-serif;color:var(--ink);background:var(--paper);-webkit-text-size-adjust:100%}
+h1,h2,h3{font-family:'Space Grotesk',system-ui,sans-serif}
+.nav{background:var(--navy);color:#fff;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.brand{font-family:'Space Grotesk';font-weight:700;font-size:16px;letter-spacing:.02em}
+.brand span{color:#3DA9FC}
+.brand em{font-style:normal;font-size:11px;opacity:.6;letter-spacing:.14em;margin-left:4px}
+.nav .sp{flex:1}
+.nav select{background:var(--navy-3);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:6px 9px;font-size:12.5px;font-family:inherit;max-width:200px}
+.tabs{display:flex;gap:2px;flex-wrap:wrap;padding:4px 12px;background:var(--navy2);position:sticky;top:44px;z-index:19}
+.tab{background:none;border:none;color:#AFC0D6;font-family:inherit;font-size:12.5px;font-weight:600;padding:9px 12px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap}
+.tab:hover{background:rgba(255,255,255,.07);color:#fff}
+.tab.active{background:var(--paper);color:var(--ink)}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+.section-label{font-family:'Space Grotesk';font-weight:700;font-size:18px;margin:4px 0 8px}
+.bilan-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 12px}
+.empty{padding:26px 16px;text-align:center;color:var(--ink-soft);font-size:13.5px;border:1px dashed var(--line);border-radius:var(--radius);margin-top:12px}
+button.btn-primary-sm,.save-btn,.btn-line,.btn-add{font-family:inherit;cursor:pointer}
+.save-bar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--paper) 30%);padding:14px 0 6px;margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.save-btn{background:var(--grass);color:#fff;border:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:700}
+.save-confirm{color:var(--grass-dark);font-weight:700;font-size:13px}
+.save-error{color:var(--red);font-weight:700;font-size:13px;margin-top:8px}
+.btn-primary-sm{background:var(--grass);color:#fff;border:none;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600}
+.btn-line{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.btn-add{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600}
+.danger{color:var(--red)!important}
+.bf-row{display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap}
+.bf-row label{flex:0 0 46%;font-size:13px;color:var(--ink-soft);font-weight:500}
+.bf-row.bf-row-col{flex-direction:column;align-items:stretch}
+.bf-row.bf-row-col label{flex:none;margin-bottom:6px}
+.bf-row input,.bf-row select,.bf-row textarea{flex:1;min-width:120px;padding:9px 11px;border-radius:9px;border:1px solid var(--line);font-size:13.5px;font-family:inherit;background:#fff;color:var(--ink)}
+.bf-row textarea{width:100%}
+.na-check-group{display:flex;flex-direction:column;gap:7px}
+.na-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:500}
+.rpe-row{flex:1;display:flex;align-items:center;gap:10px;min-width:150px}
+.rpe-row input[type=range]{flex:1}
+.rpe-val{font-family:'Space Grotesk';font-weight:700;width:26px;text-align:center}
+.history-item{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px;background:var(--paper)}
+.hi-date{font-weight:700;font-size:13.5px}
+.hi-sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px}
+.history-zones{font-size:12px;color:var(--ink-soft);margin-top:4px;font-style:italic}
+.done-links{display:flex;gap:12px;margin-top:6px}
+.done-links button{background:none;border:none;color:var(--grass-dark);font-size:12.5px;font-weight:600;cursor:pointer;padding:0}
+.client-row{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-top:8px;background:var(--paper);flex-wrap:wrap}
+.client-row .cn{font-weight:600;flex:1;min-width:120px}
+.client-row .acc{font-size:12px;color:var(--ink-soft)}
+/* Nutrition module (copié de l'app Blueperf) */
+.nutri-intro{display:flex;gap:10px;align-items:flex-start;background:var(--chalk);border-left:3px solid var(--grass);border-radius:10px;padding:12px 14px;margin-top:16px;font-size:12.5px;color:var(--ink-soft);line-height:1.55}
+.nutri-intro b{color:var(--ink)}
+.nutri-card{border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:16px;background:var(--paper)}
+.nutri-card h3{margin:0 0 10px;font-size:14.5px}
+.nutri-empty{margin-top:16px;padding:26px 16px;text-align:center;color:var(--ink-soft);font-size:13.5px;border:1px dashed var(--line);border-radius:var(--radius)}
+.nutri-empty .btn-primary-sm{margin-top:12px}
+.daytype-tabs{display:flex;gap:6px;margin-top:16px}
+.daytype-tab{flex:1;padding:9px 4px;text-align:center;border-radius:9px;border:1px solid var(--line);background:var(--paper);font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-soft)}
+.daytype-tab.active{background:var(--navy);color:var(--chalk);border-color:var(--navy)}
+.daytype-note{font-size:12px;color:var(--ink-soft);margin-top:8px;font-style:italic}
+.nutri-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.nutri-stat{border:1px solid var(--line);border-radius:12px;padding:12px 13px;position:relative;overflow:hidden}
+.nutri-stat::before{content:"";position:absolute;top:0;left:0;right:0;height:3px}
+.nutri-stat.st-kcal::before{background:var(--amber)}
+.nutri-stat.st-prot::before{background:var(--protein)}
+.nutri-stat.st-carb::before{background:var(--carb)}
+.nutri-stat.st-water::before{background:var(--lipid)}
+.nutri-stat .ns-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);font-weight:700}
+.nutri-stat .ns-val{font-family:'Space Grotesk';font-size:21px;font-weight:700;margin-top:3px}
+.nutri-stat .ns-sub{font-size:11px;color:var(--ink-soft);margin-top:2px}
+.macro-bar{display:flex;height:12px;border-radius:99px;overflow:hidden;margin:14px 0 10px;background:var(--chalk)}
+.macro-bar span{height:100%}
+.macro-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--ink-soft)}
+.macro-legend .dot{width:8px;height:8px;border-radius:3px;display:inline-block;margin-right:5px}
+.macro-legend b{color:var(--ink)}
+.plate-row{display:flex;gap:18px;flex-wrap:wrap;justify-content:space-around;margin-top:14px}
+.plate-block{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;min-width:130px}
+.plate-block .pb-title{font-size:12px;font-weight:700;text-align:center}
+.plate-block .pb-sub{font-size:10.5px;color:var(--ink-soft);text-align:center}
+.plate-legend{display:flex;flex-direction:column;gap:4px;margin-top:2px;width:100%;max-width:160px}
+.plate-legend .item{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink-soft)}
+.plate-legend .dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.plate-legend .pct{margin-left:auto;font-weight:700;color:var(--ink)}
+.nutri-food-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #d7e6dd}
+.nutri-food-row:last-child{border-bottom:none}
+.nutri-food-row .nf-ic{font-size:17px;flex:0 0 auto}
+.nutri-food-row .nf-name{flex:1;font-size:13px;font-weight:600;min-width:0}
+.nutri-food-row .nf-note{font-size:11px;color:var(--ink-soft);margin-top:1px;font-weight:400}
+.nutri-food-row .nf-qty{font-family:'Space Grotesk';font-weight:700;font-size:13px;white-space:nowrap}
+.micro-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #d7e6dd;font-size:12.5px}
+.micro-row:last-child{border-bottom:none}
+.micro-row .mr-name{color:var(--ink)}
+.micro-row .mr-val{color:var(--ink-soft);font-weight:600}
+.nutri-timeline .tl-row{padding:11px 0;border-bottom:1px solid #d7e6dd}
+.nutri-timeline .tl-row:last-child{border-bottom:none}
+.nutri-timeline .tl-time{font-size:11px;font-weight:700;color:var(--grass-dark);text-transform:uppercase;letter-spacing:.03em}
+.nutri-timeline .tl-title{font-size:13.5px;font-weight:600;margin-top:3px}
+.nutri-timeline .tl-desc{font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.5}
+.nutri-tip{background:var(--chalk);border-radius:10px;padding:11px 13px;margin-top:10px;font-size:12.5px;color:var(--ink);line-height:1.5}
+.nutri-tip b{color:var(--grass-dark)}
+.nutri-journal-group{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-top:12px}
+.njg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.njg-head .njg-ic{font-size:17px}
+.njg-head .njg-name{font-weight:600;font-size:13.5px;flex:1;min-width:110px}
+.njg-head .njg-target{font-size:11px;color:var(--ink-soft)}
+.njg-track{height:9px;border-radius:99px;background:var(--chalk);overflow:hidden;margin-bottom:7px}
+.njg-fill{height:100%;border-radius:99px;background:var(--grass)}
+.njg-fill.watch{background:var(--amber)}
+.njg-fill.over{background:var(--red)}
+.njg-status{font-size:12px;color:var(--ink-soft);margin-bottom:10px}
+.njg-status b{color:var(--ink)}
+.njg-tip{display:flex;gap:7px;background:var(--grass-tint);border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:12px;color:var(--grass-dark);line-height:1.5}
+.njg-add{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.njg-quick{background:var(--chalk);border:1px solid var(--line);border-radius:99px;font-size:11.5px;font-weight:600;padding:6px 10px;cursor:pointer;color:var(--ink-soft)}
+.njg-quick:active{background:var(--grass-tint);color:var(--grass-dark)}
+.njg-custom{display:flex;align-items:center;gap:6px;margin-left:auto}
+.njg-custom input{width:60px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-size:12.5px;font-family:inherit}
+.njg-custom button{border:none;background:var(--grass);color:#fff;font-weight:700;font-size:11.5px;padding:6px 12px;border-radius:8px;cursor:pointer}
+.nutri-log-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #d7e6dd;font-size:12.5px}
+.nutri-log-row:last-child{border-bottom:none}
+.nutri-log-row .nl-name{flex:1;color:var(--ink-soft)}
+.nutri-log-row .nl-grams{font-family:'Space Grotesk';font-weight:700}
+.nutri-log-row .nl-time{font-size:10.5px;color:var(--ink-soft);width:44px;text-align:right}
+.nutri-log-row .nl-del{border:none;background:none;color:var(--ink-soft);font-size:16px;cursor:pointer;padding:0 2px}
+.nutri-log-empty{font-size:12.5px;color:var(--ink-soft);padding:6px 0}
+.res-formula{background:var(--chalk);border-radius:9px;padding:11px 13px;margin:8px 0;overflow-x:auto}
+.res-formula code{font-family:ui-monospace,monospace;font-size:12px;white-space:pre;line-height:1.7;display:block;color:var(--ink)}
+.res-table{width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:12px}
+.res-table th{text-align:left;color:var(--ink-soft);font-weight:700;font-size:10.5px;text-transform:uppercase;padding:0 8px 6px 0;border-bottom:1px solid var(--line)}
+.res-table td{padding:7px 8px 7px 0;border-bottom:1px solid #d7e6dd;color:var(--ink-soft)}
+.res-table td:first-child{color:var(--ink);font-weight:500}
+.res-source{font-size:10.5px;color:#8aa; font-style:italic;margin-top:6px}
+.res-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;background:var(--chalk);color:var(--ink-soft);padding:3px 8px;border-radius:99px}
+.chart-svg{width:100%;height:auto;display:block;margin-top:8px}
+.foot{color:#8aa;font-size:11px;text-align:center;padding:20px 0}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="brand">BLUE<span>PERF</span><em>NUTRITION</em></div>
+  <div class="sp"></div>
+  <select id="client-select" aria-label="Client suivi"></select>
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="wrap" id="screen"></div>
+<div class="foot">Blueperf · module nutrition — repères pour sportifs en bonne santé</div>
+<script>
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const PFX='nut:';
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function fmtDate(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});}catch(e){return d;}}
+function uid(){return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+async function kvGet(key){try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(PFX+key)+'&_='+Date.now(),{cache:'no-store'});if(!r.ok)return null;const j=await r.json();return j&&j.value?JSON.parse(j.value):null;}catch(e){return null;}}
+async function kvSet(key,val){try{const r=await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key:PFX+key,value:JSON.stringify(val)})});return r.ok;}catch(e){return false;}}
+
+/* ===== Constantes & calculs (repris de l'app Blueperf) ===== */
+const NUTRI_DAY_LABELS={repos:'Repos',modere:'Entraînement modéré',intense:'Entraînement intense'};
+const NUTRI_ACTIVITY_MULT={repos:1.375,modere:1.55,intense:1.725};
+const NUTRI_CARB_PER_KG={repos:4,modere:6,intense:8};
+const NUTRI_PROTEIN_PER_KG=1.8;
+const NUTRI_WATER_BONUS={repos:0,modere:0.5,intense:0.8};
+const NUTRI_FOOD_BASE={
+  repos:[
+    {id:'feculents',icon:'🥔',name:'Féculents / céréales complètes',grams:170,unit:'g cuits',note:"1 poing fermé par repas"},
+    {id:'legumes',icon:'🥦',name:'Légumes',grams:400,unit:'g',note:"moitié de l'assiette midi et soir"},
+    {id:'fruits',icon:'🍎',name:'Fruits',grams:300,unit:'g (≈2 fruits)',note:"1 fruit ≈ 150 g"},
+    {id:'laitiers',icon:'🥛',name:'Produits laitiers',grams:250,unit:'g (≈2 portions)',note:"yaourt nature ou 30 g de fromage"},
+    {id:'lipides',icon:'🫒',name:'Matières grasses ajoutées',grams:30,unit:'g (≈3 c. à soupe)',note:"huile de colza / olive à privilégier"},
+    {id:'extras',icon:'🍬',name:'Extras / plaisir',grams:null,unit:'selon envie',note:"sans culpabiliser, en conscience"}
+  ],
+  modere:[
+    {id:'feculents',icon:'🥔',name:'Féculents / céréales complètes',grams:230,unit:'g cuits',note:"1 grand poing par repas + collation post-séance"},
+    {id:'legumes',icon:'🥦',name:'Légumes',grams:400,unit:'g',note:"moitié de l'assiette midi et soir"},
+    {id:'fruits',icon:'🍎',name:'Fruits',grams:375,unit:'g (2 à 3 fruits)',note:"dont 1 juste après la séance"},
+    {id:'laitiers',icon:'🥛',name:'Produits laitiers',grams:300,unit:'g (2 à 3 portions)',note:"yaourt / skyr après l'entraînement"},
+    {id:'lipides',icon:'🫒',name:'Matières grasses ajoutées',grams:30,unit:'g (≈3 c. à soupe)',note:"huile de colza / olive à privilégier"},
+    {id:'extras',icon:'🍬',name:'Extras / plaisir',grams:null,unit:'selon envie',note:"sans culpabiliser, en conscience"}
+  ],
+  intense:[
+    {id:'feculents',icon:'🥔',name:'Féculents / céréales complètes',grams:290,unit:'g cuits',note:"majorés sur les repas encadrant la séance"},
+    {id:'legumes',icon:'🥦',name:'Légumes',grams:400,unit:'g',note:"quantité stable, cuisson douce si séance proche"},
+    {id:'fruits',icon:'🍎',name:'Fruits',grams:450,unit:'g (≈3 fruits)',note:"dont 1 avant et 1 après la séance"},
+    {id:'laitiers',icon:'🥛',name:'Produits laitiers',grams:300,unit:'g (2 à 3 portions)',note:"utile pour la récupération musculaire"},
+    {id:'lipides',icon:'🫒',name:'Matières grasses ajoutées',grams:30,unit:'g (≈3 c. à soupe)',note:"limiter juste avant l'effort (digestion)"},
+    {id:'extras',icon:'🍬',name:'Extras / plaisir',grams:null,unit:'selon envie',note:"sans culpabiliser, en conscience"}
+  ]
+};
+const NUTRI_PLATES={
+  repos:[
+    {title:"Repas principal",sub:"déjeuner / dîner",segs:[{label:"Légumes",pct:50,color:"var(--grass)"},{label:"Protéines",pct:25,color:"var(--protein)"},{label:"Féculents",pct:25,color:"var(--carb)"}]},
+    {title:"Collation",sub:"si besoin, milieu d'après-midi",segs:[{label:"Fruit",pct:55,color:"var(--carb)"},{label:"Oléagineux / laitage",pct:45,color:"var(--lipid)"}]}
+  ],
+  modere:[
+    {title:"Repas principal",sub:"déjeuner / dîner",segs:[{label:"Légumes",pct:40,color:"var(--grass)"},{label:"Protéines",pct:25,color:"var(--protein)"},{label:"Féculents",pct:35,color:"var(--carb)"}]},
+    {title:"Collation post-séance",sub:"dans les 45 min après l'effort",segs:[{label:"Glucides rapides",pct:65,color:"var(--carb)"},{label:"Protéines",pct:35,color:"var(--protein)"}]}
+  ],
+  intense:[
+    {title:"Repas principal",sub:"déjeuner / dîner",segs:[{label:"Légumes",pct:35,color:"var(--grass)"},{label:"Protéines",pct:22,color:"var(--protein)"},{label:"Féculents",pct:43,color:"var(--carb)"}]},
+    {title:"Collation post-séance",sub:"dans les 30 min après l'effort",segs:[{label:"Glucides rapides",pct:70,color:"var(--carb)"},{label:"Protéines",pct:30,color:"var(--protein)"}]}
+  ]
+};
+const NUTRI_TIMELINE={
+  repos:[["Journée sans séance","Rythme de repas habituel, pas d'ajustement particulier autour d'un entraînement.","Continuer à bien s'hydrater et privilégier les fibres (légumes, légumineuses)."]],
+  modere:[
+    ["2-3h avant la séance","Repas normal avec féculents + protéines, quantité modérée pour digérer facilement.","Ex. riz, poulet, légumes vapeur."],
+    ["Pendant l'effort","Eau suffisante dans la majorité des cas sur ce format.","Pas besoin de boisson d'effort en dessous d'1h."],
+    ["Dans les 45 min après","Collation glucides + protéines pour lancer la récupération.","Ex. yaourt + banane, ou pain + fromage blanc + miel."]
+  ],
+  intense:[
+    ["3h avant la séance","Repas riche en glucides complexes, protéines modérées, peu de fibres/gras pour bien digérer.","Ex. pâtes, blanc de poulet, carottes cuites."],
+    ["Pendant l'effort","Eau régulière ± glucides si plus d'1h d'effort continu.","Petites gorgées toutes les 15-20 min."],
+    ["Dans les 30 min après","Fenêtre de récupération prioritaire : glucides + protéines rapidement assimilables.","Ex. boisson lactée + fruit, ou pain blanc + jambon + compote."]
+  ]
+};
+const NUTRI_MICROS=[
+  {name:'Fer',val:'16 mg/j',note:'femme en âge de procréer / endurance'},
+  {name:'Calcium',val:'1 000 mg/j',note:''},
+  {name:'Vitamine D',val:'15 µg/j',note:''},
+  {name:'Magnésium',val:'360 mg/j',note:''},
+  {name:'Oméga-3 (EPA + DHA)',val:'250 à 500 mg/j',note:''}
+];
+function nutriBMR(sex,weightKg,heightCm,age){const heightM=heightCm/100;const coeff=sex==='Homme'?1.083:0.963;const mj=coeff*Math.pow(weightKg,0.48)*Math.pow(heightM,0.5)*Math.pow(Math.max(age,1),-0.13);return mj*1000/4.1855;}
+function nutriCompute(anam,dayType){
+  const weight=anam.weight;const bmr=nutriBMR(anam.sex,weight,anam.height,anam.age);const tdee=bmr*(NUTRI_ACTIVITY_MULT[dayType]||1.55);
+  const proteinG=Math.round(weight*NUTRI_PROTEIN_PER_KG);const carbG=Math.round((weight*(NUTRI_CARB_PER_KG[dayType]||6))/5)*5;
+  const proteinKcal=proteinG*4,carbKcal=carbG*4;let lipG=Math.round((tdee-proteinKcal-carbKcal)/9);const lipFloor=Math.round(weight);if(lipG<lipFloor)lipG=lipFloor;
+  const kcalTotal=Math.round((proteinKcal+carbKcal+lipG*9)/10)*10;const waterL=Math.round((weight*0.035+(NUTRI_WATER_BONUS[dayType]||0))*10)/10;
+  const ratio=weight/60;const foods=NUTRI_FOOD_BASE[dayType].map(f=>{if(f.grams==null)return Object.assign({},f);let g=Math.round((f.grams*ratio)/5)*5;if(g<5)g=5;return Object.assign({},f,{grams:g});});
+  const proteinFoodGrams=Math.round((proteinG/0.22)/5)*5;
+  foods.splice(3,0,{id:'proteines',icon:'🍗',name:'Protéines (viande, poisson, œufs, légumineuses)',grams:proteinFoodGrams,unit:'g cuit',note:"réparti sur les repas principaux"});
+  return {kcal:kcalTotal,prot:proteinG,carb:carbG,lip:lipG,water:waterL,foods,bmr:Math.round(bmr),tdee:Math.round(tdee)};
+}
+function nutriFoodLabel(f){return f.grams==null?f.unit:(f.grams+" "+f.unit);}
+function nutriConic(segs){let acc=0;const parts=[];segs.forEach(s=>{const start=acc,end=acc+s.pct;parts.push(s.color+" "+start+"% "+end+"%");acc=end;});return "conic-gradient("+parts.join(",")+")";}
+function nutriProgrammeBodyHtml(anam,dayType){
+  const r=nutriCompute(anam,dayType);const protKcal=r.prot*4,carbKcal=r.carb*4,lipKcal=r.lip*9;const total=protKcal+carbKcal+lipKcal;
+  const pctP=Math.round(protKcal/total*100),pctC=Math.round(carbKcal/total*100),pctL=100-pctP-pctC;
+  const plates=NUTRI_PLATES[dayType];const timeline=NUTRI_TIMELINE[dayType];
+  return `
+    <div class="nutri-stat-grid">
+      <div class="nutri-stat st-kcal"><div class="ns-label">Besoin énergétique</div><div class="ns-val">${r.kcal} kcal</div><div class="ns-sub">estimé, à ajuster selon appétit</div></div>
+      <div class="nutri-stat st-prot"><div class="ns-label">Protéines</div><div class="ns-val">${r.prot} g</div><div class="ns-sub">${NUTRI_PROTEIN_PER_KG} g/kg de poids de corps</div></div>
+      <div class="nutri-stat st-carb"><div class="ns-label">Glucides</div><div class="ns-val">${r.carb} g</div><div class="ns-sub">variable selon la charge du jour</div></div>
+      <div class="nutri-stat st-water"><div class="ns-label">Hydratation</div><div class="ns-val">${r.water.toString().replace('.',',')} L</div><div class="ns-sub">ajustée à l'entraînement</div></div>
+    </div>
+    <div class="nutri-card"><h3>Répartition des macronutriments</h3>
+      <div class="macro-bar"><span style="width:${pctP}%;background:var(--protein)"></span><span style="width:${pctC}%;background:var(--carb)"></span><span style="width:${pctL}%;background:var(--lipid)"></span></div>
+      <div class="macro-legend"><span><span class="dot" style="background:var(--protein)"></span>Protéines <b>${pctP}%</b></span><span><span class="dot" style="background:var(--carb)"></span>Glucides <b>${pctC}%</b></span><span><span class="dot" style="background:var(--lipid)"></span>Lipides <b>${pctL}%</b></span></div>
+    </div>
+    <div class="nutri-card"><h3>Composition de l'assiette</h3>
+      <div class="plate-row">${plates.map(p=>`<div class="plate-block"><div class="pb-title">${p.title}</div><div class="pb-sub">${p.sub}</div><div style="width:104px;height:104px;border-radius:50%;background:${nutriConic(p.segs)};box-shadow:inset 0 0 0 5px var(--paper),0 0 0 1px var(--line);"></div><div class="plate-legend">${p.segs.map(s=>`<div class="item"><span class="dot" style="background:${s.color}"></span>${s.label}<span class="pct">${s.pct}%</span></div>`).join('')}</div></div>`).join('')}</div>
+    </div>
+    <div class="nutri-card"><h3>Groupes d'aliments — quantités du jour</h3>
+      ${r.foods.map(f=>`<div class="nutri-food-row"><span class="nf-ic">${f.icon}</span><div class="nf-name">${f.name}<div class="nf-note">${f.note}</div></div><span class="nf-qty">${nutriFoodLabel(f)}</span></div>`).join('')}
+    </div>
+    <div class="nutri-card"><h3>Micronutriments — repères journaliers</h3>${NUTRI_MICROS.map(m=>`<div class="micro-row"><span class="mr-name">${m.name}</span><span class="mr-val">${m.val}</span></div>`).join('')}</div>
+    <div class="nutri-card"><h3>Autour de l'entraînement</h3><div class="nutri-timeline">${timeline.map(t=>`<div class="tl-row"><div class="tl-time">${t[0]}</div><div class="tl-title">${t[1]}</div><div class="tl-desc">${t[2]}</div></div>`).join('')}</div></div>
+    <div class="nutri-tip"><b>Base flexible.</b> Ces grammages sont des repères, pas des cases à cocher — à ajuster selon la faim, l'appétit et les journées plus ou moins actives. Ce n'est pas un régime strict.</div>
+    <div class="nutri-tip"><b>Évolutif.</b> Le programme se recalcule à chaque mise à jour de l'anamnèse (poids, sensations, retours).</div>`;
+}
+
+/* ===== État & données ===== */
+const S={clients:{},cid:null,tab:'clients',anam:{},anamCid:null,daytype:{},journal:[],journalKey:null,journalDate:null,editingId:null,weights:[],weightsCid:null,measureForm:null,saved:false,daytypeCur:'modere'};
+async function loadClients(){S.clients=(await kvGet('clients'))||{};}
+async function saveClients(){await kvSet('clients',S.clients);}
+function clientList(){return Object.values(S.clients).sort((a,b)=>(a.name||'').localeCompare(b.name||''));}
+function clientName(id){return (S.clients[id]&&S.clients[id].name)||'';}
+async function getAnam(cid){if(S.anamCid!==cid){S.anam=(await kvGet('anam:'+cid))||null;S.anamCid=cid;S.saved=false;}return S.anam;}
+async function saveAnam(cid,data){S.anam=data;S.anamCid=cid;return await kvSet('anam:'+cid,data);}
+async function getDaytype(cid){if(!(cid in S.daytype)){const v=await kvGet('daytype:'+cid);S.daytype[cid]=(v==='repos'||v==='modere'||v==='intense')?v:'modere';}return S.daytype[cid];}
+async function saveDaytype(cid,dt){S.daytype[cid]=dt;return await kvSet('daytype:'+cid,dt);}
+async function loadJournal(cid,date){const v=await kvGet('journal:'+cid+':'+date);return Array.isArray(v)?v:[];}
+async function saveJournal(cid,date,entries){return await kvSet('journal:'+cid+':'+date,entries);}
+async function loadWeights(cid){const v=await kvGet('weight:'+cid);return Array.isArray(v)?v:[];}
+async function saveWeights(cid,arr){return await kvSet('weight:'+cid,arr);}
+
+const TABS=[['clients','Clients'],['anamnese','Anamnèse'],['programme','Programme généré'],['poids','Poids & mensurations'],['journal','Journal'],['ressources','Ressources']];
+
+function renderShell(){
+  const cs=clientList();
+  const sel=$('#client-select');
+  sel.innerHTML=cs.length?cs.map(c=>`<option value="${esc(c.id)}" ${c.id===S.cid?'selected':''}>${esc(c.name)}</option>`).join(''):'<option value="">Aucun client</option>';
+  sel.onchange=()=>{S.cid=sel.value;S.anamCid=null;S.weightsCid=null;S.journalKey=null;render();};
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab ${S.tab===k?'active':''}" data-tab="${k}">${l}</button>`).join('');
+  $$('#tabs .tab').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render();});
+}
+
+async function render(){
+  renderShell();
+  const screen=$('#screen');
+  const cs=clientList();
+  if(!S.cid&&cs.length)S.cid=cs[0].id;
+  if(S.tab==='clients')return renderClients(screen);
+  if(!S.cid){screen.innerHTML='<div class="empty">Ajoute d\'abord un client dans l\'onglet <b>Clients</b>.</div>';return;}
+  if(S.tab==='anamnese')return renderAnamnese(screen);
+  if(S.tab==='programme')return renderProgramme(screen);
+  if(S.tab==='poids')return renderPoids(screen);
+  if(S.tab==='journal')return renderJournal(screen);
+  if(S.tab==='ressources')return renderRessources(screen);
+}
+
+/* ---- Clients ---- */
+function renderClients(screen){
+  const cs=clientList();
+  screen.innerHTML=`
+    <div class="section-label">Clients nutrition</div>
+    <p class="bilan-desc">Les clients de ce module sont indépendants du Football et du Coaching individuel. Chacun peut recevoir un identifiant et un mot de passe pour consulter son programme et remplir son journal.</p>
+    <div class="nutri-card"><h3>Nouveau client</h3>
+      <div class="bf-row"><label>Nom</label><input id="nc-name" placeholder="Prénom Nom"></div>
+      <div class="bf-row"><label>Identifiant (optionnel)</label><input id="nc-login" placeholder="ex. cindy"></div>
+      <div class="bf-row"><label>Mot de passe (optionnel)</label><input id="nc-pass" placeholder="ex. cindy"></div>
+      <button class="btn-add" id="nc-add">Ajouter le client</button>
+    </div>
+    <div id="clist">${cs.length?cs.map(c=>`<div class="client-row"><span class="cn">${esc(c.name)}</span><span class="acc">${c.login?('accès : '+esc(c.login)+' · '+esc(c.pass||'')):'pas d\'accès'}</span><button class="btn-line" data-sel="${esc(c.id)}">Ouvrir</button><button class="btn-line danger" data-del="${esc(c.id)}">Supprimer</button></div>`).join(''):'<div class="empty">Aucun client pour l\'instant.</div>'}</div>`;
+  $('#nc-add').onclick=async()=>{
+    const name=$('#nc-name').value.trim();if(!name){$('#nc-name').focus();return;}
+    const id=uid();const login=$('#nc-login').value.trim().toLowerCase();
+    S.clients[id]={id,name,login,pass:$('#nc-pass').value.trim(),active:true,createdAt:new Date().toISOString()};
+    await saveClients();S.cid=id;render();
+  };
+  screen.querySelectorAll('[data-sel]').forEach(b=>b.onclick=()=>{S.cid=b.dataset.sel;S.anamCid=null;S.weightsCid=null;S.tab='anamnese';render();});
+  screen.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent='Supprimer';}},3000);return;}
+    delete S.clients[b.dataset.del];await saveClients();if(S.cid===b.dataset.del)S.cid=null;render();});
+}
+
+/* ---- Anamnèse ---- */
+async function renderAnamnese(screen){
+  const cid=S.cid;const anam=await getAnam(cid)||{};
+  const a=Object.assign({age:'',sex:'Femme',height:'',weight:'',objectifs:[],seancesSemaine:'',dureeSeance:'',rpeMoyen:6,repasParJour:3,collations:'1 collation',aimes:'',evites:'',allergies:'',regime:'Omnivore',sommeil:'',eauLitres:''},anam||{});
+  if((!a.objectifs||!a.objectifs.length)&&anam&&anam.objectif){a.objectifs=[anam.objectif];}
+  if(!Array.isArray(a.objectifs))a.objectifs=[];
+  screen.innerHTML=`
+    <div class="section-label">Anamnèse — ${esc(clientName(cid))}</div>
+    <div class="nutri-intro">💬 <span><b>Cadre du module —</b> pensé pour des profils sportifs en bonne santé. Aucun profil avec pathologie n'est pris en charge ici : dans ce cas, orienter vers un·e diététicien·ne-nutritionniste ou un médecin du sport.</span></div>
+    <div class="nutri-card"><h3>Identité &amp; objectif</h3>
+      <div class="bf-row"><label>Âge</label><input type="number" id="na-age" value="${a.age}"></div>
+      <div class="bf-row"><label>Sexe</label><select id="na-sex"><option ${a.sex==='Femme'?'selected':''}>Femme</option><option ${a.sex==='Homme'?'selected':''}>Homme</option></select></div>
+      <div class="bf-row"><label>Taille (cm)</label><input type="number" id="na-height" value="${a.height}"></div>
+      <div class="bf-row"><label>Poids actuel (kg)</label><input type="number" step="0.1" id="na-weight" value="${a.weight}"></div>
+      <div class="bf-row bf-row-col"><label>Objectifs (plusieurs choix possibles)</label><div class="na-check-group" id="na-objectifs">
+        ${['Performance / progression sportive','Recomposition corporelle','Prise de masse','Perte de poids','Meilleure récupération'].map(o=>`<label class="na-check"><input type="checkbox" data-objectif="${o}" ${a.objectifs.includes(o)?'checked':''}> ${o}</label>`).join('')}
+      </div></div>
+    </div>
+    <div class="nutri-card"><h3>Pratique sportive &amp; charge d'entraînement</h3>
+      <div class="bf-row"><label>Séances / semaine</label><input type="number" id="na-seances" value="${a.seancesSemaine}"></div>
+      <div class="bf-row"><label>Durée moyenne / séance</label><input type="text" id="na-duree" value="${esc(a.dureeSeance)}"></div>
+      <div class="bf-row"><label>Intensité perçue habituelle (RPE moyen /10)</label><div class="rpe-row"><input type="range" min="1" max="10" id="na-rpe" value="${a.rpeMoyen}"><span class="rpe-val" id="na-rpe-val">${a.rpeMoyen}</span></div></div>
+    </div>
+    <div class="nutri-card"><h3>Habitudes alimentaires</h3>
+      <div class="bf-row"><label>Repas / jour</label><input type="number" id="na-repas" value="${a.repasParJour}"></div>
+      <div class="bf-row"><label>Collations</label><select id="na-collations">${['Aucune','1 collation','2 collations'].map(o=>`<option ${a.collations===o?'selected':''}>${o}</option>`).join('')}</select></div>
+      <div class="bf-row"><label>Aliments appréciés</label><textarea id="na-aimes" rows="2">${esc(a.aimes)}</textarea></div>
+      <div class="bf-row"><label>Aliments non désirés (choix personnel, hors allergie)</label><textarea id="na-evites" rows="2">${esc(a.evites)}</textarea></div>
+      <div class="bf-row"><label>Allergies / intolérances alimentaires</label><textarea id="na-allergies" rows="2" placeholder="Ex : arachides, fruits de mer, gluten…">${esc(a.allergies)}</textarea></div>
+      <div class="bf-row"><label>Régime / préférence alimentaire</label><select id="na-regime">${['Omnivore','Végétarien','Végan','Sans porc','Sans lactose (choix)'].map(o=>`<option ${a.regime===o?'selected':''}>${o}</option>`).join('')}</select></div>
+    </div>
+    <div class="nutri-card"><h3>Hydratation &amp; sommeil</h3>
+      <div class="bf-row"><label>Heures de sommeil / nuit</label><input type="text" id="na-sommeil" value="${esc(a.sommeil)}"></div>
+      <div class="bf-row"><label>Eau consommée (litres / jour)</label><input type="number" step="0.1" min="0" id="na-eau" value="${a.eauLitres}" placeholder="Ex : 1,5"></div>
+    </div>
+    <div class="save-bar"><button class="save-btn" id="na-save">Enregistrer et générer le programme</button>${S.saved?'<div class="save-confirm">Anamnèse enregistrée ✓</div>':''}<span class="save-error" id="na-err" style="display:none">Renseigne au moins l'âge, la taille et le poids.</span></div>`;
+  const rpeInput=$('#na-rpe');rpeInput.addEventListener('input',()=>{$('#na-rpe-val').textContent=rpeInput.value;});
+  $('#na-save').onclick=async()=>{
+    const objectifs=$$('#na-objectifs input[type="checkbox"]:checked').map(cb=>cb.getAttribute('data-objectif'));
+    const data={age:parseInt($('#na-age').value,10)||0,sex:$('#na-sex').value,height:parseFloat($('#na-height').value)||0,weight:parseFloat($('#na-weight').value)||0,objectifs,
+      seancesSemaine:$('#na-seances').value,dureeSeance:$('#na-duree').value,rpeMoyen:parseInt(rpeInput.value,10),repasParJour:$('#na-repas').value,collations:$('#na-collations').value,
+      aimes:$('#na-aimes').value,evites:$('#na-evites').value,allergies:$('#na-allergies').value,regime:$('#na-regime').value,sommeil:$('#na-sommeil').value,eauLitres:$('#na-eau').value,updatedAt:new Date().toISOString()};
+    if(!data.age||!data.height||!data.weight){$('#na-err').style.display='inline';return;}
+    await saveAnam(cid,data);S.saved=true;S.tab='programme';render();
+  };
+}
+
+/* ---- Programme ---- */
+async function renderProgramme(screen){
+  const cid=S.cid;const anam=await getAnam(cid);
+  if(!anam||!anam.age||!anam.height||!anam.weight){
+    screen.innerHTML=`<div class="section-label">Programme généré — ${esc(clientName(cid))}</div><div class="nutri-empty">Complète d'abord l'anamnèse (âge, taille, poids) pour générer le programme nutritionnel de ${esc(clientName(cid))}.<br><button class="btn-primary-sm" id="go-anam">Aller à l'anamnèse</button></div>`;
+    $('#go-anam').onclick=()=>{S.tab='anamnese';render();};return;
+  }
+  const dayType=await getDaytype(cid);S.daytypeCur=dayType;
+  screen.innerHTML=`
+    <div class="section-label">Programme généré — ${esc(clientName(cid))}</div>
+    <div class="daytype-tabs">${['repos','modere','intense'].map(k=>`<button class="daytype-tab ${dayType===k?'active':''}" data-daytype="${k}">${NUTRI_DAY_LABELS[k]}</button>`).join('')}</div>
+    <div class="daytype-note">Sélectionne le type de journée pour ajuster les quantités (surtout les glucides).</div>
+    <div id="prog-body">${nutriProgrammeBodyHtml(anam,dayType)}</div>
+    <div class="nutri-tip">Les formules utilisées (métabolisme de base, macros, hydratation) sont détaillées dans l'onglet <b>Ressources</b>.</div>`;
+  screen.querySelectorAll('[data-daytype]').forEach(b=>b.onclick=async()=>{
+    const k=b.getAttribute('data-daytype');await saveDaytype(cid,k);S.daytypeCur=k;
+    $('#prog-body').innerHTML=nutriProgrammeBodyHtml(anam,k);
+    screen.querySelectorAll('.daytype-tab').forEach(x=>x.classList.toggle('active',x.getAttribute('data-daytype')===k));
+  });
+}
+
+/* ---- Journal ---- */
+async function renderJournal(screen){
+  const cid=S.cid;const anam=await getAnam(cid);
+  if(!anam||!anam.age||!anam.height||!anam.weight){screen.innerHTML=`<div class="section-label">Journal — ${esc(clientName(cid))}</div><div class="nutri-empty">Le profil nutrition n'est pas encore complété — rien à suivre pour le moment.</div>`;return;}
+  if(!S.journalDate)S.journalDate=todayStr();
+  const date=S.journalDate;const key=cid+':'+date;
+  if(S.journalKey!==key){S.journalEntries=await loadJournal(cid,date);S.journalKey=key;}
+  const dayType=await getDaytype(cid);const r=nutriCompute(anam,dayType);
+  const consumedFor=gid=>S.journalEntries.filter(e=>e.groupId===gid).reduce((s,e)=>s+e.grams,0);
+  function groupsHtml(){
+    return r.foods.filter(f=>f.grams!=null).map(group=>{
+      const consumed=consumedFor(group.id);const pct=Math.min(100,Math.round((consumed/group.grams)*100));
+      let fillClass='';if(consumed>group.grams*1.15)fillClass='over';else if(consumed>group.grams)fillClass='watch';
+      const remaining=group.grams-consumed;let statusHtml;
+      if(remaining>0)statusHtml=`Il reste environ <b>${remaining} g</b> pour aujourd'hui.`;
+      else if(remaining===0)statusHtml=`<b>Objectif du jour atteint</b> — le reste de la journée est libre sur ce groupe.`;
+      else statusHtml=`<b>Repère du jour dépassé</b> — pas grave, on ajuste la prochaine fois.`;
+      const overPct=Math.round((consumed/group.grams)*100)-100;const tip=overPct<15?null:`Objectif pour la prochaine fois : viser plutôt autour de ${group.grams} ${group.unit} pour « ${group.name.toLowerCase()} ». Pas grave pour aujourd'hui, c'est juste un repère à garder en tête.`;
+      return `<div class="nutri-journal-group"><div class="njg-head"><span class="njg-ic">${group.icon}</span><span class="njg-name">${group.name}</span><span class="njg-target">Repère : ${group.grams} ${group.unit}</span></div>
+        <div class="njg-track"><div class="njg-fill ${fillClass}" style="width:${pct}%"></div></div>
+        <div class="njg-status">${statusHtml} <span style="color:var(--ink-soft)">(${consumed} g notés)</span></div>
+        ${tip?`<div class="njg-tip">🌱 ${tip}</div>`:''}
+        <div class="njg-add"><button class="njg-quick" data-add="${group.id}" data-grams="50">+ 50 g</button><button class="njg-quick" data-add="${group.id}" data-grams="100">+ 100 g</button><button class="njg-quick" data-add="${group.id}" data-grams="200">+ 200 g</button>
+          <span class="njg-custom"><input type="number" min="1" placeholder="qté" id="jc-${group.id}"><button data-addcustom="${group.id}">Ajouter</button></span></div></div>`;
+    }).join('');
+  }
+  function logHtml(){
+    if(!S.journalEntries.length)return '<div class="nutri-log-empty">Rien de noté pour l\'instant aujourd\'hui.</div>';
+    return S.journalEntries.slice().reverse().map(e=>{const group=r.foods.find(f=>f.id===e.groupId)||{icon:'🍽️',name:e.groupId};
+      return `<div class="nutri-log-row"><span>${group.icon}</span><span class="nl-name">${group.name}</span><span class="nl-grams">${e.grams} g</span><span class="nl-time">${e.time}</span><button class="nl-del" data-del="${e.id}" title="Supprimer">×</button></div>`;}).join('');
+  }
+  screen.innerHTML=`
+    <div class="section-label">Journal — ${esc(clientName(cid))}</div>
+    <div class="nutri-intro">💬 <span>Note ce que le/la client·e mange au fil de la journée — l'app indique simplement ce qu'il reste par groupe d'aliment. Aucun jugement : juste un repère pour la prochaine fois.</span></div>
+    <div class="bf-row" style="margin-top:14px"><label>Journée</label><input type="date" id="j-date" value="${date}" max="${todayStr()}"></div>
+    <p class="daytype-note">Type de journée (choisi dans Programme) : <b>${NUTRI_DAY_LABELS[dayType]}</b></p>
+    <div id="j-groups">${groupsHtml()}</div>
+    <div class="nutri-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><h3 style="margin:0">Journal du jour</h3><button class="btn-line" id="j-reset">Réinitialiser</button></div><div id="j-log">${logHtml()}</div></div>`;
+  $('#j-date').addEventListener('change',e=>{S.journalDate=e.target.value||todayStr();S.journalKey=null;renderJournal(screen);});
+  async function persist(){await saveJournal(cid,date,S.journalEntries);$('#j-groups').innerHTML=groupsHtml();$('#j-log').innerHTML=logHtml();bind();}
+  function bind(){
+    screen.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>add(b.getAttribute('data-add'),parseInt(b.getAttribute('data-grams'),10)));
+    screen.querySelectorAll('[data-addcustom]').forEach(b=>b.onclick=()=>{const gid=b.getAttribute('data-addcustom');const v=parseInt($('#jc-'+gid).value,10);if(!v||v<=0)return;add(gid,v);});
+    screen.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{S.journalEntries=S.journalEntries.filter(e=>e.id!==b.getAttribute('data-del'));persist();});
+  }
+  async function add(gid,grams){const now=new Date();const hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0');S.journalEntries.push({id:'e'+Date.now()+Math.random().toString(16).slice(2,6),groupId:gid,grams,time:hh+':'+mm});await persist();}
+  $('#j-reset').onclick=async()=>{if(!confirm('Réinitialiser le journal de cette journée ?'))return;S.journalEntries=[];await persist();};
+  bind();
+}
+
+/* ---- Poids & mensurations ---- */
+const MEASURE_FIELDS=[['poids','Poids','kg'],['masseGrasse','Masse grasse','%'],['tourTaille','Tour de taille','cm'],['tourHanches','Tour de hanches','cm'],['tourBras','Tour de bras','cm'],['tourCuisse','Tour de cuisse','cm']];
+function lineChart(series){
+  if(series.length<2)return series.length===1?`<div class="nutri-tip">Une seule mesure enregistrée — ajoute d'autres points pour voir la courbe.</div>`:'';
+  const W=640,H=200,pad=32;const xs=series.map((_,i)=>i);const ys=series.map(p=>p.v);
+  const minY=Math.min(...ys),maxY=Math.max(...ys);const spanY=(maxY-minY)||1;
+  const X=i=>pad+(W-2*pad)*(i/(series.length-1));const Y=v=>H-pad-(H-2*pad)*((v-minY)/spanY);
+  let d='';series.forEach((p,i)=>{d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(p.v).toFixed(1)+' ';});
+  const dots=series.map((p,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="3.2" fill="var(--grass)"></circle>`).join('');
+  const labels=series.map((p,i)=>`<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="9" text-anchor="middle" fill="var(--ink-soft)">${fmtDate(p.date).replace(/ \d{4}$/,'')}</text>`).join('');
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"><line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="var(--line)"></line><path d="${d}" fill="none" stroke="var(--grass)" stroke-width="2.2"></path>${dots}${labels}<text x="${pad}" y="16" font-size="10" fill="var(--ink-soft)">max ${maxY}</text><text x="${pad}" y="${H-pad-2}" font-size="10" fill="var(--ink-soft)">min ${minY}</text></svg>`;
+}
+async function renderPoids(screen){
+  const cid=S.cid;
+  if(S.weightsCid!==cid){S.weights=await loadWeights(cid);S.weightsCid=cid;S.measureForm=null;S.fieldSel=S.fieldSel||'poids';}
+  const list=S.weights;
+  function seriesFor(field){return list.filter(m=>m[field]!=null&&m[field]!=='').map(m=>({date:m.date,v:parseFloat(m[field])})).sort((a,b)=>a.date.localeCompare(b.date));}
+  const meta=MEASURE_FIELDS.find(f=>f[0]===S.fieldSel)||MEASURE_FIELDS[0];
+  const series=seriesFor(S.fieldSel);
+  const sorted=list.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  screen.innerHTML=`
+    <div class="section-label">Poids & mensurations — ${esc(clientName(cid))}</div>
+    <p class="bilan-desc">Suivi de la composition corporelle dans le temps : poids, masse grasse et tours de mesure. Utile pour objectiver une recomposition corporelle au-delà du seul chiffre sur la balance.</p>
+    <div class="bf-row"><label>Mesure à afficher</label><select id="m-field">${MEASURE_FIELDS.map(f=>`<option value="${f[0]}" ${f[0]===S.fieldSel?'selected':''}>${f[1]}</option>`).join('')}</select></div>
+    <button class="btn-line" id="m-add" style="margin:10px 0 14px">${S.measureForm?'Fermer':'+ Ajouter une mesure'}</button>
+    <div id="m-form"></div>
+    <div id="m-chart">${series.length?lineChart(series):`<div class="empty">Aucune donnée "${meta[1]}" enregistrée pour l'instant.</div>`}</div>
+    <div id="m-list">${sorted.length?sorted.map(m=>{const parts=MEASURE_FIELDS.filter(f=>m[f[0]]!=null&&m[f[0]]!=='').map(f=>`${f[1]} ${m[f[0]]} ${f[2]}`).join(' · ');return `<div class="history-item"><div class="hi-date">${fmtDate(m.date)}</div><div class="hi-sub">${parts||'Aucune valeur'}</div>${m.notes?`<div class="history-zones">${esc(m.notes)}</div>`:''}<div class="done-links"><button data-edit="${esc(m.id)}">Modifier</button><button class="danger" data-del="${esc(m.id)}">Supprimer</button></div></div>`;}).join(''):'<div class="empty">Aucune mesure enregistrée pour le moment.</div>'}</div>`;
+  $('#m-field').onchange=e=>{S.fieldSel=e.target.value;renderPoids(screen);};
+  $('#m-add').onclick=()=>{S.measureForm=S.measureForm?null:{id:null,date:todayStr(),poids:'',masseGrasse:'',tourTaille:'',tourHanches:'',tourBras:'',tourCuisse:'',notes:''};renderPoids(screen);};
+  if(S.measureForm){
+    const f=S.measureForm;
+    $('#m-form').innerHTML=`<div class="nutri-card"><h3>${f.id?'Modifier la mesure':'Nouvelle mesure'}</h3>
+      <div class="bf-row"><label>Date</label><input type="date" id="mf-date" value="${f.date}" max="${todayStr()}"></div>
+      ${MEASURE_FIELDS.map(fl=>`<div class="bf-row"><label>${fl[1]} (${fl[2]})</label><input type="number" step="0.1" id="mf-${fl[0]}" value="${f[fl[0]]}"></div>`).join('')}
+      <div class="bf-row"><label>Notes</label><textarea id="mf-notes" rows="2">${esc(f.notes)}</textarea></div>
+      <button class="save-btn" id="mf-save">Enregistrer</button></div>`;
+    $('#mf-save').onclick=async()=>{
+      const rec={id:f.id||('m'+Date.now().toString(36)),date:$('#mf-date').value||todayStr(),notes:$('#mf-notes').value};
+      MEASURE_FIELDS.forEach(fl=>{const v=$('#mf-'+fl[0]).value;rec[fl[0]]=v===''?null:parseFloat(v);});
+      if(f.id){const i=S.weights.findIndex(x=>x.id===f.id);if(i>=0)S.weights[i]=rec;}else S.weights.push(rec);
+      await saveWeights(cid,S.weights);S.measureForm=null;renderPoids(screen);
+    };
+  }
+  screen.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{S.measureForm=Object.assign({},list.find(x=>x.id===b.dataset.edit));renderPoids(screen);});
+  screen.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent='Supprimer';}},3000);return;}
+    S.weights=S.weights.filter(x=>x.id!==b.dataset.del);await saveWeights(cid,S.weights);renderPoids(screen);});
+}
+
+/* ---- Ressources ---- */
+function renderRessources(screen){
+  screen.innerHTML=`
+    <div class="section-label">Ressources — méthode de calcul</div>
+    <div class="nutri-intro">🧮 <span><b>Réservé au coach —</b> les formules et repères utilisés pour construire les chiffres du programme. Elles servent de base au calcul, à ajuster ensuite au ressenti et au suivi de chaque personne.</span></div>
+    <div class="nutri-card"><h3>1. Métabolisme de base (BMR) <span class="res-tag">Black &amp; al., 1996</span></h3>
+      <p style="font-size:12.5px;color:var(--ink-soft)">Équation en puissance (poids, taille, âge), issue de 574 mesures par eau doublement marquée.</p>
+      <div class="res-formula"><code>Femme : BMR(MJ/j) = 0,963 × P^0,48 × T^0,5 × Â^−0,13
+Homme : BMR(MJ/j) = 1,083 × P^0,48 × T^0,5 × Â^−0,13
+P = poids (kg)   T = taille (m)   Â = âge (années)
+BMR(kcal/j) = BMR(MJ/j) × 1000 ÷ 4,1855</code></div>
+      <div class="res-source">Black AE, Coward WA, Cole TJ, Prentice AM. Eur J Clin Nutr, 1996;50(2):72-92.</div></div>
+    <div class="nutri-card"><h3>2. Dépense totale (TDEE) &amp; coefficients d'activité</h3>
+      <div class="res-formula"><code>TDEE = BMR × NAP (niveau d'activité physique)</code></div>
+      <table class="res-table"><thead><tr><th>Type de journée</th><th>Coefficient</th></tr></thead><tbody><tr><td>Repos</td><td>× 1,375</td></tr><tr><td>Entraînement modéré</td><td>× 1,55</td></tr><tr><td>Entraînement intense</td><td>× 1,725</td></tr></tbody></table></div>
+    <div class="nutri-card"><h3>3. Protéines</h3><div class="res-formula"><code>Protéines (g/j) = poids(kg) × 1,8</code></div>
+      <p style="font-size:12.5px;color:var(--ink-soft)">Repère 1,6 à 2,2 g/kg pour une population sportive générale.</p><div class="res-source">ISSN Position Stand, Jäger et al., 2017.</div></div>
+    <div class="nutri-card"><h3>4. Glucides</h3><table class="res-table"><thead><tr><th>Charge d'entraînement</th><th>Repère</th></tr></thead><tbody><tr><td>Repos / faible</td><td>4 g/kg/j</td></tr><tr><td>Modérée</td><td>6 g/kg/j</td></tr><tr><td>Élevée / intense</td><td>8 g/kg/j</td></tr></tbody></table><div class="res-source">Repères CIO — Burke LM et al., 2011.</div></div>
+    <div class="nutri-card"><h3>5. Lipides &amp; hydratation</h3><div class="res-formula"><code>Lipides (g) = (TDEE − kcal prot − kcal gluc) ÷ 9, plancher 1 g/kg
+Eau (L/j)  = poids(kg) × 0,035 + bonus entraînement (0 / 0,5 / 0,8 L)</code></div><div class="res-source">Repères ANSES / consensus nutrition sportive.</div></div>
+    <div class="nutri-card"><h3>6. Micronutriments — repères utilisés</h3>${NUTRI_MICROS.map(m=>`<div class="micro-row"><span class="mr-name">${m.name}</span><span class="mr-val">${m.val}</span></div>`).join('')}<div class="res-source">ANSES 2021 / EFSA.</div></div>
+    <div class="nutri-tip">Ces formules donnent un point de départ chiffré ; les valeurs sont à recalculer et ajuster au ressenti et au suivi réel, jamais appliquées à un profil avec pathologie.</div>`;
+}
+
+/* ===== Boot ===== */
+(async function init(){
+  await loadClients();
+  const cs=clientList();
+  if(cs.length)S.cid=cs[0].id;
+  render();
+})();
+</script>
+</body>
+</html>
