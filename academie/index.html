@@ -234,6 +234,7 @@ details summary{cursor:pointer;font-weight:600}
 <div id="tip" role="tooltip"></div>
 <div id="drawerHost"></div>
 
+<script src="program-data.js"></script>
 <script>
 "use strict";
 /* ===================== UTILS ===================== */
@@ -265,9 +266,10 @@ function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.i
 /* ===================== SETTINGS ===================== */
 const MODE=(function(){try{return new URLSearchParams(location.search).get('mode')==='individuel'?'individuel':'football';}catch(e){return 'football';}})();
 const DB_PREFIX=MODE==='individuel'?'ci':'aca';               // espace de données séparé pour le coaching individuel
-const HIDDEN_TABS=MODE==='individuel'?['gps','comp']:[];      // onglets retirés en coaching individuel
+const HIDDEN_TABS=MODE==='individuel'?['gps','comp']:['programme'];  // individuel: pas de GPS/compétition ; football: pas de programme perso
 const TABS=[
  {id:'overview',label:"Vue d'ensemble"},
+ {id:'programme',label:'Programme'},
  {id:'health',label:'Santé & forme'},
  {id:'load',label:'Charges'},
  {id:'gps',label:'GPS'},
@@ -306,7 +308,7 @@ function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assig
 const tabOn=id=>S().tabs[id]!==false;
 
 /* ===================== STORE ===================== */
-const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates'];
+const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans'];
 const LSKEY='blueperf-'+MODE+'-v1';
 const empty=()=>{const o={};COLS.forEach(c=>o[c]={});return o;};
 let DATA=empty();
@@ -412,12 +414,26 @@ function firstLoad(){
   const f=Store.fresh;
   const has=COLS.some(c=>Object.keys(f[c]).length);
   if(has){Store.demo=false;DATA=f;}
+  else if(MODE==='individuel'&&Store.mode==='db'&&window.PROG12){ seedCindy(); return; }
   else{
     // aucune donnée partagée : si des données locales existent, on les propose ; sinon exemple
     const local=loadLocal();
     if(local&&Object.keys(local.players).length){DATA=local;Store.demo=true;Store.localImport=true;}
     else{DATA=makeDemo();Store.demo=true;}
   }
+  render();
+}
+async function seedCindy(){
+  // Coaching individuel vierge : on crée Cindy et son programme 12 semaines automatiquement.
+  const cid=uid();
+  const client={id:cid,name:'Cindy',cat:cats()[0]||'U18',pos:'',active:true,login:'cindy',pass:'cindy'};
+  const plan={clientId:cid,name:'Programme 12 semaines',weeks:window.PROG12.buildProgram(),done:{}};
+  DATA=empty();DATA.config.settings={started:true,cindySeeded:true};DATA.players[cid]=client;DATA.seanceplans[cid]=plan;
+  Store.demo=false;
+  await put('config','settings',DATA.config.settings,true);
+  await put('players',cid,client,true);
+  await put('seanceplans',cid,plan,true);
+  UI.tab='programme';UI.progClient=cid;
   render();
 }
 async function writeAll(src){
@@ -744,6 +760,39 @@ function go(tab){UI.tab=tab;UI.edit=UI.edit&&tab==='entry'?UI.edit:null;formDirt
 
 <script>
 const VIEWS={},POST={};
+
+/* ---------- PROGRAMME INDIVIDUEL (12 semaines) ---------- */
+async function progSet(cid,ref,val){const plan=DATA.seanceplans&&DATA.seanceplans[cid];if(!plan)return;const p=JSON.parse(JSON.stringify(plan));p.done=p.done||{};if(val==null)delete p.done[ref];else p.done[ref]=Object.assign({},p.done[ref]||{},val);await put('seanceplans',cid,p);}
+VIEWS.programme=()=>{
+  const clients=Object.values(DATA.players).filter(p=>DATA.seanceplans&&DATA.seanceplans[p.id]);
+  if(!clients.length)return `<div class="empty"><p>Aucun programme individuel pour l'instant.</p><button class="btn pri" data-act="seedCindy">Charger le programme 12 semaines (Cindy)</button></div>`;
+  const cid=(UI.progClient&&DATA.seanceplans[UI.progClient])?UI.progClient:clients[0].id;
+  const plan=DATA.seanceplans[cid];const done=plan.done||{};
+  const weeks=(plan.weeks||[]).slice().sort((a,b)=>a.n-b.n);if(!weeks.length)return '<div class="empty">Programme vide.</div>';
+  const wk=(UI.progWeek&&weeks.find(w=>w.n===UI.progWeek))||weeks[0];
+  const dose=window.PROG12?window.PROG12.dose:(e=>e.fixed||(e.series+' x '+e.reps));
+  const clientSel=clients.length>1?`<select data-chg="progClient" style="width:auto">${clients.map(c=>`<option value="${esc(c.id)}" ${c.id===cid?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`:esc(clients[0].name);
+  const chips=weeks.map(w=>{const dc=w.sessions.filter(d=>done['S'+w.n+':'+d.id]).length;const full=dc===w.sessions.length&&w.sessions.length;return `<button class="btn sm ${w.n===wk.n?'pri':''}" data-act="progWeek" data-id="${w.n}" style="${w.deload?'border-style:dashed;':''}">S${w.n}${full?' ✓':''}</button>`;}).join('');
+  const doneCount=wk.sessions.filter(d=>done['S'+wk.n+':'+d.id]).length;
+  const DAYS=[['lundi','Lundi'],['mardi','Mardi'],['mercredi','Mercredi'],['jeudi','Jeudi'],['vendredi','Vendredi'],['samedi','Samedi'],['dimanche','Dimanche']];
+  const days=DAYS.map(([key,label])=>{
+    const list=wk.sessions.filter(s=>s.day===key);
+    if(!list.length)return `<div style="margin-bottom:8px"><div class="small muted" style="text-transform:uppercase;letter-spacing:.06em">${label}</div><div class="muted" style="font-style:italic;font-size:12.5px">Repos / libre</div></div>`;
+    return `<div style="margin-bottom:12px"><div class="small muted" style="text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--line);padding-bottom:4px">${label}</div>${list.map(def=>{
+      const ref='S'+wk.n+':'+def.id;const rec=done[ref];const open=UI.progOpen===ref;
+      const exercises=def.kind==='course'?[{name:def.label,fixed:def.km+' km',note:def.note,how:'Sortie en extérieur à allure facile, en respectant la distance indiquée. Termine par quelques minutes de marche et des étirements légers.'}]:def.exercises;
+      return `<div class="card flat" style="margin-top:8px;border:1px solid ${rec?'var(--accent)':'var(--line)'}">
+        <div class="hrow" style="margin:0;cursor:pointer" data-act="progToggle" data-id="${ref}"><div><b>${esc(def.label)}</b> <span class="small muted">${def.kind==='course'?esc(def.km+' km · '):''}${esc(def.note||'')}</span></div><div class="row" style="flex-wrap:nowrap">${rec?`<span class="pill good">✓ ${rec.rpe!=null?'RPE '+rec.rpe:'validée'}</span>`:'<span class="pill neutral">À faire</span>'}<span class="small muted">${open?'▲':'▼'}</span></div></div>
+        ${open?`<div style="margin-top:8px">${exercises.map(e=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="hrow" style="margin:0;align-items:flex-start"><b style="font-size:13.5px">${esc(e.name)}</b><span class="pill neutral">${esc(dose(e))}</span></div>${e.how?`<details style="margin-top:4px"><summary class="small" style="color:var(--accent);cursor:pointer">Comment faire ?</summary><div class="small muted" style="margin-top:4px;line-height:1.6">${esc(e.how)}${e.note?'<br><i>'+esc(e.note)+'</i>':''}</div></details>`:''}</div>`).join('')}
+          <div class="row" style="margin-top:10px;align-items:center">${rec?`<span class="small muted">RPE ressenti :</span><input type="number" min="0" max="10" value="${esc(rec.rpe!=null?rec.rpe:'')}" data-chg="progRpe" data-ref="${ref}" data-cid="${esc(cid)}" style="width:74px" placeholder="0-10"><button class="btn sm danger" data-act="progUnvalidate" data-ref="${ref}" data-cid="${esc(cid)}">Annuler la validation</button>`:`<button class="btn pri sm" data-act="progValidate" data-ref="${ref}" data-cid="${esc(cid)}">Valider la séance</button>`}</div>
+        </div>`:''}
+      </div>`;}).join('')}</div>`;
+  }).join('');
+  return `<div class="hrow"><h2>Programme — ${clientSel}</h2><span class="small muted">${esc(plan.name||'Programme 12 semaines')}</span></div>
+    <div class="row" style="margin-bottom:12px;flex-wrap:wrap">${chips}</div>
+    <div class="card flat" style="border-left:3px solid var(--accent);margin-bottom:12px"><b>Semaine ${wk.n}</b> <span class="small muted">${esc(wk.meso)} · Charge : ${esc(wk.charge)}</span><div class="small muted">${doneCount}/${wk.sessions.length} séances validées</div></div>
+    ${days}`;
+};
 const COL_TR='var(--accent)',COL_MATCH='var(--s2)',COL_REA='var(--s3)';
 function emptyPlayers(){return `<div class="card"><h2>Aucun joueur${UI.cat!=='Tous'?' en '+esc(UI.cat):''}</h2><p class="muted">Ajoute ton effectif pour que les tableaux se remplissent.</p><button class="btn pri" data-act="goEntry" data-id="player">Ajouter des joueurs</button></div>`;}
 function kpi(label,v,unit,d,cls){return `<div class="card kpi"><div class="eyebrow">${label}</div><div class="v" ${cls?`style="color:var(--${cls})"`:''}>${v}${unit?`<small>${unit}</small>`:''}</div>${d?`<div class="d">${d}</div>`:''}</div>`;}
@@ -1553,7 +1602,12 @@ const ACT={
       await Store.db.collection('config').doc('settings').set({started:true});}
     else{DATA=empty();DATA.config.settings={started:true};Store.demo=false;saveLocal();}
     toast('Données effacées');render();},
-  importGo:async b=>{if(!PENDING_IMPORT)return;b.disabled=true;const src=empty();COLS.forEach(c=>Object.assign(src[c],DATA[c],PENDING_IMPORT[c]||{}));Store.demo=false;await writeAll(src);PENDING_IMPORT=null;toast('Import terminé');render();}
+  importGo:async b=>{if(!PENDING_IMPORT)return;b.disabled=true;const src=empty();COLS.forEach(c=>Object.assign(src[c],DATA[c],PENDING_IMPORT[c]||{}));Store.demo=false;await writeAll(src);PENDING_IMPORT=null;toast('Import terminé');render();},
+  seedCindy:async b=>{if(b)b.disabled=true;await seedCindy();},
+  progWeek:b=>{UI.progWeek=+b.dataset.id;UI.progOpen=null;render();},
+  progToggle:b=>{const ref=b.dataset.id;UI.progOpen=UI.progOpen===ref?null:ref;render();},
+  progValidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,{date:UI.ref,rpe:null});toast('Séance validée');},
+  progUnvalidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,null);toast('Validation annulée');}
 };
 let PENDING_IMPORT=null;
 const CHG={
@@ -1563,7 +1617,9 @@ const CHG={
   tabOn:async t=>{const tabs=Object.assign({},S().tabs,{[t.dataset.id]:t.checked});await saveSettings({tabs});},
   loadSess:t=>{const v=t.value;if(!v){UI.sessionPrefill=null;UI.edit=null;render();return;}const [k,id]=v.split(':');const src=k==='tpl'?(DATA.templates||{})[id]:DATA.sessions[id];if(!src){UI.sessionPrefill=null;render();return;}UI.sessionPrefill={_tplId:k==='tpl'?id:null,cat:src.cat,type:src.type,objective:src.objective,title:src.title,duration:src.duration,content:src.content,procedes:(src.procedes||[]).slice(),staffNotes:Object.assign({},src.staffNotes||{})};UI.edit=null;render();},
   import:t=>{const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.players)throw 0;PENDING_IMPORT=o;const n=COLS.reduce((a,c)=>a+Object.keys(o[c]||{}).length,0);
-    $('#expOut').innerHTML=`<div class="banner"><p>${n} éléments trouvés dans « ${esc(f.name)} ». Ils seront ajoutés aux données actuelles (les éléments de même identifiant sont remplacés).</p><span id="bulkProg" class="small muted"></span><button class="btn pri" data-act="importGo">Importer</button></div>`;}catch(e){toast('Fichier non reconnu');}};r.readAsText(f);}
+    $('#expOut').innerHTML=`<div class="banner"><p>${n} éléments trouvés dans « ${esc(f.name)} ». Ils seront ajoutés aux données actuelles (les éléments de même identifiant sont remplacés).</p><span id="bulkProg" class="small muted"></span><button class="btn pri" data-act="importGo">Importer</button></div>`;}catch(e){toast('Fichier non reconnu');}};r.readAsText(f);},
+  progClient:t=>{UI.progClient=t.value;UI.progWeek=null;UI.progOpen=null;render();},
+  progRpe:async t=>{const v=num(t.value);await progSet(t.dataset.cid,t.dataset.ref,{rpe:v==null?null:clamp(v,0,10)});}
 };
 /* GPS CSV */
 let GPS_PARSED=null;
