@@ -306,7 +306,7 @@ function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assig
 const tabOn=id=>S().tabs[id]!==false;
 
 /* ===================== STORE ===================== */
-const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes'];
+const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates'];
 const LSKEY='blueperf-'+MODE+'-v1';
 const empty=()=>{const o={};COLS.forEach(c=>o[c]={});return o;};
 let DATA=empty();
@@ -1269,19 +1269,23 @@ function gridHTML(kind,cat,existing,dur){
 function readGrid(form,kind,cat){const F=GF[kind];const out={};playersOf(cat).forEach(p=>{const on=form.elements['on-'+p.id];if(!on||!on.checked)return;const o={};
   F.forEach(([k,l,t])=>{const el=form.elements[k+'-'+p.id];if(!el)return;if(t==='chk')o[k]=el.checked;else{const v=num(el.value);if(v!=null)o[k]=v;}});out[p.id]=o;});return out;}
 const ENTRY={};
-ENTRY.session=()=>{const e=editing('sessions');const cat=e?e.cat:defCat();const s=S();
+ENTRY.session=()=>{const e=editing('sessions');const pf=e?null:(UI.sessionPrefill||null);const src=e||pf||{};const cat=src.cat||defCat();const s=S();
+  const templates=Object.values(DATA.templates||{}).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const recent=Object.values(DATA.sessions).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15);
+  const sn=src.staffNotes||{};
   return `<form data-form="session" class="stack"><div class="fgrid">
     ${fld('se-date','Date',`<input type="date" id="se-date" name="date" value="${e?e.date:(UI.prefDate||UI.ref)}" required>`)}
     ${fld('se-cat','Catégorie',`<select id="se-cat" name="cat" data-regrid="session">${opt(cats(),cat)}</select>`)}
-    ${fld('se-type','Type',`<select id="se-type" name="type">${opt(s.sessionTypes,e&&e.type)}</select>`)}
-    ${fld('se-obj','Objectif',`<select id="se-obj" name="objective">${opt(s.objectives,e&&e.objective)}</select>`)}
-    ${fld('se-title','Intitulé',`<input type="text" id="se-title" name="title" value="${esc(e&&e.title||'')}" placeholder="ex. Force + jeu réduit">`,2)}
-    ${fld('se-dur','Durée (min)',`<input type="number" id="se-dur" name="duration" value="${esc(e?e.duration:90)}" min="0" required>`)}
-    ${fld('se-content','Contenu',`<input type="text" id="se-content" name="content" value="${esc(e&&e.content||'')}" placeholder="Exercices, consignes…">`,3)}
+    ${fld('se-type','Type',`<select id="se-type" name="type">${opt(s.sessionTypes,src.type)}</select>`)}
+    ${fld('se-obj','Objectif',`<select id="se-obj" name="objective">${opt(s.objectives,src.objective)}</select>`)}
+    ${e?'':fld('se-load','Charger (séance type ou existante)',`<select id="se-load" data-chg="loadSess"><option value="">— Nouvelle séance —</option>${templates.length?'<optgroup label="Séances types">'+templates.map(t=>`<option value="tpl:${esc(t.id)}" ${pf&&pf._tplId===t.id?'selected':''}>${esc(t.name||t.type||'Modèle')}</option>`).join('')+'</optgroup>':''}${recent.length?'<optgroup label="Séances récentes">'+recent.map(x=>`<option value="ses:${esc(x.id)}">${esc(fmtD(x.date)+' · '+(x.title||x.type||'Séance')+' ('+x.cat+')')}</option>`).join('')+'</optgroup>':''}</select>`,2)}
+    ${fld('se-title','Intitulé',`<input type="text" id="se-title" name="title" value="${esc(src.title||'')}" placeholder="ex. Force + jeu réduit">`,2)}
+    ${fld('se-dur','Durée (min)',`<input type="number" id="se-dur" name="duration" value="${esc(src.duration!=null?src.duration:90)}" min="0" required>`)}
+    ${fld('se-content','Contenu',`<input type="text" id="se-content" name="content" value="${esc(src.content||'')}" placeholder="Exercices, consignes…">`,3)}
   </div>
   <div style="margin-top:4px"><b>Procédés (jusqu'à 8)</b> <span class="small muted">— chaque joueur·se note son RPE ressenti pour chaque procédé dans son espace perso</span></div>
   <div class="tw"><table class="gridin"><thead><tr><th>#</th><th>Temps (min)</th><th>Type</th><th>Zone</th><th>RPE cible</th></tr></thead><tbody>
-    ${[0,1,2,3,4,5,6,7].map(i=>{const pr=(e&&e.procedes&&e.procedes[i])||{};return `<tr>
+    ${[0,1,2,3,4,5,6,7].map(i=>{const pr=(src.procedes&&src.procedes[i])||{};return `<tr>
       <td class="small muted">P${i+1}</td>
       <td><input type="number" step="any" name="pc-temps-${i}" value="${esc(pr.temps??'')}" placeholder="0" aria-label="Temps procédé ${i+1}"></td>
       <td><input type="text" name="pc-type-${i}" value="${esc(pr.type||'')}" placeholder="Échauffement, jeu réduit, W/E/A…" aria-label="Type procédé ${i+1}"></td>
@@ -1291,7 +1295,11 @@ ENTRY.session=()=>{const e=editing('sessions');const cat=e?e.cat:defCat();const 
   </tbody></table></div>
   <p class="note" style="margin:0"><b>Présence :</b> coche/décoche chaque joueur·se pour indiquer qui était là. Minutes vides = durée de la séance. RPE (CR-10) recueilli 20 à 30 min après la séance. Colonnes GPS facultatives.</p>
   <div class="tw"><table class="gridin"><thead><tr><th>Joueur</th>${GF.session.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody id="grid">${gridHTML('session',cat,e&&e.players,e?e.duration:90)}</tbody></table></div>
-  <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">${e?'Enregistrer les modifications':'Enregistrer la séance'}</button></div></form>`;};
+  <div style="margin-top:4px"><b>Vignettes &amp; notes staff</b> <span class="small muted">— notes internes sur le contenu, non visibles par les joueur·ses</span></div>
+  <div class="fgrid">
+    ${['physique|Physique / athlétique','technique|Technique','gb|Technique GB','tactique|Tactique','mental|Mental'].map(x=>{const[k,l]=x.split('|');return fld('sn-'+k,l,`<textarea name="sn-${k}" style="min-height:64px" placeholder="…">${esc(sn[k]||'')}</textarea>`);}).join('')}
+  </div>
+  <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">${e?'Enregistrer les modifications':'Enregistrer la séance'}</button><button type="button" class="btn" data-act="saveTemplate">Enregistrer comme séance type</button></div></form>`;};
 ENTRY.match=()=>{const e=editing('matches');const cat=e?e.cat:defCat();
   return `<form data-form="match" class="stack"><div class="fgrid">
     ${fld('ma-date','Date',`<input type="date" id="ma-date" name="date" value="${e?e.date:UI.ref}" required>`)}
@@ -1392,11 +1400,12 @@ POST.entry=()=>{
 const FORMS={};
 FORMS.session=async f=>{const e=editing('sessions');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
   const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
-  const o={id,date:v.date,cat:v.cat,type:v.type,objective:v.objective,title:v.title,duration:num(v.duration)||0,content:v.content,procedes,players:readGrid(f,'session',v.cat)};
+  const staffNotes={physique:v['sn-physique']||'',technique:v['sn-technique']||'',gb:v['sn-gb']||'',tactique:v['sn-tactique']||'',mental:v['sn-mental']||''};
+  const o={id,date:v.date,cat:v.cat,type:v.type,objective:v.objective,title:v.title,duration:num(v.duration)||0,content:v.content,procedes,staffNotes,players:readGrid(f,'session',v.cat)};
   // préserver le RPE par partie déjà saisi par les joueuses lors d'une réédition coach
   if(e&&e.players)Object.keys(o.players).forEach(pid=>{if(e.players[pid]&&e.players[pid].partRpe)o.players[pid].partRpe=e.players[pid].partRpe;});
   if(!Object.keys(o.players).length){toast('Coche au moins un joueur');return;}
-  await put('sessions',id,o);UI.edit=null;UI.prefDate=null;toast(e?'Séance modifiée':'Séance enregistrée');render();};
+  await put('sessions',id,o);UI.edit=null;UI.prefDate=null;UI.sessionPrefill=null;toast(e?'Séance modifiée':'Séance enregistrée');render();};
 FORMS.match=async f=>{const e=editing('matches');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
   const o={id,date:v.date,cat:v.cat,opponent:v.opponent,competition:v.competition,venue:v.venue,gf:num(v.gf)??0,ga:num(v.ga)??0,duration:num(v.duration)||90,players:readGrid(f,'match',v.cat)};
   await put('matches',id,o);UI.edit=null;toast(e?'Match modifié':'Match enregistré');UI.compMatch=id;render();};
@@ -1484,6 +1493,12 @@ function renderDrawer(){
 /* ---------- ACTIONS ---------- */
 const ACT={
   tab:b=>{UI.drawer=null;go(b.dataset.id);},
+  saveTemplate:async()=>{const f=$('form[data-form="session"]');if(!f)return;const v=Object.fromEntries(new FormData(f));
+    const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
+    if(!procedes.length){toast('Ajoute au moins un procédé avant d\'enregistrer un modèle');return;}
+    const name=prompt('Nom de la séance type :',v.title||v.type||'Modèle');if(name==null)return;
+    const id=uid();await put('templates',id,{id,name:(name.trim()||v.type||'Modèle'),cat:v.cat,type:v.type,objective:v.objective,title:v.title,duration:num(v.duration),content:v.content,procedes,staffNotes:{physique:v['sn-physique']||'',technique:v['sn-technique']||'',gb:v['sn-gb']||'',tactique:v['sn-tactique']||'',mental:v['sn-mental']||''}});
+    toast('Séance type enregistrée');render();},
   cat:b=>{UI.cat=b.dataset.id;saveUI();render();},
   today:()=>{UI.ref=TODAY;render();},
   player:b=>{UI.drawer=b.dataset.id;renderDrawer();},
@@ -1546,6 +1561,7 @@ const CHG={
   max:async t=>{const m=JSON.parse(JSON.stringify(DATA.maxes[t.dataset.id]||{id:t.dataset.id,values:{},skills:{}}));m.values=m.values||{};const v=num(t.value);if(v==null)delete m.values[t.dataset.k];else m.values[t.dataset.k]=v;await put('maxes',t.dataset.id,m,true);},
   skill:async t=>{const m=JSON.parse(JSON.stringify(DATA.maxes[t.dataset.id]||{id:t.dataset.id,values:{},skills:{}}));m.skills=m.skills||{};m.skills[t.dataset.k]=+t.value;await put('maxes',t.dataset.id,m,true);},
   tabOn:async t=>{const tabs=Object.assign({},S().tabs,{[t.dataset.id]:t.checked});await saveSettings({tabs});},
+  loadSess:t=>{const v=t.value;if(!v){UI.sessionPrefill=null;UI.edit=null;render();return;}const [k,id]=v.split(':');const src=k==='tpl'?(DATA.templates||{})[id]:DATA.sessions[id];if(!src){UI.sessionPrefill=null;render();return;}UI.sessionPrefill={_tplId:k==='tpl'?id:null,cat:src.cat,type:src.type,objective:src.objective,title:src.title,duration:src.duration,content:src.content,procedes:(src.procedes||[]).slice(),staffNotes:Object.assign({},src.staffNotes||{})};UI.edit=null;render();},
   import:t=>{const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.players)throw 0;PENDING_IMPORT=o;const n=COLS.reduce((a,c)=>a+Object.keys(o[c]||{}).length,0);
     $('#expOut').innerHTML=`<div class="banner"><p>${n} éléments trouvés dans « ${esc(f.name)} ». Ils seront ajoutés aux données actuelles (les éléments de même identifiant sont remplacés).</p><span id="bulkProg" class="small muted"></span><button class="btn pri" data-act="importGo">Importer</button></div>`;}catch(e){toast('Fichier non reconnu');}};r.readAsText(f);}
 };
