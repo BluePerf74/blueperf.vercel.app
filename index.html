@@ -1593,7 +1593,10 @@ async function attemptLogin(userRaw, passRaw){
     return;
   }
   const creds = await loadCoachCredentials();
-  if(user === normalizeCode(creds.username) && pass === normalizeCode(creds.password)){
+  // Le compte coach accepte les identifiants personnalisés OU les identifiants par défaut
+  // (clé de secours pour ne jamais rester bloqué·e hors de l'espace de gestion).
+  const coachOk = (u, p) => user === normalizeCode(u) && pass === normalizeCode(p);
+  if(coachOk(creds.username, creds.password) || coachOk(COACH_USERNAME, COACH_CODE)){
     await sSet('access', 'coach', false);
     await bootstrapCoach();
     render();
