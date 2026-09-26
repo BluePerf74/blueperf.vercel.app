@@ -73,6 +73,7 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 <script src="program-data.js"></script>
 <script>
 const $=s=>document.querySelector(s);
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const TODAY=new Date().toISOString().slice(0,10);
 function isoLong(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
 
@@ -469,13 +470,69 @@ async function overviewHtml(){
     <div class="card"><h2>Mes dernières séances</h2>${recentHtml}</div>
     ${(!wt||toRate)?`<div class="row">${wt?'':'<button class="btn block" data-goto="sante">Remplir mon wellness</button>'}${toRate?'<button class="btn block" data-goto="rpe">Noter mes RPE</button>':''}</div>`:''}`;
 }
+/* ---------- Mon programme (séances planifiées par le coach) ---------- */
+let MY_PLAN=null, PROG_WEEK=null, PROG_OPEN=null;
+async function loadMyPlan(){
+  const all=await kvGet(SPACE+':seanceplans');
+  MY_PLAN=(all&&all[PLAYER.id]&&Array.isArray(all[PLAYER.id].weeks)&&all[PLAYER.id].weeks.length)?all[PLAYER.id]:null;
+}
+async function saveProgDone(ref,val){
+  const all=await kvGet(SPACE+':seanceplans');
+  const plan=all&&all[PLAYER.id];if(!plan)return;
+  plan.done=plan.done||{};
+  if(val==null)delete plan.done[ref];else plan.done[ref]=Object.assign({},plan.done[ref]||{},val);
+  await kvSet(SPACE+':seanceplans',all);
+  MY_PLAN=plan;
+}
+const PDAYS=[['lundi','Lundi'],['mardi','Mardi'],['mercredi','Mercredi'],['jeudi','Jeudi'],['vendredi','Vendredi'],['samedi','Samedi'],['dimanche','Dimanche']];
+function programmeHtml(){
+  const plan=MY_PLAN;
+  if(!plan)return '<div class="card"><p class="muted">Ton coach ne t\'a pas encore attribué de programme.</p></div>';
+  const done=plan.done||{};
+  const weeks=plan.weeks.slice().sort((a,b)=>a.n-b.n);
+  const wk=(PROG_WEEK&&weeks.find(w=>w.n===PROG_WEEK))||weeks[0];
+  const dose=window.PROG12?window.PROG12.dose:(e=>e.fixed||((e.series||e.sets||'')+' x '+(e.reps||'')));
+  const chips=weeks.map(w=>{const dc=w.sessions.filter(d=>done['S'+w.n+':'+d.id]).length;const full=dc===w.sessions.length&&w.sessions.length;return `<button class="tabbtn ${w.n===wk.n?'on':''}" style="flex:none;min-width:46px;padding:7px 10px" data-pweek="${w.n}">S${w.n}${full?' ✓':''}</button>`;}).join('');
+  const doneCount=wk.sessions.filter(d=>done['S'+wk.n+':'+d.id]).length;
+  const days=PDAYS.map(([key,lab])=>{
+    const list=wk.sessions.filter(s=>s.day===key);
+    if(!list.length)return '';
+    return `<div style="margin-bottom:6px"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">${lab}</div>${list.map(def=>{
+      const ref='S'+wk.n+':'+def.id;const rec=done[ref];const open=PROG_OPEN===ref;
+      const exos=def.kind==='course'?[{name:def.label,fixed:(def.km!=null?def.km+' km':''),note:def.note,how:'Sortie en extérieur à allure facile en respectant la distance. Termine par quelques minutes de marche et des étirements légers.'}]:(def.exercises||[]);
+      return `<div class="session">
+        <div class="t" data-ptoggle="${ref}" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center">
+          <span>${esc(def.label)}${def.kind==='course'&&def.km!=null?' · '+def.km+' km':''}</span>
+          <span>${rec?'<span class="pill good">✓ '+(rec.rpe!=null?'RPE '+rec.rpe:'faite')+'</span>':'<span class="pill">à faire</span>'} <span class="muted">${open?'▲':'▼'}</span></span>
+        </div>
+        ${def.note?`<div class="m">${esc(def.note)}</div>`:''}
+        ${open?`<div style="margin-top:6px">${exos.map(e=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b style="font-size:13.5px">${esc(e.name)}</b>${dose(e)?`<span class="pill">${esc(dose(e))}</span>`:''}</div>
+            ${e.how?`<details style="margin-top:4px"><summary style="color:var(--accent);cursor:pointer;font-size:12.5px">Comment faire ?</summary><div class="muted" style="font-size:12.5px;margin-top:4px;line-height:1.6">${esc(e.how)}${e.note?'<br><i>'+esc(e.note)+'</i>':''}</div></details>`:''}
+          </div>`).join('')}
+          <div class="row" style="margin-top:10px;align-items:center">${rec
+            ?`<label style="margin:0">RPE ressenti</label><input type="number" min="0" max="10" value="${rec.rpe!=null?rec.rpe:''}" data-prpe="${ref}" placeholder="0-10" style="width:80px">
+              <button class="btn sec" data-punvalidate="${ref}" style="padding:8px 12px">Annuler</button>`
+            :`<button class="btn" data-pvalidate="${ref}" style="padding:10px 14px">✓ J'ai fait cette séance</button>`}
+          </div>
+        </div>`:''}
+      </div>`;}).join('')}</div>`;
+  }).join('');
+  return `<div class="card"><b>${esc(plan.name||'Mon programme')}</b><div class="muted" style="font-size:12.5px;margin-top:2px">Semaine ${wk.n}${wk.meso?' — '+esc(wk.meso):''}${wk.charge?' · charge '+esc(wk.charge):''} · ${doneCount}/${wk.sessions.length} séance(s) faite(s)</div></div>
+    <div class="tabbar" style="flex-wrap:wrap">${chips}</div>
+    ${days||'<div class="card"><p class="muted">Aucune séance cette semaine.</p></div>'}`;
+}
 function tabbar(){
-  const tabs=[['apercu',"Vue d'ensemble"],['sante','Santé & forme'],['rpe','RPE & charge']];
+  const tabs=[['apercu',"Vue d'ensemble"]];
+  if(MY_PLAN)tabs.push(['programme','Mon programme']);
+  tabs.push(['sante','Santé & forme'],['rpe','RPE & charge']);
   return `<div class="tabbar">${tabs.map(([k,l])=>`<button class="tabbtn ${ESPACE_TAB===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
 }
 async function renderSpace(skipLoad){
   if(!skipLoad)await loadSessionsToday();
   await loadMySessions();
+  await loadMyPlan();
+  if(ESPACE_TAB==='programme'&&!MY_PLAN)ESPACE_TAB='apercu';
   $('#app').innerHTML=`
     <div class="topbar">
       <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">Bonjour ${PLAYER.name}${PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+PLAYER.cat:''}</div></div>
@@ -504,6 +561,13 @@ async function renderTab(){
       catch(e){$('#ps-ok').textContent='échec';}
       add.disabled=false;
     };
+  }else if(ESPACE_TAB==='programme'){
+    c.innerHTML=programmeHtml();
+    document.querySelectorAll('[data-pweek]').forEach(b=>b.onclick=()=>{PROG_WEEK=+b.getAttribute('data-pweek');PROG_OPEN=null;renderTab();});
+    document.querySelectorAll('[data-ptoggle]').forEach(b=>b.onclick=()=>{const r=b.getAttribute('data-ptoggle');PROG_OPEN=PROG_OPEN===r?null:r;renderTab();});
+    document.querySelectorAll('[data-pvalidate]').forEach(b=>b.onclick=async()=>{b.disabled=true;await saveProgDone(b.getAttribute('data-pvalidate'),{date:TODAY,rpe:null});renderTab();});
+    document.querySelectorAll('[data-punvalidate]').forEach(b=>b.onclick=async()=>{b.disabled=true;await saveProgDone(b.getAttribute('data-punvalidate'),null);renderTab();});
+    document.querySelectorAll('[data-prpe]').forEach(inp=>inp.onchange=async()=>{const v=inp.value===''?null:Math.max(0,Math.min(10,+inp.value));await saveProgDone(inp.getAttribute('data-prpe'),{rpe:v});});
   }else{
     c.innerHTML=await overviewHtml();
     document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
@@ -519,6 +583,18 @@ async function renderTab(){
     if(players[pid]&&players[pid].login){PLAYER=players[pid];await loadSessionsToday();renderSpace(true);return;}
   }
   renderLogin();
+})();
+
+/* Rechargement automatique pour récupérer les dernières modifications du coach
+   (nouvelles séances, programme, etc.) — au retour sur l'onglet ou après une période d'inactivité. */
+(function(){
+  let hiddenAt=0,lastActive=Date.now();
+  ['click','keydown','input','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,()=>{lastActive=Date.now();},{passive:true}));
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)hiddenAt=Date.now();
+    else if(hiddenAt&&Date.now()-hiddenAt>20000)location.reload();
+  });
+  setInterval(()=>{ if(!document.hidden && Date.now()-lastActive>5*60*1000) location.reload(); },60000);
 })();
 </script>
 </body>

@@ -1750,6 +1750,18 @@ document.addEventListener('input',e=>{const t=e.target;if(t.closest('form'))form
 document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();formDirty=false;const h=FORMS[f.dataset.form];if(h)h(f);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.drawer){UI.drawer=null;renderDrawer();}});
 boot();
+/* Rechargement pour récupérer les dernières données (RPE/charges saisis par les joueur·ses, etc.).
+   On évite de recharger pendant une saisie en cours (formulaire modifié). */
+(function(){
+  let hiddenAt=0,lastActive=Date.now();
+  ['click','keydown','input','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,()=>{lastActive=Date.now();},{passive:true}));
+  const safe=()=>!(typeof formDirty!=='undefined'&&formDirty);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)hiddenAt=Date.now();
+    else if(hiddenAt&&Date.now()-hiddenAt>20000&&safe())location.reload();
+  });
+  setInterval(()=>{ if(!document.hidden&&safe()&&Date.now()-lastActive>8*60*1000) location.reload(); },60000);
+})();
 </script>
 
 
