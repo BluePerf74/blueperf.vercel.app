@@ -1642,7 +1642,7 @@ VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['players',IN
   if(t==='notifs'){const who=INDIV?'client·es':'joueur·ses';const one=INDIV?'client·e':'joueur·se';
     body=`<h3>Rappels par notification</h3>
     <label class="chk" style="font-size:14px"><input type="checkbox" data-chg="reminderToggle" ${s.reminders?'checked':''}> Envoyer automatiquement chaque jour un rappel aux ${who} qui n'ont pas rempli leur wellness ou leurs RPE</label>
-    <p class="note">Le rappel automatique part une fois par jour (vers 18 h) uniquement vers les personnes en retard et qui ont activé les notifications sur leur téléphone.</p>
+    <p class="note">Le rappel automatique part chaque matin (vers 7 h) uniquement vers les personnes qui n'ont pas encore rempli et qui ont activé les notifications sur leur téléphone.</p>
     <div class="row" style="margin:6px 0 2px"><button class="btn pri" data-act="sendReminders">📣 Envoyer un rappel maintenant</button><span id="remStat" class="small muted"></span></div>
     <div class="card flat" style="margin-top:12px"><b>Comment ça marche</b>
       <p class="note" style="margin:6px 0 0">Chaque ${one} doit d'abord <b>activer les notifications sur son téléphone</b> depuis son espace perso (bouton « 🔔 Activer » sur la vue d'ensemble). Sur iPhone, il faut d'abord <b>ajouter l'app à l'écran d'accueil</b> (Partager → « Sur l'écran d'accueil »). Ensuite, la personne reçoit les rappels même l'application fermée.</p>

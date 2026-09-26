@@ -5,7 +5,7 @@
     "api/push.js": { "maxDuration": 30 }
   },
   "crons": [
-    { "path": "/api/push?action=cron", "schedule": "0 17 * * *" }
+    { "path": "/api/push?action=cron", "schedule": "0 6 * * *" }
   ],
   "headers": [
     {

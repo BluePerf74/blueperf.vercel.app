@@ -91,7 +91,7 @@ module.exports = async (req, res) => {
         const subbed = await listSubbedPids(db, space);
         const targets = late.filter(p => subbed.includes(p));
         for (const pid of targets) {
-          if (await sendTo(db, space, pid, { title: 'Blueperf — rappel', body: 'Pense à remplir ton wellness et tes RPE du jour 💪', url: '/academie/espace.html' })) sent++;
+          if (await sendTo(db, space, pid, { title: 'Blueperf — bonjour 👋', body: 'Pense à remplir ton wellness du matin (et tes RPE) 💪', url: '/academie/espace.html' })) sent++;
         }
       }
       return res.status(200).json({ ok: true, sent });
