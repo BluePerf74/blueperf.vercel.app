@@ -969,6 +969,13 @@ VIEWS.load=()=>{
       <td class="n">${r0(e.acute)}</td><td class="n">${r0(e.chronic)}</td><td class="n">${e.acwr!=null?`<span class="pill ${acwrCls(e.acwr)}">${r2(e.acwr)}</span>`:'–'}</td>
       <td style="width:150px">${spark(l)}</td></tr>`;}).join('')}
     </tbody></table></div>
+    <div class="note" style="line-height:1.7"><b>Comment lire ce tableau</b><br>
+      <b>7 j (Charge hebdo)</b> : somme des sRPE (RPE × minutes) des 7 derniers jours, en unités arbitraires (UA).<br>
+      <b>Variation</b> : évolution des 7 derniers jours vs la moyenne des 3 semaines précédentes (alerte au-delà de ±${th.weekChg} %).<br>
+      <b>Monotonie</b> : moyenne ÷ écart-type des charges quotidiennes (objectif &lt; ${th.monotony} : garder des jours durs et des jours légers).<br>
+      <b>Strain (contrainte)</b> : monotonie × charge hebdo — le stress cumulé de la semaine.<br>
+      <b>Aiguë / Chronique</b> : charge moyenne récente (7 j) et de fond (28 j), lissées (EWMA).<br>
+      <b>ACWR (ratio aigu/chronique)</b> : aiguë ÷ chronique — <b>zone optimale ${r1(th.acwrLo)}–${r1(th.acwrHi)}</b> ; au-dessus = pic de charge, en dessous = sous-charge.</div>
     <p class="note">L'ACWR est un indicateur débattu (couplage mathématique, faible pouvoir prédictif). Il sert ici de repère, avec la variation hebdomadaire et le ressenti du joueur.</p></div>
   <div class="card"><div class="hrow"><h2>Séances et matchs enregistrés</h2><div class="row"><button class="btn sm pri" data-act="goEntry" data-id="session">Nouvelle séance</button></div></div>
     <div class="tw"><table><thead><tr><th>Date</th><th>Cat.</th><th>Type</th><th>Intitulé</th><th class="n">Durée</th><th class="n">Joueurs</th><th class="n">RPE moy.</th><th class="n">sRPE moy.</th><th></th></tr></thead><tbody>

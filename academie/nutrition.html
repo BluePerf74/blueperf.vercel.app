@@ -58,7 +58,10 @@ button.btn-primary-sm,.save-btn,.btn-line,.btn-add{font-family:inherit;cursor:po
 .bf-row label{flex:0 0 46%;font-size:13px;color:var(--ink-soft);font-weight:500}
 .bf-row.bf-row-col{flex-direction:column;align-items:stretch}
 .bf-row.bf-row-col label{flex:none;margin-bottom:6px}
-.bf-row input,.bf-row select,.bf-row textarea{flex:1;min-width:120px;padding:9px 11px;border-radius:9px;border:1px solid var(--line);font-size:13.5px;font-family:inherit;background:#fff;color:var(--ink)}
+input,select,textarea{background:var(--surface-2);color:var(--ink)}
+.bf-row input,.bf-row select,.bf-row textarea{flex:1;min-width:120px;padding:9px 11px;border-radius:9px;border:1px solid var(--line);font-size:13.5px;font-family:inherit;background:var(--surface-2);color:var(--ink)}
+.bf-row input::placeholder,.bf-row textarea::placeholder{color:var(--ink-soft)}
+.bf-row input:focus,.bf-row select:focus,.bf-row textarea:focus{outline:2px solid var(--accent);border-color:var(--accent)}
 .bf-row textarea{width:100%}
 .na-check-group{display:flex;flex-direction:column;gap:7px}
 .na-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:500}
@@ -141,7 +144,7 @@ button.btn-primary-sm,.save-btn,.btn-line,.btn-add{font-family:inherit;cursor:po
 .njg-quick{background:var(--chalk);border:1px solid var(--line);border-radius:99px;font-size:11.5px;font-weight:600;padding:6px 10px;cursor:pointer;color:var(--ink-soft)}
 .njg-quick:active{background:var(--grass-tint);color:var(--grass-dark)}
 .njg-custom{display:flex;align-items:center;gap:6px;margin-left:auto}
-.njg-custom input{width:60px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-size:12.5px;font-family:inherit}
+.njg-custom input{width:60px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-size:12.5px;font-family:inherit;background:var(--surface-2);color:var(--ink)}
 .njg-custom button{border:none;background:var(--grass);color:#fff;font-weight:700;font-size:11.5px;padding:6px 12px;border-radius:8px;cursor:pointer}
 .nutri-log-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
 .nutri-log-row:last-child{border-bottom:none}
