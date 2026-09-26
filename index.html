@@ -1609,10 +1609,37 @@ async function attemptLogin(userRaw, passRaw){
     state.viewAs = 'client';
     state.tab = 'programme';
     render();
-  } else {
-    state.loginError = 'Identifiant ou mot de passe incorrect.';
-    renderLoginScreen();
+    return;
   }
+  // Client·e de l'espace Académie (Football / Coaching individuel) : identifiant + mot de passe.
+  // On les redirige vers leur espace perso (/academie/espace.html), même origine → session partagée.
+  const espaceClient = await findAcademieClient(userRaw, passRaw);
+  if(espaceClient){
+    try{
+      sessionStorage.setItem('espace_pid', espaceClient.id);
+      sessionStorage.setItem('espace_space', espaceClient.space);
+    }catch(e){}
+    location.href = '/academie/espace.html';
+    return;
+  }
+  state.loginError = 'Identifiant ou mot de passe incorrect.';
+  renderLoginScreen();
+}
+async function findAcademieClient(userRaw, passRaw){
+  const login = (userRaw||'').trim().toLowerCase();
+  const pass = (passRaw||'').trim();
+  if(!login || !pass) return null;
+  for(const sp of ['ci','aca']){
+    try{
+      const r = await fetch('/api/storage?action=get&key='+sp+':players&_='+Date.now(), {cache:'no-store'});
+      if(!r.ok) continue;
+      const j = await r.json();
+      const players = j && j.value ? JSON.parse(j.value) : {};
+      const m = Object.values(players).find(x => x && (x.login||'').trim().toLowerCase() === login && (x.login||'').trim() !== '' && (x.pass||'') === pass);
+      if(m) return {id:m.id, space:sp};
+    }catch(e){}
+  }
+  return null;
 }
 
 /* =========================================================
