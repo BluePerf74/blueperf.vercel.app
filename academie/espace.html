@@ -227,14 +227,15 @@ function updateZonesList(){
 }
 
 /* ---------- Space ---------- */
+// Échelle unifiée pour le/la joueur·se : 1 = très bien, 5 = mauvais, pour TOUS les critères.
 const WELL=[
-  {k:'sleep',label:'Sommeil',lo:'1 · très mauvais',hi:'5 · excellent',invert:false},
-  {k:'fatigue',label:'Fatigue',lo:'1 · aucune',hi:'5 · épuisée',invert:true},
-  {k:'soreness',label:'Courbatures',lo:'1 · aucune',hi:'5 · fortes',invert:true,body:true},
-  {k:'stress',label:'Stress',lo:'1 · aucun',hi:'5 · fort',invert:true},
-  {k:'mood',label:'Humeur',lo:'1 · mauvaise',hi:'5 · super',invert:false}
+  {k:'sleep',label:'Sommeil',lo:'1 · très bien',hi:'5 · mauvais',body:false},
+  {k:'fatigue',label:'Fatigue',lo:'1 · très bien',hi:'5 · mauvais',body:false},
+  {k:'soreness',label:'Courbatures',lo:'1 · très bien',hi:'5 · mauvais',body:true},
+  {k:'stress',label:'Stress',lo:'1 · très bien',hi:'5 · mauvais',body:false},
+  {k:'mood',label:'Humeur',lo:'1 · très bien',hi:'5 · mauvais',body:false}
 ];
-let WVAL={sleep:3,fatigue:2,soreness:1,stress:2,mood:4};
+let WVAL={sleep:2,fatigue:2,soreness:1,stress:2,mood:2};
 let FEEL_DATE=TODAY;
 
 function scaleHtml(k){
@@ -388,10 +389,9 @@ async function saveWellness(){
   const all=await kvGet(SPACE+':wellness');
   const doc=all[date]&&all[date].entries?all[date]:{date,entries:{}};
   doc.entries=doc.entries||{};
-  // Conversion vers l'échelle coach (5 = bon / aucune fatigue-courbature-stress)
-  const conv=w=>w.invert?(6-WVAL[w.k]):WVAL[w.k];
+  // Côté joueur·se : 1 = très bien, 5 = mauvais. Côté coach : 5 = bon → on stocke 6 − valeur.
   const entry={note:$('#w-note')?$('#w-note').value:'', soreZones:[...SORE], source:'joueur'};
-  WELL.forEach(w=>entry[w.k]=conv(w));
+  WELL.forEach(w=>entry[w.k]=6-WVAL[w.k]);
   doc.entries[PLAYER.id]=Object.assign({},doc.entries[PLAYER.id]||{},entry);
   all[date]=doc;
   await kvSet(SPACE+':wellness',all);
@@ -421,7 +421,8 @@ async function refreshForDate(){
   // reload existing wellness entry for the date + sessions
   const all=await kvGet(SPACE+':wellness');
   const ent=all[FEEL_DATE]&&all[FEEL_DATE].entries&&all[FEEL_DATE].entries[PLAYER.id];
-  if(ent){const inv=v=>6-v;WVAL={sleep:ent.sleep||3,fatigue:ent.fatigue!=null?inv(ent.fatigue):2,soreness:ent.soreness!=null?inv(ent.soreness):1,stress:ent.stress!=null?inv(ent.stress):2,mood:ent.mood||4};SORE=new Set(ent.soreZones||[]);}
+  if(ent){const back=v=>v!=null?6-v:null;WVAL={sleep:back(ent.sleep)||2,fatigue:back(ent.fatigue)||2,soreness:back(ent.soreness)||1,stress:back(ent.stress)||2,mood:back(ent.mood)||2};SORE=new Set(ent.soreZones||[]);}
+  else{WVAL={sleep:2,fatigue:2,soreness:1,stress:2,mood:2};SORE=new Set();}
   await loadSessionsToday();
   renderSpace(true);
 }
