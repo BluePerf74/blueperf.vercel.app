@@ -148,7 +148,7 @@ function renderLogin(msg){
     if(!u||!p){$('#lg-err').textContent='Renseigne identifiant et mot de passe.';return;}
     $('#lg-btn').disabled=true;$('#lg-err').textContent='Connexion…';
     // Connexion intelligente : identifiants coach → tableau de bord ; sinon espace client·e.
-    if(await isCoach(u,p)){try{localStorage.setItem('bp_access','coach');}catch(e){}location.href='/';return;}
+    if(await isCoach(u,p)){try{localStorage.setItem('bp_access','coach');localStorage.setItem('bp_accessStamp','v2');}catch(e){}location.href='/';return;}
     const pl=await tryLogin(u,p);
     $('#lg-btn').disabled=false;
     if(!pl){$('#lg-err').textContent='Identifiant ou mot de passe incorrect.';return;}

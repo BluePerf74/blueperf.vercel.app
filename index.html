@@ -1202,6 +1202,10 @@ function normalizeCode(s){
 */
 const COACH_USERNAME = "hugo";
 const COACH_CODE = "BLUEPERF2026";
+// Version de session : toute session enregistrée sans ce tampon est considérée comme expirée
+// → l'écran de connexion s'affiche (empêche d'arriver directement sur le tableau de bord via un
+// lien partagé, y compris pour les appareils qui avaient déjà l'ancienne version en mémoire).
+const AUTH_VERSION = "v2";
 
 async function loadCoachCredentials(){
   const raw = await sGet('coachCredentials', true);
@@ -1463,13 +1467,16 @@ async function init(){
   }
   await migrateIfNeeded();
   const storedAccess = await sGet('access', false);
+  const stamp = await sGet('accessStamp', false);
+  // Session valable uniquement si elle a été ouverte via l'écran de connexion de cette version.
+  const sessionValid = stamp === AUTH_VERSION;
 
-  if(storedAccess === 'coach'){
+  if(sessionValid && storedAccess === 'coach'){
     await bootstrapCoach();
     render();
     return;
   }
-  if(storedAccess === 'client'){
+  if(sessionValid && storedAccess === 'client'){
     const storedClientId = await sGet('clientId', false);
     if(storedClientId){
       state.access = 'client';
@@ -1612,6 +1619,7 @@ async function attemptLogin(userRaw, passRaw){
   const coachOk = (u, p) => user === normalizeCode(u) && pass === normalizeCode(p);
   if(coachOk(creds.username, creds.password) || coachOk(COACH_USERNAME, COACH_CODE)){
     await sSet('access', 'coach', false);
+    await sSet('accessStamp', AUTH_VERSION, false);
     await bootstrapCoach();
     render();
     return;
@@ -1621,6 +1629,7 @@ async function attemptLogin(userRaw, passRaw){
   if(match){
     await sSet('access', 'client', false);
     await sSet('clientId', match.id, false);
+    await sSet('accessStamp', AUTH_VERSION, false);
     state.access = 'client';
     state.myClientId = match.id;
     state.viewAs = 'client';
