@@ -426,7 +426,7 @@ function firstLoad(){
 async function seedCindy(){
   // Coaching individuel vierge : on crée Cindy et son programme 12 semaines automatiquement.
   const cid=uid();
-  const client={id:cid,name:'Cindy',cat:INDIV_CAT,sport:'Course à pied',pos:'',active:true,login:'cindy',pass:'cindy'};
+  const client={id:cid,name:'Cindy',cat:INDIV_CAT,sport:'Course à pied',pos:'',active:true,login:'cindy@aca.com',pass:'cin123'};
   const plan={clientId:cid,name:'Programme 12 semaines',weeks:window.PROG12.buildProgram(),done:{}};
   DATA=empty();DATA.config.settings={started:true,cindySeeded:true};DATA.players[cid]=client;DATA.seanceplans[cid]=plan;
   Store.demo=false;
@@ -1492,10 +1492,10 @@ ENTRY.player=()=>{const e=editing('players');const s=S();const all=playersOf('To
     ${fld('pp-h','Taille (cm)',`<input type="number" id="pp-h" name="height" value="${esc(e&&e.height||'')}">`)}
     ${fld('pp-m','Masse (kg)',`<input type="number" id="pp-m" name="mass" step="0.1" value="${esc(e&&e.mass||'')}">`)}
     ${fld('pp-v','Vmax de référence (km/h)',`<input type="number" id="pp-v" name="vmax" step="0.1" value="${esc(e&&e.vmax||'')}">`)}
-    ${fld('pp-login',`Identifiant (espace ${PL.one})`,`<input type="text" id="pp-login" name="login" autocomplete="off" value="${esc(e&&e.login||'')}" placeholder="ex: sarah">`)}
-    ${fld('pp-pass','Mot de passe',`<input type="text" id="pp-pass" name="pass" autocomplete="off" value="${esc(e&&e.pass||'')}" placeholder="ex: 4 chiffres">`)}
+    ${fld('pp-login',`Identifiant (espace ${PL.one})`,`<input type="text" id="pp-login" name="login" autocomplete="off" value="${esc(e&&e.login||'')}" placeholder="prénom@aca.com">`)}
+    ${fld('pp-pass','Mot de passe',`<input type="text" id="pp-pass" name="pass" autocomplete="off" value="${esc(e&&e.pass||'')}" placeholder="3 lettres du prénom + 123">`)}
     <label class="chk"><input type="checkbox" name="active" ${!e||e.active!==false?'checked':''}> Actif dans l'effectif</label></div>
-    <p class="note" style="margin:0">Espace perso ${INDIV?'du/de la client·e':'du joueur·se'} pour saisir RPE + wellness : <b>/academie/espace.html</b> (identifiant + mot de passe ci-dessus).</p>
+    <p class="note" style="margin:0">Espace perso ${INDIV?'du/de la client·e':'du joueur·se'} pour saisir RPE + wellness : <b>/academie/espace.html</b>. Si tu laisses les champs vides, l'accès est créé automatiquement : identifiant <b>prénom@aca.com</b>, mot de passe <b>3 premières lettres du prénom + 123</b> (ex. « Cindy » → <code>cindy@aca.com</code> / <code>cin123</code>).</p>
     <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">${e?'Enregistrer':(INDIV?'Ajouter le/la client·e':'Ajouter le joueur')}</button></div></form>
   <form data-form="bulk" class="card flat stack"><h3>Ajout rapide</h3><p class="note" style="margin:0">${INDIV?'Un·e client·e par ligne : Nom (une seule colonne suffit).':'Un joueur par ligne : Nom ; poste ; numéro (poste et numéro facultatifs).'}</p>
     ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('bk-cat','Catégorie',`<select id="bk-cat" name="cat">${opt(cats(),defCat())}</select>`)}
@@ -1563,10 +1563,19 @@ FORMS.tests=async f=>{const e=editing('tests');const v=Object.fromEntries(new Fo
   S().tests.forEach(t=>{playersOf(cat).forEach(p=>{const x=num(v['t-'+t.id+'-'+p.id]);if(x!=null){(res[t.id]=res[t.id]||{})[p.id]=x;}});});
   if(!Object.keys(res).length){toast('Aucun résultat saisi');return;}
   await put('tests',id,{id,date:v.date,cat,label:v.label,results:res});UI.edit=null;UI.tSel=null;toast('Résultats enregistrés');go('testing');};
+/* Identifiants par défaut : prénom@aca.com + mot de passe = 3 premières lettres du prénom + 123 */
+function slugName(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function firstName(n){return (n||'').trim().split(/\s+/)[0]||'';}
+function defLogin(name){const f=slugName(firstName(name));return f?f+'@aca.com':'';}
+function defPass(name){const f=slugName(firstName(name));return f?f.slice(0,3)+'123':'';}
 FORMS.player=async f=>{const e=editing('players');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
-  const login=(v.login||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'');
-  await put('players',id,Object.assign({},e||{},{id,name:v.name.trim(),cat:v.cat,pos:v.pos,sport:v.sport!=null?v.sport:(e&&e.sport),number:num(v.number),birth:v.birth,height:num(v.height),mass:num(v.mass),vmax:num(v.vmax),login,pass:(v.pass||'').trim(),active:!!v.active}));UI.edit=null;toast(e?(INDIV?'Client·e modifié·e':'Joueur modifié'):(INDIV?'Client·e ajouté·e':'Joueur ajouté'));render();};
-FORMS.bulk=async f=>{const v=Object.fromEntries(new FormData(f));const lines=v.list.split('\n').map(l=>l.trim()).filter(Boolean);for(const l of lines){const [n,pos,nb]=l.split(/[;,\t]/).map(x=>(x||'').trim());const id=uid();await put('players',id,{id,name:n,cat:v.cat,pos:pos||'',number:num(nb),active:true});}toast(lines.length+(INDIV?' client·e':' joueur')+(lines.length>1?'s':'')+' ajouté'+(lines.length>1?'s':''));render();};
+  const name=v.name.trim();
+  // on autorise le @ et le . (adresse type prénom@aca.com) ; si vide on génère l'identifiant par défaut
+  let login=(v.login||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9@._-]+/g,'');
+  if(!login)login=defLogin(name);
+  let pass=(v.pass||'').trim();if(!pass)pass=defPass(name);
+  await put('players',id,Object.assign({},e||{},{id,name,cat:v.cat,pos:v.pos,sport:v.sport!=null?v.sport:(e&&e.sport),number:num(v.number),birth:v.birth,height:num(v.height),mass:num(v.mass),vmax:num(v.vmax),login,pass,active:!!v.active}));UI.edit=null;toast(e?(INDIV?'Client·e modifié·e':'Joueur modifié'):(INDIV?'Client·e ajouté·e':'Joueur ajouté'));render();};
+FORMS.bulk=async f=>{const v=Object.fromEntries(new FormData(f));const lines=v.list.split('\n').map(l=>l.trim()).filter(Boolean);for(const l of lines){const [n,pos,nb]=l.split(/[;,\t]/).map(x=>(x||'').trim());const id=uid();await put('players',id,{id,name:n,cat:v.cat,pos:pos||'',number:num(nb),login:defLogin(n),pass:defPass(n),active:true});}toast(lines.length+(INDIV?' client·e':' joueur')+(lines.length>1?'s':'')+' ajouté'+(lines.length>1?'s':''));render();};
 FORMS.followup=async f=>{const v=Object.fromEntries(new FormData(f));const i=JSON.parse(JSON.stringify(DATA.injuries[f.dataset.id]));i.followups=(i.followups||[]);i.followups.push({date:v.date,text:v.text,pain:num(v.pain)});i.followups.sort((a,b)=>a.date.localeCompare(b.date));await put('injuries',i.id,i);toast('Suivi ajouté');};
 FORMS.rlog=async f=>{const v=Object.fromEntries(new FormData(f));const i=JSON.parse(JSON.stringify(DATA.injuries[f.dataset.id]));i.log=i.log||[];i.log.push({date:v.date,content:v.content,min:num(v.min),rpe:num(v.rpe),dist:num(v.dist),hsr:num(v.hsr),vmax:num(v.vmax)});await put('injuries',i.id,i);toast('Séance de réathlé ajoutée');};
 FORMS.program=async f=>{const v=Object.fromEntries(new FormData(f));const id=f.dataset.id==='new'?uid():f.dataset.id;const ex=[];
