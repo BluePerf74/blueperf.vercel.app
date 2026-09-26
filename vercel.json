@@ -1,9 +1,19 @@
 {
   "functions": {
     "api/reco.js": { "maxDuration": 60 },
-    "api/storage.js": { "maxDuration": 15 }
+    "api/storage.js": { "maxDuration": 15 },
+    "api/push.js": { "maxDuration": 30 }
   },
+  "crons": [
+    { "path": "/api/push?action=cron", "schedule": "0 17 * * *" }
+  ],
   "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
     {
       "source": "/",
       "headers": [

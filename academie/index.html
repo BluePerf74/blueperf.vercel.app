@@ -1566,6 +1566,8 @@ POST.entry=()=>{
   $$('[data-tsel]').forEach(c=>c.onchange=()=>{UI.tSel=$$('[data-tsel]').filter(x=>x.checked).map(x=>x.dataset.tsel);render();});
   startChrono();
 };
+POST.settings=()=>{const el=$('#remStat');if(!el)return;
+  fetch('/api/push?action=status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:DB_PREFIX})}).then(r=>r.json()).then(j=>{if(el.isConnected)el.textContent=(j&&j.subscribed?j.subscribed.length:0)+' '+(INDIV?'client·e':'joueur·se')+((j&&j.subscribed&&j.subscribed.length>1)?'s abonné·es':' abonné·e');}).catch(()=>{});};
 let CHRONO_TIMER=null;
 function startChrono(){if(CHRONO_TIMER){clearInterval(CHRONO_TIMER);CHRONO_TIMER=null;}
   const tick=()=>{const els=$$('[data-chrono]');if(!els.length){clearInterval(CHRONO_TIMER);CHRONO_TIMER=null;return;}
@@ -1635,8 +1637,16 @@ FORMS.settingsTests=async f=>{const rows=$$('#testRows tr');const tests=rows.map
 FORMS.settingsRtp=async f=>{const rtp=$$('[data-rtp]').map(b=>({name:b.querySelector('input').value.trim(),criteria:b.querySelector('textarea').value.split('\n').map(x=>x.trim()).filter(Boolean)})).filter(r=>r.name);await saveSettings({rtp});toast('Protocole enregistré');};
 
 /* ---------- PARAMÈTRES ---------- */
-VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['players','Joueur·ses & accès'],['tabs','Onglets'],['lists','Club et listes'],['th','Seuils d’alerte'],['tests','Tests'],['rtp','Protocole réathlé'],['data','Données']];
+VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['players',INDIV?'Client·es & accès':'Joueur·ses & accès'],['notifs','Rappels'],['tabs','Onglets'],['lists','Club et listes'],['th','Seuils d’alerte'],['tests','Tests'],['rtp','Protocole réathlé'],['data','Données']];
   let body='';
+  if(t==='notifs'){const who=INDIV?'client·es':'joueur·ses';const one=INDIV?'client·e':'joueur·se';
+    body=`<h3>Rappels par notification</h3>
+    <label class="chk" style="font-size:14px"><input type="checkbox" data-chg="reminderToggle" ${s.reminders?'checked':''}> Envoyer automatiquement chaque jour un rappel aux ${who} qui n'ont pas rempli leur wellness ou leurs RPE</label>
+    <p class="note">Le rappel automatique part une fois par jour (vers 18 h) uniquement vers les personnes en retard et qui ont activé les notifications sur leur téléphone.</p>
+    <div class="row" style="margin:6px 0 2px"><button class="btn pri" data-act="sendReminders">📣 Envoyer un rappel maintenant</button><span id="remStat" class="small muted"></span></div>
+    <div class="card flat" style="margin-top:12px"><b>Comment ça marche</b>
+      <p class="note" style="margin:6px 0 0">Chaque ${one} doit d'abord <b>activer les notifications sur son téléphone</b> depuis son espace perso (bouton « 🔔 Activer » sur la vue d'ensemble). Sur iPhone, il faut d'abord <b>ajouter l'app à l'écran d'accueil</b> (Partager → « Sur l'écran d'accueil »). Ensuite, la personne reçoit les rappels même l'application fermée.</p>
+      <p class="note" style="margin:6px 0 0">Le rappel invite à ouvrir l'espace pour remplir le wellness et les RPE du jour.</p></div>`;}
   if(t==='tabs'){body=`<h3>Onglets affichés</h3><p class="note" style="margin-top:0">Masque les onglets que tu n’utilises pas. Les données restent conservées.</p><div class="stack">
     ${TABS.filter(x=>x.id!=='settings').map(x=>`<label class="chk"><input type="checkbox" data-chg="tabOn" data-id="${x.id}" ${s.tabs[x.id]!==false?'checked':''}> ${esc(x.label)}</label>${x.children?`<div class="stack" style="padding-left:26px">${x.children.map(c=>`<label class="chk"><input type="checkbox" data-chg="tabOn" data-id="${c.id}" ${s.tabs[c.id]!==false?'checked':''}> ${esc(c.label)}</label>`).join('')}</div>`:''}`).join('')}</div>`;}
   if(t==='lists'){const ta=(k,l)=>fld('st-'+k,l+' (une par ligne)',`<textarea id="st-${k}" name="${k}" style="min-height:130px">${esc(s[k].join('\n'))}</textarea>`);
@@ -1754,6 +1764,11 @@ const ACT={
   progValidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,{date:UI.ref,rpe:null});toast('Séance validée');},
   progUnvalidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,null);toast('Validation annulée');},
   sendRpe:async b=>{const s=DATA.sessions[b.dataset.id];if(!s)return;await put('sessions',s.id,Object.assign({},s,{rpeOpenedAt:Date.now()}));toast('Fenêtre RPE ouverte · 4 h');},
+  sendReminders:async b=>{b.disabled=true;const prev=b.textContent;b.textContent='Envoi…';
+    try{const r=await fetch('/api/push?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:DB_PREFIX})});const j=await r.json();
+      toast(j&&j.ok?('Rappel envoyé à '+j.sent+' personne'+(j.sent>1?'s':'')+(j.subscribed?' · '+j.subscribed+' abonné'+(j.subscribed>1?'s':''):'')):'Envoi impossible');}
+    catch(e){toast('Échec de l\'envoi');}
+    b.disabled=false;b.textContent=prev;},
   /* ----- Éditeur de programme ----- */
   progEdit:b=>{const cid=UI.progClient||(Object.values(DATA.players)[0]||{}).id;if(UI.progEdit){UI.progEdit=false;UI.progDraft=null;}else{const plan=DATA.seanceplans&&DATA.seanceplans[cid];if(!plan)return;UI.progEdit=true;UI.progDraft=JSON.parse(JSON.stringify(plan));}render();},
   progCreateBlank:async b=>{const cid=b.dataset.cid;const plan={clientId:cid,name:'Programme individualisé',weeks:[{n:1,meso:'',charge:'',sessions:[]}],done:{}};await put('seanceplans',cid,plan);UI.progClient=cid;UI.progEdit=true;UI.progDraft=JSON.parse(JSON.stringify(plan));render();},
@@ -1781,6 +1796,7 @@ const CHG={
   assignCat:t=>{UI.assignCat=t.value;render();},
   assignDate:t=>{UI.assignDate=t.value;render();},
   rpeSess:t=>{UI.rpeSess=t.value;render();},
+  reminderToggle:async t=>{await saveSettings({reminders:t.checked});toast(t.checked?'Rappels activés':'Rappels désactivés');},
   pe:t=>{const d=UI.progDraft;if(!d)return;const p=(t.dataset.path||'').split(':');const v=t.value;
     if(p[0]==='plan'){d.name=v;return;}
     if(p[0]==='w'){const w=d.weeks[+p[1]];if(w)w[p[2]]=v;return;}

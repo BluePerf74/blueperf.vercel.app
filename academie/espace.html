@@ -86,6 +86,29 @@ async function kvSet(key,obj){
   if(!r.ok)throw new Error('save');
 }
 
+/* ---------- Notifications push (rappels wellness / RPE) ---------- */
+function urlB64ToUint8Array(b64){const pad='='.repeat((4-b64.length%4)%4);const s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(s);const a=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i);return a;}
+function pushSupported(){return ('serviceWorker'in navigator)&&('PushManager'in window)&&('Notification'in window);}
+async function pushStatus(){
+  if(!pushSupported())return 'unsupported';
+  if(Notification.permission==='denied')return 'denied';
+  try{const reg=await navigator.serviceWorker.getRegistration();if(reg){const sub=await reg.pushManager.getSubscription();if(sub)return 'on';}}catch(e){}
+  return 'off';
+}
+async function enablePush(){
+  if(!pushSupported())throw new Error('unsupported');
+  const perm=await Notification.requestPermission();if(perm!=='granted')throw new Error('denied');
+  const reg=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
+  const vr=await fetch('/api/push?action=vapid');const {publicKey}=await vr.json();
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8Array(publicKey)});
+  await fetch('/api/push?action=subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:SPACE,pid:PLAYER.id,subscription:sub})});
+}
+async function disablePush(){
+  try{const reg=await navigator.serviceWorker.getRegistration();if(reg){const sub=await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();}}catch(e){}
+  await fetch('/api/push?action=unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:SPACE,pid:PLAYER.id})});
+}
+
 let PLAYER=null; // {id,name,cat,...}
 let SPACE='aca'; // 'aca' = football, 'ci' = coaching individuel — détecté à la connexion
 
@@ -458,6 +481,8 @@ async function overviewHtml(){
   const toRate=SESSIONS_TODAY.filter(o=>o.rpe==null).length;
   const l7=load7();
   const recent=MY_SESSIONS.slice(0,6);
+  const ps=await pushStatus();
+  const notifCard=ps==='unsupported'?'':`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><b>🔔 Rappels sur ce téléphone</b><div class="muted" style="font-size:12.5px;margin-top:2px">${ps==='on'?'Activés — tu seras notifié·e pour remplir ton wellness et tes RPE.':ps==='denied'?'Notifications bloquées : autorise-les pour Blueperf dans les réglages de ton navigateur.':'Active-les pour ne pas oublier de remplir ton wellness et tes RPE.'}</div></div>${ps==='denied'?'':`<button class="btn ${ps==='on'?'sec':''}" id="notif-btn" style="white-space:nowrap">${ps==='on'?'Désactiver':'Activer'}</button>`}</div></div>`;
   const recentHtml=recent.length?recent.map(s=>{const me=s.players[PLAYER.id]||{};return `<div class="hist"><span>${isoLong(s.date)} · ${s.title||s.type||'Séance'}</span><span class="pill">${me.rpe!=null?('RPE '+me.rpe):'—'}${me.min?' · '+me.min+' min':''}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
   return `
     <div class="kpis">
@@ -468,6 +493,7 @@ async function overviewHtml(){
     </div>
     <div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
     <div class="card"><h2>Mes dernières séances</h2>${recentHtml}</div>
+    ${notifCard}
     ${(!wt||toRate)?`<div class="row">${wt?'':'<button class="btn block" data-goto="sante">Remplir mon wellness</button>'}${toRate?'<button class="btn block" data-goto="rpe">Noter mes RPE</button>':''}</div>`:''}`;
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
@@ -571,6 +597,11 @@ async function renderTab(){
   }else{
     c.innerHTML=await overviewHtml();
     document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
+    const nb=document.querySelector('#notif-btn');
+    if(nb)nb.onclick=async()=>{nb.disabled=true;const prev=nb.textContent;nb.textContent='…';
+      try{const st=await pushStatus();if(st==='on')await disablePush();else await enablePush();}
+      catch(e){alert(e&&e.message==='denied'?"Autorise les notifications pour recevoir les rappels.":"Notifications indisponibles sur cet appareil/navigateur. Sur iPhone, ajoute d'abord l'app à l'écran d'accueil.");}
+      nb.disabled=false;nb.textContent=prev;renderTab();};
   }
 }
 
