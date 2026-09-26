@@ -1860,11 +1860,14 @@ async function renderCoachDashboard(){
   renderScreen();
 }
 
+let LANG = (function(){try{return localStorage.getItem('bp_lang')||'fr';}catch(e){return 'fr';}})();
+function setLang(l){LANG=l;try{localStorage.setItem('bp_lang',l);}catch(e){}render();}
+const t=(fr,en)=>LANG==='en'?en:fr;
 function renderFullApp(section){
   const src = section === 'individuel' ? '/academie/?mode=individuel'
     : section === 'nutrition' ? '/academie/nutrition.html'
     : '/academie/';
-  const label = section === 'individuel' ? 'COACHING INDIVIDUEL' : section === 'nutrition' ? 'NUTRITION' : 'FOOTBALL';
+  const label = section === 'individuel' ? t('COACHING INDIVIDUEL','INDIVIDUAL') : section === 'nutrition' ? 'NUTRITION' : 'FOOTBALL';
   const swBtn = (sec, txt) => {
     const active = section === sec;
     return `<button data-fbsec="${sec}" style="appearance:none;cursor:pointer;border:1px solid ${active?'#3DA9FC':'rgba(255,255,255,.25)'};background:${active?'#3DA9FC':'transparent'};color:${active?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${txt}</button>`;
@@ -1874,14 +1877,15 @@ function renderFullApp(section){
       <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3DA9FC">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${label}</span></div>
-          <span title="Toutes les saisies sont enregistrées en ligne automatiquement" style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8fe0b0;background:rgba(47,191,113,.14);border:1px solid rgba(47,191,113,.4);border-radius:20px;padding:5px 11px"><span style="width:7px;height:7px;border-radius:50%;background:#2FBF71;display:inline-block"></span>Données enregistrées</span>
+          <span title="${t('Toutes les saisies sont enregistrées en ligne automatiquement','All entries are saved online automatically')}" style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8fe0b0;background:rgba(47,191,113,.14);border:1px solid rgba(47,191,113,.4);border-radius:20px;padding:5px 11px"><span style="width:7px;height:7px;border-radius:50%;background:#2FBF71;display:inline-block"></span>${t('Données enregistrées','Data saved')}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${swBtn('football','Football')}
-          ${swBtn('individuel','Coaching individuel')}
+          ${swBtn('individuel',t('Coaching individuel','Individual coaching'))}
           ${swBtn('nutrition','Nutrition')}
           ${state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:''}
-          <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">Déconnexion</button>
+          <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
+          <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
         </div>
       </div>
       <iframe src="${src}" title="Blueperf" style="flex:1;width:100%;border:0;display:block"></iframe>
@@ -1892,6 +1896,8 @@ function renderFullApp(section){
     state.tab = nt[0].id;
     render();
   }));
+  const lg = app.querySelector('[data-fblang]');
+  if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
   const lo = app.querySelector('[data-fblogout]');
   if(lo) lo.addEventListener('click', logout);
 }
