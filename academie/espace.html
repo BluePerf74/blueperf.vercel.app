@@ -49,7 +49,23 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .session .m{font-size:12px;color:var(--muted);margin:2px 0 8px}
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .pill{display:inline-block;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px}
+.pill.good{background:rgba(47,191,113,.15);border-color:#2FBF71;color:#7fe0a8}
+.pill.warn{background:rgba(231,161,59,.15);border-color:#E7A13B;color:#f0c583}
 .hist{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:8px 0;font-size:13px}
+.tabbar{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tabbtn{flex:1;min-width:max-content;appearance:none;cursor:pointer;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);border-radius:10px;padding:10px 12px;font-weight:600;font-size:13.5px;white-space:nowrap;font-family:inherit}
+.tabbtn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
+.kpi .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+.kpi .val{font-family:var(--fd);font-weight:700;font-size:22px;margin-top:3px}
+.kpi .val small{font-size:13px;color:var(--muted);font-weight:600}
+.kpi .d{font-size:12px;color:var(--muted);margin-top:2px}
+.loadbars{display:flex;align-items:flex-end;gap:5px;height:90px;margin-top:8px}
+.loadbars .b{flex:1;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px;opacity:.85}
+.loadbars .b.match{background:var(--warn)}
+.loadlab{display:flex;gap:5px;margin-top:5px}
+.loadlab span{flex:1;text-align:center;font-size:9.5px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -417,29 +433,80 @@ async function loadHistory(){
   el.innerHTML=rows.length?rows.map(d=>{const e=d.entries[PLAYER.id];const score=Math.round((e.sleep+e.fatigue+e.soreness+e.stress+e.mood)/25*100);return `<div class="hist"><span>${isoLong(d.date)}</span><span class="pill">${score}%${(e.soreZones&&e.soreZones.length)?' · '+e.soreZones.length+' zone(s)':''}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucun wellness enregistré pour l\'instant.</p>';
 }
 
+/* ---------- Vue d'ensemble & charge ---------- */
+let ESPACE_TAB='apercu';
+let MY_SESSIONS=[];
+async function loadMySessions(){
+  const all=await kvGet(SPACE+':sessions');
+  MY_SESSIONS=Object.values(all).filter(s=>s&&s.players&&s.players[PLAYER.id]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+function addDaysISO(d,n){const t=new Date(d+'T00:00');t.setDate(t.getDate()+n);return t.toISOString().slice(0,10);}
+function dayLoad(date){let load=0,match=false;MY_SESSIONS.filter(s=>s.date===date).forEach(s=>{const me=s.players[PLAYER.id]||{};const rpe=me.rpe;const min=me.min||s.duration||0;if(rpe!=null)load+=rpe*min;if(s.type==='Match'||s.competition)match=true;});return {load:Math.round(load),match};}
+function load7(){let sum=0;for(let i=0;i<7;i++)sum+=dayLoad(addDaysISO(TODAY,-i)).load;return sum;}
+async function wellnessToday(){const all=await kvGet(SPACE+':wellness');const e=all[TODAY]&&all[TODAY].entries&&all[TODAY].entries[PLAYER.id];if(!e)return null;const score=Math.round(((e.sleep||0)+(e.fatigue||0)+(e.soreness||0)+(e.stress||0)+(e.mood||0))/25*100);return {e,score};}
+function loadChartHtml(){
+  const days=[];for(let i=13;i>=0;i--)days.push(addDaysISO(TODAY,-i));
+  const vals=days.map(d=>dayLoad(d));const max=Math.max(1,...vals.map(v=>v.load));
+  const bars=vals.map((v,i)=>`<div class="b ${v.match?'match':''}" style="height:${Math.round(v.load/max*88)||2}px" title="${days[i]} : ${v.load} UA"></div>`).join('');
+  const labs=days.map((d,i)=>`<span>${i%2===0?d.slice(8):''}</span>`).join('');
+  return `<div class="loadbars">${bars}</div><div class="loadlab">${labs}</div><p class="muted" style="font-size:11.5px;margin:8px 0 0">Charge = RPE × minutes (unités arbitraires). Orange = match/compétition.</p>`;
+}
+async function overviewHtml(){
+  const wt=await wellnessToday();
+  const toRate=SESSIONS_TODAY.filter(o=>o.rpe==null).length;
+  const l7=load7();
+  const recent=MY_SESSIONS.slice(0,6);
+  const recentHtml=recent.length?recent.map(s=>{const me=s.players[PLAYER.id]||{};return `<div class="hist"><span>${isoLong(s.date)} · ${s.title||s.type||'Séance'}</span><span class="pill">${me.rpe!=null?('RPE '+me.rpe):'—'}${me.min?' · '+me.min+' min':''}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
+  return `
+    <div class="kpis">
+      <div class="kpi"><div class="lab">Wellness du jour</div><div class="val">${wt?wt.score+'<small>%</small>':'—'}</div><div class="d">${wt?'rempli ✓':'à remplir'}</div></div>
+      <div class="kpi"><div class="lab">Séances à noter</div><div class="val">${toRate}</div><div class="d">${toRate?'RPE en attente':'tout est noté'}</div></div>
+      <div class="kpi"><div class="lab">Charge 7 jours</div><div class="val">${l7}<small> UA</small></div><div class="d">RPE × minutes</div></div>
+      <div class="kpi"><div class="lab">Séances suivies</div><div class="val">${MY_SESSIONS.length}</div><div class="d">au total avec toi</div></div>
+    </div>
+    <div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
+    <div class="card"><h2>Mes dernières séances</h2>${recentHtml}</div>
+    ${(!wt||toRate)?`<div class="row">${wt?'':'<button class="btn block" data-goto="sante">Remplir mon wellness</button>'}${toRate?'<button class="btn block" data-goto="rpe">Noter mes RPE</button>':''}</div>`:''}`;
+}
+function tabbar(){
+  const tabs=[['apercu',"Vue d'ensemble"],['sante','Santé & forme'],['rpe','RPE & charge']];
+  return `<div class="tabbar">${tabs.map(([k,l])=>`<button class="tabbtn ${ESPACE_TAB===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
+}
 async function renderSpace(skipLoad){
+  if(!skipLoad)await loadSessionsToday();
+  await loadMySessions();
   $('#app').innerHTML=`
     <div class="topbar">
-      <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">Bonjour ${PLAYER.name} · ${PLAYER.cat||''}</div></div>
+      <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">Bonjour ${PLAYER.name}${PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+PLAYER.cat:''}</div></div>
       <button class="btn sec" id="logout">Déconnexion</button>
     </div>
-    ${wellnessCard()}
-    ${sessionsCard()}
-    <div class="card"><h2>Mes derniers wellness</h2><div id="hist"></div></div>`;
+    ${tabbar()}
+    <div id="tabc"></div>`;
   $('#logout').onclick=()=>{clearSession();PLAYER=null;renderLogin();};
-  bindWellness();
-  drawSessions();
-  // personal session add
-  bindRpeScale('ps-rpe',v=>PS_RPE=v);
-  $('#ps-add').onclick=async()=>{
-    const type=$('#ps-type').value.trim();const dur=+$('#ps-dur').value||60;
-    $('#ps-add').disabled=true;$('#ps-ok').textContent='Ajout…';
-    try{await addPersonalSession(type,dur,PS_RPE);$('#ps-ok').textContent='✓ Séance ajoutée';await loadSessionsToday();drawSessions();$('#ps-type').value='';$('#ps-dur').value='';}
-    catch(e){$('#ps-ok').textContent='échec';}
-    $('#ps-add').disabled=false;
-  };
-  if(!skipLoad){await loadSessionsToday();drawSessions();}
-  loadHistory();
+  document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-tab');renderTab();});
+  await renderTab();
+}
+async function renderTab(){
+  document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('on',b.getAttribute('data-tab')===ESPACE_TAB));
+  const c=$('#tabc');if(!c)return;
+  if(ESPACE_TAB==='sante'){
+    c.innerHTML=wellnessCard()+`<div class="card"><h2>Mes derniers wellness</h2><div id="hist"></div></div>`;
+    bindWellness();loadHistory();
+  }else if(ESPACE_TAB==='rpe'){
+    c.innerHTML=sessionsCard()+`<div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>`;
+    drawSessions();
+    bindRpeScale('ps-rpe',v=>PS_RPE=v);
+    const add=$('#ps-add');if(add)add.onclick=async()=>{
+      const type=$('#ps-type').value.trim();const dur=+$('#ps-dur').value||60;
+      add.disabled=true;$('#ps-ok').textContent='Ajout…';
+      try{await addPersonalSession(type,dur,PS_RPE);$('#ps-ok').textContent='✓ Séance ajoutée';await loadSessionsToday();await loadMySessions();drawSessions();$('#ps-type').value='';$('#ps-dur').value='';}
+      catch(e){$('#ps-ok').textContent='échec';}
+      add.disabled=false;
+    };
+  }else{
+    c.innerHTML=await overviewHtml();
+    document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
+  }
 }
 
 /* ---------- boot ---------- */
