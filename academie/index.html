@@ -773,15 +773,55 @@ const VIEWS={},POST={};
 
 /* ---------- PROGRAMME INDIVIDUEL (12 semaines) ---------- */
 async function progSet(cid,ref,val){const plan=DATA.seanceplans&&DATA.seanceplans[cid];if(!plan)return;const p=JSON.parse(JSON.stringify(plan));p.done=p.done||{};if(val==null)delete p.done[ref];else p.done[ref]=Object.assign({},p.done[ref]||{},val);await put('seanceplans',cid,p);}
+function exoDose(e){return e.fixed?e.fixed:((e.series||e.sets)&&e.reps?((e.series||e.sets)+' x '+e.reps):(e.reps||''));}
+const PROG_DAYS=['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+function pfld(label,inner,span){return `<div class="f" ${span?`style="grid-column:span ${span}"`:''}><label>${label}</label>${inner}</div>`;}
+function progEditorHtml(cid){
+  const d=UI.progDraft;if(!d)return '';
+  return `<div class="card flat"><label>Nom du programme</label><input data-chg="pe" data-path="plan:name" value="${esc(d.name||'')}" placeholder="ex. Programme individualisé"></div>
+  ${(d.weeks||[]).map((w,wi)=>`
+    <div class="card" style="border-left:3px solid var(--accent);margin-top:12px">
+      <div class="hrow" style="margin:0 0 8px"><b>Semaine ${w.n||wi+1}</b><button type="button" class="btn sm danger" data-act="progDelWeek" data-wi="${wi}">Supprimer la semaine</button></div>
+      <div class="fgrid">${pfld('Mésocycle / bloc',`<input data-chg="pe" data-path="w:${wi}:meso" value="${esc(w.meso||'')}" placeholder="ex. Développement">`)}${pfld('Charge',`<input data-chg="pe" data-path="w:${wi}:charge" value="${esc(w.charge||'')}" placeholder="ex. Modérée">`)}</div>
+      ${(w.sessions||[]).map((s,si)=>`
+        <div class="card flat" style="margin-top:10px">
+          <div class="hrow" style="margin:0 0 6px"><b class="small">Séance</b><button type="button" class="btn sm danger" data-act="progDelSess" data-wi="${wi}" data-si="${si}">✕ séance</button></div>
+          <div class="fgrid">
+            ${pfld('Intitulé',`<input data-chg="pe" data-path="s:${wi}:${si}:label" value="${esc(s.label||'')}" placeholder="ex. Séance A">`)}
+            ${pfld('Jour',`<select data-chg="pe" data-path="s:${wi}:${si}:day">${PROG_DAYS.map(dd=>`<option ${s.day===dd?'selected':''}>${dd}</option>`).join('')}</select>`)}
+            ${pfld('Type',`<select data-chg="pe" data-path="s:${wi}:${si}:kind">${[['renfo','Renforcement / muscu'],['course','Course / sortie']].map(([v,l])=>`<option value="${v}" ${s.kind===v?'selected':''}>${l}</option>`).join('')}</select>`)}
+            ${s.kind==='course'?pfld('Distance (km)',`<input type="number" step="any" data-chg="pe" data-path="s:${wi}:${si}:km" value="${esc(s.km!=null?s.km:'')}">`):''}
+            ${pfld('Note / consigne',`<input data-chg="pe" data-path="s:${wi}:${si}:note" value="${esc(s.note||'')}" placeholder="intensité, objectif…">`,2)}
+          </div>
+          ${s.kind!=='course'?`<div class="small muted" style="margin:10px 0 2px">Exercices</div>
+            ${(s.exercises||[]).map((e,ei)=>`<div class="card flat" style="margin-top:6px;background:var(--surface-2)">
+              <div class="fgrid">${pfld('Exercice',`<input data-chg="pe" data-path="e:${wi}:${si}:${ei}:name" value="${esc(e.name||'')}" placeholder="ex. Squat">`,2)}${pfld('Dose',`<input data-chg="pe" data-path="e:${wi}:${si}:${ei}:dose" value="${esc(exoDose(e))}" placeholder="ex. 3 x 10 / 30 sec">`)}</div>
+              ${pfld('Comment faire ? (consignes)',`<textarea data-chg="pe" data-path="e:${wi}:${si}:${ei}:how" style="min-height:52px" placeholder="Explique le mouvement…">${esc(e.how||'')}</textarea>`,3)}
+              <div class="row"><button type="button" class="btn sm danger" data-act="progDelExo" data-wi="${wi}" data-si="${si}" data-ei="${ei}">Supprimer l'exercice</button></div>
+            </div>`).join('')}
+            <div class="row" style="margin-top:6px"><button type="button" class="btn sm" data-act="progAddExo" data-wi="${wi}" data-si="${si}">+ Ajouter un exercice</button></div>`:''}
+        </div>`).join('')}
+      <div class="row" style="margin-top:10px"><button type="button" class="btn sm" data-act="progAddSess" data-wi="${wi}">+ Ajouter une séance</button></div>
+    </div>`).join('')}
+  <div class="row" style="margin:12px 0"><button type="button" class="btn" data-act="progAddWeek">+ Ajouter une semaine</button></div>
+  <div class="row"><button type="button" class="btn pri" data-act="progSaveDraft" data-cid="${esc(cid)}">Enregistrer le programme</button><button type="button" class="btn" data-act="progEdit">Annuler</button></div>`;
+}
 VIEWS.programme=()=>{
-  const clients=Object.values(DATA.players).filter(p=>DATA.seanceplans&&DATA.seanceplans[p.id]);
-  if(!clients.length)return `<div class="empty"><p>Aucun programme individuel pour l'instant.</p><button class="btn pri" data-act="seedCindy">Charger le programme 12 semaines (Cindy)</button></div>`;
-  const cid=(UI.progClient&&DATA.seanceplans[UI.progClient])?UI.progClient:clients[0].id;
+  const allC=Object.values(DATA.players).filter(p=>p.active!==false).sort((a,b)=>a.name.localeCompare(b.name));
+  if(!allC.length)return `<div class="empty"><p>Ajoute d'abord un·e client·e dans « Saisie › Client·es ».</p></div>`;
+  const cid=(UI.progClient&&DATA.players[UI.progClient])?UI.progClient:allC[0].id;
+  const hasPlan=DATA.seanceplans&&DATA.seanceplans[cid];
+  const clientSel=`<select data-chg="progClient" style="width:auto">${allC.map(c=>`<option value="${esc(c.id)}" ${c.id===cid?'selected':''}>${esc(c.name)}${DATA.seanceplans&&DATA.seanceplans[c.id]?'':' — (sans programme)'}</option>`).join('')}</select>`;
+  const head=`<div class="hrow"><h2>Programme — ${clientSel}</h2>${hasPlan&&!UI.progEdit?`<button class="btn sm" data-act="progEdit">✏️ Modifier le programme</button>`:''}</div>`;
+  if(!hasPlan){
+    return head+`<div class="empty"><p>${esc(DATA.players[cid].name)} n'a pas encore de programme.</p>
+      <div class="row" style="justify-content:center;flex-wrap:wrap"><button class="btn pri" data-act="progCreateBlank" data-cid="${esc(cid)}">Créer un programme sur mesure</button>${window.PROG12?`<button class="btn" data-act="progLoadTemplate" data-cid="${esc(cid)}">Charger le modèle 12 semaines</button>`:''}</div></div>`;
+  }
+  if(UI.progEdit&&UI.progDraft)return head+progEditorHtml(cid);
   const plan=DATA.seanceplans[cid];const done=plan.done||{};
   const weeks=(plan.weeks||[]).slice().sort((a,b)=>a.n-b.n);if(!weeks.length)return '<div class="empty">Programme vide.</div>';
   const wk=(UI.progWeek&&weeks.find(w=>w.n===UI.progWeek))||weeks[0];
   const dose=window.PROG12?window.PROG12.dose:(e=>e.fixed||(e.series+' x '+e.reps));
-  const clientSel=clients.length>1?`<select data-chg="progClient" style="width:auto">${clients.map(c=>`<option value="${esc(c.id)}" ${c.id===cid?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`:esc(clients[0].name);
   const chips=weeks.map(w=>{const dc=w.sessions.filter(d=>done['S'+w.n+':'+d.id]).length;const full=dc===w.sessions.length&&w.sessions.length;return `<button class="btn sm ${w.n===wk.n?'pri':''}" data-act="progWeek" data-id="${w.n}" style="${w.deload?'border-style:dashed;':''}">S${w.n}${full?' ✓':''}</button>`;}).join('');
   const doneCount=wk.sessions.filter(d=>done['S'+wk.n+':'+d.id]).length;
   const DAYS=[['lundi','Lundi'],['mardi','Mardi'],['mercredi','Mercredi'],['jeudi','Jeudi'],['vendredi','Vendredi'],['samedi','Samedi'],['dimanche','Dimanche']];
@@ -798,9 +838,9 @@ VIEWS.programme=()=>{
         </div>`:''}
       </div>`;}).join('')}</div>`;
   }).join('');
-  return `<div class="hrow"><h2>Programme — ${clientSel}</h2><span class="small muted">${esc(plan.name||'Programme 12 semaines')}</span></div>
+  return head+`<div class="small muted" style="margin:-4px 0 10px">${esc(plan.name||'Programme')}</div>
     <div class="row" style="margin-bottom:12px;flex-wrap:wrap">${chips}</div>
-    <div class="card flat" style="border-left:3px solid var(--accent);margin-bottom:12px"><b>Semaine ${wk.n}</b> <span class="small muted">${esc(wk.meso)} · Charge : ${esc(wk.charge)}</span><div class="small muted">${doneCount}/${wk.sessions.length} séances validées</div></div>
+    <div class="card flat" style="border-left:3px solid var(--accent);margin-bottom:12px"><b>Semaine ${wk.n}</b> <span class="small muted">${esc(wk.meso||'')}${wk.charge?' · Charge : '+esc(wk.charge):''}</span><div class="small muted">${doneCount}/${wk.sessions.length} séances validées</div></div>
     ${days}`;
 };
 const COL_TR='var(--accent)',COL_MATCH='var(--s2)',COL_REA='var(--s3)';
@@ -1706,7 +1746,18 @@ const ACT={
   progToggle:b=>{const ref=b.dataset.id;UI.progOpen=UI.progOpen===ref?null:ref;render();},
   progValidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,{date:UI.ref,rpe:null});toast('Séance validée');},
   progUnvalidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,null);toast('Validation annulée');},
-  sendRpe:async b=>{const s=DATA.sessions[b.dataset.id];if(!s)return;await put('sessions',s.id,Object.assign({},s,{rpeOpenedAt:Date.now()}));toast('Fenêtre RPE ouverte · 4 h');}
+  sendRpe:async b=>{const s=DATA.sessions[b.dataset.id];if(!s)return;await put('sessions',s.id,Object.assign({},s,{rpeOpenedAt:Date.now()}));toast('Fenêtre RPE ouverte · 4 h');},
+  /* ----- Éditeur de programme ----- */
+  progEdit:b=>{const cid=UI.progClient||(Object.values(DATA.players)[0]||{}).id;if(UI.progEdit){UI.progEdit=false;UI.progDraft=null;}else{const plan=DATA.seanceplans&&DATA.seanceplans[cid];if(!plan)return;UI.progEdit=true;UI.progDraft=JSON.parse(JSON.stringify(plan));}render();},
+  progCreateBlank:async b=>{const cid=b.dataset.cid;const plan={clientId:cid,name:'Programme individualisé',weeks:[{n:1,meso:'',charge:'',sessions:[]}],done:{}};await put('seanceplans',cid,plan);UI.progClient=cid;UI.progEdit=true;UI.progDraft=JSON.parse(JSON.stringify(plan));render();},
+  progLoadTemplate:async b=>{if(!window.PROG12)return;const cid=b.dataset.cid;const plan={clientId:cid,name:'Programme 12 semaines',weeks:window.PROG12.buildProgram(),done:{}};await put('seanceplans',cid,plan);UI.progClient=cid;UI.progEdit=false;UI.progDraft=null;toast('Modèle chargé');render();},
+  progAddWeek:()=>{const d=UI.progDraft;if(!d)return;const maxN=Math.max(0,...(d.weeks||[]).map(w=>+w.n||0));d.weeks.push({n:maxN+1,meso:'',charge:'',sessions:[]});render();},
+  progDelWeek:b=>{const d=UI.progDraft;if(!d)return;d.weeks.splice(+b.dataset.wi,1);render();},
+  progAddSess:b=>{const d=UI.progDraft;if(!d)return;const w=d.weeks[+b.dataset.wi];if(!w)return;w.sessions=w.sessions||[];w.sessions.push({id:'s'+Math.random().toString(36).slice(2,7),kind:'renfo',label:'Nouvelle séance',day:'lundi',note:'',exercises:[]});render();},
+  progDelSess:b=>{const d=UI.progDraft;if(!d)return;const w=d.weeks[+b.dataset.wi];if(w)w.sessions.splice(+b.dataset.si,1);render();},
+  progAddExo:b=>{const d=UI.progDraft;if(!d)return;const s=d.weeks[+b.dataset.wi].sessions[+b.dataset.si];if(!s)return;s.exercises=s.exercises||[];s.exercises.push({name:'',fixed:'',how:'',note:''});render();},
+  progDelExo:b=>{const d=UI.progDraft;if(!d)return;const s=d.weeks[+b.dataset.wi].sessions[+b.dataset.si];if(s&&s.exercises)s.exercises.splice(+b.dataset.ei,1);render();},
+  progSaveDraft:async b=>{const d=UI.progDraft;if(!d)return;const cid=b.dataset.cid;const cur=(DATA.seanceplans&&DATA.seanceplans[cid])||{};const plan=Object.assign({},cur,{clientId:cid,name:d.name||'Programme',weeks:d.weeks||[],done:cur.done||{}});await put('seanceplans',cid,plan);UI.progEdit=false;UI.progDraft=null;toast('Programme enregistré');render();}
 };
 let PENDING_IMPORT=null;
 const CHG={
@@ -1717,12 +1768,22 @@ const CHG={
   loadSess:t=>{const v=t.value;if(!v){UI.sessionPrefill=null;UI.edit=null;render();return;}const [k,id]=v.split(':');const src=k==='tpl'?(DATA.templates||{})[id]:DATA.sessions[id];if(!src){UI.sessionPrefill=null;render();return;}UI.sessionPrefill={_tplId:k==='tpl'?id:null,cat:src.cat,type:src.type,objective:src.objective,title:src.title,duration:src.duration,content:src.content,procedes:(src.procedes||[]).slice(),staffNotes:Object.assign({},src.staffNotes||{})};UI.edit=null;render();},
   import:t=>{const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.players)throw 0;PENDING_IMPORT=o;const n=COLS.reduce((a,c)=>a+Object.keys(o[c]||{}).length,0);
     $('#expOut').innerHTML=`<div class="banner"><p>${n} éléments trouvés dans « ${esc(f.name)} ». Ils seront ajoutés aux données actuelles (les éléments de même identifiant sont remplacés).</p><span id="bulkProg" class="small muted"></span><button class="btn pri" data-act="importGo">Importer</button></div>`;}catch(e){toast('Fichier non reconnu');}};r.readAsText(f);},
-  progClient:t=>{UI.progClient=t.value;UI.progWeek=null;UI.progOpen=null;render();},
+  progClient:t=>{UI.progClient=t.value;UI.progWeek=null;UI.progOpen=null;UI.progEdit=false;UI.progDraft=null;render();},
   progRpe:async t=>{const v=num(t.value);await progSet(t.dataset.cid,t.dataset.ref,{rpe:v==null?null:clamp(v,0,10)});},
   entryPick:t=>{UI.edit=null;UI.entryTab=t.value;formDirty=false;render();},
   assignCat:t=>{UI.assignCat=t.value;render();},
   assignDate:t=>{UI.assignDate=t.value;render();},
-  rpeSess:t=>{UI.rpeSess=t.value;render();}
+  rpeSess:t=>{UI.rpeSess=t.value;render();},
+  pe:t=>{const d=UI.progDraft;if(!d)return;const p=(t.dataset.path||'').split(':');const v=t.value;
+    if(p[0]==='plan'){d.name=v;return;}
+    if(p[0]==='w'){const w=d.weeks[+p[1]];if(w)w[p[2]]=v;return;}
+    if(p[0]==='s'){const s=d.weeks[+p[1]]&&d.weeks[+p[1]].sessions[+p[2]];if(!s)return;const f=p[3];
+      if(f==='km')s.km=v===''?null:num(v);
+      else if(f==='kind'){s.kind=v;render();}
+      else s[f]=v;return;}
+    if(p[0]==='e'){const s=d.weeks[+p[1]]&&d.weeks[+p[1]].sessions[+p[2]];const e=s&&s.exercises[+p[3]];if(!e)return;const f=p[4];
+      if(f==='dose'){e.fixed=v;delete e.series;delete e.sets;delete e.reps;}
+      else e[f]=v;return;}}
 };
 /* GPS CSV */
 let GPS_PARSED=null;
