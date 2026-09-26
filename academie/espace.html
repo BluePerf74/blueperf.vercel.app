@@ -74,10 +74,29 @@ let SPACE='aca'; // 'aca' = football, 'ci' = coaching individuel — détecté �
 
 /* ---------- Auth ---------- */
 function norm(s){return (s||'').toString().trim().toLowerCase();}
+function slugName(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function firstName(n){return (n||'').trim().split(/\s+/)[0]||'';}
+function defLogin(name){const f=slugName(firstName(name));return f?f+'@aca.com':'';}
+function defPass(name){const f=slugName(firstName(name));return f?f.slice(0,3)+'123':'';}
+// Un·e client·e peut se connecter avec ses identifiants enregistrés OU avec la convention
+// dérivée de son prénom (prénom@aca.com + 3 lettres du prénom + 123), pour que ça marche
+// même pour les comptes créés avant la mise en place de la convention.
+function matchClient(players,loginRaw,passRaw){
+  const L=norm(loginRaw), Ls=L.replace(/[^a-z0-9]/g,''), P=(passRaw||'').trim();
+  if(!L||!P)return null;
+  return Object.values(players).find(x=>{
+    if(!x)return false;
+    const sl=norm(x.login), sls=sl.replace(/[^a-z0-9]/g,'');
+    const dl=defLogin(x.name), dls=dl.replace(/[^a-z0-9]/g,''), dp=defPass(x.name);
+    const loginOk=(sl&&(sl===L||sls===Ls))||(dl&&(dl===L||dls===Ls));
+    const passOk=(x.pass&&x.pass===P)||(dp&&dp===P);
+    return loginOk&&passOk;
+  })||null;
+}
 async function tryLogin(login,pass){
   for(const sp of ['aca','ci']){
     const players=await kvGet(sp+':players');
-    const p=Object.values(players).find(x=>x&&norm(x.login)===norm(login)&&(x.pass||'')===pass&&norm(x.login)!=='');
+    const p=matchClient(players,login,pass);
     if(p){SPACE=sp;return p;}
   }
   return null;

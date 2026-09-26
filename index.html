@@ -1625,17 +1625,29 @@ async function attemptLogin(userRaw, passRaw){
   state.loginError = 'Identifiant ou mot de passe incorrect.';
   renderLoginScreen();
 }
+function acaSlugName(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function acaFirstName(n){return (n||'').trim().split(/\s+/)[0]||'';}
+function acaDefLogin(name){const f=acaSlugName(acaFirstName(name));return f?f+'@aca.com':'';}
+function acaDefPass(name){const f=acaSlugName(acaFirstName(name));return f?f.slice(0,3)+'123':'';}
 async function findAcademieClient(userRaw, passRaw){
-  const login = (userRaw||'').trim().toLowerCase();
-  const pass = (passRaw||'').trim();
-  if(!login || !pass) return null;
+  const L = (userRaw||'').trim().toLowerCase(), Ls = L.replace(/[^a-z0-9]/g,'');
+  const P = (passRaw||'').trim();
+  if(!L || !P) return null;
   for(const sp of ['ci','aca']){
     try{
       const r = await fetch('/api/storage?action=get&key='+sp+':players&_='+Date.now(), {cache:'no-store'});
       if(!r.ok) continue;
       const j = await r.json();
       const players = j && j.value ? JSON.parse(j.value) : {};
-      const m = Object.values(players).find(x => x && (x.login||'').trim().toLowerCase() === login && (x.login||'').trim() !== '' && (x.pass||'') === pass);
+      // Identifiants enregistrés OU convention dérivée du prénom (prénom@aca.com / 3 lettres+123)
+      const m = Object.values(players).find(x => {
+        if(!x) return false;
+        const sl = (x.login||'').trim().toLowerCase(), sls = sl.replace(/[^a-z0-9]/g,'');
+        const dl = acaDefLogin(x.name), dls = dl.replace(/[^a-z0-9]/g,''), dp = acaDefPass(x.name);
+        const loginOk = (sl && (sl===L || sls===Ls)) || (dl && (dl===L || dls===Ls));
+        const passOk = (x.pass && x.pass===P) || (dp && dp===P);
+        return loginOk && passOk;
+      });
       if(m) return {id:m.id, space:sp};
     }catch(e){}
   }
