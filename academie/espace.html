@@ -101,6 +101,15 @@ async function tryLogin(login,pass){
   }
   return null;
 }
+// Détecte les identifiants coach (personnalisés ou par défaut) pour rediriger vers le tableau de bord.
+function normCode(s){return (s||'').toString().toUpperCase().replace(/[^A-Z0-9]/g,'');}
+async function isCoach(user,pass){
+  let creds={username:'hugo',password:'BLUEPERF2026'};
+  try{const r=await fetch('/api/storage?action=get&key=coachCredentials&_='+Date.now(),{cache:'no-store'});
+    if(r.ok){const j=await r.json();if(j&&j.value){const c=JSON.parse(j.value);if(c&&c.username&&c.password)creds=c;}}}catch(e){}
+  const ok=(u,p)=>normCode(user)===normCode(u)&&normCode(pass)===normCode(p);
+  return ok(creds.username,creds.password)||ok('hugo','BLUEPERF2026');
+}
 function saveSession(pid){try{sessionStorage.setItem('espace_pid',pid);sessionStorage.setItem('espace_space',SPACE);}catch(e){}}
 function clearSession(){try{sessionStorage.removeItem('espace_pid');sessionStorage.removeItem('espace_space');}catch(e){}}
 
@@ -122,6 +131,8 @@ function renderLogin(msg){
     const u=$('#lg-user').value,p=$('#lg-pass').value;
     if(!u||!p){$('#lg-err').textContent='Renseigne identifiant et mot de passe.';return;}
     $('#lg-btn').disabled=true;$('#lg-err').textContent='Connexion…';
+    // Connexion intelligente : identifiants coach → tableau de bord ; sinon espace client·e.
+    if(await isCoach(u,p)){try{localStorage.setItem('bp_access','coach');}catch(e){}location.href='/';return;}
     const pl=await tryLogin(u,p);
     $('#lg-btn').disabled=false;
     if(!pl){$('#lg-err').textContent='Identifiant ou mot de passe incorrect.';return;}
