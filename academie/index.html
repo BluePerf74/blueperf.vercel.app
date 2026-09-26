@@ -426,7 +426,7 @@ function firstLoad(){
 async function seedCindy(){
   // Coaching individuel vierge : on crée Cindy et son programme 12 semaines automatiquement.
   const cid=uid();
-  const client={id:cid,name:'Cindy',cat:cats()[0]||'U18',pos:'',active:true,login:'cindy',pass:'cindy'};
+  const client={id:cid,name:'Cindy',cat:INDIV_CAT,sport:'Course à pied',pos:'',active:true,login:'cindy',pass:'cindy'};
   const plan={clientId:cid,name:'Programme 12 semaines',weeks:window.PROG12.buildProgram(),done:{}};
   DATA=empty();DATA.config.settings={started:true,cindySeeded:true};DATA.players[cid]=client;DATA.seanceplans[cid]=plan;
   Store.demo=false;
@@ -573,6 +573,10 @@ function makeDemo(){
 /* ===================== ANALYTICS ===================== */
 let IDX=null;
 function buildIndex(){
+  if(INDIV){ // coaching individuel : une seule "catégorie" implicite, on normalise tout pour que les filtres marchent
+    ['players','sessions','matches','plan','tests','phases'].forEach(col=>Object.values(DATA[col]||{}).forEach(o=>{if(o&&o.cat!==INDIV_CAT)o.cat=INDIV_CAT;}));
+    if(UI.cat!=='Tous')UI.cat=INDIV_CAT;
+  }
   const P={};Object.keys(DATA.players).forEach(id=>P[id]={days:{},vmaxObs:0});
   const add=(pid,date,e,dur,kind)=>{const p=P[pid];if(!p||!e)return;const d=p.days[date]||(p.days[date]={load:0,min:0,dist:0,hsr:0,sprint:0,acc:0,dec:0,vmax:0,match:false,n:0,gps:false});
     const min=num(e.min)??num(dur)??0;const rpe=num(e.rpe);if(rpe!=null)d.load+=rpe*min;d.min+=min;
@@ -705,11 +709,17 @@ try{const t=JSON.parse(localStorage.getItem(LSKEY+'-ui')||'{}');if(t.tab)UI.tab=
 if(/^#[a-z]+$/.test(location.hash)){const h=location.hash.slice(1);if(allTabIds().includes(h))UI.tab=h;}
 function allTabIds(){const o=[];TABS.forEach(t=>{if(t.children)t.children.forEach(c=>o.push(c.id));else o.push(t.id);});return o;}
 function saveUI(){try{localStorage.setItem(LSKEY+'-ui',JSON.stringify({tab:UI.tab,cat:UI.cat}));}catch(e){}}
-function cats(){return S().categories;}
-function playersOf(cat,all){return Object.values(DATA.players).filter(p=>(all||p.active!==false)&&(cat==='Tous'||p.cat===cat)).sort((a,b)=>(a.cat||'').localeCompare(b.cat||'')||(a.number||99)-(b.number||99)||a.name.localeCompare(b.name));}
-const pname=pid=>DATA.players[pid]?DATA.players[pid].name:'Joueur supprimé';
+const INDIV=MODE==='individuel';
+const INDIV_CAT='Individuel';
+/* Libellés : en coaching individuel on parle de « client·e·s », pas de « joueur·se·s ». */
+const PL={one:INDIV?'client·e':'joueur·se',One:INDIV?'Client·e':'Joueur·se',many:INDIV?'client·es':'joueur·ses',Many:INDIV?'Client·es':'Joueur·ses'};
+/* Sports possibles en coaching individuel (le sport n'est pas forcément le football). */
+const SPORTS=['Football','Course à pied','Triathlon','Cyclisme / vélo','Musculation','Natation','Trail','Rugby','Basket','Autre'];
+function cats(){return INDIV?[INDIV_CAT]:S().categories;}
+function playersOf(cat,all){return Object.values(DATA.players).filter(p=>(all||p.active!==false)&&(INDIV||cat==='Tous'||p.cat===cat)).sort((a,b)=>(a.cat||'').localeCompare(b.cat||'')||(a.number||99)-(b.number||99)||a.name.localeCompare(b.name));}
+const pname=pid=>DATA.players[pid]?DATA.players[pid].name:(INDIV?'Client·e supprimé·e':'Joueur supprimé');
 const plink=(pid,label)=>`<button class="plink" data-act="player" data-id="${esc(pid)}">${esc(label||pname(pid))}</button>`;
-const inCat=o=>UI.cat==='Tous'||o.cat===UI.cat||o.cat==='Tous';
+const inCat=o=>INDIV||UI.cat==='Tous'||o.cat===UI.cat||o.cat==='Tous';
 
 /* ===================== SHELL ===================== */
 function counts(){const ps=playersOf(UI.cat);let red=0,orange=0;ps.forEach(p=>{const s=playerStatus(p,UI.ref);if(s.lv>=3)red++;else if(s.lv===2)orange++;});
@@ -734,7 +744,7 @@ function renderTop(){
   const cs=['Tous',...cats()];const ph=curPhase(UI.cat,UI.ref);const nm=nextMatch(UI.cat,UI.ref);
   let ctx=[fmtD(UI.ref,{weekday:'long',day:'numeric',month:'long'})];if(ph)ctx.push(ph.name);if(nm){const d=dayDiff(nm.date,UI.ref);ctx.push((d===0?'Jour de match':'J-'+d)+' · '+(UI.cat==='Tous'?nm.cat+' ':'')+nm.label);}
   $('#top').innerHTML=`<div><h1>${esc(tabLabel(UI.tab))}</h1><div class="ctx">${esc(ctx.join(' · '))}</div></div>
-  <div class="tools"><div class="seg" role="group" aria-label="Catégorie">${cs.map(c=>`<button class="${UI.cat===c?'on':''}" data-act="cat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+  <div class="tools">${INDIV?'':`<div class="seg" role="group" aria-label="Catégorie">${cs.map(c=>`<button class="${UI.cat===c?'on':''}" data-act="cat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div>`}
   <input type="date" id="refDate" value="${UI.ref}" aria-label="Date de référence" style="width:auto">
   ${UI.ref!==TODAY?`<button class="btn sm" data-act="today">Aujourd'hui</button>`:''}</div>`;
 }
@@ -794,7 +804,7 @@ VIEWS.programme=()=>{
     ${days}`;
 };
 const COL_TR='var(--accent)',COL_MATCH='var(--s2)',COL_REA='var(--s3)';
-function emptyPlayers(){return `<div class="card"><h2>Aucun joueur${UI.cat!=='Tous'?' en '+esc(UI.cat):''}</h2><p class="muted">Ajoute ton effectif pour que les tableaux se remplissent.</p><button class="btn pri" data-act="goEntry" data-id="player">Ajouter des joueurs</button></div>`;}
+function emptyPlayers(){return `<div class="card"><h2>${INDIV?'Aucun·e client·e':'Aucun joueur'+(UI.cat!=='Tous'?' en '+esc(UI.cat):'')}</h2><p class="muted">${INDIV?'Ajoute tes client·es pour que les tableaux se remplissent.':'Ajoute ton effectif pour que les tableaux se remplissent.'}</p><button class="btn pri" data-act="goEntry" data-id="player">${INDIV?'Ajouter des client·es':'Ajouter des joueurs'}</button></div>`;}
 function kpi(label,v,unit,d,cls){return `<div class="card kpi"><div class="eyebrow">${label}</div><div class="v" ${cls?`style="color:var(--${cls})"`:''}>${v}${unit?`<small>${unit}</small>`:''}</div>${d?`<div class="d">${d}</div>`:''}</div>`;}
 function teamDaily(ps,end,n,key='load'){const labels=[],vals=[],isM=[];for(let i=n-1;i>=0;i--){const d=addDays(end,-i);labels.push(d);const v=ps.map(p=>pday(p.id,d)).filter(x=>x&&x[key]>0);vals.push(v.length?mean(v.map(x=>x[key])):0);isM.push(v.some(x=>x.match));}return{labels,vals,isM};}
 function teamWell(ps,end,n,key){const labels=[],vals=[];for(let i=n-1;i>=0;i--){const d=addDays(end,-i);labels.push(d);const v=ps.map(p=>{const e=wEntry(p.id,d);return key?num(e&&e[key]):wScore(e);}).filter(x=>x!=null);vals.push(v.length?mean(v):null);}return{labels,vals};}
@@ -820,7 +830,7 @@ VIEWS.overview=()=>{
     return {p,noWell,noRpe};
   }).filter(x=>x.noWell||x.noRpe);
   const toFillCard=`<div class="card"><div class="hrow"><h2>À saisir aujourd'hui</h2><span class="small muted">${toFill.length?toFill.length+' joueur·se(s) sans RPE ou wellness':'Tout est saisi'}</span></div>
-    ${toFill.length?`<div class="tw"><table><thead><tr><th>Joueur</th><th>Manque</th><th></th></tr></thead><tbody>
+    ${toFill.length?`<div class="tw"><table><thead><tr><th>${PL.One}</th><th>Manque</th><th></th></tr></thead><tbody>
       ${toFill.map(x=>`<tr><td>${plink(x.p.id)}</td>
         <td>${[x.noWell?'<span class="pill warn">Wellness</span>':'',x.noRpe?'<span class="pill warn">RPE séance</span>':''].filter(Boolean).join(' ')}</td>
         <td><button class="btn sm pri" data-act="fillPlayer" data-id="${esc(x.p.id)}">Saisir</button></td></tr>`).join('')}
@@ -842,7 +852,7 @@ VIEWS.overview=()=>{
   </div>
   <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
     <div class="card"><div class="hrow"><h2>État de forme du groupe</h2><span class="small muted">Trié par priorité · clique un joueur pour sa fiche</span></div>
-      <div class="tw"><table><thead><tr><th>Joueur</th>${UI.cat==='Tous'?'<th>Cat.</th>':''}<th>Poste</th><th>Statut</th><th class="n">Wellness</th><th class="n">ACWR</th><th class="n">Charge 7 j</th><th class="n">≥${th.vmaxPct} % Vmax</th><th>Motifs</th></tr></thead><tbody>
+      <div class="tw"><table><thead><tr><th>${PL.One}</th>${UI.cat==='Tous'?'<th>Cat.</th>':''}<th>Poste</th><th>Statut</th><th class="n">Wellness</th><th class="n">ACWR</th><th class="n">Charge 7 j</th><th class="n">≥${th.vmaxPct} % Vmax</th><th>Motifs</th></tr></thead><tbody>
       ${st.map(({p,s})=>`<tr><td>${plink(p.id)}</td>${UI.cat==='Tous'?`<td>${esc(p.cat)}</td>`:''}<td>${esc(p.pos||'')}</td><td>${lvPill(s.lv)}</td>
         <td class="n">${s.w.today!=null?`<span class="pill ${wCls(s.w.today)}">${r0(s.w.today)} %</span>`:'<span class="muted">–</span>'}</td>
         <td class="n">${s.e.acwr!=null?`<span class="pill ${acwrCls(s.e.acwr)}">${r2(s.e.acwr)}</span>`:'–'}</td>
@@ -878,11 +888,11 @@ VIEWS.health=()=>{
     ${WK.map(k=>{const s=teamWell(ps,ref,28,k);const lv=s.vals.filter(v=>v!=null);return `<div class="card"><div class="hrow"><h3>${WL[k]}</h3><b>${lv.length?r1(lv[lv.length-1]):'–'}<span class="muted small">/5</span></b></div>${lineChart({labels:s.labels,series:[{name:WL[k],values:s.vals,color:COL_TR}],yMin:1,yMax:5,h:120,fmt:v=>r1(v)})}</div>`;}).join('')}
   </div>
   <div class="card"><div class="hrow"><h2>Carte de chaleur, 14 jours</h2><span class="small muted">Score wellness (%) · rouge sous ${th.well} %, orange jusqu'à ${th.well+12} %</span></div>
-    <div class="tw"><table class="hm"><thead><tr><th>Joueur</th>${days.map(d=>`<th class="n" style="text-align:center">${DAYS[wd(d)]}<br>${fmtShort(d)}</th>`).join('')}<th class="n">Moy.</th></tr></thead><tbody>
+    <div class="tw"><table class="hm"><thead><tr><th>${PL.One}</th>${days.map(d=>`<th class="n" style="text-align:center">${DAYS[wd(d)]}<br>${fmtShort(d)}</th>`).join('')}<th class="n">Moy.</th></tr></thead><tbody>
     ${ps.map(p=>{const v=days.map(d=>wOf(p.id,d));return `<tr><td>${plink(p.id)}</td>${v.map((x,i)=>`<td class="c" style="background:${x==null?'transparent':`var(--${wCls(x)}-soft)`};color:${x==null?'var(--muted)':`var(--${wCls(x)})`}" data-tip="${esc(p.name+' · '+fmtD(days[i])+'\n'+(x==null?'Non rempli':wTip(wEntry(p.id,days[i]))))}">${x==null?'·':r0(x)}</td>`).join('')}<td class="n"><b>${r0(mean(v))}</b></td></tr>`;}).join('')}
     </tbody></table></div></div>
   <div class="card"><div class="hrow"><h2>Détail du ${fmtD(ref,{day:'numeric',month:'long'})}</h2><span class="small muted">z = écart à la moyenne individuelle des 28 derniers jours</span></div>
-    <div class="tw"><table><thead><tr><th>Joueur</th>${WK.map(k=>`<th class="n">${WL[k]}</th>`).join('')}<th class="n">Score</th><th class="n">z</th><th>Commentaire</th></tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th>${WK.map(k=>`<th class="n">${WL[k]}</th>`).join('')}<th class="n">Score</th><th class="n">z</th><th>Commentaire</th></tr></thead><tbody>
     ${st.map(({p,w,e})=>`<tr><td>${plink(p.id)}</td>${WK.map(k=>{const v=num(e&&e[k]);return `<td class="n" style="${v!=null&&v<=2?'color:var(--crit);font-weight:700':''}">${v??'–'}</td>`;}).join('')}
       <td class="n">${w.today!=null?`<span class="pill ${wCls(w.today)}">${r0(w.today)} %</span>`:'–'}</td><td class="n" style="${w.z!=null&&w.z<th.wz?'color:var(--crit);font-weight:700':''}">${w.z!=null?r1(w.z):'–'}</td><td class="small">${esc(e&&e.note||'')}</td></tr>`).join('')}
     </tbody></table></div>
@@ -912,7 +922,7 @@ VIEWS.load=()=>{
       ${barChart({labels:weeks.map(w=>w.end),values:weeks.map(w=>w.v||0),colors:weeks.map((w,i)=>i===weeks.length-1?COL_TR:'color-mix(in srgb,var(--accent) 45%,var(--surface))'),unit:'UA',refs:[{v:mean(weeks.slice(-5,-1).map(w=>w.v).filter(Boolean))||0,label:'Moy. 4 sem.'}]})}</div>
   </div>
   <div class="card"><div class="hrow"><h2>Charge individuelle</h2><span class="small muted">Variation : 7 derniers jours vs moyenne des 3 semaines précédentes · alerte au-delà de ±${th.weekChg} %</span></div>
-    <div class="tw"><table><thead><tr><th>Joueur</th><th class="n">7 j (UA)</th><th class="n">Sem. préc.</th><th class="n">Variation</th><th class="n">Monotonie</th><th class="n">Strain</th><th class="n">Aiguë</th><th class="n">Chronique</th><th class="n">ACWR</th><th>Tendance 28 j</th></tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th><th class="n">7 j (UA)</th><th class="n">Sem. préc.</th><th class="n">Variation</th><th class="n">Monotonie</th><th class="n">Strain</th><th class="n">Aiguë</th><th class="n">Chronique</th><th class="n">ACWR</th><th>Tendance 28 j</th></tr></thead><tbody>
     ${rows.map(({p,w,e})=>{const l=loads(p.id,ref,28);return `<tr><td>${plink(p.id)}</td><td class="n"><b>${r0(w.sum)}</b></td><td class="n">${r0(w.prev)}</td>
       <td class="n">${w.chg==null?'–':`<span class="pill ${Math.abs(w.chg)>th.weekChg?(w.chg>0?'crit':'warn'):'good'}">${w.chg>0?'+':''}${r0(w.chg)} %</span>`}</td>
       <td class="n" style="${w.mono>th.monotony?'color:var(--warn);font-weight:700':''}">${w.mono!=null?r2(w.mono):'–'}</td><td class="n">${r0(w.strain)}</td>
@@ -940,7 +950,7 @@ VIEWS.gps=()=>{
   let evTable='<div class="empty">Aucune donnée GPS. Saisis-les avec la séance ou colle un export CSV dans Saisie › Import GPS.</div>';
   if(ev){const rows=Object.entries(ev.players||{}).filter(([pid])=>DATA.players[pid]).map(([pid,x])=>({p:DATA.players[pid],x,min:num(x.min)??num(ev.duration)}));
     const avg=k=>mean(rows.map(r=>num(r.x[k])));
-    evTable=`<div class="tw"><table><thead><tr><th>Joueur</th><th class="n">Min</th><th class="n">Distance (m)</th><th class="n">m/min</th><th class="n">HSR &gt;${r1(th.hsr)} (m)</th><th class="n">Sprint &gt;${r0(th.sprint)} (m)</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax (km/h)</th><th class="n">% Vmax réf.</th></tr></thead><tbody>
+    evTable=`<div class="tw"><table><thead><tr><th>${PL.One}</th><th class="n">Min</th><th class="n">Distance (m)</th><th class="n">m/min</th><th class="n">HSR &gt;${r1(th.hsr)} (m)</th><th class="n">Sprint &gt;${r0(th.sprint)} (m)</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax (km/h)</th><th class="n">% Vmax réf.</th></tr></thead><tbody>
     ${rows.sort((a,b)=>(num(b.x.dist)||0)-(num(a.x.dist)||0)).map(({p,x,min})=>{const pv=vref(p);const pct=pv&&num(x.vmax)?num(x.vmax)/pv*100:null;return `<tr><td>${plink(p.id)}</td><td class="n">${r0(min)}</td><td class="n"><b>${r0(num(x.dist))}</b></td><td class="n">${min?r0(num(x.dist)/min):'–'}</td><td class="n">${r0(num(x.hsr))}</td><td class="n">${r0(num(x.sprint))}</td><td class="n">${r0(num(x.acc))}</td><td class="n">${r0(num(x.dec))}</td><td class="n">${r1(num(x.vmax))}</td><td class="n">${pct==null?'–':`<span class="pill ${pct>=th.vmaxPct?'good':'neutral'}">${r0(pct)} %</span>`}</td></tr>`;}).join('')}
     <tr><td><b>Moyenne</b></td><td class="n">${r0(mean(rows.map(r=>r.min)))}</td><td class="n"><b>${r0(avg('dist'))}</b></td><td class="n">–</td><td class="n">${r0(avg('hsr'))}</td><td class="n">${r0(avg('sprint'))}</td><td class="n">${r0(avg('acc'))}</td><td class="n">${r0(avg('dec'))}</td><td class="n">${r1(avg('vmax'))}</td><td></td></tr></tbody></table></div>`;}
   const noExpo=wk.filter(x=>!activeInjury(x.p.id,ref)&&(x.vx==null||x.vx>th.vmaxDays));
@@ -951,7 +961,7 @@ VIEWS.gps=()=>{
   </div>
   <div class="card"><div class="hrow"><h2>Cumul 7 jours et exposition à la vitesse maximale</h2><span class="small muted">Objectif : au moins 1 exposition ≥ ${th.vmaxPct} % de la Vmax de référence tous les ${th.vmaxDays} jours</span></div>
     ${noExpo.length?`<p class="small" style="margin-top:0"><span class="pill warn">${noExpo.length} joueur${noExpo.length>1?'s':''} sans exposition récente</span> ${noExpo.map(x=>esc(x.p.name)).join(', ')}</p>`:''}
-    <div class="tw"><table><thead><tr><th>Joueur</th><th class="n">Distance</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax 7 j</th><th class="n">Vmax réf.</th><th class="n">Dernière expo ≥${th.vmaxPct} %</th></tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th><th class="n">Distance</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax 7 j</th><th class="n">Vmax réf.</th><th class="n">Dernière expo ≥${th.vmaxPct} %</th></tr></thead><tbody>
     ${wk.map(({p,t,vx,vr})=>`<tr><td>${plink(p.id)}</td><td class="n">${r0(t.dist)}</td><td class="n">${r0(t.hsr)}</td><td class="n">${r0(t.sprint)}</td><td class="n">${r0(t.acc)}</td><td class="n">${r0(t.dec)}</td><td class="n">${t.vmax?r1(t.vmax):'–'}</td><td class="n">${r1(vr)}</td>
       <td class="n">${vx==null?'<span class="pill warn">Jamais</span>':`<span class="pill ${vx>th.vmaxDays?'warn':'good'}">${vx===0?"Aujourd'hui":'J-'+vx}</span>`}</td></tr>`).join('')}
     </tbody></table></div></div>`;
@@ -982,7 +992,7 @@ VIEWS.comp=()=>{
     detail=`<div class="row sb" style="margin-bottom:10px"><div><div class="eyebrow">${esc(m.competition||'')} · ${fmtD(m.date,{weekday:'long',day:'numeric',month:'long'})} · ${esc(m.venue||'')}</div>
       <div style="font-family:var(--fd);font-size:30px;font-weight:700">${esc(m.cat)} ${esc(m.gf)} – ${esc(m.ga)} ${esc(m.opponent)} <span class="pill ${res(m)==='V'?'good':res(m)==='D'?'crit':'neutral'}" style="vertical-align:middle">${res(m)==='V'?'Victoire':res(m)==='D'?'Défaite':'Nul'}</span></div></div>
       <div class="row"><button class="btn sm" data-act="edit" data-col="matches" data-id="${esc(m.id)}">Modifier</button></div></div>
-    <div class="tw"><table><thead><tr><th>Joueur</th><th>Tit.</th><th class="n">Min</th><th class="n">Buts</th><th class="n">PD</th><th class="n">Cartons</th><th class="n">Note</th><th class="n">RPE</th><th class="n">Distance</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Vmax</th></tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th><th>Tit.</th><th class="n">Min</th><th class="n">Buts</th><th class="n">PD</th><th class="n">Cartons</th><th class="n">Note</th><th class="n">RPE</th><th class="n">Distance</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Vmax</th></tr></thead><tbody>
     ${rows.map(({p,e})=>`<tr><td>${plink(p.id)}</td><td>${e.starter?'Oui':'Non'}</td><td class="n">${r0(num(e.min))}</td><td class="n">${num(e.goals)||''}</td><td class="n">${num(e.assists)||''}</td><td class="n">${num(e.yellow)?'<span class="pill warn">J</span>':''}${num(e.red)?'<span class="pill crit">R</span>':''}</td><td class="n">${r1(num(e.rating))}</td><td class="n">${r0(num(e.rpe))}</td><td class="n">${r0(num(e.dist))}</td><td class="n">${r0(num(e.hsr))}</td><td class="n">${r0(num(e.sprint))}</td><td class="n">${r1(num(e.vmax))}</td></tr>`).join('')}
     </tbody></table></div>`;}
   return `<div class="grid g6">${kpi('Matchs',ms.length,'')}${kpi('Victoires',W,'','',W?'good':null)}${kpi('Nuls',N,'')}${kpi('Défaites',L,'')}${kpi('Buts marqués',sum(ms.map(x=>num(x.gf))),'',ms.length?r1(sum(ms.map(x=>num(x.gf)))/ms.length)+' par match':'')}${kpi('Buts encaissés',sum(ms.map(x=>num(x.ga))),'',ms.length?r1(sum(ms.map(x=>num(x.ga)))/ms.length)+' par match':'')}</div>
@@ -992,7 +1002,7 @@ VIEWS.comp=()=>{
     <div class="card">${detail}</div>
   </div>
   <div class="card"><div class="hrow"><h2>Statistiques de la saison</h2><span class="small muted">% temps de jeu = minutes jouées / minutes possibles</span></div>
-    <div class="tw"><table><thead><tr><th>Joueur</th><th>Poste</th><th class="n">Matchs</th><th class="n">Tit.</th><th class="n">Minutes</th><th>Temps de jeu</th><th class="n">Buts</th><th class="n">PD</th><th class="n">Cartons J</th><th class="n">Note moy.</th><th class="n">Dist./90</th></tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th><th>Poste</th><th class="n">Matchs</th><th class="n">Tit.</th><th class="n">Minutes</th><th>Temps de jeu</th><th class="n">Buts</th><th class="n">PD</th><th class="n">Cartons J</th><th class="n">Note moy.</th><th class="n">Dist./90</th></tr></thead><tbody>
     ${season.sort((a,b)=>b.min-a.min).map(r=>`<tr><td>${plink(r.p.id)}</td><td>${esc(r.p.pos||'')}</td><td class="n">${r.n}</td><td class="n">${r.st}</td><td class="n"><b>${r0(r.min)}</b></td><td style="min-width:120px"><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${clamp(r.pct||0,0,100)}%"></i></div><span class="small">${r.pct!=null?r0(r.pct)+' %':'–'}</span></div></td><td class="n">${r.g}</td><td class="n">${r.a}</td><td class="n">${r.y}</td><td class="n">${r.rt!=null?r1(r.rt):'–'}</td><td class="n">${r.d90?r0(r.d90):'–'}</td></tr>`).join('')}
     </tbody></table></div></div>${indiv}`;
 };
@@ -1178,7 +1188,7 @@ VIEWS.testing=()=>{
       <div style="margin-top:14px">${evo.length?lineChart({labels:evo.map(e=>e.date),series:[{name:t.name,values:evo.map(e=>e.v),color:COL_TR,dots:true}],h:150,fmt:v=>fr(v,t.unit==='s'?2:1)}):'<p class="muted small">Pas encore de valeur pour ce test.</p>'}<div class="small muted" style="text-align:center">Évolution : ${esc(t.name)}</div></div></div>
   </div>
   <div class="card"><div class="hrow"><h2>Suivi par joueur : ${esc(t.name)}</h2><span class="small muted">Variation vs session précédente</span></div>
-    <div class="tw"><table><thead><tr><th>Joueur</th>${tDates.map(d=>`<th class="n">${fmtShort(d)}</th>`).join('')}<th class="n">Variation</th><th class="n">z groupe</th></tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th>${tDates.map(d=>`<th class="n">${fmtShort(d)}</th>`).join('')}<th class="n">Variation</th><th class="n">z groupe</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td>${plink(r.p.id)}</td>${tDates.map(d=>{const b=bats.find(x=>x.date===d&&x.cat===r.p.cat);const v=b?num(b.results[t.id][r.p.id]):null;return `<td class="n">${v!=null?fr(v,2):'–'}</td>`;}).join('')}
       <td class="n">${r.chg==null?'–':`<span class="pill ${(hi?r.chg:-r.chg)>1?'good':(hi?r.chg:-r.chg)<-3?'crit':'neutral'}">${r.chg>0?'+':''}${r1(r.chg)} %</span>`}</td><td class="n">${r.z!=null?r1(r.z):'–'}</td></tr>`).join('')}
     </tbody></table></div></div>
@@ -1246,14 +1256,14 @@ VIEWS.muscu=()=>{
     progHtml=`<div class="row sb"><div><div class="eyebrow">${esc(sel.cat)} · ${esc(sel.phase||'')} · ${esc(sel.freq||'')} séance(s)/sem.</div><h2 style="margin:2px 0 0">${esc(sel.name)}</h2></div><div class="row"><button class="btn sm" data-act="progEdit" data-id="${esc(sel.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="programs" data-id="${esc(sel.id)}">Supprimer</button></div></div>
     <div class="tw" style="margin-top:10px"><table><thead><tr><th>Exercice</th><th class="n">Séries</th><th>Rép.</th><th class="n">% 1RM</th><th>Récup.</th><th>Consignes</th></tr></thead><tbody>${sel.exercises.map(e=>`<tr><td><b>${esc(e.name)}</b></td><td class="n">${esc(e.sets)}</td><td>${esc(e.reps)}</td><td class="n">${num(e.pct)?esc(e.pct)+' %':'–'}</td><td>${esc(e.rest||'')}</td><td class="wrap small">${esc(e.notes||'')}</td></tr>`).join('')}</tbody></table></div>
     ${withPct.length?`<h3 style="margin-top:16px">Charges individuelles (kg)</h3><p class="note" style="margin-top:0">% 1RM × 1RM du joueur, arrondi à 2,5 kg. Charges indiquées seulement si la technique est au moins « Acquis ».</p>
-    <div class="tw"><table><thead><tr><th>Joueur</th>${withPct.map(e=>`<th class="n">${esc(e.name)}<br><span style="text-transform:none">${esc(e.sets)}×${esc(e.reps)} @ ${esc(e.pct)} %</span></th>`).join('')}</tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th>${withPct.map(e=>`<th class="n">${esc(e.name)}<br><span style="text-transform:none">${esc(e.sets)}×${esc(e.reps)} @ ${esc(e.pct)} %</span></th>`).join('')}</tr></thead><tbody>
     ${cp.map(p=>{const mx=(DATA.maxes[p.id]||{}).values||{};const sk=(DATA.maxes[p.id]||{}).skills||{};const minSk=Math.min(...skills.map(s=>num(sk[s])??0));
       return `<tr><td>${plink(p.id)}</td>${withPct.map(e=>{const rm=num(mx[e.name]);return `<td class="n">${rm?(minSk>=2?`<b>${fr(Math.round(rm*num(e.pct)/100/2.5)*2.5,1)}</b>`:`<span class="pill warn" data-tip="Technique à valider avant de charger">Technique</span>`):'<span class="muted">1RM ?</span>'}</td>`;}).join('')}</tr>`;}).join('')}</tbody></table></div>`:''}`;}
   return `<div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,3fr)">
     <div class="card"><div class="hrow"><h3>Programmes</h3><button class="btn sm pri" data-act="progEdit" data-id="new">Nouveau</button></div><div class="stack" style="gap:6px">${progs.map(p=>`<button class="btn" style="justify-content:space-between;${sel&&p.id===sel.id&&!editing?'border-color:var(--accent);color:var(--accent)':''}" data-act="progSel" data-id="${esc(p.id)}"><span>${esc(p.name)}</span><span class="small muted">${esc(p.cat)}</span></button>`).join('')||'<p class="muted small">Aucun</p>'}</div></div>
     <div class="card">${progHtml}</div></div>
   <div class="card"><div class="hrow"><h2>1RM et maîtrise technique</h2><span class="small muted">Les valeurs s’enregistrent dès que tu quittes la case</span></div>
-    ${ps.length?`<div class="tw"><table class="gridin"><thead><tr><th>Joueur</th>${exos.map(e=>`<th>${esc(e)} (kg)</th>`).join('')}${skills.map(s=>`<th>${esc(s)}</th>`).join('')}</tr></thead><tbody>
+    ${ps.length?`<div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th>${exos.map(e=>`<th>${esc(e)} (kg)</th>`).join('')}${skills.map(s=>`<th>${esc(s)}</th>`).join('')}</tr></thead><tbody>
     ${ps.map(p=>{const m=DATA.maxes[p.id]||{};const v=m.values||{},sk=m.skills||{};return `<tr><td>${plink(p.id)}</td>${exos.map(e=>`<td><input type="number" step="2.5" min="0" value="${esc(v[e]??'')}" data-chg="max" data-id="${esc(p.id)}" data-k="${esc(e)}" aria-label="${esc(p.name+' '+e)}"></td>`).join('')}
       ${skills.map(s=>`<td><select data-chg="skill" data-id="${esc(p.id)}" data-k="${esc(s)}" aria-label="${esc(p.name+' '+s)}" style="width:110px">${SKL.map((l,k)=>`<option value="${k}" ${(num(sk[s])??0)===k?'selected':''}>${l}</option>`).join('')}</select></td>`).join('')}</tr>`;}).join('')}</tbody></table></div>`:emptyPlayers()}</div>
   <div class="card"><h3>Calculateur de 1RM (Epley)</h3><div class="row"><div class="f"><label for="ep-kg">Charge (kg)</label><input type="number" id="ep-kg" style="width:120px"></div><div class="f"><label for="ep-reps">Répétitions</label><input type="number" id="ep-reps" style="width:120px"></div><div class="f"><label>1RM estimé</label><div id="ep-out" style="font-family:var(--fd);font-size:26px;font-weight:700">–</div></div></div>
@@ -1287,12 +1297,12 @@ VIEWS.medical=()=>{
     ${kpi('Fardeau',hours?r0(sum(all.map(daysOut))/hours*1000):'–','j/1000 h','Jours perdus pour 1000 h')}${kpi('Exposition',r0(hours),'h','Entraînements + matchs enregistrés')}</div>
   ${fiche}
   <div class="card"><div class="hrow"><h2>Blessures en cours</h2><button class="btn sm pri" data-act="goEntry" data-id="injury">Déclarer une blessure</button></div>
-    <div class="tw"><table><thead><tr><th>Joueur</th><th>Zone</th><th>Type</th><th>Date</th><th class="n">Jours</th><th>Statut</th><th>Retour prévu</th><th></th></tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th><th>Zone</th><th>Type</th><th>Date</th><th class="n">Jours</th><th>Statut</th><th>Retour prévu</th><th></th></tr></thead><tbody>
     ${cur.map(i=>`<tr><td>${plink(i.pid)}</td><td>${esc(i.zone)}</td><td>${esc(i.type||'')}</td><td>${fmtD(i.date)}</td><td class="n">${daysOut(i)}</td><td><span class="pill ${i.status==='soins'?'crit':i.status==='reathle'?'info':'warn'}">${STATUS_LABEL[i.status]}${i.status==='reathle'?' · ph. '+((i.phase||0)+1):''}</span></td><td>${fmtD(i.expectedReturn)}</td>
       <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="medOpen" data-id="${esc(i.id)}">Fiche</button>${i.status==='soins'?`<button class="btn sm" data-act="injStatus" data-id="${esc(i.id)}" data-v="reathle">→ Réathlé</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="8" class="muted">Aucun blessé</td></tr>'}
     </tbody></table></div></div>
   <div class="grid g2"><div class="card"><h3>Répartition par zone</h3>${hbars(Object.entries(zones).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k,value:v})))}</div><div class="card"><h3>Mécanisme</h3>${hbars(Object.entries(mech).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k,value:v,color:'var(--s2)'})))}</div></div>
-  <div class="card"><h3>Historique</h3><div class="tw"><table><thead><tr><th>Joueur</th><th>Zone</th><th>Type</th><th>Date</th><th>Retour</th><th class="n">Jours</th><th>Gravité</th><th>Contexte</th><th></th></tr></thead><tbody>
+  <div class="card"><h3>Historique</h3><div class="tw"><table><thead><tr><th>${PL.One}</th><th>Zone</th><th>Type</th><th>Date</th><th>Retour</th><th class="n">Jours</th><th>Gravité</th><th>Contexte</th><th></th></tr></thead><tbody>
     ${hist.map(i=>`<tr><td>${plink(i.pid)}</td><td>${esc(i.zone)}</td><td>${esc(i.type||'')}</td><td>${fmtD(i.date)}</td><td>${fmtD(i.returnDate)}</td><td class="n">${daysOut(i)}</td><td>${sev(daysOut(i))}</td><td>${esc(i.context||'')}</td><td><button class="btn sm" data-act="medOpen" data-id="${esc(i.id)}">Fiche</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">Aucune blessure clôturée</td></tr>'}
   </tbody></table></div></div>`;
 };
@@ -1301,13 +1311,15 @@ VIEWS.medical=()=>{
 <script>
 /* ---------- SAISIE ---------- */
 const ENTRY_TABS=[['session','Séance'],['wellness','Wellness'],['match','Match'],['injury','Blessure'],['plan','Planification'],['season','Phase de saison'],['tests','Tests'],['player','Joueurs'],['gps','Import GPS']];
-const ENTRY_MENU=[['assign','⚑ Affectation des joueur·ses'],['session','Saisir une séance'],['rpe','Saisir les RPE'],['gps','Importer les GPS'],['match','Match'],['wellness','Wellness'],['injury','Blessure'],['plan','Planification'],['season','Phase de saison'],['tests','Tests'],['player','Joueur·ses']].filter(x=>!(MODE==='individuel'&&(x[0]==='gps'||x[0]==='match')));
+const ENTRY_MENU=[['assign','⚑ Affectation des '+PL.many],['session','Saisir une séance'],['rpe','Saisir les RPE'],['gps','Importer les GPS'],['match','Match'],['wellness','Wellness'],['injury','Blessure'],['plan','Planification'],['season','Phase de saison'],['tests','Tests'],['player',PL.Many]].filter(x=>!(MODE==='individuel'&&(x[0]==='gps'||x[0]==='match')));
 const COL2TAB={sessions:'session',matches:'match',injuries:'injury',plan:'plan',phases:'season',players:'player',tests:'tests'};
 const GF={session:[['min','Min'],['rpe','RPE'],['dist','Dist. (m)'],['hsr','HSR (m)'],['sprint','Sprint (m)'],['acc','Acc.'],['dec','Déc.'],['vmax','Vmax']],
  match:[['min','Min'],['starter','Tit.','chk'],['goals','Buts'],['assists','PD'],['yellow','J'],['red','R'],['rating','Note'],['rpe','RPE'],['dist','Dist. (m)'],['hsr','HSR (m)'],['sprint','Sprint (m)'],['acc','Acc.'],['dec','Déc.'],['vmax','Vmax']]};
 const defCat=()=>UI.cat==='Tous'?cats()[0]:UI.cat;
 const opt=(list,cur)=>list.map(x=>{const [v,l]=Array.isArray(x)?x:[x,x];return `<option value="${esc(v)}" ${String(v)===String(cur??'')?'selected':''}>${esc(l)}</option>`;}).join('');
 const fld=(id,label,inner,span)=>`<div class="f" ${span?`style="grid-column:span ${span}"`:''}><label for="${id}">${label}</label>${inner}</div>`;
+/* Champ catégorie : masqué en coaching individuel (une seule catégorie implicite), rendu en input caché pour que les formulaires continuent d'envoyer cat. */
+const catFld=(id,cur,attrs)=>INDIV?`<input type="hidden" id="${id}" name="cat" value="${INDIV_CAT}">`:fld(id,'Catégorie',`<select id="${id}" name="cat" ${attrs||''}>${opt(cats(),cur)}</select>`);
 function editing(col){return UI.edit&&UI.edit.col===col?DATA[col][UI.edit.id]:null;}
 function gridHTML(kind,cat,existing,dur){
   const F=GF[kind];const ps=playersOf(cat);if(!ps.length)return `<tr><td colspan="${F.length+1}" class="muted">Aucun joueur dans cette catégorie</td></tr>`;
@@ -1334,16 +1346,16 @@ ENTRY.assign=()=>{
   const form=`<form data-form="assign" class="stack">
     <div class="fgrid">
       ${fld('as-date','Date',`<input type="date" id="as-date" name="date" value="${date}" data-chg="assignDate">`)}
-      ${fld('as-cat','Catégorie',`<select id="as-cat" name="cat" data-chg="assignCat">${opt(cats(),cat)}</select>`)}
+      ${catFld('as-cat',cat,'data-chg="assignCat"')}
       ${fld('as-tpl','Séance type à affecter',`<select id="as-tpl" name="tpl"><option value="">— Séance vierge —</option>${templates.map(t=>`<option value="${esc(t.id)}">${esc(t.name||t.type||'Modèle')}</option>`).join('')}</select>`,2)}
       ${fld('as-title','Intitulé',`<input type="text" id="as-title" name="title" placeholder="ex. Entraînement du soir">`,2)}
       ${fld('as-dur','Durée (min)',`<input type="number" id="as-dur" name="duration" value="90" min="0">`)}
     </div>
-    ${ps.length?`<div><b>Qui était là ?</b> <span class="small muted">— coche les présents (${ps.length} joueur·ses)</span></div>
+    ${ps.length?`<div><b>${INDIV?'Présence':'Qui était là ?'}</b> <span class="small muted">— coche les ${INDIV?PL.many+' concerné·es':'présents'} (${ps.length} ${PL.many})</span></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">${presence}</div>
-    <div class="row"><button class="btn pri">Créer et affecter la séance</button></div>`:`<p class="muted">Aucun·e joueur·se en ${esc(cat)}. Choisis une autre catégorie ou ajoute des joueur·ses dans « Saisie › Joueur·ses ».</p>`}
+    <div class="row"><button class="btn pri">Créer et affecter la séance</button></div>`:`<p class="muted">${INDIV?'Aucun·e client·e. Ajoute-les dans « Saisie › '+PL.Many+' ».':'Aucun·e joueur·se en '+esc(cat)+'. Choisis une autre catégorie ou ajoute des joueur·ses dans « Saisie › Joueur·ses ».'}</p>`}
   </form>`;
-  const dayList=!todays.length?`<p class="muted">Aucune séance ${fmtD(date)} en ${esc(cat)}.</p>`:todays.map(s=>{
+  const dayList=!todays.length?`<p class="muted">Aucune séance ${fmtD(date)}${INDIV?'':' en '+esc(cat)}.</p>`:todays.map(s=>{
     const st=rpeState(s);const nP=s.players?Object.keys(s.players).length:0;const nR=rpeFilledCount(s);
     let badge,btn;
     if(!st.sent){badge='<span class="pill neutral">RPE non envoyé</span>';btn=`<button class="btn pri sm" data-act="sendRpe" data-id="${esc(s.id)}">Envoyer RPE (fenêtre 4 h)</button>`;}
@@ -1352,8 +1364,8 @@ ENTRY.assign=()=>{
     return `<div class="card flat" style="margin-top:8px"><div class="hrow" style="margin:0"><div><b>${esc(s.title||s.type||'Séance')}</b> <span class="small muted">${esc(s.type||'')}${s.duration?' · '+s.duration+' min':''}</span></div>${badge}</div>
       <div class="hrow" style="margin:6px 0 0"><span class="small muted">${nP} affecté·es · <b>${nR}</b> RPE reçu${nR>1?'s':''}</span><div class="row" style="flex-wrap:nowrap">${btn}<button class="btn sm" data-act="edit" data-col="sessions" data-id="${esc(s.id)}">Ouvrir la séance</button></div></div></div>`;
   }).join('');
-  return `<div class="hrow"><h2>Affectation des joueur·ses</h2></div>
-    <p class="note" style="margin:0 0 10px">Crée la séance du jour et coche les présents. Puis clique <b>Envoyer RPE</b> : chaque joueur·se dispose alors de <b>4 h</b> pour saisir son RPE depuis son espace perso.</p>
+  return `<div class="hrow"><h2>Affectation des ${PL.many}</h2></div>
+    <p class="note" style="margin:0 0 10px">Crée la séance du jour et coche ${INDIV?'les '+PL.many+' concerné·es':'les présents'}. Puis clique <b>Envoyer RPE</b> : chaque ${PL.one} dispose alors de <b>4 h</b> pour saisir son RPE depuis son espace perso.</p>
     ${form}
     <h3 style="margin:16px 0 4px">Séances du jour</h3>
     ${dayList}`;
@@ -1361,18 +1373,18 @@ ENTRY.assign=()=>{
 ENTRY.rpe=()=>{
   const cat=UI.assignCat||(cats().find(c=>playersOf(c).length))||defCat();const date=UI.assignDate||UI.ref;
   const sess=Object.values(DATA.sessions).filter(s=>s.date===date&&s.cat===cat).sort((a,b)=>(a.title||a.type||'').localeCompare(b.title||b.type||''));
-  const dc=`${fld('rp-date','Date',`<input type="date" id="rp-date" value="${date}" data-chg="assignDate">`)}${fld('rp-cat','Catégorie',`<select id="rp-cat" data-chg="assignCat">${opt(cats(),cat)}</select>`)}`;
-  if(!sess.length)return `<div class="hrow"><h2>Saisir les RPE</h2></div><div class="fgrid">${dc}</div><p class="muted">Aucune séance ${fmtD(date)} en ${esc(cat)}. Crée-la d'abord dans « Affectation ».</p>`;
+  const dc=`${fld('rp-date','Date',`<input type="date" id="rp-date" value="${date}" data-chg="assignDate">`)}${INDIV?'':fld('rp-cat','Catégorie',`<select id="rp-cat" data-chg="assignCat">${opt(cats(),cat)}</select>`)}`;
+  if(!sess.length)return `<div class="hrow"><h2>Saisir les RPE</h2></div><div class="fgrid">${dc}</div><p class="muted">Aucune séance ${fmtD(date)}${INDIV?'':' en '+esc(cat)}. Crée-la d'abord dans « Affectation ».</p>`;
   const sid=(UI.rpeSess&&sess.find(s=>s.id===UI.rpeSess))?UI.rpeSess:sess[0].id;
   const s=DATA.sessions[sid];
   const affected=Object.keys(s.players||{}).map(id=>DATA.players[id]).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
   const st=rpeState(s);
   const sel=sess.length>1?fld('rp-sess','Séance',`<select id="rp-sess" data-chg="rpeSess">${sess.map(x=>`<option value="${esc(x.id)}" ${x.id===sid?'selected':''}>${esc((x.title||x.type||'Séance'))}</option>`).join('')}</select>`,2):'';
-  const rows=affected.length?affected.map(p=>{const me=s.players[p.id]||{};return `<tr><td>${esc(p.name)}</td><td><input type="number" step="any" min="0" max="10" name="rpe-${p.id}" value="${esc(me.rpe!=null?me.rpe:'')}" placeholder="0-10"></td><td class="small muted">${me.partRpe&&Object.keys(me.partRpe).length?'saisi par le/la joueur·se':(me.rpe!=null?'':'—')}</td></tr>`;}).join(''):`<tr><td colspan="3" class="muted">Aucun·e joueur·se affecté·e à cette séance.</td></tr>`;
-  return `<div class="hrow"><h2>Saisir les RPE</h2>${st.sent?(st.open?`<span class="pill good">Fenêtre joueur·ses ouverte · <b data-chrono="${st.end}">${fmtRemain(st.remain)}</b></span>`:'<span class="pill warn">Fenêtre joueur·ses fermée</span>'):'<span class="pill neutral">RPE non envoyé aux joueur·ses</span>'}</div>
+  const rows=affected.length?affected.map(p=>{const me=s.players[p.id]||{};return `<tr><td>${esc(p.name)}</td><td><input type="number" step="any" min="0" max="10" name="rpe-${p.id}" value="${esc(me.rpe!=null?me.rpe:'')}" placeholder="0-10"></td><td class="small muted">${me.partRpe&&Object.keys(me.partRpe).length?'saisi par '+(INDIV?'le/la client·e':'le/la joueur·se'):(me.rpe!=null?'':'—')}</td></tr>`;}).join(''):`<tr><td colspan="3" class="muted">Aucun·e ${PL.one} affecté·e à cette séance.</td></tr>`;
+  return `<div class="hrow"><h2>Saisir les RPE</h2>${st.sent?(st.open?`<span class="pill good">Fenêtre ${PL.many} ouverte · <b data-chrono="${st.end}">${fmtRemain(st.remain)}</b></span>`:`<span class="pill warn">Fenêtre ${PL.many} fermée</span>`):`<span class="pill neutral">RPE non envoyé aux ${PL.many}</span>`}</div>
     <form data-form="rpe" class="stack"><input type="hidden" name="sid" value="${esc(sid)}"><div class="fgrid">${dc}${sel}</div>
-    <div class="tw"><table class="gridin"><thead><tr><th>Joueur·se</th><th>RPE (0-10)</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="row">${!st.sent?`<button type="button" class="btn" data-act="sendRpe" data-id="${esc(sid)}">Envoyer aux joueur·ses (4 h)</button>`:''}<button class="btn pri">Enregistrer les RPE</button></div></form>`;
+    <div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th><th>RPE (0-10)</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="row">${!st.sent?`<button type="button" class="btn" data-act="sendRpe" data-id="${esc(sid)}">Envoyer aux ${PL.many} (4 h)</button>`:''}<button class="btn pri">Enregistrer les RPE</button></div></form>`;
 };
 ENTRY.session=()=>{const e=editing('sessions');const pf=e?null:(UI.sessionPrefill||null);const src=e||pf||{};const cat=src.cat||defCat();const s=S();
   const templates=Object.values(DATA.templates||{}).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
@@ -1380,7 +1392,7 @@ ENTRY.session=()=>{const e=editing('sessions');const pf=e?null:(UI.sessionPrefil
   const sn=src.staffNotes||{};
   return `<form data-form="session" class="stack"><div class="fgrid">
     ${fld('se-date','Date',`<input type="date" id="se-date" name="date" value="${e?e.date:(UI.prefDate||UI.ref)}" required>`)}
-    ${fld('se-cat','Catégorie',`<select id="se-cat" name="cat" data-regrid="session">${opt(cats(),cat)}</select>`)}
+    ${catFld('se-cat',cat,'data-regrid="session"')}
     ${fld('se-type','Type',`<select id="se-type" name="type">${opt(s.sessionTypes,src.type)}</select>`)}
     ${fld('se-obj','Objectif',`<select id="se-obj" name="objective">${opt(s.objectives,src.objective)}</select>`)}
     ${e?'':fld('se-load','Charger (séance type ou existante)',`<select id="se-load" data-chg="loadSess"><option value="">— Nouvelle séance —</option>${templates.length?'<optgroup label="Séances types">'+templates.map(t=>`<option value="tpl:${esc(t.id)}" ${pf&&pf._tplId===t.id?'selected':''}>${esc(t.name||t.type||'Modèle')}</option>`).join('')+'</optgroup>':''}${recent.length?'<optgroup label="Séances récentes">'+recent.map(x=>`<option value="ses:${esc(x.id)}">${esc(fmtD(x.date)+' · '+(x.title||x.type||'Séance')+' ('+x.cat+')')}</option>`).join('')+'</optgroup>':''}</select>`,2)}
@@ -1398,8 +1410,8 @@ ENTRY.session=()=>{const e=editing('sessions');const pf=e?null:(UI.sessionPrefil
       <td><input type="number" step="any" name="pc-rpe-${i}" value="${esc(pr.rpe??'')}" placeholder="0-10" aria-label="RPE cible procédé ${i+1}"></td>
     </tr>`;}).join('')}
   </tbody></table></div>
-  <p class="note" style="margin:0"><b>Présence :</b> coche/décoche chaque joueur·se pour indiquer qui était là. Minutes vides = durée de la séance. RPE (CR-10) recueilli 20 à 30 min après la séance. Colonnes GPS facultatives.</p>
-  <div class="tw"><table class="gridin"><thead><tr><th>Joueur</th>${GF.session.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody id="grid">${gridHTML('session',cat,e&&e.players,e?e.duration:90)}</tbody></table></div>
+  <p class="note" style="margin:0"><b>Présence :</b> coche/décoche chaque ${PL.one} pour indiquer qui était là. Minutes vides = durée de la séance. RPE (CR-10) recueilli 20 à 30 min après la séance. Colonnes GPS facultatives.</p>
+  <div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th>${GF.session.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody id="grid">${gridHTML('session',cat,e&&e.players,e?e.duration:90)}</tbody></table></div>
   <div style="margin-top:4px"><b>Vignettes &amp; notes staff</b> <span class="small muted">— notes internes sur le contenu, non visibles par les joueur·ses</span></div>
   <div class="fgrid">
     ${['physique|Physique / athlétique','technique|Technique','gb|Technique GB','tactique|Tactique','mental|Mental'].map(x=>{const[k,l]=x.split('|');return fld('sn-'+k,l,`<textarea name="sn-${k}" style="min-height:64px" placeholder="…">${esc(sn[k]||'')}</textarea>`);}).join('')}
@@ -1408,7 +1420,7 @@ ENTRY.session=()=>{const e=editing('sessions');const pf=e?null:(UI.sessionPrefil
 ENTRY.match=()=>{const e=editing('matches');const cat=e?e.cat:defCat();
   return `<form data-form="match" class="stack"><div class="fgrid">
     ${fld('ma-date','Date',`<input type="date" id="ma-date" name="date" value="${e?e.date:UI.ref}" required>`)}
-    ${fld('ma-cat','Catégorie',`<select id="ma-cat" name="cat" data-regrid="match">${opt(cats(),cat)}</select>`)}
+    ${catFld('ma-cat',cat,'data-regrid="match"')}
     ${fld('ma-opp','Adversaire',`<input type="text" id="ma-opp" name="opponent" value="${esc(e&&e.opponent||'')}" required>`)}
     ${fld('ma-comp','Compétition',`<input type="text" id="ma-comp" name="competition" value="${esc(e&&e.competition||'')}">`)}
     ${fld('ma-venue','Lieu',`<select id="ma-venue" name="venue">${opt(['Domicile','Extérieur','Neutre'],e&&e.venue)}</select>`)}
@@ -1416,15 +1428,15 @@ ENTRY.match=()=>{const e=editing('matches');const cat=e?e.cat:defCat();
     ${fld('ma-ga','Buts encaissés',`<input type="number" id="ma-ga" name="ga" min="0" value="${esc(e?e.ga:'')}" required>`)}
     ${fld('ma-dur','Durée (min)',`<input type="number" id="ma-dur" name="duration" min="0" value="${esc(e?e.duration:(cat==='U15'?80:90))}">`)}
   </div>
-  <div class="tw"><table class="gridin"><thead><tr><th>Joueur</th>${GF.match.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody id="grid">${gridHTML('match',cat,e&&e.players)}</tbody></table></div>
+  <div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th>${GF.match.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody id="grid">${gridHTML('match',cat,e&&e.players)}</tbody></table></div>
   <p class="note" style="margin:0">Coche les joueurs ayant participé (y compris entrés en jeu). Note sur 10.</p>
   <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">${e?'Enregistrer les modifications':'Enregistrer le match'}</button></div></form>`;};
 ENTRY.wellness=()=>{const cat=UI.wCat||defCat();const date=UI.wDate||UI.ref;const doc=DATA.wellness[date];const ps=playersOf(cat);
   return `<form data-form="wellness" class="stack"><div class="fgrid">
     ${fld('we-date','Date',`<input type="date" id="we-date" name="date" value="${date}" data-rew="1">`)}
-    ${fld('we-cat','Catégorie',`<select id="we-cat" name="cat" data-rew="1">${opt(cats(),cat)}</select>`)}</div>
+    ${catFld('we-cat',cat,'data-rew="1"')}</div>
   <p class="note" style="margin:0">Échelle de 1 (très mauvais) à 5 (très bon) pour chaque item : pour fatigue, courbatures et stress, 5 = aucune fatigue, aucune courbature, aucun stress.</p>
-  <div class="tw"><table class="gridin"><thead><tr><th>Joueur</th>${WK.map(k=>`<th>${WL[k]}</th>`).join('')}<th>Commentaire</th></tr></thead><tbody>
+  <div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th>${WK.map(k=>`<th>${WL[k]}</th>`).join('')}<th>Commentaire</th></tr></thead><tbody>
   ${ps.map(p=>{const x=doc&&doc.entries&&doc.entries[p.id]||{};return `<tr><td>${esc(p.name)}</td>${WK.map(k=>`<td><select name="${k}-${p.id}" aria-label="${WL[k]} ${esc(p.name)}" style="width:60px"><option value="">–</option>${[1,2,3,4,5].map(v=>`<option ${num(x[k])===v?'selected':''}>${v}</option>`).join('')}</select></td>`).join('')}<td><input class="w" type="text" name="note-${p.id}" value="${esc(x.note||'')}" aria-label="Commentaire ${esc(p.name)}"></td></tr>`;}).join('')||'<tr><td class="muted">Aucun joueur</td></tr>'}
   </tbody></table></div><div class="row"><button class="btn pri">Enregistrer le wellness</button></div></form>`;};
 ENTRY.injury=()=>{const e=editing('injuries');const ps=playersOf('Tous');
@@ -1443,7 +1455,7 @@ ENTRY.injury=()=>{const e=editing('injuries');const ps=playersOf('Tous');
 ENTRY.plan=()=>{const e=editing('plan');const s=S();
   return `<form data-form="plan" class="stack"><div class="fgrid">
     ${fld('pl-date','Date',`<input type="date" id="pl-date" name="date" value="${e?e.date:(UI.prefDate||UI.ref)}" required>`)}
-    ${fld('pl-cat','Catégorie',`<select id="pl-cat" name="cat">${e?opt(cats(),e.cat):opt([['*','Toutes les catégories'],...cats()],UI.cat==='Tous'?'*':UI.cat)}</select>`)}
+    ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('pl-cat','Catégorie',`<select id="pl-cat" name="cat">${e?opt(cats(),e.cat):opt([['*','Toutes les catégories'],...cats()],UI.cat==='Tous'?'*':UI.cat)}</select>`)}
     ${fld('pl-type','Type',`<select id="pl-type" name="type">${opt([...s.sessionTypes,'Match'],e&&e.type)}</select>`)}
     ${fld('pl-obj','Objectif',`<select id="pl-obj" name="objective">${opt(s.objectives,e&&e.objective)}</select>`)}
     ${fld('pl-title','Intitulé (ou « Match vs … »)',`<input type="text" id="pl-title" name="title" value="${esc(e&&e.title||'')}">`,2)}
@@ -1454,7 +1466,7 @@ ENTRY.plan=()=>{const e=editing('plan');const s=S();
 ENTRY.season=()=>{const e=editing('phases');
   return `<form data-form="phase" class="stack"><div class="fgrid">
     ${fld('ph-name','Nom de la phase',`<input type="text" id="ph-name" name="name" value="${esc(e&&e.name||'')}" required placeholder="ex. Compétition — bloc 2">`,2)}
-    ${fld('ph-cat','Catégorie',`<select id="ph-cat" name="cat">${opt(['Tous',...cats()],e?e.cat:'Tous')}</select>`)}
+    ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('ph-cat','Catégorie',`<select id="ph-cat" name="cat">${opt(['Tous',...cats()],e?e.cat:'Tous')}</select>`)}
     ${fld('ph-start','Début',`<input type="date" id="ph-start" name="start" value="${esc(e&&e.start||UI.ref)}" required>`)}
     ${fld('ph-end','Fin',`<input type="date" id="ph-end" name="end" value="${esc(e&&e.end||addDays(UI.ref,27))}" required>`)}
     ${fld('ph-obj','Objectifs',`<textarea id="ph-obj" name="objective">${esc(e&&e.objective||'')}</textarea>`,4)}
@@ -1462,33 +1474,35 @@ ENTRY.season=()=>{const e=editing('phases');
 ENTRY.tests=()=>{const e=editing('tests');const cat=e?e.cat:(UI.tCat||defCat());const tests=S().tests;const sel=UI.tSel||(e?Object.keys(e.results||{}):tests.map(t=>t.id));const ps=playersOf(cat);const ts=tests.filter(t=>sel.includes(t.id));
   return `<form data-form="tests" class="stack"><div class="fgrid">
     ${fld('te-date','Date',`<input type="date" id="te-date" name="date" value="${e?e.date:UI.ref}" required>`)}
-    ${fld('te-cat','Catégorie',`<select id="te-cat" name="cat" data-ret="1" ${e?'disabled':''}>${opt(cats(),cat)}</select>`)}
+    ${catFld('te-cat',cat,'data-ret="1" '+(e?'disabled':''))}
     ${fld('te-label','Intitulé',`<input type="text" id="te-label" name="label" value="${esc(e&&e.label||'')}" placeholder="ex. Batterie de novembre">`,2)}</div>
   <div class="row"><span class="flabel">Tests</span>${tests.map(t=>`<label class="chk small"><input type="checkbox" data-tsel="${esc(t.id)}" ${sel.includes(t.id)?'checked':''}> ${esc(t.name)}</label>`).join('')}</div>
-  <div class="tw"><table class="gridin"><thead><tr><th>Joueur</th>${ts.map(t=>`<th>${esc(t.name)}<br><span style="text-transform:none">${esc(t.unit)}</span></th>`).join('')}</tr></thead><tbody>
+  <div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th>${ts.map(t=>`<th>${esc(t.name)}<br><span style="text-transform:none">${esc(t.unit)}</span></th>`).join('')}</tr></thead><tbody>
   ${ps.map(p=>`<tr><td>${esc(p.name)}</td>${ts.map(t=>`<td><input type="number" step="any" name="t-${t.id}-${p.id}" value="${esc(e&&e.results&&e.results[t.id]&&e.results[t.id][p.id]!=null?e.results[t.id][p.id]:'')}" aria-label="${esc(t.name+' '+p.name)}"></td>`).join('')}</tr>`).join('')}</tbody></table></div>
   <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">Enregistrer les résultats</button></div></form>`;};
 ENTRY.player=()=>{const e=editing('players');const s=S();const all=playersOf('Tous',true);
-  return `<div class="grid g2"><form data-form="player" class="card flat stack"><h3>${e?'Modifier '+esc(e.name):'Nouveau joueur'}</h3><div class="fgrid">
+  return `<div class="grid g2"><form data-form="player" class="card flat stack"><h3>${e?'Modifier '+esc(e.name):(INDIV?'Nouveau·elle client·e':'Nouveau joueur')}</h3><div class="fgrid">
     ${fld('pp-name','Nom',`<input type="text" id="pp-name" name="name" value="${esc(e&&e.name||'')}" required>`)}
-    ${fld('pp-cat','Catégorie',`<select id="pp-cat" name="cat">${opt(cats(),e?e.cat:defCat())}</select>`)}
-    ${fld('pp-pos','Poste',`<select id="pp-pos" name="pos">${opt(s.positions,e&&e.pos)}</select>`)}
-    ${fld('pp-num','Numéro',`<input type="number" id="pp-num" name="number" value="${esc(e&&e.number||'')}">`)}
+    ${catFld('pp-cat',e?e.cat:defCat())}
+    ${INDIV
+      ? fld('pp-sport','Sport',`<select id="pp-sport" name="sport">${opt(SPORTS,(e&&e.sport)||'Football')}</select>`)
+      : fld('pp-pos','Poste',`<select id="pp-pos" name="pos">${opt(s.positions,e&&e.pos)}</select>`)}
+    ${INDIV?'':fld('pp-num','Numéro',`<input type="number" id="pp-num" name="number" value="${esc(e&&e.number||'')}">`)}
     ${fld('pp-birth','Date de naissance',`<input type="date" id="pp-birth" name="birth" value="${esc(e&&e.birth||'')}">`)}
     ${fld('pp-h','Taille (cm)',`<input type="number" id="pp-h" name="height" value="${esc(e&&e.height||'')}">`)}
     ${fld('pp-m','Masse (kg)',`<input type="number" id="pp-m" name="mass" step="0.1" value="${esc(e&&e.mass||'')}">`)}
     ${fld('pp-v','Vmax de référence (km/h)',`<input type="number" id="pp-v" name="vmax" step="0.1" value="${esc(e&&e.vmax||'')}">`)}
-    ${fld('pp-login','Identifiant (espace joueur·se)',`<input type="text" id="pp-login" name="login" autocomplete="off" value="${esc(e&&e.login||'')}" placeholder="ex: sarah">`)}
+    ${fld('pp-login',`Identifiant (espace ${PL.one})`,`<input type="text" id="pp-login" name="login" autocomplete="off" value="${esc(e&&e.login||'')}" placeholder="ex: sarah">`)}
     ${fld('pp-pass','Mot de passe',`<input type="text" id="pp-pass" name="pass" autocomplete="off" value="${esc(e&&e.pass||'')}" placeholder="ex: 4 chiffres">`)}
     <label class="chk"><input type="checkbox" name="active" ${!e||e.active!==false?'checked':''}> Actif dans l'effectif</label></div>
-    <p class="note" style="margin:0">Espace perso du joueur·se pour saisir RPE + wellness : <b>/academie/espace.html</b> (identifiant + mot de passe ci-dessus).</p>
-    <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">${e?'Enregistrer':'Ajouter le joueur'}</button></div></form>
-  <form data-form="bulk" class="card flat stack"><h3>Ajout rapide</h3><p class="note" style="margin:0">Un joueur par ligne : Nom ; poste ; numéro (poste et numéro facultatifs).</p>
-    ${fld('bk-cat','Catégorie',`<select id="bk-cat" name="cat">${opt(cats(),defCat())}</select>`)}
-    <textarea name="list" aria-label="Liste de joueurs" style="min-height:140px" placeholder="Adam B. ; DC ; 4&#10;Ilyes K. ; MC ; 8"></textarea><div class="row"><button class="btn pri">Ajouter la liste</button></div></form></div>
-  <div class="card"><h3>Effectif (${all.length})</h3><div class="tw"><table><thead><tr><th>Nom</th><th>Cat.</th><th>Poste</th><th class="n">N°</th><th class="n">Âge</th><th class="n">Vmax réf.</th><th>Accès (id · mdp)</th><th>Statut</th><th></th></tr></thead><tbody>
-  ${all.map(p=>`<tr><td>${plink(p.id)}</td><td>${esc(p.cat)}</td><td>${esc(p.pos||'')}</td><td class="n">${esc(p.number||'')}</td><td class="n">${r1(age(p.birth,UI.ref))}</td><td class="n">${r1(vref(p))}</td><td>${p.login?esc(p.login)+' · '+esc(p.pass||''):'<span class="muted">—</span>'}</td><td>${p.active===false?'<span class="pill neutral">Inactif</span>':'<span class="pill good">Actif</span>'}</td>
-    <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="players" data-id="${esc(p.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="players" data-id="${esc(p.id)}">×</button></div></td></tr>`).join('')||'<tr><td colspan="9" class="muted">Aucun joueur</td></tr>'}</tbody></table></div></div>`;};
+    <p class="note" style="margin:0">Espace perso ${INDIV?'du/de la client·e':'du joueur·se'} pour saisir RPE + wellness : <b>/academie/espace.html</b> (identifiant + mot de passe ci-dessus).</p>
+    <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">${e?'Enregistrer':(INDIV?'Ajouter le/la client·e':'Ajouter le joueur')}</button></div></form>
+  <form data-form="bulk" class="card flat stack"><h3>Ajout rapide</h3><p class="note" style="margin:0">${INDIV?'Un·e client·e par ligne : Nom (une seule colonne suffit).':'Un joueur par ligne : Nom ; poste ; numéro (poste et numéro facultatifs).'}</p>
+    ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('bk-cat','Catégorie',`<select id="bk-cat" name="cat">${opt(cats(),defCat())}</select>`)}
+    <textarea name="list" aria-label="Liste" style="min-height:140px" placeholder="${INDIV?'Cindy&#10;Marc':'Adam B. ; DC ; 4&#10;Ilyes K. ; MC ; 8'}"></textarea><div class="row"><button class="btn pri">Ajouter la liste</button></div></form></div>
+  <div class="card"><h3>${INDIV?'Mes client·es':'Effectif'} (${all.length})</h3><div class="tw"><table><thead><tr><th>Nom</th>${INDIV?'<th>Sport</th>':'<th>Cat.</th><th>Poste</th><th class="n">N°</th>'}<th class="n">Âge</th><th class="n">Vmax réf.</th><th>Accès (id · mdp)</th><th>Statut</th><th></th></tr></thead><tbody>
+  ${all.map(p=>`<tr><td>${plink(p.id)}</td>${INDIV?`<td>${esc(p.sport||'—')}</td>`:`<td>${esc(p.cat)}</td><td>${esc(p.pos||'')}</td><td class="n">${esc(p.number||'')}</td>`}<td class="n">${r1(age(p.birth,UI.ref))}</td><td class="n">${r1(vref(p))}</td><td>${p.login?esc(p.login)+' · '+esc(p.pass||''):'<span class="muted">—</span>'}</td><td>${p.active===false?'<span class="pill neutral">Inactif</span>':'<span class="pill good">Actif</span>'}</td>
+    <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="players" data-id="${esc(p.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="players" data-id="${esc(p.id)}">×</button></div></td></tr>`).join('')||`<tr><td colspan="9" class="muted">${INDIV?'Aucun·e client·e':'Aucun joueur'}</td></tr>`}</tbody></table></div></div>`;};
 ENTRY.gps=()=>{const evs=[...Object.values(DATA.sessions).map(s=>({...s,col:'sessions'})),...Object.values(DATA.matches).map(m=>({...m,col:'matches',title:'Match vs '+m.opponent}))].filter(inCat).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40);
   return `<div class="card flat stack"><p class="note" style="margin:0">Colle un export CSV de ton logiciel GPS (Catapult, STATSports, Polar…). Première ligne = en-têtes. Colonnes reconnues : nom du joueur, distance, HSR / haute intensité, sprint, accélérations, décélérations, vitesse max, minutes. Le séparateur (; , tabulation) est détecté automatiquement.</p>
     ${fld('gp-ev','Séance ou match à compléter',`<select id="gp-ev">${evs.map(e=>`<option value="${esc(e.col+'|'+e.id)}">${fmtD(e.date)} · ${esc(e.cat)} · ${esc(e.title||e.type)}</option>`).join('')}</select>`)}
@@ -1551,8 +1565,8 @@ FORMS.tests=async f=>{const e=editing('tests');const v=Object.fromEntries(new Fo
   await put('tests',id,{id,date:v.date,cat,label:v.label,results:res});UI.edit=null;UI.tSel=null;toast('Résultats enregistrés');go('testing');};
 FORMS.player=async f=>{const e=editing('players');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
   const login=(v.login||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'');
-  await put('players',id,Object.assign({},e||{},{id,name:v.name.trim(),cat:v.cat,pos:v.pos,number:num(v.number),birth:v.birth,height:num(v.height),mass:num(v.mass),vmax:num(v.vmax),login,pass:(v.pass||'').trim(),active:!!v.active}));UI.edit=null;toast(e?'Joueur modifié':'Joueur ajouté');render();};
-FORMS.bulk=async f=>{const v=Object.fromEntries(new FormData(f));const lines=v.list.split('\n').map(l=>l.trim()).filter(Boolean);for(const l of lines){const [n,pos,nb]=l.split(/[;,\t]/).map(x=>(x||'').trim());const id=uid();await put('players',id,{id,name:n,cat:v.cat,pos:pos||'',number:num(nb),active:true});}toast(lines.length+' joueur'+(lines.length>1?'s':'')+' ajouté'+(lines.length>1?'s':''));render();};
+  await put('players',id,Object.assign({},e||{},{id,name:v.name.trim(),cat:v.cat,pos:v.pos,sport:v.sport!=null?v.sport:(e&&e.sport),number:num(v.number),birth:v.birth,height:num(v.height),mass:num(v.mass),vmax:num(v.vmax),login,pass:(v.pass||'').trim(),active:!!v.active}));UI.edit=null;toast(e?(INDIV?'Client·e modifié·e':'Joueur modifié'):(INDIV?'Client·e ajouté·e':'Joueur ajouté'));render();};
+FORMS.bulk=async f=>{const v=Object.fromEntries(new FormData(f));const lines=v.list.split('\n').map(l=>l.trim()).filter(Boolean);for(const l of lines){const [n,pos,nb]=l.split(/[;,\t]/).map(x=>(x||'').trim());const id=uid();await put('players',id,{id,name:n,cat:v.cat,pos:pos||'',number:num(nb),active:true});}toast(lines.length+(INDIV?' client·e':' joueur')+(lines.length>1?'s':'')+' ajouté'+(lines.length>1?'s':''));render();};
 FORMS.followup=async f=>{const v=Object.fromEntries(new FormData(f));const i=JSON.parse(JSON.stringify(DATA.injuries[f.dataset.id]));i.followups=(i.followups||[]);i.followups.push({date:v.date,text:v.text,pain:num(v.pain)});i.followups.sort((a,b)=>a.date.localeCompare(b.date));await put('injuries',i.id,i);toast('Suivi ajouté');};
 FORMS.rlog=async f=>{const v=Object.fromEntries(new FormData(f));const i=JSON.parse(JSON.stringify(DATA.injuries[f.dataset.id]));i.log=i.log||[];i.log.push({date:v.date,content:v.content,min:num(v.min),rpe:num(v.rpe),dist:num(v.dist),hsr:num(v.hsr),vmax:num(v.vmax)});await put('injuries',i.id,i);toast('Séance de réathlé ajoutée');};
 FORMS.program=async f=>{const v=Object.fromEntries(new FormData(f));const id=f.dataset.id==='new'?uid():f.dataset.id;const ex=[];
@@ -1715,7 +1729,7 @@ function gpsParse(){const txt=$('#gp-csv').value.trim();const out=$('#gp-prev');
     const g=k=>col[k]>=0?num(String(a[col[k]]||'').replace(',','.').replace(/\s/g,'')):null;rows.push({raw:a[col.name],p,v:{dist:g('dist'),hsr:g('hsr'),sprint:g('sprint'),acc:g('acc'),dec:g('dec'),vmax:g('vmax'),min:g('min')}});});
   GPS_PARSED={c,id,rows};const ok=rows.filter(r=>r.p).length;
   out.innerHTML=`<p class="small">${ok} ligne${ok>1?'s':''} associée${ok>1?'s':''} à un joueur sur ${rows.length}. Colonnes détectées : ${Object.entries(col).filter(([k,v])=>v>=0).map(([k])=>k).join(', ')}.</p>
-  <div class="tw"><table><thead><tr><th>Ligne</th><th>Joueur</th><th class="n">Dist.</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.raw)}</td><td>${r.p?esc(r.p.name):'<span class="pill warn">Non trouvé</span>'}</td>${['dist','hsr','sprint','acc','dec','vmax'].map(k=>`<td class="n">${r.v[k]??'–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+  <div class="tw"><table><thead><tr><th>Ligne</th><th>${PL.One}</th><th class="n">Dist.</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.raw)}</td><td>${r.p?esc(r.p.name):'<span class="pill warn">Non trouvé</span>'}</td>${['dist','hsr','sprint','acc','dec','vmax'].map(k=>`<td class="n">${r.v[k]??'–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
   <div class="row" style="margin-top:8px"><button class="btn pri" data-act="gpsApply" ${ok?'':'disabled'}>Ajouter à la séance</button></div>`;}
 async function gpsApply(){if(!GPS_PARSED)return;const {c,id,rows}=GPS_PARSED;const ev=JSON.parse(JSON.stringify(DATA[c][id]));ev.players=ev.players||{};
   rows.forEach(r=>{if(!r.p)return;const e=ev.players[r.p.id]||{};Object.entries(r.v).forEach(([k,v])=>{if(v!=null)e[k]=v;});ev.players[r.p.id]=e;});await put(c,id,ev);GPS_PARSED=null;toast('Données GPS ajoutées');UI.gpsEvent=id;go('gps');}
