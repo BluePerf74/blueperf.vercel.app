@@ -340,21 +340,22 @@ const FRONT_ZONES=[
   ['f-head','Tête'],['f-neck','Cou'],['f-sh-l','Épaule G'],['f-sh-r','Épaule D'],
   ['f-chest','Pectoraux'],['f-abs','Abdominaux'],['f-arm-l','Bras G'],['f-arm-r','Bras D'],
   ['f-hip','Aine / hanches'],['f-quad-l','Cuisse G (avant)'],['f-quad-r','Cuisse D (avant)'],
-  ['f-knee-l','Genou G'],['f-knee-r','Genou D'],['f-shin-l','Tibia G'],['f-shin-r','Tibia D']
+  ['f-knee-l','Genou G'],['f-knee-r','Genou D'],['f-shin-l','Tibia G'],['f-shin-r','Tibia D'],
+  ['f-foot-l','Pied G'],['f-foot-r','Pied D'],['f-toes-l','Orteils G'],['f-toes-r','Orteils D']
 ];
 const BACK_ZONES=[
   ['b-nape','Nuque'],['b-traps','Trapèzes'],['b-upback','Haut du dos'],['b-lowback','Lombaires'],
   ['b-arm-l','Bras G'],['b-arm-r','Bras D'],['b-glutes','Fessiers'],
   ['b-ham-l','Ischios G'],['b-ham-r','Ischios D'],['b-calf-l','Mollet G'],['b-calf-r','Mollet D'],
-  ['b-achi-l','Achille G'],['b-achi-r','Achille D']
+  ['b-achi-l','Achille G'],['b-achi-r','Achille D'],
+  ['b-heel-l','Talon G'],['b-heel-r','Talon D'],['b-toes-l','Orteils G'],['b-toes-r','Orteils D']
 ];
 let SORE=new Set();
 function zoneLabel(id){const a=FRONT_ZONES.concat(BACK_ZONES).find(z=>z[0]===id);return a?a[1]:id;}
 const SIL_PATH="M70 8c9 0 15 7 15 16 0 6-3 11-7 14 8 2 16 6 18 14l6 34c1 6-1 10-6 11l-3 40-4 40h-1l-3-52h-2l-3 52-4 60-3 30h-9l-2-30-4-60-3-52h-2l-3 52h-1l-4-40-3-40c-5-1-7-5-6-11l6-34c2-8 10-12 18-14-4-3-7-8-7-14 0-9 6-16 15-16z";
 function frontSvg(){
-  return `<svg viewBox="0 0 140 330" width="132" height="312" aria-label="Corps vu de face">
+  return `<svg viewBox="0 0 140 268" width="130" height="249" aria-label="Corps vu de face">
     <path class="silhouette" d="${SIL_PATH}"/>
-    <ellipse class="bfoot" cx="60" cy="314" rx="9" ry="5"/><ellipse class="bfoot" cx="80" cy="314" rx="9" ry="5"/>
     <ellipse class="zone" data-zone="f-head" cx="70" cy="24" rx="13" ry="15"/>
     <rect class="zone" data-zone="f-neck" x="63" y="39" width="14" height="9" rx="4"/>
     <ellipse class="zone" data-zone="f-sh-l" cx="49" cy="59" rx="10" ry="9"/>
@@ -372,12 +373,15 @@ function frontSvg(){
     <ellipse class="zone" data-zone="f-knee-r" cx="77" cy="182" rx="7" ry="7"/>
     <rect class="zone" data-zone="f-shin-l" x="57" y="192" width="12" height="50" rx="5"/>
     <rect class="zone" data-zone="f-shin-r" x="71" y="192" width="12" height="50" rx="5"/>
+    <rect class="zone" data-zone="f-foot-l" x="57" y="243" width="12" height="12" rx="3"/>
+    <rect class="zone" data-zone="f-foot-r" x="71" y="243" width="12" height="12" rx="3"/>
+    <rect class="zone" data-zone="f-toes-l" x="56" y="254" width="14" height="8" rx="3.5"/>
+    <rect class="zone" data-zone="f-toes-r" x="70" y="254" width="14" height="8" rx="3.5"/>
   </svg>`;
 }
 function backSvg(){
-  return `<svg viewBox="0 0 140 330" width="132" height="312" aria-label="Corps vu de dos">
+  return `<svg viewBox="0 0 140 268" width="130" height="249" aria-label="Corps vu de dos">
     <path class="silhouette" d="${SIL_PATH}"/>
-    <ellipse class="bfoot" cx="60" cy="314" rx="9" ry="5"/><ellipse class="bfoot" cx="80" cy="314" rx="9" ry="5"/>
     <ellipse class="zone" data-zone="b-nape" cx="70" cy="25" rx="11" ry="10"/>
     <path class="zone" data-zone="b-traps" d="M56 49c8-4 20-4 28 0 2 1 1 13-14 13s-16-12-14-13z"/>
     <rect class="zone" data-zone="b-upback" x="56" y="64" width="28" height="24" rx="6"/>
@@ -390,8 +394,12 @@ function backSvg(){
     <rect class="zone" data-zone="b-ham-r" x="70" y="132" width="13" height="46" rx="6"/>
     <rect class="zone" data-zone="b-calf-l" x="57" y="190" width="12" height="44" rx="5"/>
     <rect class="zone" data-zone="b-calf-r" x="71" y="190" width="12" height="44" rx="5"/>
-    <rect class="zone" data-zone="b-achi-l" x="59" y="236" width="7" height="12" rx="3"/>
-    <rect class="zone" data-zone="b-achi-r" x="74" y="236" width="7" height="12" rx="3"/>
+    <rect class="zone" data-zone="b-achi-l" x="59" y="236" width="7" height="10" rx="3"/>
+    <rect class="zone" data-zone="b-achi-r" x="74" y="236" width="7" height="10" rx="3"/>
+    <rect class="zone" data-zone="b-heel-l" x="57" y="246" width="12" height="8" rx="3"/>
+    <rect class="zone" data-zone="b-heel-r" x="71" y="246" width="12" height="8" rx="3"/>
+    <rect class="zone" data-zone="b-toes-l" x="56" y="253" width="14" height="8" rx="3.5"/>
+    <rect class="zone" data-zone="b-toes-r" x="70" y="253" width="14" height="8" rx="3.5"/>
   </svg>`;
 }
 function bindZones(){
