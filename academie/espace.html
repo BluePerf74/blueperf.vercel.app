@@ -98,36 +98,43 @@ function isoLong(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{
 
 /* ---------- Personnalisation des couleurs (par cliente, sur cet appareil) ---------- */
 const DEF_BG='#0E1A2C', DEF_KPI='#152439';
+const KPI_META=['Wellness du jour','Séances à noter','Charge 7 jours','Séances suivies'];
 function themeKey(){return 'espace_theme_'+SPACE+'_'+(PLAYER&&PLAYER.id?PLAYER.id:'anon');}
-function loadTheme(){try{return JSON.parse(localStorage.getItem(themeKey()))||{};}catch(e){return {};}}
+function loadTheme(){let t;try{t=JSON.parse(localStorage.getItem(themeKey()))||{};}catch(e){t={};}
+  if(t.kpi&&!t.cards){t.cards={0:t.kpi,1:t.kpi,2:t.kpi,3:t.kpi};} // compat : ancienne couleur unique -> 4 encadrés
+  return t;}
 function contrastInk(hex){try{const m=String(hex).replace('#','');const r=parseInt(m.slice(0,2),16),g=parseInt(m.slice(2,4),16),b=parseInt(m.slice(4,6),16);const L=(0.299*r+0.587*g+0.114*b)/255;return L>0.58?'#0E1A2C':'#EAF1FB';}catch(e){return '#EAF1FB';}}
+function inkMuted(ink){return ink==='#0E1A2C'?'rgba(14,26,44,.6)':'rgba(234,241,251,.66)';}
 function applyTheme(t){const r=document.documentElement.style;t=t||{};
-  if(t.bg){r.setProperty('--bg',t.bg);r.setProperty('--onbg',contrastInk(t.bg));}else{r.removeProperty('--bg');r.removeProperty('--onbg');}
-  if(t.kpi){const ink=contrastInk(t.kpi);r.setProperty('--kpi-bg',t.kpi);r.setProperty('--kpi-ink',ink);r.setProperty('--kpi-muted',ink==='#0E1A2C'?'rgba(14,26,44,.6)':'rgba(234,241,251,.66)');}
-  else{r.removeProperty('--kpi-bg');r.removeProperty('--kpi-ink');r.removeProperty('--kpi-muted');}}
+  if(t.bg){r.setProperty('--bg',t.bg);r.setProperty('--onbg',contrastInk(t.bg));}else{r.removeProperty('--bg');r.removeProperty('--onbg');}}
+function cardColor(i){const t=loadTheme();return (t.cards&&t.cards[i])||null;}
+function kpiStyle(i){const c=cardColor(i);if(!c)return '';const ink=contrastInk(c);return `background:${c};--kpi-ink:${ink};--kpi-muted:${inkMuted(ink)}`;}
+function liveCard(i,c){const el=document.querySelector('.kpi[data-kidx="'+i+'"]');if(!el)return;
+  if(c){const ink=contrastInk(c);el.style.background=c;el.style.setProperty('--kpi-ink',ink);el.style.setProperty('--kpi-muted',inkMuted(ink));}
+  else{el.style.background='';el.style.removeProperty('--kpi-ink');el.style.removeProperty('--kpi-muted');}}
 function saveTheme(t){try{localStorage.setItem(themeKey(),JSON.stringify(t));}catch(e){}applyTheme(t);}
 function appearanceCard(){
-  const t=loadTheme();
+  const t=loadTheme();const cards=t.cards||{};
   const BGP=['#0E1A2C','#12233B','#1A1030','#0E2A22','#2A1622','#101418','#EEF2F8'];
-  const KPP=['#152439','#1E3350','#3DA9FC','#7A3DF2','#2FBF71','#E7A13B','#E5604D'];
-  const sw=(arr,attr)=>`<div class="swatches">${arr.map(c=>`<button type="button" data-${attr}="${c}" style="background:${c}" aria-label="Couleur ${c}"></button>`).join('')}</div>`;
+  const bgsw=`<div class="swatches">${BGP.map(c=>`<button type="button" data-bg="${c}" style="background:${c}" aria-label="Couleur ${c}"></button>`).join('')}</div>`;
+  const rows=KPI_META.map((lbl,i)=>`<div class="field"><label>Encadré « ${lbl} »</label>
+     <div class="row"><input type="color" id="th-c${i}" data-cidx="${i}" value="${cards[i]||DEF_KPI}"><button type="button" class="btn sec" data-cclear="${i}" style="padding:7px 12px;font-size:13px">Défaut</button></div></div>`).join('');
   return `<div class="card"><h2>🎨 Mes couleurs</h2>
     <div class="field"><label>Couleur de fond de l'application</label>
       <div class="row"><input type="color" id="th-bg" value="${t.bg||DEF_BG}"><span class="muted" style="font-size:12.5px">Le fond derrière tes cartes.</span></div>
-      ${sw(BGP,'bg')}</div>
-    <div class="field"><label>Couleur des encadrés (Wellness du jour, séances à noter, charge 7 jours, séances suivies)</label>
-      <div class="row"><input type="color" id="th-kpi" value="${t.kpi||DEF_KPI}"><span class="muted" style="font-size:12.5px">Les 4 encadrés du haut.</span></div>
-      ${sw(KPP,'kpi')}</div>
-    <div class="row"><button class="btn sec" id="th-reset">Réinitialiser</button></div>
-    <p class="muted" style="font-size:11.5px;margin:8px 0 0">Enregistré sur cet appareil, rien que pour toi. Le texte s'adapte automatiquement à la couleur choisie.</p></div>`;
+      ${bgsw}</div>
+    <p class="muted" style="font-size:12.5px;margin:2px 0 8px">Couleur de chaque encadré, un par un :</p>
+    ${rows}
+    <div class="row"><button class="btn sec" id="th-reset">Tout réinitialiser</button></div>
+    <p class="muted" style="font-size:11.5px;margin:8px 0 0">Enregistré sur cet appareil. Si tu choisis une couleur claire, le texte passe automatiquement en foncé pour rester lisible.</p></div>`;
 }
 function bindAppearance(){
-  const bgI=$('#th-bg'),kpiI=$('#th-kpi');
+  const bgI=$('#th-bg');
   if(bgI)bgI.oninput=()=>{const t=loadTheme();t.bg=bgI.value;saveTheme(t);};
-  if(kpiI)kpiI.oninput=()=>{const t=loadTheme();t.kpi=kpiI.value;saveTheme(t);};
   document.querySelectorAll('[data-bg]').forEach(b=>b.onclick=()=>{const t=loadTheme();t.bg=b.getAttribute('data-bg');saveTheme(t);if(bgI)bgI.value=t.bg;});
-  document.querySelectorAll('[data-kpi]').forEach(b=>b.onclick=()=>{const t=loadTheme();t.kpi=b.getAttribute('data-kpi');saveTheme(t);if(kpiI)kpiI.value=t.kpi;});
-  const rb=$('#th-reset');if(rb)rb.onclick=()=>{saveTheme({});if(bgI)bgI.value=DEF_BG;if(kpiI)kpiI.value=DEF_KPI;};
+  document.querySelectorAll('[data-cidx]').forEach(inp=>inp.oninput=()=>{const i=+inp.getAttribute('data-cidx');const t=loadTheme();t.cards=t.cards||{};t.cards[i]=inp.value;saveTheme(t);liveCard(i,inp.value);});
+  document.querySelectorAll('[data-cclear]').forEach(b=>b.onclick=()=>{const i=+b.getAttribute('data-cclear');const t=loadTheme();if(t.cards)delete t.cards[i];saveTheme(t);liveCard(i,null);const inp=$('#th-c'+i);if(inp)inp.value=DEF_KPI;});
+  const rb=$('#th-reset');if(rb)rb.onclick=()=>{saveTheme({});if(bgI)bgI.value=DEF_BG;KPI_META.forEach((l,i)=>{liveCard(i,null);const inp=$('#th-c'+i);if(inp)inp.value=DEF_KPI;});};
 }
 
 async function kvGet(key){
@@ -489,8 +496,9 @@ function bindWellness(){
   WELL.forEach(w=>{
     const sc=document.querySelector(`[data-scale="${w.k}"]`);if(!sc)return;
     sc.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
-      WVAL[w.k]=+btn.getAttribute('data-v');
-      sc.querySelectorAll('button').forEach(x=>x.classList.remove('on'));btn.classList.add('on');
+      const v=+btn.getAttribute('data-v');
+      WVAL[w.k]=(WVAL[w.k]===v)?null:v; // reclic sur la valeur déjà choisie = désélection
+      sc.querySelectorAll('button').forEach(x=>x.classList.toggle('on',WVAL[w.k]!=null&&+x.getAttribute('data-v')===WVAL[w.k]));
       if(w.body){const bm=$('#bodymap');if(bm){if(WVAL.soreness>=2){bm.hidden=false;bindZones();}else{bm.hidden=true;}}}
     });
   });
@@ -550,10 +558,10 @@ async function overviewHtml(){
   const recentHtml=recent.length?recent.map(s=>{const me=s.players[PLAYER.id]||{};return `<div class="hist"><span>${isoLong(s.date)} · ${s.title||s.type||'Séance'}</span><span class="pill">${me.rpe!=null?('RPE '+me.rpe):'—'}${me.min?' · '+me.min+' min':''}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
   return `
     <div class="kpis">
-      <div class="kpi"><div class="lab">Wellness du jour</div><div class="val">${wt?wt.score+'<small>%</small>':'—'}</div><div class="d">${wt?'rempli ✓':'à remplir'}</div></div>
-      <div class="kpi"><div class="lab">Séances à noter</div><div class="val">${toRate}</div><div class="d">${toRate?'RPE en attente':'tout est noté'}</div></div>
-      <div class="kpi"><div class="lab">Charge 7 jours</div><div class="val">${l7}<small> UA</small></div><div class="d">RPE × minutes</div></div>
-      <div class="kpi"><div class="lab">Séances suivies</div><div class="val">${MY_SESSIONS.length}</div><div class="d">au total avec toi</div></div>
+      <div class="kpi" data-kidx="0" style="${kpiStyle(0)}"><div class="lab">Wellness du jour</div><div class="val">${wt?wt.score+'<small>%</small>':'—'}</div><div class="d">${wt?'rempli ✓':'à remplir'}</div></div>
+      <div class="kpi" data-kidx="1" style="${kpiStyle(1)}"><div class="lab">Séances à noter</div><div class="val">${toRate}</div><div class="d">${toRate?'RPE en attente':'tout est noté'}</div></div>
+      <div class="kpi" data-kidx="2" style="${kpiStyle(2)}"><div class="lab">Charge 7 jours</div><div class="val">${l7}<small> UA</small></div><div class="d">RPE × minutes</div></div>
+      <div class="kpi" data-kidx="3" style="${kpiStyle(3)}"><div class="lab">Séances suivies</div><div class="val">${MY_SESSIONS.length}</div><div class="d">au total avec toi</div></div>
     </div>
     <div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
     <div class="card"><h2>Mes dernières séances</h2>${recentHtml}</div>
