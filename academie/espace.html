@@ -337,65 +337,99 @@ function renderLogin(msg){
 /* ---------- Body map ---------- */
 // Chaque zone : {id,label} ; les <path>/<ellipse> portent data-zone
 const FRONT_ZONES=[
-  ['f-head','Tête'],['f-neck','Cou'],['f-sh-l','Épaule G'],['f-sh-r','Épaule D'],
-  ['f-chest','Pectoraux'],['f-abs','Abdominaux'],['f-arm-l','Bras G'],['f-arm-r','Bras D'],
-  ['f-hip','Aine / hanches'],['f-quad-l','Cuisse G (avant)'],['f-quad-r','Cuisse D (avant)'],
+  ['f-head','Tête'],['f-neck','Cou'],
+  ['f-sh-l','Épaule G'],['f-sh-r','Épaule D'],
+  ['f-pec-l','Pectoral G'],['f-pec-r','Pectoral D'],
+  ['f-abs','Abdominaux'],['f-obl-l','Oblique G'],['f-obl-r','Oblique D'],
+  ['f-uarm-l','Bras G'],['f-uarm-r','Bras D'],['f-farm-l','Avant-bras G'],['f-farm-r','Avant-bras D'],
+  ['f-hip','Aine / hanches'],['f-quad-l','Cuisse G'],['f-quad-r','Cuisse D'],
   ['f-knee-l','Genou G'],['f-knee-r','Genou D'],['f-shin-l','Tibia G'],['f-shin-r','Tibia D'],
   ['f-foot-l','Pied G'],['f-foot-r','Pied D']
 ];
 const BACK_ZONES=[
-  ['b-nape','Nuque'],['b-traps','Trapèzes'],['b-upback','Haut du dos'],['b-lowback','Lombaires'],
-  ['b-arm-l','Bras G'],['b-arm-r','Bras D'],['b-glutes','Fessiers'],
-  ['b-ham-l','Ischios G'],['b-ham-r','Ischios D'],['b-calf-l','Mollet G'],['b-calf-r','Mollet D'],
-  ['b-achi-l','Achille G'],['b-achi-r','Achille D'],
+  ['b-head','Tête'],['b-nape','Nuque'],['b-traps','Trapèzes'],
+  ['b-sh-l','Épaule G'],['b-sh-r','Épaule D'],
+  ['b-lat-l','Dorsal G'],['b-lat-r','Dorsal D'],['b-spine','Haut du dos / colonne'],['b-low','Lombaires'],
+  ['b-uarm-l','Bras G'],['b-uarm-r','Bras D'],['b-farm-l','Avant-bras G'],['b-farm-r','Avant-bras D'],
+  ['b-glute-l','Fessier G'],['b-glute-r','Fessier D'],['b-ham-l','Ischio G'],['b-ham-r','Ischio D'],
+  ['b-knee-l','Genou G'],['b-knee-r','Genou D'],['b-calf-l','Mollet G'],['b-calf-r','Mollet D'],
   ['b-foot-l','Pied G'],['b-foot-r','Pied D']
 ];
 let SORE=new Set();
 function zoneLabel(id){const a=FRONT_ZONES.concat(BACK_ZONES).find(z=>z[0]===id);return a?a[1]:id;}
-const SIL_PATH="M70 8c9 0 15 7 15 16 0 6-3 11-7 14 8 2 16 6 18 14l6 34c1 6-1 10-6 11l-3 40-4 40h-1l-3-52h-2l-3 52-4 60-3 30h-9l-2-30-4-60-3-52h-2l-3 52h-1l-4-40-3-40c-5-1-7-5-6-11l6-34c2-8 10-12 18-14-4-3-7-8-7-14 0-9 6-16 15-16z";
+// Silhouette anatomique (partagée avant/dos) : tête, cou, torse, épaules, bras, avant-bras, mains,
+// bassin, cuisses, genoux, tibias/mollets, pieds — comme un schéma musculaire.
+function bodySilhouette(){return `
+  <ellipse class="silhouette" cx="100" cy="34" rx="24" ry="28"/>
+  <rect class="silhouette" x="88" y="52" width="24" height="24" rx="6"/>
+  <path class="silhouette" d="M50 94 C58 84 74 78 100 78 C126 78 142 84 150 94 C158 104 158 124 152 150 C147 174 140 196 138 210 L62 210 C60 196 53 174 48 150 C42 124 42 104 50 94 Z"/>
+  <ellipse class="silhouette" cx="52" cy="96" rx="19" ry="17"/><ellipse class="silhouette" cx="148" cy="96" rx="19" ry="17"/>
+  <rect class="silhouette" x="28" y="92" width="22" height="74" rx="11"/><rect class="silhouette" x="150" y="92" width="22" height="74" rx="11"/>
+  <rect class="silhouette" x="28" y="162" width="20" height="58" rx="10"/><rect class="silhouette" x="152" y="162" width="20" height="58" rx="10"/>
+  <ellipse class="silhouette" cx="38" cy="226" rx="11" ry="13"/><ellipse class="silhouette" cx="162" cy="226" rx="11" ry="13"/>
+  <path class="silhouette" d="M60 205 L140 205 C142 226 128 246 100 246 C72 246 58 226 60 205 Z"/>
+  <path class="silhouette" d="M72 242 L100 242 L100 302 C100 316 93 326 86 328 C79 326 74 308 72 288 C70 270 70 256 72 242 Z"/>
+  <path class="silhouette" d="M128 242 L100 242 L100 302 C100 316 107 326 114 328 C121 326 126 308 128 288 C130 270 130 256 128 242 Z"/>
+  <ellipse class="silhouette" cx="86" cy="334" rx="13" ry="11"/><ellipse class="silhouette" cx="114" cy="334" rx="13" ry="11"/>
+  <path class="silhouette" d="M78 342 L98 342 L96 406 C96 412 90 414 86 414 C81 414 78 410 78 404 Z"/>
+  <path class="silhouette" d="M122 342 L102 342 L104 406 C104 412 110 414 114 414 C119 414 122 410 122 404 Z"/>
+  <ellipse class="silhouette" cx="83" cy="419" rx="17" ry="8"/><ellipse class="silhouette" cx="117" cy="419" rx="17" ry="8"/>`;}
 function frontSvg(){
-  return `<svg viewBox="0 0 140 268" width="130" height="249" aria-label="Corps vu de face">
-    <path class="silhouette" d="${SIL_PATH}"/>
-    <ellipse class="zone" data-zone="f-head" cx="70" cy="24" rx="13" ry="15"/>
-    <rect class="zone" data-zone="f-neck" x="63" y="39" width="14" height="9" rx="4"/>
-    <ellipse class="zone" data-zone="f-sh-l" cx="49" cy="59" rx="10" ry="9"/>
-    <ellipse class="zone" data-zone="f-sh-r" cx="91" cy="59" rx="10" ry="9"/>
-    <path class="zone" data-zone="f-chest" d="M55 56c5-3 25-3 30 0 3 2 3 19 0 21-5 3-25 3-30 0-3-2-3-19 0-21z"/>
-    <path class="bdetail" d="M70 55v22"/>
-    <rect class="zone" data-zone="f-abs" x="58" y="81" width="24" height="32" rx="5"/>
-    <path class="bdetail" d="M70 82v30M59 92h22M59 101h22"/>
-    <rect class="zone" data-zone="f-arm-l" x="36" y="62" width="12" height="52" rx="6"/>
-    <rect class="zone" data-zone="f-arm-r" x="92" y="62" width="12" height="52" rx="6"/>
-    <path class="zone" data-zone="f-hip" d="M58 114h24c1 7-3 12-12 12s-13-5-12-12z"/>
-    <rect class="zone" data-zone="f-quad-l" x="57" y="128" width="13" height="48" rx="6"/>
-    <rect class="zone" data-zone="f-quad-r" x="70" y="128" width="13" height="48" rx="6"/>
-    <ellipse class="zone" data-zone="f-knee-l" cx="63" cy="182" rx="7" ry="7"/>
-    <ellipse class="zone" data-zone="f-knee-r" cx="77" cy="182" rx="7" ry="7"/>
-    <rect class="zone" data-zone="f-shin-l" x="57" y="192" width="12" height="50" rx="5"/>
-    <rect class="zone" data-zone="f-shin-r" x="71" y="192" width="12" height="50" rx="5"/>
-    <rect class="zone" data-zone="f-foot-l" x="56" y="243" width="13" height="19" rx="5"/>
-    <rect class="zone" data-zone="f-foot-r" x="71" y="243" width="13" height="19" rx="5"/>
+  return `<svg viewBox="0 0 200 434" width="150" height="326" aria-label="Corps vu de face">
+    ${bodySilhouette()}
+    <ellipse class="zone" data-zone="f-head" cx="100" cy="34" rx="22" ry="25"/>
+    <rect class="zone" data-zone="f-neck" x="89" y="55" width="22" height="19" rx="5"/>
+    <ellipse class="zone" data-zone="f-sh-l" cx="52" cy="98" rx="17" ry="15"/>
+    <ellipse class="zone" data-zone="f-sh-r" cx="148" cy="98" rx="17" ry="15"/>
+    <path class="zone" data-zone="f-pec-l" d="M78 86 C88 82 98 83 99 90 L99 116 C98 126 84 128 78 120 C73 110 72 96 78 86 Z"/>
+    <path class="zone" data-zone="f-pec-r" d="M122 86 C112 82 102 83 101 90 L101 116 C102 126 116 128 122 120 C127 110 128 96 122 86 Z"/>
+    <path class="bdetail" d="M100 84 V118"/>
+    <rect class="zone" data-zone="f-abs" x="86" y="122" width="28" height="72" rx="6"/>
+    <path class="bdetail" d="M100 124 V192 M88 142 H112 M88 160 H112 M88 178 H112"/>
+    <path class="zone" data-zone="f-obl-l" d="M72 128 C78 126 84 128 84 136 L84 182 C84 192 78 196 73 192 C69 182 68 152 72 128 Z"/>
+    <path class="zone" data-zone="f-obl-r" d="M128 128 C122 126 116 128 116 136 L116 182 C116 192 122 196 127 192 C131 182 132 152 128 128 Z"/>
+    <rect class="zone" data-zone="f-uarm-l" x="30" y="94" width="20" height="62" rx="10"/>
+    <rect class="zone" data-zone="f-uarm-r" x="150" y="94" width="20" height="62" rx="10"/>
+    <rect class="zone" data-zone="f-farm-l" x="30" y="160" width="19" height="58" rx="9"/>
+    <rect class="zone" data-zone="f-farm-r" x="151" y="160" width="19" height="58" rx="9"/>
+    <path class="zone" data-zone="f-hip" d="M64 198 L136 198 C138 218 126 240 100 240 C74 240 62 218 64 198 Z"/>
+    <path class="zone" data-zone="f-quad-l" d="M74 244 L99 244 L99 300 C99 314 93 324 87 326 C81 324 76 306 74 286 C72 270 72 258 74 244 Z"/>
+    <path class="zone" data-zone="f-quad-r" d="M126 244 L101 244 L101 300 C101 314 107 324 113 326 C119 324 124 306 126 286 C128 270 128 258 126 244 Z"/>
+    <ellipse class="zone" data-zone="f-knee-l" cx="86" cy="334" rx="12" ry="10"/>
+    <ellipse class="zone" data-zone="f-knee-r" cx="114" cy="334" rx="12" ry="10"/>
+    <path class="zone" data-zone="f-shin-l" d="M79 344 L97 344 L95 404 C95 410 90 412 86 412 C81 412 79 408 79 402 Z"/>
+    <path class="zone" data-zone="f-shin-r" d="M121 344 L103 344 L105 404 C105 410 110 412 114 412 C119 412 121 408 121 402 Z"/>
+    <ellipse class="zone" data-zone="f-foot-l" cx="83" cy="419" rx="17" ry="8"/>
+    <ellipse class="zone" data-zone="f-foot-r" cx="117" cy="419" rx="17" ry="8"/>
   </svg>`;
 }
 function backSvg(){
-  return `<svg viewBox="0 0 140 268" width="130" height="249" aria-label="Corps vu de dos">
-    <path class="silhouette" d="${SIL_PATH}"/>
-    <ellipse class="zone" data-zone="b-nape" cx="70" cy="25" rx="11" ry="10"/>
-    <path class="zone" data-zone="b-traps" d="M56 49c8-4 20-4 28 0 2 1 1 13-14 13s-16-12-14-13z"/>
-    <rect class="zone" data-zone="b-upback" x="56" y="64" width="28" height="24" rx="6"/>
-    <path class="bdetail" d="M70 50v62"/>
-    <rect class="zone" data-zone="b-lowback" x="58" y="89" width="24" height="22" rx="6"/>
-    <rect class="zone" data-zone="b-arm-l" x="36" y="62" width="12" height="52" rx="6"/>
-    <rect class="zone" data-zone="b-arm-r" x="92" y="62" width="12" height="52" rx="6"/>
-    <path class="zone" data-zone="b-glutes" d="M56 112h28c0 11-6 17-14 17s-14-6-14-17z"/>
-    <rect class="zone" data-zone="b-ham-l" x="57" y="132" width="13" height="46" rx="6"/>
-    <rect class="zone" data-zone="b-ham-r" x="70" y="132" width="13" height="46" rx="6"/>
-    <rect class="zone" data-zone="b-calf-l" x="57" y="190" width="12" height="44" rx="5"/>
-    <rect class="zone" data-zone="b-calf-r" x="71" y="190" width="12" height="44" rx="5"/>
-    <rect class="zone" data-zone="b-achi-l" x="59" y="236" width="7" height="10" rx="3"/>
-    <rect class="zone" data-zone="b-achi-r" x="74" y="236" width="7" height="10" rx="3"/>
-    <rect class="zone" data-zone="b-foot-l" x="56" y="246" width="13" height="16" rx="5"/>
-    <rect class="zone" data-zone="b-foot-r" x="71" y="246" width="13" height="16" rx="5"/>
+  return `<svg viewBox="0 0 200 434" width="150" height="326" aria-label="Corps vu de dos">
+    ${bodySilhouette()}
+    <ellipse class="zone" data-zone="b-head" cx="100" cy="34" rx="22" ry="25"/>
+    <rect class="zone" data-zone="b-nape" x="89" y="55" width="22" height="16" rx="5"/>
+    <path class="zone" data-zone="b-traps" d="M100 74 C118 76 130 86 128 98 C120 104 108 102 100 102 C92 102 80 104 72 98 C70 86 82 76 100 74 Z"/>
+    <ellipse class="zone" data-zone="b-sh-l" cx="52" cy="98" rx="17" ry="15"/>
+    <ellipse class="zone" data-zone="b-sh-r" cx="148" cy="98" rx="17" ry="15"/>
+    <path class="zone" data-zone="b-lat-l" d="M74 104 C82 102 98 103 99 112 L99 152 C98 162 84 166 77 160 C71 148 70 122 74 104 Z"/>
+    <path class="zone" data-zone="b-lat-r" d="M126 104 C118 102 102 103 101 112 L101 152 C102 162 116 166 123 160 C129 148 130 122 126 104 Z"/>
+    <rect class="zone" data-zone="b-spine" x="92" y="102" width="16" height="56" rx="5"/>
+    <path class="bdetail" d="M100 102 V196"/>
+    <rect class="zone" data-zone="b-low" x="82" y="160" width="36" height="38" rx="6"/>
+    <rect class="zone" data-zone="b-uarm-l" x="30" y="94" width="20" height="62" rx="10"/>
+    <rect class="zone" data-zone="b-uarm-r" x="150" y="94" width="20" height="62" rx="10"/>
+    <rect class="zone" data-zone="b-farm-l" x="30" y="160" width="19" height="58" rx="9"/>
+    <rect class="zone" data-zone="b-farm-r" x="151" y="160" width="19" height="58" rx="9"/>
+    <path class="zone" data-zone="b-glute-l" d="M74 200 L100 200 L100 230 C100 240 90 246 84 244 C77 240 73 220 74 200 Z"/>
+    <path class="zone" data-zone="b-glute-r" d="M126 200 L100 200 L100 230 C100 240 110 246 116 244 C123 240 127 220 126 200 Z"/>
+    <rect class="zone" data-zone="b-ham-l" x="76" y="246" width="22" height="78" rx="10"/>
+    <rect class="zone" data-zone="b-ham-r" x="102" y="246" width="22" height="78" rx="10"/>
+    <ellipse class="zone" data-zone="b-knee-l" cx="86" cy="334" rx="12" ry="10"/>
+    <ellipse class="zone" data-zone="b-knee-r" cx="114" cy="334" rx="12" ry="10"/>
+    <path class="zone" data-zone="b-calf-l" d="M79 344 L97 344 L95 404 C95 410 90 412 86 412 C81 412 79 408 79 402 Z"/>
+    <path class="zone" data-zone="b-calf-r" d="M121 344 L103 344 L105 404 C105 410 110 412 114 412 C119 412 121 408 121 402 Z"/>
+    <ellipse class="zone" data-zone="b-foot-l" cx="83" cy="419" rx="17" ry="8"/>
+    <ellipse class="zone" data-zone="b-foot-r" cx="117" cy="419" rx="17" ry="8"/>
   </svg>`;
 }
 function bindZones(){
