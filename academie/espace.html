@@ -53,6 +53,11 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .topbar .brand{color:var(--onbg)}
 .topbar>div>.muted{color:var(--onbg);opacity:.68}
+.iconbtn{appearance:none;cursor:pointer;border:1px solid var(--line-2);background:transparent;color:var(--onbg);border-radius:10px;padding:8px 10px;font-size:17px;line-height:1}
+.iconbtn:active{transform:scale(.96)}
+.sheet{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:22px 14px;overflow:auto;-webkit-overflow-scrolling:touch}
+.sheetbox{width:100%;max-width:460px}
+.sheetbox .card{margin-bottom:10px}
 input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px;padding:3px;cursor:pointer}
 .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 .swatches button{width:30px;height:30px;border-radius:8px;border:2px solid var(--line-2);cursor:pointer;padding:0}
@@ -135,6 +140,16 @@ function bindAppearance(){
   document.querySelectorAll('[data-cidx]').forEach(inp=>inp.oninput=()=>{const i=+inp.getAttribute('data-cidx');const t=loadTheme();t.cards=t.cards||{};t.cards[i]=inp.value;saveTheme(t);liveCard(i,inp.value);});
   document.querySelectorAll('[data-cclear]').forEach(b=>b.onclick=()=>{const i=+b.getAttribute('data-cclear');const t=loadTheme();if(t.cards)delete t.cards[i];saveTheme(t);liveCard(i,null);const inp=$('#th-c'+i);if(inp)inp.value=DEF_KPI;});
   const rb=$('#th-reset');if(rb)rb.onclick=()=>{saveTheme({});if(bgI)bgI.value=DEF_BG;KPI_META.forEach((l,i)=>{liveCard(i,null);const inp=$('#th-c'+i);if(inp)inp.value=DEF_KPI;});};
+}
+function closeTheme(){const s=$('#themesheet');if(s)s.remove();}
+function openTheme(){
+  closeTheme();
+  const ov=document.createElement('div');ov.className='sheet';ov.id='themesheet';
+  ov.innerHTML=`<div class="sheetbox">${appearanceCard()}<button class="btn block" id="th-close">Fermer</button></div>`;
+  document.body.appendChild(ov);
+  bindAppearance();
+  const cl=$('#th-close');if(cl)cl.onclick=closeTheme;
+  ov.onclick=e=>{if(e.target===ov)closeTheme();};
 }
 
 async function kvGet(key){
@@ -566,7 +581,6 @@ async function overviewHtml(){
     <div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
     <div class="card"><h2>Mes dernières séances</h2>${recentHtml}</div>
     ${notifCard}
-    ${appearanceCard()}
     ${(!wt||toRate)?`<div class="row">${wt?'':'<button class="btn block" data-goto="sante">Remplir mon wellness</button>'}${toRate?'<button class="btn block" data-goto="rpe">Noter mes RPE</button>':''}</div>`:''}`;
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
@@ -636,11 +650,15 @@ async function renderSpace(skipLoad){
   $('#app').innerHTML=`
     <div class="topbar">
       <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">Bonjour ${PLAYER.name}${PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+PLAYER.cat:''}</div></div>
-      <button class="btn sec" id="logout">Déconnexion</button>
+      <div class="row" style="gap:8px;flex-wrap:nowrap">
+        <button class="iconbtn" id="themebtn" title="Mes couleurs" aria-label="Personnaliser les couleurs">🎨</button>
+        <button class="btn sec" id="logout">Déconnexion</button>
+      </div>
     </div>
     ${tabbar()}
     <div id="tabc"></div>`;
   $('#logout').onclick=()=>{clearSession();PLAYER=null;renderLogin();};
+  const tb=$('#themebtn');if(tb)tb.onclick=openTheme;
   document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-tab');renderTab();});
   await renderTab();
   hideBoot();
@@ -672,7 +690,6 @@ async function renderTab(){
     document.querySelectorAll('[data-prpe]').forEach(inp=>inp.onchange=async()=>{const v=inp.value===''?null:Math.max(0,Math.min(10,+inp.value));await saveProgDone(inp.getAttribute('data-prpe'),{rpe:v});});
   }else{
     c.innerHTML=await overviewHtml();
-    bindAppearance();
     document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
     const nb=document.querySelector('#notif-btn');
     if(nb)nb.onclick=async()=>{nb.disabled=true;const prev=nb.textContent;nb.textContent='…';
