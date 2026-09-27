@@ -111,8 +111,41 @@ function loadTheme(){let t;try{t=JSON.parse(localStorage.getItem(themeKey()))||{
   return t;}
 function contrastInk(hex){try{const m=String(hex).replace('#','');const r=parseInt(m.slice(0,2),16),g=parseInt(m.slice(2,4),16),b=parseInt(m.slice(4,6),16);const L=(0.299*r+0.587*g+0.114*b)/255;return L>0.58?'#0E1A2C':'#EAF1FB';}catch(e){return '#EAF1FB';}}
 function inkMuted(ink){return ink==='#0E1A2C'?'rgba(14,26,44,.6)':'rgba(234,241,251,.66)';}
+/* --- Harmonisation automatique : à partir du fond choisi, on génère une palette
+   cohérente (même famille de teinte, luminosités échelonnées, texte contrasté)
+   pour les onglets et tous les encadrés. --- */
+function clamp01(x){return Math.max(0,Math.min(1,x));}
+function hexToHsl(hex){let m=String(hex).replace('#','');if(m.length===3)m=m.split('').map(c=>c+c).join('');
+  const r=parseInt(m.slice(0,2),16)/255,g=parseInt(m.slice(2,4),16)/255,b=parseInt(m.slice(4,6),16)/255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h=0,s=0;const l=(mx+mn)/2;
+  if(mx!==mn){const d=mx-mn;s=l>0.5?d/(2-mx-mn):d/(mx+mn);
+    if(mx===r)h=(g-b)/d+(g<b?6:0);else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h/=6;}
+  return {h:h*360,s,l};}
+function hslToHex(h,s,l){h=((h%360)+360)%360/360;s=clamp01(s);l=clamp01(l);
+  const q=l<0.5?l*(1+s):l+s-l*s,p=2*l-q;
+  const cv=t=>{t=(t%1+1)%1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};
+  const to=v=>('0'+Math.round(cv(v)*255).toString(16)).slice(-2);
+  return '#'+to(h+1/3)+to(h)+to(h-1/3);}
+function paletteFromBg(bg){
+  const {h,s,l}=hexToHsl(bg);const dark=l<0.52;const ss=Math.min(s,0.42);
+  const mk=(dl,sat)=>hslToHex(h,sat!=null?sat:ss,clamp01(l+dl));
+  if(dark)return {surface:mk(0.08),surface2:mk(0.045),line:mk(0.17),line2:mk(0.24),
+    ink:'#F5F7FB',ink2:hslToHex(h,Math.min(s,0.22),0.82),muted:hslToHex(h,Math.min(s,0.2),0.62),
+    accent:hslToHex(h,Math.max(s,0.55),0.62),onbg:'#F5F7FB'};
+  return {surface:mk(-0.05),surface2:mk(-0.025),line:mk(-0.15),line2:mk(-0.24),
+    ink:'#171c22',ink2:hslToHex(h,Math.min(s,0.3),0.28),muted:hslToHex(h,Math.min(s,0.26),0.42),
+    accent:hslToHex(h,Math.max(s,0.5),0.42),onbg:'#171c22'};
+}
 function applyTheme(t){const r=document.documentElement.style;t=t||{};
-  if(t.bg){r.setProperty('--bg',t.bg);r.setProperty('--onbg',contrastInk(t.bg));}else{r.removeProperty('--bg');r.removeProperty('--onbg');}}
+  const KEYS=['--surface','--surface-2','--line','--line-2','--ink','--ink-2','--muted','--accent','--accent-ink','--onbg','--bg'];
+  if(t.bg){
+    const p=paletteFromBg(t.bg);
+    r.setProperty('--bg',t.bg);r.setProperty('--surface',p.surface);r.setProperty('--surface-2',p.surface2);
+    r.setProperty('--line',p.line);r.setProperty('--line-2',p.line2);r.setProperty('--ink',p.ink);
+    r.setProperty('--ink-2',p.ink2);r.setProperty('--muted',p.muted);r.setProperty('--accent',p.accent);
+    r.setProperty('--accent-ink',contrastInk(p.accent));r.setProperty('--onbg',p.onbg);
+  }else{KEYS.forEach(k=>r.removeProperty(k));}
+}
 function cardColor(i){const t=loadTheme();return (t.cards&&t.cards[i])||null;}
 function kpiStyle(i){const c=cardColor(i);if(!c)return '';const ink=contrastInk(c);return `background:${c};--kpi-ink:${ink};--kpi-muted:${inkMuted(ink)}`;}
 function liveCard(i,c){const el=document.querySelector('.kpi[data-kidx="'+i+'"]');if(!el)return;
@@ -127,7 +160,7 @@ function appearanceCard(){
      <div class="row"><input type="color" id="th-c${i}" data-cidx="${i}" value="${cards[i]||DEF_KPI}"><button type="button" class="btn sec" data-cclear="${i}" style="padding:7px 12px;font-size:13px">Défaut</button></div></div>`).join('');
   return `<div class="card"><h2>🎨 Mes couleurs</h2>
     <div class="field"><label>Couleur de fond de l'application</label>
-      <div class="row"><input type="color" id="th-bg" value="${t.bg||DEF_BG}"><span class="muted" style="font-size:12.5px">Le fond derrière tes cartes.</span></div>
+      <div class="row"><input type="color" id="th-bg" value="${t.bg||DEF_BG}"><span class="muted" style="font-size:12.5px">Les onglets et les encadrés s'accordent automatiquement à cette couleur.</span></div>
       ${bgsw}</div>
     <p class="muted" style="font-size:12.5px;margin:2px 0 8px">Couleur de chaque encadré, un par un :</p>
     ${rows}
