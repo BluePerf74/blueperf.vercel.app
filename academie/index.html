@@ -291,7 +291,14 @@ const TABS=[
  {id:'reco',label:'Recommandations'},
  {id:'perf',label:'Performance',children:[{id:'testing',label:'Testing'},{id:'reathle',label:'Réathlétisation'},{id:'muscu',label:'Musculation'}]},
  {id:'medical',label:'Médical'},
- {id:'entry',label:'Saisie'},
+ {id:'entry',label:'Saisie',entryGroup:true,children:[
+   {id:'simple',label:'Séance simple',icon:'⚡'},
+   {id:'smatch',label:'Match simple',icon:'🥅'},
+   {id:'season',label:"Planification d'une saison",icon:'📅',season:true},
+   {id:'player',label: MODE==='individuel'?'Client·es':'Joueur·ses',icon:'👥'},
+   {id:'injury',label:'Blessure',icon:'🩹'},
+   {id:'rpe',label:'Saisie RPE',icon:'⭐'}
+ ]},
  {id:'settings',label:'Paramètres'}].filter(t=>!HIDDEN_TABS.includes(t.id));
 const DEF={
  appName:'Académy', categories:['U15','U18'],
@@ -751,6 +758,9 @@ function renderNav(){
   const inPerf=['testing','reathle','muscu'].includes(UI.tab);
   let h=`<div class="brand"><b>Blueperf</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
   TABS.forEach(t=>{
+    if(t.entryGroup){ // groupe Saisie : menu déroulant dans la barre, navigation par goEntry (UI.entryTab)
+      if(!tabOn('entry'))return;const inGrp=UI.tab==='entry';const open=!!UI.entryOpen||inGrp;
+      h+=`<li class="${open?'open':''}"><button class="ni ${inGrp&&!open?'on':''}" data-act="entryToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${t.children.map(k=>`<li><button class="ni ${(inGrp&&UI.entryTab===k.id)||(k.season&&UI.tab==='training'&&UI.planView==='season')?'on':''}" data-act="${k.season?'goSeason':'goEntry'}" data-id="${k.id}"><span>${k.icon?k.icon+' ':''}${k.label}</span></button></li>`).join('')}</ul>`:''}</li>`;return;}
     if(t.children){const kids=t.children.filter(k=>tabOn(k.id));if(!tabOn('perf')||!kids.length)return;const open=!!UI.perfOpen||inPerf;
       h+=`<li class="${open?'open':''}"><button class="ni ${inPerf&&!open?'on':''}" data-act="perfToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${kids.map(k=>`<li><button class="ni ${UI.tab===k.id?'on':''}" data-act="tab" data-id="${k.id}"><span>${k.label}</span>${badge[k.id]||''}</button></li>`).join('')}</ul>`:''}</li>`;return;}
     if(!tabOn(t.id)&&(t.id!=='settings'||RESTRICT.tabs))return; // gérant·e : Paramètres masqué s'il n'est pas dans ses onglets
@@ -1472,22 +1482,27 @@ ENTRY.assign=()=>{
     ${dayList}`;
 };
 // Saisie séance simple : type (entraînement/match) + temps + présent·es, sans détailler les parties.
-ENTRY.simple=()=>{
+function simpleForm(kind){ // kind: 'train' (entraînement) ou 'match'
+  const isM=kind==='match';
   const cat=INDIV?INDIV_CAT:(UI.assignCat||defCat());const date=UI.assignDate||UI.ref;const ps=playersOf(cat);
-  return `<form data-form="simple" class="stack"><div class="fgrid">
+  const titleFld=isM
+    ? fld('si-title','Nom du match',`<input type="text" id="si-title" name="title" placeholder="ex. vs Lyon" required>`,2)
+    : fld('si-title','Intitulé (optionnel)',`<input type="text" id="si-title" name="title" placeholder="ex. Entraînement du jour">`,2);
+  return `<form data-form="simple" class="stack"><input type="hidden" name="type" value="${isM?'Match':'Entraînement'}"><div class="fgrid">
     ${fld('si-date','Date',`<input type="date" id="si-date" name="date" value="${date}" data-chg="assignDate">`)}
     ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('si-cat','Catégorie',`<select id="si-cat" name="cat" data-chg="assignCat">${opt(cats(),cat)}</select>`)}
-    ${fld('si-type','Type',`<select id="si-type" name="type">${opt(['Entraînement','Match'],'Entraînement')}</select>`)}
-    ${fld('si-dur','Temps (min)',`<input type="number" id="si-dur" name="duration" value="75" min="0">`)}
-    ${fld('si-title','Intitulé (optionnel)',`<input type="text" id="si-title" name="title" placeholder="ex. Entraînement du jour / Match vs …">`,2)}
+    ${fld('si-dur','Temps (min)',`<input type="number" id="si-dur" name="duration" value="${isM?90:75}" min="0">`)}
+    ${titleFld}
   </div>
   ${ps.length?`<div><b>Qui était présent·e ?</b> <span class="small muted">— coche les ${PL.many} concerné·es (${ps.length})</span></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">${ps.map(p=>`<label class="chk"><input type="checkbox" name="pl-${p.id}" checked> ${esc(p.name)}</label>`).join('')}</div>
-    <p class="note" style="margin:0">Pas besoin de détailler les parties : après « Envoyer RPE », chaque ${PL.one} coché·e reçoit la séance dans son espace et note simplement son RPE (fenêtre 4 h).</p>
+    <p class="note" style="margin:0">${isM?'Après « Envoyer RPE », chaque '+PL.one+' coché·e reçoit le match dans son espace et note la difficulté et sa performance (1 → 10).':'Pas besoin de détailler les parties : après « Envoyer RPE », chaque '+PL.one+' coché·e reçoit la séance dans son espace et note simplement son RPE (fenêtre 4 h).'}</p>
     <div class="row"><button class="btn pri" type="submit" name="act" value="send">Créer et envoyer RPE (4 h)</button><button class="btn" type="submit" name="act" value="draft">Créer sans envoyer</button></div>`
     :`<p class="muted">${INDIV?'Aucun·e client·e. Ajoute-les dans « Saisie › '+PL.Many+' ».':'Aucun·e '+PL.one+' en '+esc(cat)+'.'}</p>`}
   </form>`;
-};
+}
+ENTRY.simple=()=>simpleForm('train');
+ENTRY.smatch=()=>simpleForm('match');
 ENTRY.rpe=()=>{
   const cat=UI.assignCat||(cats().find(c=>playersOf(c).length))||defCat();const date=UI.assignDate||UI.ref;
   const sess=Object.values(DATA.sessions).filter(s=>s.date===date&&s.cat===cat).sort((a,b)=>(a.title||a.type||'').localeCompare(b.title||b.type||''));
@@ -1626,10 +1641,9 @@ ENTRY.gps=()=>{const evs=[...Object.values(DATA.sessions).map(s=>({...s,col:'ses
     ${fld('gp-ev','Séance ou match à compléter',`<select id="gp-ev">${evs.map(e=>`<option value="${esc(e.col+'|'+e.id)}">${fmtD(e.date)} · ${esc(e.cat)} · ${esc(e.title||e.type)}</option>`).join('')}</select>`)}
     <textarea id="gp-csv" style="min-height:160px;font-family:ui-monospace,monospace;font-size:12px" aria-label="Données CSV" placeholder="Joueur;Distance;HSR;Sprint;Acc;Dec;Vmax&#10;Adam B.;6120;410;52;60;55;31.2"></textarea>
     <div class="row"><button class="btn" data-act="gpsParse">Analyser</button></div><div id="gp-prev"></div></div>`;};
-VIEWS.entry=()=>{let t=UI.entryTab;if(!ENTRY_MENU.some(m=>m[0]===t)&&!ENTRY[t])t='assign';
-  return `<div class="row" style="margin-bottom:14px;align-items:center"><label for="entry-pick" class="small muted" style="margin:0">Que veux-tu saisir ?</label>
-    <select id="entry-pick" data-chg="entryPick" style="width:auto;font-weight:600">${ENTRY_MENU.map(([k,l])=>`<option value="${k}" ${t===k?'selected':''}>${l}</option>`).join('')}</select></div>
-  ${UI.edit?`<div class="banner"><p>Modification d'un élément existant.</p></div>`:''}<div class="card">${(ENTRY[t]||ENTRY.assign)()}</div>`;};
+VIEWS.entry=()=>{let t=UI.entryTab;if(!ENTRY[t])t='simple';
+  // Le menu de saisie est désormais dans la barre latérale (groupe « Saisie »), plus de sélecteur ici.
+  return `${UI.edit?`<div class="banner"><p>Modification d'un élément existant.</p></div>`:''}<div class="card">${(ENTRY[t]||ENTRY.simple)()}</div>`;};
 POST.entry=()=>{
   $$('select[data-regrid]').forEach(s=>s.onchange=()=>{const k=s.dataset.regrid;const e=k==='session'?editing('sessions'):editing('matches');const dur=$('#se-dur')?$('#se-dur').value:null;$('#grid').innerHTML=gridHTML(k,s.value,e&&e.cat===s.value?e.players:null,dur);});
   $$('[data-rew]').forEach(s=>s.onchange=()=>{UI.wDate=$('#we-date').value;UI.wCat=$('#we-cat').value;formDirty=false;render();});
@@ -1795,6 +1809,8 @@ const ACT={
   player:b=>{UI.drawer=b.dataset.id;renderDrawer();},
   closeDrawer:()=>{UI.drawer=null;renderDrawer();},
   perfToggle:()=>{UI.perfOpen=!UI.perfOpen;renderNav();},
+  entryToggle:()=>{UI.entryOpen=!UI.entryOpen;renderNav();},
+  goSeason:()=>{UI.planView='season';go('training');},
   goEntry:b=>{UI.edit=null;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
