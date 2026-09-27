@@ -899,6 +899,26 @@ VIEWS.overview=()=>{
         <td>${[x.noWell?'<span class="pill warn">Wellness</span>':'',x.noRpe?'<span class="pill warn">RPE séance</span>':''].filter(Boolean).join(' ')}</td>
         <td><button class="btn sm pri" data-act="fillPlayer" data-id="${esc(x.p.id)}">Saisir</button></td></tr>`).join('')}
       </tbody></table></div>`:'<p class="muted" style="margin:0">Tous les RPE et wellness du jour sont saisis. 👍</p>'}</div>`;
+  // --- À relancer (semaine) : jours avec RPE/wellness manquants + oublis RPE par joueur sur 21 j ---
+  const relDays=range(addDays(ref,-6),ref).slice().reverse();
+  const missRpeDay=(p,d)=>Object.values(DATA.sessions).some(s=>s.date===d&&s.cat===p.cat&&s.players&&s.players[p.id]&&s.players[p.id].rpe==null);
+  const dayMiss=relDays.map(d=>({d,wMiss:ps.filter(p=>!wEntry(p.id,d)).length,rMiss:ps.filter(p=>missRpeDay(p,d)).length}));
+  const rel21=range(addDays(ref,-20),ref);
+  const rpePlayers=ps.map(p=>{let c=0;rel21.forEach(d=>{if(missRpeDay(p,d))c++;});return {p,c};}).filter(x=>x.c>0).sort((a,b)=>b.c-a.c);
+  const wellMiss=ps.filter(p=>!wEntry(p.id,ref));
+  const relanceCard=`<div class="card"><div class="hrow"><h2>À relancer — RPE & wellness</h2><span class="small muted">7 derniers jours · oublis RPE sur 21 j</span></div>
+    <div class="grid g2">
+      <div><h3 style="margin:0 0 6px">Jours avec RPE / wellness manquants</h3>
+        <div class="tw"><table><thead><tr><th>Jour</th><th class="n">Wellness</th><th class="n">RPE</th></tr></thead><tbody>
+        ${dayMiss.map(x=>`<tr><td>${DAYS[wd(x.d)]} ${fmtShort(x.d)}</td><td class="n">${x.wMiss?`<span class="pill warn">${x.wMiss}</span>`:'<span class="muted">0</span>'}</td><td class="n">${x.rMiss?`<span class="pill warn">${x.rMiss}</span>`:'<span class="muted">0</span>'}</td></tr>`).join('')}
+        </tbody></table></div></div>
+      <div><h3 style="margin:0 0 6px">Oublis RPE par ${PL.one} (21 j)</h3>
+        ${rpePlayers.length?`<div class="tw"><table><tbody>${rpePlayers.slice(0,12).map(x=>`<tr><td>${plink(x.p.id)}</td><td class="n"><span class="pill warn">${x.c} jour${x.c>1?'s':''}</span></td></tr>`).join('')}</tbody></table></div>${rpePlayers.length>12?`<p class="small muted" style="margin:6px 0 0">+ ${rpePlayers.length-12} autre·s</p>`:''}`:'<p class="muted" style="margin:0">Aucun oubli RPE 👍</p>'}
+      </div>
+    </div>
+    <h3 style="margin:14px 0 6px">Check-in wellness du jour non rempli${wellMiss.length?' ('+wellMiss.length+')':''}</h3>
+    ${wellMiss.length?`<div>${wellMiss.map(p=>`<button class="btn sm" data-act="fillPlayer" data-id="${esc(p.id)}" style="margin:0 8px 8px 0">${esc(p.name)} →</button>`).join('')}</div>`:'<p class="muted" style="margin:0">Tout le monde a rempli son wellness du jour ✅</p>'}
+  </div>`;
   return `<div class="grid g6">
     ${kpi('Disponibles',ps.length-unavail,'/'+ps.length,unavail?unavail+' blessé'+(unavail>1?'s':'')+' ou en réathlé':'Tout le groupe est disponible')}
     ${kpi('Alertes',red,'',`<span class="pill crit">${red} rouge${red>1?'s':''}</span> <span class="pill warn">${orange} orange</span>`,red?'crit':null)}
@@ -908,6 +928,7 @@ VIEWS.overview=()=>{
     ${kpi('Prochain match',nm?(dayDiff(nm.date,ref)===0?'J':'J-'+dayDiff(nm.date,ref)):'–','',nm?esc(fmtD(nm.date)+' · '+nm.label):'Aucun match planifié')}
   </div>
   ${toFillCard}
+  ${relanceCard}
   <div class="grid g2">
     <div class="card"><div class="hrow"><h2>Charge d'équipe, 28 jours</h2><span class="small muted">sRPE moyen par joueur présent</span></div>
       ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
@@ -1382,7 +1403,7 @@ VIEWS.medical=()=>{
 <script>
 /* ---------- SAISIE ---------- */
 const ENTRY_TABS=[['session','Séance'],['wellness','Wellness'],['match','Match'],['injury','Blessure'],['plan','Planification'],['season','Phase de saison'],['tests','Tests'],['player','Joueurs'],['gps','Import GPS']];
-const ENTRY_MENU=[['assign','⚑ Affectation des '+PL.many],['session','Saisir une séance'],['rpe','Saisir les RPE'],['gps','Importer les GPS'],['match','Match'],['wellness','Wellness'],['injury','Blessure'],['plan','Entraînement (planifier une séance)'],['season','Phase de saison'],['tests','Tests'],['player',PL.Many]].filter(x=>!(MODE==='individuel'&&(x[0]==='gps'||x[0]==='match')));
+const ENTRY_MENU=[['assign','⚑ Affectation des '+PL.many],['simple','⚡ Séance simple (RPE)'],['session','Saisir une séance'],['rpe','Saisir les RPE'],['gps','Importer les GPS'],['match','Match'],['wellness','Wellness'],['injury','Blessure'],['plan','Entraînement (planifier une séance)'],['season','Phase de saison'],['tests','Tests'],['player',PL.Many]].filter(x=>!(MODE==='individuel'&&(x[0]==='gps'||x[0]==='match')));
 const COL2TAB={sessions:'session',matches:'match',injuries:'injury',plan:'plan',phases:'season',players:'player',tests:'tests'};
 const GF={session:[['min','Min'],['rpe','RPE'],['dist','Dist. (m)'],['hsr','HSR (m)'],['sprint','Sprint (m)'],['acc','Acc.'],['dec','Déc.'],['vmax','Vmax']],
  match:[['min','Min'],['starter','Tit.','chk'],['goals','Buts'],['assists','PD'],['yellow','J'],['red','R'],['rating','Note'],['rpe','RPE'],['dist','Dist. (m)'],['hsr','HSR (m)'],['sprint','Sprint (m)'],['acc','Acc.'],['dec','Déc.'],['vmax','Vmax']]};
@@ -1449,6 +1470,23 @@ ENTRY.assign=()=>{
     ${form}
     <h3 style="margin:16px 0 4px">Séances du jour</h3>
     ${dayList}`;
+};
+// Saisie séance simple : type (entraînement/match) + temps + présent·es, sans détailler les parties.
+ENTRY.simple=()=>{
+  const cat=INDIV?INDIV_CAT:(UI.assignCat||defCat());const date=UI.assignDate||UI.ref;const ps=playersOf(cat);
+  return `<form data-form="simple" class="stack"><div class="fgrid">
+    ${fld('si-date','Date',`<input type="date" id="si-date" name="date" value="${date}" data-chg="assignDate">`)}
+    ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('si-cat','Catégorie',`<select id="si-cat" name="cat" data-chg="assignCat">${opt(cats(),cat)}</select>`)}
+    ${fld('si-type','Type',`<select id="si-type" name="type">${opt(['Entraînement','Match'],'Entraînement')}</select>`)}
+    ${fld('si-dur','Temps (min)',`<input type="number" id="si-dur" name="duration" value="75" min="0">`)}
+    ${fld('si-title','Intitulé (optionnel)',`<input type="text" id="si-title" name="title" placeholder="ex. Entraînement du jour / Match vs …">`,2)}
+  </div>
+  ${ps.length?`<div><b>Qui était présent·e ?</b> <span class="small muted">— coche les ${PL.many} concerné·es (${ps.length})</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">${ps.map(p=>`<label class="chk"><input type="checkbox" name="pl-${p.id}" checked> ${esc(p.name)}</label>`).join('')}</div>
+    <p class="note" style="margin:0">Pas besoin de détailler les parties : après « Envoyer RPE », chaque ${PL.one} coché·e reçoit la séance dans son espace et note simplement son RPE (fenêtre 4 h).</p>
+    <div class="row"><button class="btn pri" type="submit" name="act" value="send">Créer et envoyer RPE (4 h)</button><button class="btn" type="submit" name="act" value="draft">Créer sans envoyer</button></div>`
+    :`<p class="muted">${INDIV?'Aucun·e client·e. Ajoute-les dans « Saisie › '+PL.Many+' ».':'Aucun·e '+PL.one+' en '+esc(cat)+'.'}</p>`}
+  </form>`;
 };
 ENTRY.rpe=()=>{
   const cat=UI.assignCat||(cats().find(c=>playersOf(c).length))||defCat();const date=UI.assignDate||UI.ref;
@@ -1629,6 +1667,13 @@ FORMS.rpe=async f=>{const v=Object.fromEntries(new FormData(f));const s=DATA.ses
 FORMS.match=async f=>{const e=editing('matches');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
   const o={id,date:v.date,cat:v.cat,opponent:v.opponent,competition:v.competition,venue:v.venue,gf:num(v.gf)??0,ga:num(v.ga)??0,duration:num(v.duration)||90,players:readGrid(f,'match',v.cat)};
   await put('matches',id,o);UI.edit=null;toast(e?'Match modifié':'Match enregistré');UI.compMatch=id;render();};
+FORMS.simple=async (f,submitter)=>{const v=Object.fromEntries(new FormData(f));const cat=INDIV?INDIV_CAT:v.cat;const ps=playersOf(cat);
+  const act=(submitter&&submitter.value)||v.act||'send';
+  const players={};ps.forEach(p=>{if(v['pl-'+p.id])players[p.id]={min:num(v.duration)||0};});
+  if(!Object.keys(players).length){toast('Coche au moins un·e '+PL.one);return;}
+  const id=uid();const o={id,date:v.date,cat,type:v.type||'Entraînement',title:(v.title||'').trim()||(v.type==='Match'?'Match':'Séance'),duration:num(v.duration)||0,objective:'',content:'',source:'coach',simple:true,players};
+  if(act==='send')o.rpeOpenedAt=Date.now();
+  await put('sessions',id,o);UI.entryTab='assign';UI.assignDate=v.date;toast(act==='send'?'Séance créée · RPE envoyé (4 h)':'Séance créée');render();};
 FORMS.wellness=async f=>{const v=Object.fromEntries(new FormData(f));const date=v.date;const doc=DATA.wellness[date]?JSON.parse(JSON.stringify(DATA.wellness[date])):{date,entries:{}};doc.entries=doc.entries||{};let n=0;
   playersOf(v.cat).forEach(p=>{const o={};WK.forEach(k=>{const x=num(v[k+'-'+p.id]);if(x!=null)o[k]=6-x;});const note=(v['note-'+p.id]||'').trim();if(note)o.note=note;if(Object.keys(o).length){doc.entries[p.id]=o;n++;}else delete doc.entries[p.id];});
   await put('wellness',date,doc);toast(n+' questionnaire'+(n>1?'s':'')+' enregistré'+(n>1?'s':''));};
@@ -1866,7 +1911,7 @@ async function gpsApply(){if(!GPS_PARSED)return;const {c,id,rows}=GPS_PARSED;con
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const f=ACT[b.dataset.act];if(!f)return;if(b.tagName==='BUTTON'&&b.type!=='submit')e.preventDefault();f(b,e);});
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='refDate'){UI.ref=t.value||TODAY;render();return;}if(t.dataset&&t.dataset.chg&&CHG[t.dataset.chg])CHG[t.dataset.chg](t);});
 document.addEventListener('input',e=>{const t=e.target;if(t.closest('form'))formDirty=true;if(t.dataset&&t.dataset.fill){const k=t.dataset.fill;const form=t.closest('form');$$('#grid tr',form).forEach(tr=>{const on=tr.querySelector('input[name^="on-"]');const inp=tr.querySelector(`input[name^="${k}-"]`);if(on&&on.checked&&inp)inp.value=t.value;});}});
-document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();formDirty=false;const h=FORMS[f.dataset.form];if(h)h(f);});
+document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();formDirty=false;const h=FORMS[f.dataset.form];if(h)h(f,e.submitter);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.drawer){UI.drawer=null;renderDrawer();}});
 boot();
 /* Rechargement pour récupérer les dernières données (RPE/charges saisis par les joueur·ses, etc.).
