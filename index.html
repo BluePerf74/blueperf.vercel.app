@@ -1893,6 +1893,7 @@ function renderFullApp(section){
           ${swBtn('football','Football')}
           ${swBtn('individuel',t('Coaching individuel','Individual coaching'))}
           ${swBtn('nutrition','Nutrition')}
+          ${state.access==='coach'?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
           ${state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:''}
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
@@ -1910,6 +1911,87 @@ function renderFullApp(section){
   if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
   const lo = app.querySelector('[data-fblogout]');
   if(lo) lo.addEventListener('click', logout);
+  const ad = app.querySelector('[data-fbadmin]');
+  if(ad) ad.addEventListener('click', openAdminPanel);
+}
+
+/* =========================================================
+   PANNEAU ADMINISTRATEUR — accès inter-espaces (Football → Coaching individuel)
+   ========================================================= */
+function admEsc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+async function admLoadPlayers(sp){
+  const raw = await sGet(sp+':players', true);
+  try{ return raw ? JSON.parse(raw) : {}; }catch(e){ return {}; }
+}
+async function openAdminPanel(){
+  let ov = document.getElementById('bp-admin');
+  if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'bp-admin';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto;font-family:system-ui,-apple-system,sans-serif';
+  ov.innerHTML = `<div style="width:100%;max-width:560px;background:#152439;border:1px solid #33465f;border-radius:14px;padding:18px 18px 16px;color:#EAF1FB;box-shadow:0 20px 50px rgba(0,0,0,.5)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:4px">
+        <h2 style="margin:0;font-size:18px;font-family:'Space Grotesk',system-ui,sans-serif">⚙️ ${admEsc(t('Paramètres administrateur','Admin settings'))}</h2>
+        <button id="bp-admin-x" style="appearance:none;cursor:pointer;background:transparent;border:0;color:#B7C4D6;font-size:20px;line-height:1;padding:4px">✕</button>
+      </div>
+      <p style="color:#7E90A8;font-size:13px;margin:0 0 14px;line-height:1.5">${admEsc(t("Autorise un·e joueur·se de l'espace Football à accéder aussi à l'espace Coaching individuel, avec les mêmes identifiants. Coche la case pour chaque personne concernée.","Allow a Football player to also access the Individual coaching space, with the same login. Tick the box for each person."))}</p>
+      <div id="bp-admin-body" style="font-size:14px">${admEsc(t('Chargement…','Loading…'))}</div>
+      <div style="margin-top:16px;display:flex;justify-content:flex-end">
+        <button id="bp-admin-close" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 16px;font-weight:700;font-size:14px">${admEsc(t('Fermer','Close'))}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if(e.target === ov) ov.remove(); });
+  ov.querySelector('#bp-admin-x').onclick = () => ov.remove();
+  ov.querySelector('#bp-admin-close').onclick = () => ov.remove();
+  await renderAdminBody();
+}
+async function renderAdminBody(){
+  const body = document.getElementById('bp-admin-body');
+  if(!body) return;
+  const aca = await admLoadPlayers('aca');
+  const ci = await admLoadPlayers('ci');
+  const list = Object.values(aca).filter(p => p && p.active !== false);
+  if(!list.length){
+    body.innerHTML = `<p style="color:#7E90A8;margin:0">${admEsc(t("Aucun·e joueur·se dans l'espace Football pour le moment.","No Football players yet."))}</p>`;
+    return;
+  }
+  const teams = {};
+  list.forEach(p => { const c = p.cat || '—'; (teams[c] = teams[c] || []).push(p); });
+  const onLbl = admEsc(t('Accès individuel ✓','Individual access ✓'));
+  const offLbl = admEsc(t('Football seul','Football only'));
+  body.innerHTML = Object.keys(teams).sort().map(team => `
+    <div style="margin-bottom:12px">
+      <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:#7E90A8;font-weight:700;margin-bottom:6px">${admEsc(team)}</div>
+      ${teams[team].map(p => `<label style="display:flex;align-items:center;gap:11px;padding:10px;border:1px solid #25344b;border-radius:9px;margin-bottom:6px;cursor:pointer;background:#0f1d30">
+        <input type="checkbox" data-adm-pid="${admEsc(p.id)}" ${ci[p.id] ? 'checked' : ''} style="width:18px;height:18px;flex:none;accent-color:#3DA9FC">
+        <span style="flex:1">${admEsc(p.name)}${p.pos ? ' · <span style=\"color:#7E90A8\">'+admEsc(p.pos)+'</span>' : ''}</span>
+        <span data-adm-state style="font-size:11.5px;font-weight:600;color:${ci[p.id] ? '#8fe0b0' : '#7E90A8'}">${ci[p.id] ? onLbl : offLbl}</span>
+      </label>`).join('')}
+    </div>`).join('');
+  body.querySelectorAll('[data-adm-pid]').forEach(cb => cb.addEventListener('change', async () => {
+    const pid = cb.getAttribute('data-adm-pid');
+    cb.disabled = true;
+    const ok = await toggleIndivAccess(pid, cb.checked, aca);
+    cb.disabled = false;
+    if(!ok){ cb.checked = !cb.checked; alert(t("Échec de l'enregistrement, réessaie.","Save failed, please retry.")); return; }
+    await renderAdminBody();
+  }));
+}
+async function toggleIndivAccess(pid, grant, aca){
+  const ci = await admLoadPlayers('ci');
+  if(grant){
+    const p = aca[pid];
+    if(!p) return false;
+    // On copie le·la joueur·se dans l'espace individuel (mêmes identifiants) ; on garde une trace de son équipe.
+    ci[pid] = Object.assign({}, p, { cat:'Individuel', team: p.cat || '', fromFootball:true, active:true });
+  }else{
+    // On ne retire que les personnes ajoutées depuis le Football, pas les client·es individuel·les natif·ves.
+    if(ci[pid] && ci[pid].fromFootball) delete ci[pid];
+    else if(ci[pid]) delete ci[pid];
+  }
+  const res = await sSet('ci:players', JSON.stringify(ci), true);
+  return res === true;
 }
 
 async function render(){
