@@ -666,14 +666,18 @@
     .cdb-right{margin-left:0;width:100%;justify-content:flex-start;}
   }
 <style>
-#boot{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0D1B2A;color:#B7C4D6;font-family:system-ui,sans-serif;font-size:13.5px}
+#boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(9,16,26,.6);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);color:#EAF1FB;font-family:system-ui,sans-serif;font-size:13.5px;font-weight:600}
+#boot.solid{background:#0D1B2A}
 #boot.hidden{display:none}
+#boot .panel{display:flex;flex-direction:column;align-items:center;gap:12px;background:#152439;border:1px solid #25344b;border-radius:14px;padding:22px 30px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
 #boot .spin{width:34px;height:34px;border:3px solid #33465f;border-top-color:#3DA9FC;border-radius:50%;animation:bootspin .8s linear infinite}
 @keyframes bootspin{to{transform:rotate(360deg)}}
+#updbar{position:fixed;top:0;left:0;right:0;z-index:100000;background:#3DA9FC;color:#04121f;font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
+#updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
-<div id="boot"><div class="spin"></div><div>Chargement des nouvelles données…</div></div>
+<div id="boot" class="solid"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
 <div id="app"></div>
 
 <script>
@@ -6079,11 +6083,22 @@ init();
 (function(){
   const boot=document.getElementById('boot');const app=document.getElementById('app');
   if(boot&&app){const done=()=>{if(app.children.length){boot.classList.add('hidden');if(obs)obs.disconnect();}};const obs=new MutationObserver(done);obs.observe(app,{childList:true});done();setTimeout(()=>boot.classList.add('hidden'),9000);}
+  // Rafraîchissement doux au retour sur l'onglet (voile semi-transparent), + bannière si nouvelle version.
+  function softRefresh(){ if(document.hidden)return;
+    try{ if(typeof state==='object'&&state&&(state.section==='football'||state.section==='individuel'||state.section==='nutrition'))return; }catch(e){} // module plein écran : l'iframe se rafraîchit seule
+    if(boot){boot.classList.remove('solid');boot.classList.remove('hidden');}
+    try{ if(typeof render==='function')render(); }catch(e){}
+    if(boot)setTimeout(()=>boot.classList.add('hidden'),400); }
+  let PAGE_TAG=null;
+  async function checkVersion(){ try{ const r=await fetch('/?v='+Date.now(),{method:'HEAD',cache:'no-store'}); const et=r.headers.get('etag')||r.headers.get('last-modified'); if(et){ if(PAGE_TAG&&et!==PAGE_TAG)showUpdateBanner(); PAGE_TAG=et; } }catch(e){} }
+  function showUpdateBanner(){ if(document.getElementById('updbar'))return; const d=document.createElement('div'); d.id='updbar'; d.innerHTML='🔄 Une nouvelle version est disponible. <button>Recharger</button>'; document.body.appendChild(d); d.querySelector('button').onclick=()=>{if(boot){boot.classList.add('solid');boot.classList.remove('hidden');}location.reload();}; }
+  checkVersion();
   let hiddenAt=0;
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden)hiddenAt=Date.now();
-    else if(hiddenAt&&Date.now()-hiddenAt>120000){if(boot)boot.classList.remove('hidden');location.reload();}
+    else if(hiddenAt&&Date.now()-hiddenAt>15000){ checkVersion(); softRefresh(); }
   });
+  setInterval(()=>{ if(!document.hidden)checkVersion(); },90000);
 })();
 </script>
 </body>

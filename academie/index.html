@@ -224,13 +224,17 @@ details summary{cursor:pointer;font-weight:600}
 </style>
 </head>
 <style>
-.boot{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);color:var(--ink-2);font-size:13.5px}
+.boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(9,14,22,.6);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);color:var(--ink);font-size:13.5px;font-weight:600}
+.boot.solid{background:var(--bg)}
 .boot.hidden{display:none}
+.boot .panel{display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 30px;box-shadow:0 16px 40px rgba(0,0,0,.45)}
 .boot .spin{width:34px;height:34px;border:3px solid var(--line-2);border-top-color:var(--accent);border-radius:50%;animation:bootspin .8s linear infinite}
 @keyframes bootspin{to{transform:rotate(360deg)}}
+#updbar{position:fixed;top:0;left:0;right:0;z-index:100000;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
+#updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
 </style>
 <body>
-<div class="boot" id="boot"><div class="spin"></div><div>Chargement des nouvelles données…</div></div>
+<div class="boot solid" id="boot"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
 <div class="app">
   <nav class="nav" id="nav" aria-label="Navigation"></nav>
   <div class="main">
@@ -1847,15 +1851,20 @@ boot();
   const boot=document.getElementById('boot');
   // Masque le voile de chargement dès que la navigation est rendue.
   if(boot){const nav=document.getElementById('nav');const done=()=>{if(nav&&nav.children.length){boot.classList.add('hidden');if(obs)obs.disconnect();}};const obs=new MutationObserver(done);if(nav)obs.observe(nav,{childList:true});done();setTimeout(()=>boot.classList.add('hidden'),9000);}
-  const reload=()=>{if(boot)boot.classList.remove('hidden');location.reload();};
-  let hiddenAt=0,lastActive=Date.now();
-  ['click','keydown','input','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,()=>{lastActive=Date.now();},{passive:true}));
   const safe=()=>!(typeof formDirty!=='undefined'&&formDirty);
+  // Rafraîchissement DOUX : les données sont déjà rechargées en continu (polling toutes les 8 s) ;
+  // au retour sur l'onglet on ré-affiche par-dessus l'interface (voile semi-transparent), sans page blanche.
+  function softRefresh(){ if(document.hidden||!safe())return; if(boot){boot.classList.remove('solid');boot.classList.remove('hidden');} try{render();}catch(e){} if(boot)setTimeout(()=>boot.classList.add('hidden'),350); }
+  let PAGE_TAG=null;
+  async function checkVersion(){ try{ const r=await fetch(location.pathname+'?v='+Date.now(),{method:'HEAD',cache:'no-store'}); const et=r.headers.get('etag')||r.headers.get('last-modified'); if(et){ if(PAGE_TAG&&et!==PAGE_TAG)showUpdateBanner(); PAGE_TAG=et; } }catch(e){} }
+  function showUpdateBanner(){ if(document.getElementById('updbar'))return; const d=document.createElement('div'); d.id='updbar'; d.innerHTML='🔄 Une nouvelle version est disponible. <button>Recharger</button>'; document.body.appendChild(d); d.querySelector('button').onclick=()=>{if(boot){boot.classList.add('solid');boot.classList.remove('hidden');}location.reload();}; }
+  checkVersion();
+  let hiddenAt=0;
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden)hiddenAt=Date.now();
-    else if(hiddenAt&&Date.now()-hiddenAt>20000&&safe())reload();
+    else if(hiddenAt&&Date.now()-hiddenAt>15000){ checkVersion(); softRefresh(); }
   });
-  setInterval(()=>{ if(!document.hidden&&safe()&&Date.now()-lastActive>8*60*1000) reload(); },60000);
+  setInterval(()=>{ if(!document.hidden)checkVersion(); },90000);
 })();
 </script>
 

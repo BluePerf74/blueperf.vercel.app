@@ -38,11 +38,13 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .hint{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between}
 .bodywrap{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px}
 .bodyfig{text-align:center}
-.bodyfig .cap{font-size:12px;color:var(--muted);margin-top:2px}
-.zone{fill:var(--surface-2);stroke:var(--line-2);stroke-width:1.2;cursor:pointer;transition:fill .1s}
-.zone:hover{fill:#20344e}
-.zone.on{fill:var(--crit);stroke:#ff8f7f}
-.silhouette{fill:#1b2c44}
+.bodyfig .cap{font-size:11px;color:var(--ink-2);margin-bottom:4px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.zone{fill:rgba(61,169,252,.07);stroke:#3DA9FC;stroke-opacity:.55;stroke-width:1.3;stroke-linejoin:round;cursor:pointer;transition:fill .12s}
+.zone:hover{fill:rgba(61,169,252,.2)}
+.zone.on{fill:rgba(229,96,77,.72);stroke:#ff8f7f;stroke-opacity:1}
+.silhouette{fill:#122a44;stroke:#3DA9FC;stroke-opacity:.6;stroke-width:1.4;stroke-linejoin:round}
+.bdetail{fill:none;stroke:#3DA9FC;stroke-opacity:.3;stroke-width:1;stroke-linecap:round}
+.bfoot{fill:#0f2236;stroke:#3DA9FC;stroke-opacity:.45;stroke-width:1.2}
 .zones-list{font-size:12.5px;color:var(--ink-2);margin-top:8px;min-height:18px}
 .session{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--surface-2)}
 .session .t{font-weight:600;font-size:14px}
@@ -66,14 +68,18 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .loadbars .b.match{background:var(--warn)}
 .loadlab{display:flex;gap:5px;margin-top:5px}
 .loadlab span{flex:1;text-align:center;font-size:9.5px;color:var(--muted)}
-.boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);color:var(--ink-2);font-size:13.5px}
+.boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(14,26,44,.66);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);color:var(--ink);font-size:13.5px;font-weight:600}
+.boot.solid{background:var(--bg)}
 .boot.hidden{display:none}
+.boot .panel{display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 28px;box-shadow:0 16px 40px rgba(0,0,0,.4)}
 .spin{width:34px;height:34px;border:3px solid var(--line-2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+#updbar{position:fixed;top:0;left:0;right:0;z-index:10000;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
+#updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
-<div class="boot" id="boot"><div class="spin"></div><div>Chargement des nouvelles données…</div></div>
+<div class="boot solid" id="boot"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
 <div class="wrap" id="app"></div>
 <script src="program-data.js"></script>
 <script>
@@ -81,7 +87,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const TODAY=new Date().toISOString().slice(0,10);
 function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hidden');}
-function showBoot(){const b=document.getElementById('boot');if(b)b.classList.remove('hidden');}
+function showBoot(){const b=document.getElementById('boot');if(b){b.classList.remove('hidden');b.classList.remove('solid');}} // voile semi-transparent (interface visible derrière)
 function isoLong(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
 
 async function kvGet(key){
@@ -207,42 +213,48 @@ const BACK_ZONES=[
 ];
 let SORE=new Set();
 function zoneLabel(id){const a=FRONT_ZONES.concat(BACK_ZONES).find(z=>z[0]===id);return a?a[1]:id;}
+const SIL_PATH="M70 8c9 0 15 7 15 16 0 6-3 11-7 14 8 2 16 6 18 14l6 34c1 6-1 10-6 11l-3 40-4 40h-1l-3-52h-2l-3 52-4 60-3 30h-9l-2-30-4-60-3-52h-2l-3 52h-1l-4-40-3-40c-5-1-7-5-6-11l6-34c2-8 10-12 18-14-4-3-7-8-7-14 0-9 6-16 15-16z";
 function frontSvg(){
-  return `<svg viewBox="0 0 140 320" width="130" height="300" aria-label="Corps vu de face">
-    <path class="silhouette" d="M70 8c9 0 15 7 15 16 0 6-3 11-7 14 8 2 16 6 18 14l6 34c1 6-1 10-6 11l-3 40-4 40h-1l-3-52h-2l-3 52-4 60-3 30h-9l-2-30-4-60-3-52h-2l-3 52h-1l-4-40-3-40c-5-1-7-5-6-11l6-34c2-8 10-12 18-14-4-3-7-8-7-14 0-9 6-16 15-16z"/>
+  return `<svg viewBox="0 0 140 330" width="132" height="312" aria-label="Corps vu de face">
+    <path class="silhouette" d="${SIL_PATH}"/>
+    <ellipse class="bfoot" cx="60" cy="314" rx="9" ry="5"/><ellipse class="bfoot" cx="80" cy="314" rx="9" ry="5"/>
     <ellipse class="zone" data-zone="f-head" cx="70" cy="24" rx="13" ry="15"/>
     <rect class="zone" data-zone="f-neck" x="63" y="39" width="14" height="9" rx="4"/>
-    <ellipse class="zone" data-zone="f-sh-l" cx="50" cy="58" rx="9" ry="8"/>
-    <ellipse class="zone" data-zone="f-sh-r" cx="90" cy="58" rx="9" ry="8"/>
-    <rect class="zone" data-zone="f-chest" x="55" y="55" width="30" height="24" rx="7"/>
-    <rect class="zone" data-zone="f-abs" x="57" y="80" width="26" height="30" rx="6"/>
-    <rect class="zone" data-zone="f-arm-l" x="38" y="66" width="12" height="46" rx="6"/>
-    <rect class="zone" data-zone="f-arm-r" x="90" y="66" width="12" height="46" rx="6"/>
-    <path class="zone" data-zone="f-hip" d="M57 110h26v14c0 5-26 5-26 0z"/>
-    <rect class="zone" data-zone="f-quad-l" x="56" y="128" width="13" height="46" rx="6"/>
-    <rect class="zone" data-zone="f-quad-r" x="71" y="128" width="13" height="46" rx="6"/>
-    <ellipse class="zone" data-zone="f-knee-l" cx="62" cy="182" rx="7" ry="7"/>
-    <ellipse class="zone" data-zone="f-knee-r" cx="78" cy="182" rx="7" ry="7"/>
-    <rect class="zone" data-zone="f-shin-l" x="57" y="192" width="11" height="46" rx="5"/>
-    <rect class="zone" data-zone="f-shin-r" x="72" y="192" width="11" height="46" rx="5"/>
+    <ellipse class="zone" data-zone="f-sh-l" cx="49" cy="59" rx="10" ry="9"/>
+    <ellipse class="zone" data-zone="f-sh-r" cx="91" cy="59" rx="10" ry="9"/>
+    <path class="zone" data-zone="f-chest" d="M55 56c5-3 25-3 30 0 3 2 3 19 0 21-5 3-25 3-30 0-3-2-3-19 0-21z"/>
+    <path class="bdetail" d="M70 55v22"/>
+    <rect class="zone" data-zone="f-abs" x="58" y="81" width="24" height="32" rx="5"/>
+    <path class="bdetail" d="M70 82v30M59 92h22M59 101h22"/>
+    <rect class="zone" data-zone="f-arm-l" x="36" y="62" width="12" height="52" rx="6"/>
+    <rect class="zone" data-zone="f-arm-r" x="92" y="62" width="12" height="52" rx="6"/>
+    <path class="zone" data-zone="f-hip" d="M58 114h24c1 7-3 12-12 12s-13-5-12-12z"/>
+    <rect class="zone" data-zone="f-quad-l" x="57" y="128" width="13" height="48" rx="6"/>
+    <rect class="zone" data-zone="f-quad-r" x="70" y="128" width="13" height="48" rx="6"/>
+    <ellipse class="zone" data-zone="f-knee-l" cx="63" cy="182" rx="7" ry="7"/>
+    <ellipse class="zone" data-zone="f-knee-r" cx="77" cy="182" rx="7" ry="7"/>
+    <rect class="zone" data-zone="f-shin-l" x="57" y="192" width="12" height="50" rx="5"/>
+    <rect class="zone" data-zone="f-shin-r" x="71" y="192" width="12" height="50" rx="5"/>
   </svg>`;
 }
 function backSvg(){
-  return `<svg viewBox="0 0 140 320" width="130" height="300" aria-label="Corps vu de dos">
-    <path class="silhouette" d="M70 8c9 0 15 7 15 16 0 6-3 11-7 14 8 2 16 6 18 14l6 34c1 6-1 10-6 11l-3 40-4 40h-1l-3-52h-2l-3 52-4 60-3 30h-9l-2-30-4-60-3-52h-2l-3 52h-1l-4-40-3-40c-5-1-7-5-6-11l6-34c2-8 10-12 18-14-4-3-7-8-7-14 0-9 6-16 15-16z"/>
-    <ellipse class="zone" data-zone="b-nape" cx="70" cy="26" rx="10" ry="9"/>
-    <rect class="zone" data-zone="b-traps" x="55" y="50" width="30" height="14" rx="6"/>
+  return `<svg viewBox="0 0 140 330" width="132" height="312" aria-label="Corps vu de dos">
+    <path class="silhouette" d="${SIL_PATH}"/>
+    <ellipse class="bfoot" cx="60" cy="314" rx="9" ry="5"/><ellipse class="bfoot" cx="80" cy="314" rx="9" ry="5"/>
+    <ellipse class="zone" data-zone="b-nape" cx="70" cy="25" rx="11" ry="10"/>
+    <path class="zone" data-zone="b-traps" d="M56 49c8-4 20-4 28 0 2 1 1 13-14 13s-16-12-14-13z"/>
     <rect class="zone" data-zone="b-upback" x="56" y="64" width="28" height="24" rx="6"/>
+    <path class="bdetail" d="M70 50v62"/>
     <rect class="zone" data-zone="b-lowback" x="58" y="89" width="24" height="22" rx="6"/>
-    <rect class="zone" data-zone="b-arm-l" x="38" y="66" width="12" height="46" rx="6"/>
-    <rect class="zone" data-zone="b-arm-r" x="90" y="66" width="12" height="46" rx="6"/>
-    <path class="zone" data-zone="b-glutes" d="M56 112h28v16c0 6-28 6-28 0z"/>
-    <rect class="zone" data-zone="b-ham-l" x="56" y="132" width="13" height="46" rx="6"/>
-    <rect class="zone" data-zone="b-ham-r" x="71" y="132" width="13" height="46" rx="6"/>
-    <rect class="zone" data-zone="b-calf-l" x="57" y="190" width="11" height="42" rx="5"/>
-    <rect class="zone" data-zone="b-calf-r" x="72" y="190" width="11" height="42" rx="5"/>
-    <rect class="zone" data-zone="b-achi-l" x="59" y="234" width="7" height="14" rx="3"/>
-    <rect class="zone" data-zone="b-achi-r" x="74" y="234" width="7" height="14" rx="3"/>
+    <rect class="zone" data-zone="b-arm-l" x="36" y="62" width="12" height="52" rx="6"/>
+    <rect class="zone" data-zone="b-arm-r" x="92" y="62" width="12" height="52" rx="6"/>
+    <path class="zone" data-zone="b-glutes" d="M56 112h28c0 11-6 17-14 17s-14-6-14-17z"/>
+    <rect class="zone" data-zone="b-ham-l" x="57" y="132" width="13" height="46" rx="6"/>
+    <rect class="zone" data-zone="b-ham-r" x="70" y="132" width="13" height="46" rx="6"/>
+    <rect class="zone" data-zone="b-calf-l" x="57" y="190" width="12" height="44" rx="5"/>
+    <rect class="zone" data-zone="b-calf-r" x="71" y="190" width="12" height="44" rx="5"/>
+    <rect class="zone" data-zone="b-achi-l" x="59" y="236" width="7" height="12" rx="3"/>
+    <rect class="zone" data-zone="b-achi-r" x="74" y="236" width="7" height="12" rx="3"/>
   </svg>`;
 }
 function bindZones(){
@@ -281,11 +293,11 @@ function wellnessCard(){
         <label>${w.label}</label>
         ${scaleHtml(w.k)}
         <div class="hint"><span>${w.lo}</span><span>${w.hi}</span></div>
-        ${w.body?`<div id="bodymap" ${WVAL.soreness>1?'':'hidden'}>
+        ${w.body?`<div id="bodymap" ${WVAL.soreness>2?'':'hidden'}>
            <p class="muted" style="font-size:12.5px;margin:10px 0 4px">Indique où tu as mal :</p>
            <div class="bodywrap">
-             <div class="bodyfig">${frontSvg()}<div class="cap">Avant</div></div>
-             <div class="bodyfig">${backSvg()}<div class="cap">Arrière</div></div>
+             <div class="bodyfig"><div class="cap">DEVANT</div>${frontSvg()}</div>
+             <div class="bodyfig"><div class="cap">DOS</div>${backSvg()}</div>
            </div>
            <div class="zones-list" id="zones-list"></div>
         </div>`:''}
@@ -439,7 +451,7 @@ function bindWellness(){
     sc.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
       WVAL[w.k]=+btn.getAttribute('data-v');
       sc.querySelectorAll('button').forEach(x=>x.classList.remove('on'));btn.classList.add('on');
-      if(w.body){const bm=$('#bodymap');if(bm){if(WVAL.soreness>1){bm.hidden=false;bindZones();}else{bm.hidden=true;}}}
+      if(w.body){const bm=$('#bodymap');if(bm){if(WVAL.soreness>2){bm.hidden=false;bindZones();}else{bm.hidden=true;}}}
     });
   });
   const d=$('#w-date');if(d)d.onchange=async()=>{FEEL_DATE=d.value||TODAY;await refreshForDate();};
@@ -635,12 +647,23 @@ async function renderTab(){
 (function(){
   let hiddenAt=0,lastActive=Date.now();
   ['click','keydown','input','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,()=>{lastActive=Date.now();},{passive:true}));
-  const reload=()=>{showBoot();location.reload();};
+  // Rafraîchissement DOUX : on recharge les données et on ré-affiche par-dessus l'interface
+  // (voile semi-transparent), sans page blanche. Une bannière propose de recharger si le CODE change.
+  let refreshing=false;
+  async function softRefresh(){ if(!PLAYER||refreshing||document.hidden)return; refreshing=true; showBoot();
+    try{ await renderSpace(false); }catch(e){ hideBoot(); } refreshing=false; }
+  let PAGE_TAG=null;
+  async function checkVersion(){ try{ const r=await fetch(location.pathname+'?v='+Date.now(),{method:'HEAD',cache:'no-store'});
+      const et=r.headers.get('etag')||r.headers.get('last-modified'); if(et){ if(PAGE_TAG&&et!==PAGE_TAG)showUpdateBanner(); PAGE_TAG=et; } }catch(e){} }
+  function showUpdateBanner(){ if(document.getElementById('updbar'))return;
+    const d=document.createElement('div'); d.id='updbar'; d.innerHTML='🔄 Une nouvelle version est disponible. <button>Recharger</button>';
+    document.body.appendChild(d); d.querySelector('button').onclick=()=>{const b=document.getElementById('boot');if(b){b.classList.remove('hidden');b.classList.add('solid');}location.reload();}; }
+  checkVersion();
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden)hiddenAt=Date.now();
-    else if(hiddenAt&&Date.now()-hiddenAt>20000)reload();
+    else if(hiddenAt&&Date.now()-hiddenAt>15000){ checkVersion(); softRefresh(); }
   });
-  setInterval(()=>{ if(!document.hidden && Date.now()-lastActive>5*60*1000) reload(); },60000);
+  setInterval(()=>{ if(!document.hidden){ checkVersion(); if(Date.now()-lastActive>3*60*1000) softRefresh(); } },90000);
 })();
 </script>
 </body>
