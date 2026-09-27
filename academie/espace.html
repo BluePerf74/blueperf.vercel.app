@@ -374,19 +374,103 @@ function wellnessCard(){
 let SESSIONS_TODAY=[]; // {sid, session, rpe}
 function sessionsCard(){
   return `<div class="card">
-    <h2>Mes séances du jour</h2>
+    <h2>Séances du coach à noter</h2>
     <div id="sess-list"></div>
-    <div style="border-top:1px dashed var(--line);margin-top:6px;padding-top:12px">
-      <label>Ajouter ma séance (RPE ressenti)</label>
-      <div class="row">
-        <input id="ps-type" placeholder="Type (course, muscu…)" style="flex:2;min-width:120px">
-        <input id="ps-dur" type="number" placeholder="min" style="flex:1;min-width:70px">
-      </div>
-      <div class="field" style="margin-top:10px"><label>RPE (0 très facile → 10 maximal)</label>${rpeScale('ps-rpe',null)}</div>
-      <button class="btn sec block" id="ps-add">Ajouter la séance</button>
-      <div class="ok" id="ps-ok"></div>
-    </div>
   </div>`;
+}
+/* ---------- Activité de la semaine (saisie libre par la cliente) ---------- */
+const SPORTS_ESPACE=[
+  {k:'muscu',l:'Musculation',e:'🏋️',dist:false},
+  {k:'natation',l:'Natation',e:'🏊',dist:true},
+  {k:'course',l:'Course à pied',e:'🏃',dist:true},
+  {k:'foot',l:'Football',e:'⚽',dist:false},
+  {k:'velo',l:'Vélo',e:'🚴',dist:true},
+  {k:'triathlon',l:'Triathlon',e:'🏅',dist:true},
+  {k:'boxe',l:'Boxe',e:'🥊',dist:false},
+  {k:'tennis',l:'Tennis',e:'🎾',dist:true}
+];
+const sportOf=k=>SPORTS_ESPACE.find(x=>x.k===k);
+let ACT_WEEK=null, ACT_DAY=null, ACT_SPORT=null, ACT_RPE=null;
+function mondayOfISO(d){const t=new Date(d+'T00:00');const wd=(t.getDay()+6)%7;t.setDate(t.getDate()-wd);return t.toISOString().slice(0,10);}
+function weekdayLabel(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{weekday:'long'});}catch(e){return d;}}
+function activityWeekCard(){
+  if(!ACT_WEEK)ACT_WEEK=mondayOfISO(TODAY);
+  const days=[];for(let i=0;i<7;i++)days.push(addDaysISO(ACT_WEEK,i));
+  const acts=MY_SESSIONS.filter(s=>s.source==='joueur');
+  const sun=days[6];
+  const title=`${new Date(ACT_WEEK+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} → ${new Date(sun+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`;
+  const dayBlocks=days.map(d=>{
+    const list=acts.filter(s=>s.date===d);
+    const items=list.map(s=>{const me=s.players[PLAYER.id]||{};const sp=sportOf(s.sport);
+      return `<div class="session" style="margin-bottom:8px;padding:10px"><div class="t">${sp?sp.e+' ':''}${esc(s.title||s.type||'Activité')}</div>
+        <div class="m">${me.min?me.min+' min':''}${s.distance?' · '+s.distance+' km':''}${me.rpe!=null?' · RPE '+me.rpe:''}</div>
+        <button class="btn sec" data-delact="${esc(s.id)}" style="padding:5px 10px;font-size:12px;margin-top:2px">Supprimer</button></div>`;}).join('')
+      ||'<p class="muted" style="font-size:12.5px;margin:0 0 6px">Aucune activité ce jour.</p>';
+    const isOpen=ACT_DAY===d;
+    const form=isOpen?activityForm(d):'';
+    return `<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--surface-2)">
+      <div class="row" style="justify-content:space-between"><b style="text-transform:capitalize">${weekdayLabel(d)}${d===TODAY?' · aujourd\'hui':''}</b><span class="muted" style="font-size:12px">${d.slice(8)}/${d.slice(5,7)}</span></div>
+      <div style="margin-top:8px">${items}</div>
+      <button class="btn sec" data-addday="${d}" style="padding:7px 12px;font-size:13px">${isOpen?'Annuler':'+ Ajouter une activité'}</button>
+      ${form}</div>`;
+  }).join('');
+  return `<div class="card">
+    <h2>Mon activité de la semaine</h2>
+    <div class="row" style="gap:8px;margin:0 0 12px;align-items:center">
+      <button class="btn sec" data-actweek="-7" style="padding:7px 11px" aria-label="Semaine précédente">◀</button>
+      <b style="flex:1;text-align:center;font-size:14px">${title}${ACT_WEEK!==mondayOfISO(TODAY)?'':' · cette semaine'}</b>
+      <button class="btn sec" data-actweek="7" style="padding:7px 11px" aria-label="Semaine suivante">▶</button>
+    </div>
+    ${dayBlocks}</div>`;
+}
+function activityForm(d){
+  return `<div style="border-top:1px dashed var(--line);margin-top:10px;padding-top:12px">
+    <label>Type de séance</label>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${SPORTS_ESPACE.map(s=>`<button type="button" class="tabbtn ${ACT_SPORT===s.k?'on':''}" data-sport="${s.k}" style="flex:none;min-width:auto;padding:8px 11px;font-size:13px">${s.e} ${s.l}</button>`).join('')}</div>
+    <div class="row" style="margin-top:12px;align-items:flex-end">
+      <div style="flex:1;min-width:110px"><label>Distance (km, si applicable)</label><input id="act-km" type="number" step="any" min="0" placeholder="ex : 8"></div>
+      <div style="flex:1;min-width:90px"><label>Temps (min)</label><input id="act-min" type="number" min="0" placeholder="ex : 45"></div>
+    </div>
+    <div class="field" style="margin-top:12px"><label>RPE (0 très facile → 10 maximal)</label>${rpeScale('act-rpe',ACT_RPE)}</div>
+    <button class="btn block" data-saveact="${d}">Enregistrer l'activité</button>
+    <div class="ok" id="act-ok"></div>
+  </div>`;
+}
+async function addActivity(date,sportK,km,min,rpe){
+  const sp=sportOf(sportK);
+  const all=await kvGet(SPACE+':sessions');
+  const sid='ps-'+PLAYER.id+'-'+date+'-'+Math.random().toString(36).slice(2,6);
+  all[sid]={id:sid,date:date,cat:PLAYER.cat,sport:sportK,type:sp?sp.l:'Activité',title:sp?sp.l:'Activité',duration:min||0,distance:km||null,objective:'',content:'',source:'joueur',
+    players:{[PLAYER.id]:{rpe:rpe,min:min||0,distance:km||null}}};
+  await kvSet(SPACE+':sessions',all);
+}
+async function delActivity(sid){
+  const all=await kvGet(SPACE+':sessions');
+  if(all[sid])delete all[sid];
+  await kvSet(SPACE+':sessions',all);
+}
+async function renderRpeTab(){
+  const c=$('#tabc');if(!c)return;
+  c.innerHTML=sessionsCard()+activityWeekCard();
+  drawSessions();
+  bindActivityWeek();
+}
+function bindActivityWeek(){
+  document.querySelectorAll('[data-actweek]').forEach(b=>b.onclick=()=>{ACT_WEEK=addDaysISO(ACT_WEEK,+b.getAttribute('data-actweek'));ACT_DAY=null;renderRpeTab();});
+  document.querySelectorAll('[data-addday]').forEach(b=>b.onclick=()=>{const d=b.getAttribute('data-addday');ACT_DAY=(ACT_DAY===d)?null:d;ACT_SPORT=null;ACT_RPE=null;renderRpeTab();});
+  document.querySelectorAll('[data-delact]').forEach(b=>b.onclick=async()=>{b.disabled=true;await delActivity(b.getAttribute('data-delact'));await loadMySessions();renderRpeTab();});
+  document.querySelectorAll('[data-sport]').forEach(b=>b.onclick=()=>{ACT_SPORT=b.getAttribute('data-sport');document.querySelectorAll('[data-sport]').forEach(x=>x.classList.toggle('on',x.getAttribute('data-sport')===ACT_SPORT));});
+  bindRpeScale('act-rpe',v=>ACT_RPE=v);
+  document.querySelectorAll('[data-saveact]').forEach(b=>b.onclick=async()=>{
+    const d=b.getAttribute('data-saveact');const ok=$('#act-ok');
+    if(!ACT_SPORT){if(ok)ok.textContent='⚠️ Choisis un type de séance.';return;}
+    if(ACT_RPE==null){if(ok)ok.textContent='⚠️ Choisis ton RPE.';return;}
+    const km=$('#act-km')&&$('#act-km').value!==''?Math.max(0,+$('#act-km').value):null;
+    const min=$('#act-min')&&$('#act-min').value!==''?Math.max(0,+$('#act-min').value):0;
+    b.disabled=true;if(ok)ok.textContent='Enregistrement…';
+    try{await addActivity(d,ACT_SPORT,km,min,ACT_RPE);await loadMySessions();ACT_DAY=null;ACT_SPORT=null;ACT_RPE=null;renderRpeTab();}
+    catch(e){if(ok)ok.textContent='échec';b.disabled=false;}
+  });
 }
 let PS_RPE=null;
 function rpeScale(id,val){
@@ -399,6 +483,7 @@ async function loadSessionsToday(){
   const now=Date.now();
   SESSIONS_TODAY=Object.values(all).filter(s=>{
       if(!s||s.date!==FEEL_DATE||s.cat!==PLAYER.cat)return false;
+      if(s.source==='joueur')return false; // les activités perso sont gérées dans l'onglet activité de la semaine
       const me=(s.players&&s.players[PLAYER.id])||null;if(!me&&s.source!=='joueur')return false;
       const submitted=me&&(me.rpe!=null||(me.partRpe&&Object.keys(me.partRpe).length));
       const openWin=s.source==='joueur'||(s.rpeOpenedAt&&(now-s.rpeOpenedAt)<RPE_WINDOW_MS);
@@ -564,6 +649,38 @@ function loadChartHtml(){
   const labs=days.map((d,i)=>`<span>${i%2===0?d.slice(8):''}</span>`).join('');
   return `<div class="loadbars">${bars}</div><div class="loadlab">${labs}</div><p class="muted" style="font-size:11.5px;margin:8px 0 0">Charge = RPE × minutes (unités arbitraires). Orange = match/compétition.</p>`;
 }
+function weekStat(start){
+  const end=addDaysISO(start,7);
+  const l=MY_SESSIONS.filter(s=>s.source==='joueur'&&s.date>=start&&s.date<end);
+  let min=0,km=0,load=0;
+  l.forEach(s=>{const me=s.players[PLAYER.id]||{};min+=me.min||0;km+=(+s.distance||0);if(me.rpe!=null)load+=me.rpe*(me.min||0);});
+  return {n:l.length,min,km:Math.round(km*10)/10,load:Math.round(load)};
+}
+function progressionCard(){
+  const acts=MY_SESSIONS.filter(s=>s.source==='joueur');
+  if(!acts.length)return `<div class="card"><h2>Ma progression</h2><p class="muted" style="font-size:13px;margin:0">Ajoute tes activités dans l'onglet « RPE & charge » pour suivre ta progression, semaine après semaine.</p></div>`;
+  const wkStart=mondayOfISO(TODAY);
+  const cur=weekStat(wkStart),prev=weekStat(addDaysISO(wkStart,-7));
+  const delta=(a,b)=>{if(!prev.n)return '';const d=Math.round((a-b)*10)/10;if(d===0)return '<span style="font-size:11px;color:var(--muted)"> =</span>';return `<span style="font-size:11px;color:${d>0?'var(--good)':'var(--warn)'}"> ${d>0?'▲':'▼'} ${Math.abs(d)}</span>`;};
+  const stat=(lab,val,unit,d)=>`<div class="kpi"><div class="lab">${lab}</div><div class="val">${val}${unit?'<small> '+unit+'</small>':''}${d}</div></div>`;
+  const starts=[];for(let k=5;k>=0;k--)starts.push(addDaysISO(wkStart,-7*k));
+  const weeks=starts.map(weekStat);const max=Math.max(1,...weeks.map(w=>w.load));
+  const bars=weeks.map(w=>`<div class="b" style="height:${Math.round(w.load/max*88)||2}px" title="${w.load} UA"></div>`).join('');
+  const labs=starts.map(st=>`<span>${new Date(st+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'numeric'})}</span>`).join('');
+  const bySport={};acts.filter(s=>s.date>=wkStart&&s.date<addDaysISO(wkStart,7)).forEach(s=>{const sp=sportOf(s.sport);const key=sp?sp.e+' '+sp.l:'Autre';bySport[key]=(bySport[key]||0)+1;});
+  const sportChips=Object.entries(bySport).map(([k,v])=>`<span class="pill">${k} ×${v}</span>`).join(' ')||'<span class="muted" style="font-size:12.5px">Aucune activité cette semaine.</span>';
+  return `<div class="card"><h2>Ma progression</h2>
+    <div class="kpis" style="margin-bottom:12px">
+      ${stat('Séances (7 j)',cur.n,'',delta(cur.n,prev.n))}
+      ${stat('Minutes (7 j)',cur.min,'min',delta(cur.min,prev.min))}
+      ${stat('Distance (7 j)',cur.km,'km',delta(cur.km,prev.km))}
+      ${stat('Charge (7 j)',cur.load,'UA',delta(cur.load,prev.load))}
+    </div>
+    <div class="muted" style="font-size:12.5px;margin-bottom:4px">Charge par semaine (6 dernières)</div>
+    <div class="loadbars">${bars}</div><div class="loadlab">${labs}</div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:12px">${sportChips}</div>
+  </div>`;
+}
 async function overviewHtml(){
   const wt=await wellnessToday();
   const toRate=SESSIONS_TODAY.filter(o=>o.rpe==null).length;
@@ -579,6 +696,7 @@ async function overviewHtml(){
       <div class="kpi" data-kidx="2" style="${kpiStyle(2)}"><div class="lab">Charge 7 jours</div><div class="val">${l7}<small> UA</small></div><div class="d">RPE × minutes</div></div>
       <div class="kpi" data-kidx="3" style="${kpiStyle(3)}"><div class="lab">Séances suivies</div><div class="val">${MY_SESSIONS.length}</div><div class="d">au total avec toi</div></div>
     </div>
+    ${progressionCard()}
     <div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
     <div class="card"><h2>Mes dernières séances</h2>${recentHtml}</div>
     ${notifCard}
@@ -671,17 +789,7 @@ async function renderTab(){
     c.innerHTML=wellnessCard()+`<div class="card"><h2>Mes derniers wellness</h2><div id="hist"></div></div>`;
     bindWellness();loadHistory();
   }else if(ESPACE_TAB==='rpe'){
-    c.innerHTML=sessionsCard()+`<div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>`;
-    drawSessions();
-    bindRpeScale('ps-rpe',v=>PS_RPE=v);
-    const add=$('#ps-add');if(add)add.onclick=async()=>{
-      const type=$('#ps-type').value.trim();const dur=+$('#ps-dur').value||60;
-      if(PS_RPE==null){$('#ps-ok').textContent='⚠️ Choisis ton RPE avant d\'ajouter.';return;}
-      add.disabled=true;$('#ps-ok').textContent='Ajout…';
-      try{await addPersonalSession(type,dur,PS_RPE);$('#ps-ok').textContent='✓ Séance ajoutée';await loadSessionsToday();await loadMySessions();drawSessions();$('#ps-type').value='';$('#ps-dur').value='';}
-      catch(e){$('#ps-ok').textContent='échec';}
-      add.disabled=false;
-    };
+    await renderRpeTab();
   }else if(ESPACE_TAB==='programme'){
     c.innerHTML=programmeHtml();
     document.querySelectorAll('[data-pweek]').forEach(b=>b.onclick=()=>{PROG_WEEK=+b.getAttribute('data-pweek');PROG_OPEN=null;renderTab();});
