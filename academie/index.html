@@ -1412,7 +1412,10 @@ ENTRY.assign=()=>{
   const cat=UI.assignCat||(cats().find(c=>playersOf(c).length))||defCat();const date=UI.assignDate||UI.ref;
   const ps=playersOf(cat);
   const templates=Object.values(DATA.templates||{}).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  const todays=Object.values(DATA.sessions).filter(s=>s.date===date&&s.cat===cat).sort((a,b)=>(a.title||a.type||'').localeCompare(b.title||b.type||''));
+  const todays=[
+    ...Object.values(DATA.sessions).filter(s=>s.date===date&&s.cat===cat).map(s=>Object.assign({__col:'sessions'},s)),
+    ...Object.values(DATA.matches).filter(m=>m.date===date&&m.cat===cat).map(m=>Object.assign({__col:'matches'},m,{title:'Match vs '+(m.opponent||''),type:'Match'}))
+  ].sort((a,b)=>(a.title||a.type||'').localeCompare(b.title||b.type||''));
   const presence=ps.map(p=>{const inj=activeInjury(p.id,date);const def=!inj||inj.status==='reprise';
     return `<label class="chk" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px"><input type="checkbox" name="ap-${p.id}" ${def?'checked':''}> ${esc(p.name)}${p.number!=null?' <span class="small muted">#'+p.number+'</span>':''}${inj?` <span class="pill ${inj.status==='soins'?'crit':'info'}">${STATUS_LABEL[inj.status]}</span>`:''}</label>`;}).join('');
   const form=`<form data-form="assign" class="stack">
@@ -1435,7 +1438,7 @@ ENTRY.assign=()=>{
     else if(st.open){badge=`<span class="pill good">Ouvert · ferme dans <b data-chrono="${st.end}">${fmtRemain(st.remain)}</b></span>`;btn=`<button class="btn sm" data-act="sendRpe" data-id="${esc(s.id)}">Prolonger 4 h</button>`;}
     else{badge='<span class="pill warn">Fenêtre fermée</span>';btn=`<button class="btn sm" data-act="sendRpe" data-id="${esc(s.id)}">Rouvrir 4 h</button>`;}
     return `<div class="card flat" style="margin-top:8px"><div class="hrow" style="margin:0"><div><b>${esc(s.title||s.type||'Séance')}</b> <span class="small muted">${esc(s.type||'')}${s.duration?' · '+s.duration+' min':''}</span></div>${badge}</div>
-      <div class="hrow" style="margin:6px 0 0"><span class="small muted">${nP} affecté·es · <b>${nR}</b> RPE reçu${nR>1?'s':''}</span><div class="row" style="flex-wrap:nowrap">${btn}<button class="btn sm" data-act="edit" data-col="sessions" data-id="${esc(s.id)}">Ouvrir la séance</button></div></div></div>`;
+      <div class="hrow" style="margin:6px 0 0"><span class="small muted">${nP} affecté·es · <b>${nR}</b> RPE reçu${nR>1?'s':''}</span><div class="row" style="flex-wrap:nowrap">${btn}<button class="btn sm" data-act="edit" data-col="${s.__col||'sessions'}" data-id="${esc(s.id)}">${s.__col==='matches'?'Ouvrir le match':'Ouvrir la séance'}</button></div></div></div>`;
   }).join('');
   return `<div class="hrow"><h2>Affectation des ${PL.many}</h2></div>
     <p class="note" style="margin:0 0 10px">Crée la séance du jour et coche ${INDIV?'les '+PL.many+' concerné·es':'les présents'}. Puis clique <b>Envoyer RPE</b> : chaque ${PL.one} dispose alors de <b>4 h</b> pour saisir son RPE depuis son espace perso.</p>
@@ -1790,7 +1793,7 @@ const ACT={
   progToggle:b=>{const ref=b.dataset.id;UI.progOpen=UI.progOpen===ref?null:ref;render();},
   progValidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,{date:UI.ref,rpe:null});toast('Séance validée');},
   progUnvalidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,null);toast('Validation annulée');},
-  sendRpe:async b=>{const s=DATA.sessions[b.dataset.id];if(!s)return;await put('sessions',s.id,Object.assign({},s,{rpeOpenedAt:Date.now()}));toast('Fenêtre RPE ouverte · 4 h');},
+  sendRpe:async b=>{const id=b.dataset.id;const col=DATA.sessions[id]?'sessions':(DATA.matches[id]?'matches':null);if(!col)return;const s=DATA[col][id];await put(col,id,Object.assign({},s,{rpeOpenedAt:Date.now()}));toast('Fenêtre RPE ouverte · 4 h');},
   sendReminders:async b=>{b.disabled=true;const prev=b.textContent;b.textContent='Envoi…';
     try{const r=await fetch('/api/push?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:DB_PREFIX})});const j=await r.json();
       toast(j&&j.ok?('Rappel envoyé à '+j.sent+' personne'+(j.sent>1?'s':'')+(j.subscribed?' · '+j.subscribed+' abonné'+(j.subscribed>1?'s':''):'')):'Envoi impossible');}
