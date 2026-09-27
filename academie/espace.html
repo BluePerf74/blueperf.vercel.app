@@ -10,6 +10,7 @@
   --ink:#EAF1FB; --ink-2:#B7C4D6; --muted:#7E90A8; --accent:#3DA9FC; --accent-ink:#04121f;
   --good:#2FBF71; --warn:#E7A13B; --crit:#E5604D; --r:12px;
   --fd:"Space Grotesk",system-ui,sans-serif; --fb:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --kpi-bg:var(--surface); --kpi-ink:var(--ink); --kpi-muted:var(--muted); --onbg:var(--ink);
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:15px;line-height:1.5}
@@ -50,6 +51,11 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .session .t{font-weight:600;font-size:14px}
 .session .m{font-size:12px;color:var(--muted);margin:2px 0 8px}
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.topbar .brand{color:var(--onbg)}
+.topbar>div>.muted{color:var(--onbg);opacity:.68}
+input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px;padding:3px;cursor:pointer}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.swatches button{width:30px;height:30px;border-radius:8px;border:2px solid var(--line-2);cursor:pointer;padding:0}
 .pill{display:inline-block;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px}
 .pill.good{background:rgba(47,191,113,.15);border-color:#2FBF71;color:#7fe0a8}
 .pill.warn{background:rgba(231,161,59,.15);border-color:#E7A13B;color:#f0c583}
@@ -58,11 +64,11 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .tabbtn{flex:1;min-width:max-content;appearance:none;cursor:pointer;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);border-radius:10px;padding:10px 12px;font-weight:600;font-size:13.5px;white-space:nowrap;font-family:inherit}
 .tabbtn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
-.kpi .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
-.kpi .val{font-family:var(--fd);font-weight:700;font-size:22px;margin-top:3px}
-.kpi .val small{font-size:13px;color:var(--muted);font-weight:600}
-.kpi .d{font-size:12px;color:var(--muted);margin-top:2px}
+.kpi{background:var(--kpi-bg);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
+.kpi .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--kpi-muted);font-weight:700}
+.kpi .val{font-family:var(--fd);font-weight:700;font-size:22px;margin-top:3px;color:var(--kpi-ink)}
+.kpi .val small{font-size:13px;color:var(--kpi-muted);font-weight:600}
+.kpi .d{font-size:12px;color:var(--kpi-muted);margin-top:2px}
 .loadbars{display:flex;align-items:flex-end;gap:5px;height:90px;margin-top:8px}
 .loadbars .b{flex:1;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px;opacity:.85}
 .loadbars .b.match{background:var(--warn)}
@@ -89,6 +95,40 @@ const TODAY=new Date().toISOString().slice(0,10);
 function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hidden');}
 function showBoot(){const b=document.getElementById('boot');if(b){b.classList.remove('hidden');b.classList.remove('solid');}} // voile semi-transparent (interface visible derrière)
 function isoLong(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
+
+/* ---------- Personnalisation des couleurs (par cliente, sur cet appareil) ---------- */
+const DEF_BG='#0E1A2C', DEF_KPI='#152439';
+function themeKey(){return 'espace_theme_'+SPACE+'_'+(PLAYER&&PLAYER.id?PLAYER.id:'anon');}
+function loadTheme(){try{return JSON.parse(localStorage.getItem(themeKey()))||{};}catch(e){return {};}}
+function contrastInk(hex){try{const m=String(hex).replace('#','');const r=parseInt(m.slice(0,2),16),g=parseInt(m.slice(2,4),16),b=parseInt(m.slice(4,6),16);const L=(0.299*r+0.587*g+0.114*b)/255;return L>0.58?'#0E1A2C':'#EAF1FB';}catch(e){return '#EAF1FB';}}
+function applyTheme(t){const r=document.documentElement.style;t=t||{};
+  if(t.bg){r.setProperty('--bg',t.bg);r.setProperty('--onbg',contrastInk(t.bg));}else{r.removeProperty('--bg');r.removeProperty('--onbg');}
+  if(t.kpi){const ink=contrastInk(t.kpi);r.setProperty('--kpi-bg',t.kpi);r.setProperty('--kpi-ink',ink);r.setProperty('--kpi-muted',ink==='#0E1A2C'?'rgba(14,26,44,.6)':'rgba(234,241,251,.66)');}
+  else{r.removeProperty('--kpi-bg');r.removeProperty('--kpi-ink');r.removeProperty('--kpi-muted');}}
+function saveTheme(t){try{localStorage.setItem(themeKey(),JSON.stringify(t));}catch(e){}applyTheme(t);}
+function appearanceCard(){
+  const t=loadTheme();
+  const BGP=['#0E1A2C','#12233B','#1A1030','#0E2A22','#2A1622','#101418','#EEF2F8'];
+  const KPP=['#152439','#1E3350','#3DA9FC','#7A3DF2','#2FBF71','#E7A13B','#E5604D'];
+  const sw=(arr,attr)=>`<div class="swatches">${arr.map(c=>`<button type="button" data-${attr}="${c}" style="background:${c}" aria-label="Couleur ${c}"></button>`).join('')}</div>`;
+  return `<div class="card"><h2>🎨 Mes couleurs</h2>
+    <div class="field"><label>Couleur de fond de l'application</label>
+      <div class="row"><input type="color" id="th-bg" value="${t.bg||DEF_BG}"><span class="muted" style="font-size:12.5px">Le fond derrière tes cartes.</span></div>
+      ${sw(BGP,'bg')}</div>
+    <div class="field"><label>Couleur des encadrés (Wellness du jour, séances à noter, charge 7 jours, séances suivies)</label>
+      <div class="row"><input type="color" id="th-kpi" value="${t.kpi||DEF_KPI}"><span class="muted" style="font-size:12.5px">Les 4 encadrés du haut.</span></div>
+      ${sw(KPP,'kpi')}</div>
+    <div class="row"><button class="btn sec" id="th-reset">Réinitialiser</button></div>
+    <p class="muted" style="font-size:11.5px;margin:8px 0 0">Enregistré sur cet appareil, rien que pour toi. Le texte s'adapte automatiquement à la couleur choisie.</p></div>`;
+}
+function bindAppearance(){
+  const bgI=$('#th-bg'),kpiI=$('#th-kpi');
+  if(bgI)bgI.oninput=()=>{const t=loadTheme();t.bg=bgI.value;saveTheme(t);};
+  if(kpiI)kpiI.oninput=()=>{const t=loadTheme();t.kpi=kpiI.value;saveTheme(t);};
+  document.querySelectorAll('[data-bg]').forEach(b=>b.onclick=()=>{const t=loadTheme();t.bg=b.getAttribute('data-bg');saveTheme(t);if(bgI)bgI.value=t.bg;});
+  document.querySelectorAll('[data-kpi]').forEach(b=>b.onclick=()=>{const t=loadTheme();t.kpi=b.getAttribute('data-kpi');saveTheme(t);if(kpiI)kpiI.value=t.kpi;});
+  const rb=$('#th-reset');if(rb)rb.onclick=()=>{saveTheme({});if(bgI)bgI.value=DEF_BG;if(kpiI)kpiI.value=DEF_KPI;};
+}
 
 async function kvGet(key){
   try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(key)+'&_='+Date.now(),{cache:'no-store'});
@@ -518,6 +558,7 @@ async function overviewHtml(){
     <div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
     <div class="card"><h2>Mes dernières séances</h2>${recentHtml}</div>
     ${notifCard}
+    ${appearanceCard()}
     ${(!wt||toRate)?`<div class="row">${wt?'':'<button class="btn block" data-goto="sante">Remplir mon wellness</button>'}${toRate?'<button class="btn block" data-goto="rpe">Noter mes RPE</button>':''}</div>`:''}`;
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
@@ -579,6 +620,7 @@ function tabbar(){
   return `<div class="tabbar">${tabs.map(([k,l])=>`<button class="tabbtn ${ESPACE_TAB===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
 }
 async function renderSpace(skipLoad){
+  applyTheme(loadTheme());
   if(!skipLoad)await loadSessionsToday();
   await loadMySessions();
   await loadMyPlan();
@@ -622,6 +664,7 @@ async function renderTab(){
     document.querySelectorAll('[data-prpe]').forEach(inp=>inp.onchange=async()=>{const v=inp.value===''?null:Math.max(0,Math.min(10,+inp.value));await saveProgDone(inp.getAttribute('data-prpe'),{rpe:v});});
   }else{
     c.innerHTML=await overviewHtml();
+    bindAppearance();
     document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
     const nb=document.querySelector('#notif-btn');
     if(nb)nb.onclick=async()=>{nb.disabled=true;const prev=nb.textContent;nb.textContent='…';
