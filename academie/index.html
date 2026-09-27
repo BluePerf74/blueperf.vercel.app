@@ -945,20 +945,20 @@ VIEWS.health=()=>{
   <div class="card"><div class="hrow"><h2>Wellness d'équipe</h2><button class="btn sm pri" data-act="goEntry" data-id="wellness">Saisir le wellness</button></div>
     ${lineChart({labels:tw.labels,series:[{name:'Score',values:tw.vals,color:COL_TR,area:true,dots:true}],yMin:40,yMax:100,refs:[{v:th.well,label:'Seuil '+th.well+' %'}],h:200})}</div>
   <div class="grid g6" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
-    ${WK.map(k=>{const s=teamWell(ps,ref,28,k);const lv=s.vals.filter(v=>v!=null);return `<div class="card"><div class="hrow"><h3>${WL[k]}</h3><b>${lv.length?r1(lv[lv.length-1]):'–'}<span class="muted small">/5</span></b></div>${lineChart({labels:s.labels,series:[{name:WL[k],values:s.vals,color:COL_TR}],yMin:1,yMax:5,h:120,fmt:v=>r1(v)})}</div>`;}).join('')}
+    ${WK.map(k=>{const s=teamWell(ps,ref,28,k);const inv=s.vals.map(v=>v==null?null:6-v);const lv=inv.filter(v=>v!=null);return `<div class="card"><div class="hrow"><h3>${WL[k]}</h3><b>${lv.length?r1(lv[lv.length-1]):'–'}<span class="muted small">/5</span></b></div>${lineChart({labels:s.labels,series:[{name:WL[k],values:inv,color:COL_TR}],yMin:1,yMax:5,h:120,fmt:v=>r1(v)})}</div>`;}).join('')}
   </div>
   <div class="card"><div class="hrow"><h2>Carte de chaleur, 14 jours</h2><span class="small muted">Score wellness (%) · rouge sous ${th.well} %, orange jusqu'à ${th.well+12} %</span></div>
     <div class="tw"><table class="hm"><thead><tr><th>${PL.One}</th>${days.map(d=>`<th class="n" style="text-align:center">${DAYS[wd(d)]}<br>${fmtShort(d)}</th>`).join('')}<th class="n">Moy.</th></tr></thead><tbody>
     ${ps.map(p=>{const v=days.map(d=>wOf(p.id,d));return `<tr><td>${plink(p.id)}</td>${v.map((x,i)=>`<td class="c" style="background:${x==null?'transparent':`var(--${wCls(x)}-soft)`};color:${x==null?'var(--muted)':`var(--${wCls(x)})`}" data-tip="${esc(p.name+' · '+fmtD(days[i])+'\n'+(x==null?'Non rempli':wTip(wEntry(p.id,days[i]))))}">${x==null?'·':r0(x)}</td>`).join('')}<td class="n"><b>${r0(mean(v))}</b></td></tr>`;}).join('')}
     </tbody></table></div></div>
-  <div class="card"><div class="hrow"><h2>Détail du ${fmtD(ref,{day:'numeric',month:'long'})}</h2><span class="small muted">z = écart à la moyenne individuelle des 28 derniers jours</span></div>
+  <div class="card"><div class="hrow"><h2>Détail du ${fmtD(ref,{day:'numeric',month:'long'})}</h2><span class="small muted">échelle 1 (très bien) → 5 (mauvais) · z = écart à la moyenne individuelle des 28 derniers jours</span></div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th>${WK.map(k=>`<th class="n">${WL[k]}</th>`).join('')}<th class="n">Score</th><th class="n">z</th><th>Commentaire</th></tr></thead><tbody>
-    ${st.map(({p,w,e})=>`<tr><td>${plink(p.id)}</td>${WK.map(k=>{const v=num(e&&e[k]);return `<td class="n" style="${v!=null&&v<=2?'color:var(--crit);font-weight:700':''}">${v??'–'}</td>`;}).join('')}
+    ${st.map(({p,w,e})=>`<tr><td>${plink(p.id)}</td>${WK.map(k=>{const v=num(e&&e[k]);return `<td class="n" style="${v!=null&&v<=2?'color:var(--crit);font-weight:700':''}">${v!=null?6-v:'–'}</td>`;}).join('')}
       <td class="n">${w.today!=null?`<span class="pill ${wCls(w.today)}">${r0(w.today)} %</span>`:'–'}</td><td class="n" style="${w.z!=null&&w.z<th.wz?'color:var(--crit);font-weight:700':''}">${w.z!=null?r1(w.z):'–'}</td><td class="small">${esc(e&&e.note||'')}</td></tr>`).join('')}
     </tbody></table></div>
     ${missing.length?`<p class="note">Non remplis : ${missing.map(x=>esc(x.p.name)).join(', ')}</p>`:''}</div>`;
 };
-function wTip(e){if(!e)return '';return WK.map(k=>WL[k]+' : '+(e[k]??'–')).join('\n')+(e.note?'\n« '+e.note+' »':'');}
+function wTip(e){if(!e)return '';return WK.map(k=>WL[k]+' : '+(e[k]!=null?6-e[k]:'–')).join('\n')+(e.note?'\n« '+e.note+' »':'');}
 
 /* ---------- CHARGES ---------- */
 VIEWS.load=()=>{
