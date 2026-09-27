@@ -665,9 +665,15 @@
     .cdb-navbar-inner{padding:9px 14px;}
     .cdb-right{margin-left:0;width:100%;justify-content:flex-start;}
   }
+<style>
+#boot{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0D1B2A;color:#B7C4D6;font-family:system-ui,sans-serif;font-size:13.5px}
+#boot.hidden{display:none}
+#boot .spin{width:34px;height:34px;border:3px solid #33465f;border-top-color:#3DA9FC;border-radius:50%;animation:bootspin .8s linear infinite}
+@keyframes bootspin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
+<div id="boot"><div class="spin"></div><div>Chargement des nouvelles données…</div></div>
 <div id="app"></div>
 
 <script>
@@ -6071,10 +6077,12 @@ init();
 /* Rechargement quand on revient sur l'app après une absence prolongée, pour récupérer les
    dernières modifications (le contenu des modules en iframe se rafraîchit déjà en continu). */
 (function(){
+  const boot=document.getElementById('boot');const app=document.getElementById('app');
+  if(boot&&app){const done=()=>{if(app.children.length){boot.classList.add('hidden');if(obs)obs.disconnect();}};const obs=new MutationObserver(done);obs.observe(app,{childList:true});done();setTimeout(()=>boot.classList.add('hidden'),9000);}
   let hiddenAt=0;
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden)hiddenAt=Date.now();
-    else if(hiddenAt&&Date.now()-hiddenAt>120000)location.reload();
+    else if(hiddenAt&&Date.now()-hiddenAt>120000){if(boot)boot.classList.remove('hidden');location.reload();}
   });
 })();
 </script>

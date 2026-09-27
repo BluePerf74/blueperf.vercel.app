@@ -223,7 +223,14 @@ details summary{cursor:pointer;font-weight:600}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
+<style>
+.boot{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);color:var(--ink-2);font-size:13.5px}
+.boot.hidden{display:none}
+.boot .spin{width:34px;height:34px;border:3px solid var(--line-2);border-top-color:var(--accent);border-radius:50%;animation:bootspin .8s linear infinite}
+@keyframes bootspin{to{transform:rotate(360deg)}}
+</style>
 <body>
+<div class="boot" id="boot"><div class="spin"></div><div>Chargement des nouvelles données…</div></div>
 <div class="app">
   <nav class="nav" id="nav" aria-label="Navigation"></nav>
   <div class="main">
@@ -1837,14 +1844,18 @@ boot();
 /* Rechargement pour récupérer les dernières données (RPE/charges saisis par les joueur·ses, etc.).
    On évite de recharger pendant une saisie en cours (formulaire modifié). */
 (function(){
+  const boot=document.getElementById('boot');
+  // Masque le voile de chargement dès que la navigation est rendue.
+  if(boot){const nav=document.getElementById('nav');const done=()=>{if(nav&&nav.children.length){boot.classList.add('hidden');if(obs)obs.disconnect();}};const obs=new MutationObserver(done);if(nav)obs.observe(nav,{childList:true});done();setTimeout(()=>boot.classList.add('hidden'),9000);}
+  const reload=()=>{if(boot)boot.classList.remove('hidden');location.reload();};
   let hiddenAt=0,lastActive=Date.now();
   ['click','keydown','input','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,()=>{lastActive=Date.now();},{passive:true}));
   const safe=()=>!(typeof formDirty!=='undefined'&&formDirty);
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden)hiddenAt=Date.now();
-    else if(hiddenAt&&Date.now()-hiddenAt>20000&&safe())location.reload();
+    else if(hiddenAt&&Date.now()-hiddenAt>20000&&safe())reload();
   });
-  setInterval(()=>{ if(!document.hidden&&safe()&&Date.now()-lastActive>8*60*1000) location.reload(); },60000);
+  setInterval(()=>{ if(!document.hidden&&safe()&&Date.now()-lastActive>8*60*1000) reload(); },60000);
 })();
 </script>
 

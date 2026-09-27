@@ -66,15 +66,22 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .loadbars .b.match{background:var(--warn)}
 .loadlab{display:flex;gap:5px;margin-top:5px}
 .loadlab span{flex:1;text-align:center;font-size:9.5px;color:var(--muted)}
+.boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);color:var(--ink-2);font-size:13.5px}
+.boot.hidden{display:none}
+.spin{width:34px;height:34px;border:3px solid var(--line-2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
+<div class="boot" id="boot"><div class="spin"></div><div>Chargement des nouvelles données…</div></div>
 <div class="wrap" id="app"></div>
 <script src="program-data.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const TODAY=new Date().toISOString().slice(0,10);
+function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hidden');}
+function showBoot(){const b=document.getElementById('boot');if(b)b.classList.remove('hidden');}
 function isoLong(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
 
 async function kvGet(key){
@@ -181,6 +188,7 @@ function renderLogin(msg){
   $('#lg-btn').onclick=go;
   $('#lg-pass').onkeydown=e=>{if(e.key==='Enter')go();};
   $('#lg-user').onkeydown=e=>{if(e.key==='Enter')$('#lg-pass').focus();};
+  hideBoot();
 }
 
 /* ---------- Body map ---------- */
@@ -259,7 +267,7 @@ const WELL=[
   {k:'stress',label:'Stress',lo:'1 · aucun stress',hi:'5 · très stressé·e',body:false},
   {k:'mood',label:'Humeur',lo:'1 · très bonne humeur',hi:'5 · très mauvaise humeur',body:false}
 ];
-let WVAL={sleep:2,fatigue:2,soreness:1,stress:2,mood:2};
+let WVAL={sleep:null,fatigue:null,soreness:null,stress:null,mood:null};
 let FEEL_DATE=TODAY;
 
 function scaleHtml(k){
@@ -299,13 +307,13 @@ function sessionsCard(){
         <input id="ps-type" placeholder="Type (course, muscu…)" style="flex:2;min-width:120px">
         <input id="ps-dur" type="number" placeholder="min" style="flex:1;min-width:70px">
       </div>
-      <div class="field" style="margin-top:10px"><label>RPE (0 très facile → 10 maximal)</label>${rpeScale('ps-rpe',6)}</div>
+      <div class="field" style="margin-top:10px"><label>RPE (0 très facile → 10 maximal)</label>${rpeScale('ps-rpe',null)}</div>
       <button class="btn sec block" id="ps-add">Ajouter la séance</button>
       <div class="ok" id="ps-ok"></div>
     </div>
   </div>`;
 }
-let PS_RPE=6;
+let PS_RPE=null;
 function rpeScale(id,val){
   return `<div class="scale" data-rpe="${id}">${[0,1,2,3,4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" style="min-width:30px;padding:8px 0" class="${val===v?'on':''}">${v}</button>`).join('')}</div>`;
 }
@@ -331,7 +339,7 @@ async function loadSessionsToday(){
       const remain=s.rpeOpenedAt?(s.rpeOpenedAt+RPE_WINDOW_MS-now):null;
       return {sid:s.id,session:s,parts,open:!!open,remain,
         rpe:me.rpe!=null?me.rpe:null,
-        partVals:parts.map((_,j)=>partRpe[j]!=null?partRpe[j]:6)};
+        partVals:parts.map((_,j)=>partRpe[j]!=null?partRpe[j]:null)};
     });
 }
 function drawSessions(){
@@ -347,7 +355,7 @@ function drawSessions(){
         <label>${(j+1)+'. '+name} — RPE (0 → 10)</label>${rpeScale('sess-'+i+'-'+j,o.partVals[j])}
       </div>`).join('');
     }else{
-      body=`<label>RPE ressenti (0 → 10)</label>${rpeScale('sess-'+i+'-0',o.rpe!=null?o.rpe:6)}`;
+      body=`<label>RPE ressenti (0 → 10)</label>${rpeScale('sess-'+i+'-0',o.rpe!=null?o.rpe:null)}`;
     }
     const btn=o.open?`<button class="btn sec" data-savesess="${i}" style="margin-top:6px">Enregistrer ${o.parts.length?'les RPE':'le RPE'}</button>
       <span class="ok" id="sess-ok-${i}" style="margin-left:8px"></span>`:`<p class="muted" style="font-size:12.5px;margin:6px 0 0">La fenêtre de saisie (4 h) est fermée${o.rpe!=null?' — ton RPE a bien été enregistré.':'. Contacte ton coach s\'il faut la rouvrir.'}</p>`;
@@ -360,11 +368,13 @@ function drawSessions(){
   });
   startEspaceChrono();
   document.querySelectorAll('[data-savesess]').forEach(b=>b.onclick=async()=>{
-    const i=+b.getAttribute('data-savesess');b.disabled=true;
+    const i=+b.getAttribute('data-savesess');
+    const o=SESSIONS_TODAY[i];
+    if(o.parts.length?o.partVals.some(v=>v==null):o.rpe==null){$('#sess-ok-'+i).textContent='⚠️ Choisis ton RPE'+(o.parts.length>1?' pour chaque procédé':'')+' avant d\'enregistrer.';return;}
+    b.disabled=true;
     try{
-      const o=SESSIONS_TODAY[i];
       if(o.parts.length)await saveSessionParts(o.sid,o.partVals);
-      else await saveSessionRpe(o.sid,o.rpe==null?6:o.rpe);
+      else await saveSessionRpe(o.sid,o.rpe);
       $('#sess-ok-'+i).textContent='✓ enregistré';
     }catch(e){$('#sess-ok-'+i).textContent='échec';}
     b.disabled=false;
@@ -409,6 +419,7 @@ async function addPersonalSession(type,dur,rpe){
 }
 
 async function saveWellness(){
+  if(WELL.some(w=>WVAL[w.k]==null))throw new Error('incomplet');
   const date=FEEL_DATE;
   const all=await kvGet(SPACE+':wellness');
   const doc=all[date]&&all[date].entries?all[date]:{date,entries:{}};
@@ -434,6 +445,7 @@ function bindWellness(){
   const d=$('#w-date');if(d)d.onchange=async()=>{FEEL_DATE=d.value||TODAY;await refreshForDate();};
   bindZones();
   $('#w-save').onclick=async()=>{
+    if(WELL.some(w=>WVAL[w.k]==null)){$('#w-ok').textContent='⚠️ Réponds à tous les critères avant d\'enregistrer.';return;}
     $('#w-save').disabled=true;$('#w-ok').textContent='Enregistrement…';
     try{await saveWellness();$('#w-ok').textContent='✓ Wellness enregistré';await loadHistory();}
     catch(e){$('#w-ok').textContent='Échec de l\'enregistrement';}
@@ -445,8 +457,8 @@ async function refreshForDate(){
   // reload existing wellness entry for the date + sessions
   const all=await kvGet(SPACE+':wellness');
   const ent=all[FEEL_DATE]&&all[FEEL_DATE].entries&&all[FEEL_DATE].entries[PLAYER.id];
-  if(ent){const back=v=>v!=null?6-v:null;WVAL={sleep:back(ent.sleep)||2,fatigue:back(ent.fatigue)||2,soreness:back(ent.soreness)||1,stress:back(ent.stress)||2,mood:back(ent.mood)||2};SORE=new Set(ent.soreZones||[]);}
-  else{WVAL={sleep:2,fatigue:2,soreness:1,stress:2,mood:2};SORE=new Set();}
+  if(ent){const back=v=>v!=null?6-v:null;WVAL={sleep:back(ent.sleep),fatigue:back(ent.fatigue),soreness:back(ent.soreness),stress:back(ent.stress),mood:back(ent.mood)};SORE=new Set(ent.soreZones||[]);}
+  else{WVAL={sleep:null,fatigue:null,soreness:null,stress:null,mood:null};SORE=new Set();}
   await loadSessionsToday();
   renderSpace(true);
 }
@@ -569,6 +581,7 @@ async function renderSpace(skipLoad){
   $('#logout').onclick=()=>{clearSession();PLAYER=null;renderLogin();};
   document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-tab');renderTab();});
   await renderTab();
+  hideBoot();
 }
 async function renderTab(){
   document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('on',b.getAttribute('data-tab')===ESPACE_TAB));
@@ -582,6 +595,7 @@ async function renderTab(){
     bindRpeScale('ps-rpe',v=>PS_RPE=v);
     const add=$('#ps-add');if(add)add.onclick=async()=>{
       const type=$('#ps-type').value.trim();const dur=+$('#ps-dur').value||60;
+      if(PS_RPE==null){$('#ps-ok').textContent='⚠️ Choisis ton RPE avant d\'ajouter.';return;}
       add.disabled=true;$('#ps-ok').textContent='Ajout…';
       try{await addPersonalSession(type,dur,PS_RPE);$('#ps-ok').textContent='✓ Séance ajoutée';await loadSessionsToday();await loadMySessions();drawSessions();$('#ps-type').value='';$('#ps-dur').value='';}
       catch(e){$('#ps-ok').textContent='échec';}
@@ -621,11 +635,12 @@ async function renderTab(){
 (function(){
   let hiddenAt=0,lastActive=Date.now();
   ['click','keydown','input','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,()=>{lastActive=Date.now();},{passive:true}));
+  const reload=()=>{showBoot();location.reload();};
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden)hiddenAt=Date.now();
-    else if(hiddenAt&&Date.now()-hiddenAt>20000)location.reload();
+    else if(hiddenAt&&Date.now()-hiddenAt>20000)reload();
   });
-  setInterval(()=>{ if(!document.hidden && Date.now()-lastActive>5*60*1000) location.reload(); },60000);
+  setInterval(()=>{ if(!document.hidden && Date.now()-lastActive>5*60*1000) reload(); },60000);
 })();
 </script>
 </body>
