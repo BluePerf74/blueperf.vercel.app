@@ -1430,7 +1430,8 @@ ENTRY.assign=()=>{
   const dayList=!todays.length?`<p class="muted">Aucune séance ${fmtD(date)}${INDIV?'':' en '+esc(cat)}.</p>`:todays.map(s=>{
     const st=rpeState(s);const nP=s.players?Object.keys(s.players).length:0;const nR=rpeFilledCount(s);
     let badge,btn;
-    if(!st.sent){badge='<span class="pill neutral">RPE non envoyé</span>';btn=`<button class="btn pri sm" data-act="sendRpe" data-id="${esc(s.id)}">Envoyer RPE (fenêtre 4 h)</button>`;}
+    if(s.source==='joueur'){badge=`<span class="pill good">Saisie par ${INDIV?'le/la client·e':'le/la joueur·se'} ✓</span>`;btn='';}
+    else if(!st.sent){badge='<span class="pill neutral">RPE non envoyé</span>';btn=`<button class="btn pri sm" data-act="sendRpe" data-id="${esc(s.id)}">Envoyer RPE (fenêtre 4 h)</button>`;}
     else if(st.open){badge=`<span class="pill good">Ouvert · ferme dans <b data-chrono="${st.end}">${fmtRemain(st.remain)}</b></span>`;btn=`<button class="btn sm" data-act="sendRpe" data-id="${esc(s.id)}">Prolonger 4 h</button>`;}
     else{badge='<span class="pill warn">Fenêtre fermée</span>';btn=`<button class="btn sm" data-act="sendRpe" data-id="${esc(s.id)}">Rouvrir 4 h</button>`;}
     return `<div class="card flat" style="margin-top:8px"><div class="hrow" style="margin:0"><div><b>${esc(s.title||s.type||'Séance')}</b> <span class="small muted">${esc(s.type||'')}${s.duration?' · '+s.duration+' min':''}</span></div>${badge}</div>
