@@ -333,7 +333,7 @@ function wellnessCard(){
         <label>${w.label}</label>
         ${scaleHtml(w.k)}
         <div class="hint"><span>${w.lo}</span><span>${w.hi}</span></div>
-        ${w.body?`<div id="bodymap" ${WVAL.soreness>2?'':'hidden'}>
+        ${w.body?`<div id="bodymap" ${WVAL.soreness>=2?'':'hidden'}>
            <p class="muted" style="font-size:12.5px;margin:10px 0 4px">Indique où tu as mal :</p>
            <div class="bodywrap">
              <div class="bodyfig"><div class="cap">DEVANT</div>${frontSvg()}</div>
@@ -491,7 +491,7 @@ function bindWellness(){
     sc.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
       WVAL[w.k]=+btn.getAttribute('data-v');
       sc.querySelectorAll('button').forEach(x=>x.classList.remove('on'));btn.classList.add('on');
-      if(w.body){const bm=$('#bodymap');if(bm){if(WVAL.soreness>2){bm.hidden=false;bindZones();}else{bm.hidden=true;}}}
+      if(w.body){const bm=$('#bodymap');if(bm){if(WVAL.soreness>=2){bm.hidden=false;bindZones();}else{bm.hidden=true;}}}
     });
   });
   const d=$('#w-date');if(d)d.onchange=async()=>{FEEL_DATE=d.value||TODAY;await refreshForDate();};
