@@ -59,6 +59,10 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .sheet{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:22px 14px;overflow:auto;-webkit-overflow-scrolling:touch}
 .sheetbox{width:100%;max-width:460px}
 .sheetbox .card{margin-bottom:10px}
+.dropdown{position:fixed;z-index:10001;background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:6px;box-shadow:0 12px 30px rgba(0,0,0,.4);min-width:200px;display:flex;flex-direction:column;gap:2px}
+.dropitem{appearance:none;cursor:pointer;text-align:left;background:transparent;border:0;color:var(--ink);border-radius:8px;padding:11px 12px;font:inherit;font-size:14px;font-weight:600}
+.dropitem:hover,.dropitem:active{background:var(--surface-2)}
+.dropitem small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
 input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px;padding:3px;cursor:pointer}
 .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 .swatches button{width:30px;height:30px;border-radius:8px;border:2px solid var(--line-2);cursor:pointer;padding:0}
@@ -184,6 +188,43 @@ function openTheme(){
   bindAppearance();
   const cl=$('#th-close');if(cl)cl.onclick=closeTheme;
   ov.onclick=e=>{if(e.target===ov)closeTheme();};
+}
+/* ---------- Menu paramètres (⚙️) : couleurs + notifications ---------- */
+function closeSettings(){const m=$('#settingsmenu');if(m)m.remove();document.removeEventListener('click',settingsOutside,true);}
+function settingsOutside(e){const m=$('#settingsmenu');const b=$('#settingsbtn');if(m&&!m.contains(e.target)&&e.target!==b)closeSettings();}
+function openSettings(){
+  if($('#settingsmenu')){closeSettings();return;}
+  const menu=document.createElement('div');menu.id='settingsmenu';menu.className='dropdown';
+  menu.innerHTML=`
+    <button class="dropitem" data-set="theme">🎨 Mes couleurs<small>Fond + couleur des encadrés</small></button>
+    <button class="dropitem" data-set="notif">🔔 Notifications<small>Rappels wellness &amp; RPE</small></button>`;
+  document.body.appendChild(menu);
+  const b=$('#settingsbtn');const r=b.getBoundingClientRect();
+  menu.style.top=(r.bottom+6)+'px';menu.style.right=Math.max(8,window.innerWidth-r.right)+'px';
+  menu.querySelector('[data-set="theme"]').onclick=()=>{closeSettings();openTheme();};
+  menu.querySelector('[data-set="notif"]').onclick=()=>{closeSettings();openNotif();};
+  setTimeout(()=>document.addEventListener('click',settingsOutside,true),0);
+}
+function closeNotif(){const s=$('#notifsheet');if(s)s.remove();}
+async function openNotif(){
+  const ps=await pushStatus();
+  const body = ps==='unsupported'
+    ? `<p class="muted" style="font-size:13px;margin:0">Les notifications ne sont pas disponibles sur cet appareil/navigateur. Sur iPhone, ajoute d'abord l'app à l'écran d'accueil, puis reviens ici.</p>`
+    : ps==='denied'
+    ? `<p class="muted" style="font-size:13px;margin:0">Notifications bloquées : autorise-les pour Blueperf dans les réglages de ton navigateur, puis rouvre ce menu.</p>`
+    : `<p class="muted" style="font-size:13px;margin:0 0 12px">${ps==='on'?'Les rappels sont activés sur cet appareil — tu seras notifié·e pour remplir ton wellness et tes RPE.':'Active les rappels pour ne pas oublier de remplir ton wellness et tes RPE (envoyés le matin).'}</p>
+       <button class="btn block ${ps==='on'?'sec':''}" id="notif-toggle">${ps==='on'?'Désactiver les notifications':'Activer les notifications'}</button>
+       <div class="ok" id="notif-ok"></div>`;
+  const ov=document.createElement('div');ov.className='sheet';ov.id='notifsheet';
+  ov.innerHTML=`<div class="sheetbox"><div class="card"><h2>🔔 Notifications</h2>${body}</div><button class="btn block" id="notif-close">Fermer</button></div>`;
+  document.body.appendChild(ov);
+  const cl=$('#notif-close');if(cl)cl.onclick=closeNotif;
+  ov.onclick=e=>{if(e.target===ov)closeNotif();};
+  const tg=$('#notif-toggle');
+  if(tg)tg.onclick=async()=>{tg.disabled=true;const ok=$('#notif-ok');if(ok)ok.textContent='…';
+    try{const st=await pushStatus();if(st==='on')await disablePush();else await enablePush();closeNotif();openNotif();}
+    catch(e){if(ok)ok.textContent=(e&&e.message==='denied')?'Autorise les notifications dans ton navigateur.':'Indisponible sur cet appareil.';tg.disabled=false;}
+  };
 }
 
 async function kvGet(key){
@@ -719,8 +760,6 @@ async function overviewHtml(){
   const toRate=SESSIONS_TODAY.filter(o=>o.rpe==null).length;
   const l7=load7();
   const recent=MY_SESSIONS.slice(0,6);
-  const ps=await pushStatus();
-  const notifCard=ps==='unsupported'?'':`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><b>🔔 Rappels sur ce téléphone</b><div class="muted" style="font-size:12.5px;margin-top:2px">${ps==='on'?'Activés — tu seras notifié·e pour remplir ton wellness et tes RPE.':ps==='denied'?'Notifications bloquées : autorise-les pour Blueperf dans les réglages de ton navigateur.':'Active-les pour ne pas oublier de remplir ton wellness et tes RPE.'}</div></div>${ps==='denied'?'':`<button class="btn ${ps==='on'?'sec':''}" id="notif-btn" style="white-space:nowrap">${ps==='on'?'Désactiver':'Activer'}</button>`}</div></div>`;
   const recentHtml=recent.length?recent.map(s=>{const me=s.players[PLAYER.id]||{};return `<div class="hist"><span>${isoLong(s.date)} · ${s.title||s.type||'Séance'}</span><span class="pill">${me.rpe!=null?('RPE '+me.rpe):'—'}${me.min?' · '+me.min+' min':''}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
   return `
     <div class="kpis">
@@ -732,7 +771,6 @@ async function overviewHtml(){
     ${progressionCard()}
     <div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
     <div class="card"><h2>Mes dernières séances</h2>${recentHtml}</div>
-    ${notifCard}
     ${(!wt||toRate)?`<div class="row">${wt?'':'<button class="btn block" data-goto="sante">Remplir mon wellness</button>'}${toRate?'<button class="btn block" data-goto="rpe">Noter mes RPE</button>':''}</div>`:''}`;
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
@@ -803,14 +841,14 @@ async function renderSpace(skipLoad){
     <div class="topbar">
       <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">Bonjour ${PLAYER.name}${PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+PLAYER.cat:''}</div></div>
       <div class="row" style="gap:8px;flex-wrap:nowrap">
-        <button class="iconbtn" id="themebtn" title="Mes couleurs" aria-label="Personnaliser les couleurs">🎨</button>
+        <button class="iconbtn" id="settingsbtn" title="Paramètres" aria-label="Paramètres">⚙️</button>
         <button class="btn sec" id="logout">Déconnexion</button>
       </div>
     </div>
     ${tabbar()}
     <div id="tabc"></div>`;
   $('#logout').onclick=()=>{clearSession();PLAYER=null;renderLogin();};
-  const tb=$('#themebtn');if(tb)tb.onclick=openTheme;
+  const tb=$('#settingsbtn');if(tb)tb.onclick=openSettings;
   document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-tab');renderTab();});
   await renderTab();
   hideBoot();
@@ -833,11 +871,6 @@ async function renderTab(){
   }else{
     c.innerHTML=await overviewHtml();
     document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
-    const nb=document.querySelector('#notif-btn');
-    if(nb)nb.onclick=async()=>{nb.disabled=true;const prev=nb.textContent;nb.textContent='…';
-      try{const st=await pushStatus();if(st==='on')await disablePush();else await enablePush();}
-      catch(e){alert(e&&e.message==='denied'?"Autorise les notifications pour recevoir les rappels.":"Notifications indisponibles sur cet appareil/navigateur. Sur iPhone, ajoute d'abord l'app à l'écran d'accueil.");}
-      nb.disabled=false;nb.textContent=prev;renderTab();};
   }
 }
 
