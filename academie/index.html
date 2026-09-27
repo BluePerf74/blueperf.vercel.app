@@ -715,7 +715,7 @@ function zbars(items){ // diverging, value = z (−3..3)
 
 /* ===================== UI STATE ===================== */
 const UI={tab:'overview',cat:'Tous',ref:TODAY,drawer:null,entryTab:'assign',edit:null,planView:'week',planWeek:mondayOf(TODAY),planMonth:TODAY.slice(0,7),
-  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null};
+  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null,indivClient:'Tous'};
 try{const t=JSON.parse(localStorage.getItem(LSKEY+'-ui')||'{}');if(t.tab)UI.tab=t.tab;if(t.cat)UI.cat=t.cat;}catch(e){}
 if(/^#[a-z]+$/.test(location.hash)){const h=location.hash.slice(1);if(allTabIds().includes(h))UI.tab=h;}
 function allTabIds(){const o=[];TABS.forEach(t=>{if(t.children)t.children.forEach(c=>o.push(c.id));else o.push(t.id);});return o;}
@@ -727,10 +727,16 @@ const PL={one:INDIV?'client·e':'joueur·se',One:INDIV?'Client·e':'Joueur·se',
 /* Sports possibles en coaching individuel (le sport n'est pas forcément le football). */
 const SPORTS=['Football','Course à pied','Triathlon','Cyclisme / vélo','Musculation','Natation','Trail','Rugby','Basket','Autre'];
 function cats(){return INDIV?[INDIV_CAT]:S().categories;}
-function playersOf(cat,all){return Object.values(DATA.players).filter(p=>(all||p.active!==false)&&(INDIV||cat==='Tous'||p.cat===cat)).sort((a,b)=>(a.cat||'').localeCompare(b.cat||'')||(a.number||99)-(b.number||99)||a.name.localeCompare(b.name));}
+function playersOf(cat,all){let list=Object.values(DATA.players).filter(p=>(all||p.active!==false)&&(INDIV||cat==='Tous'||p.cat===cat));
+  if(INDIV&&UI.indivClient&&UI.indivClient!=='Tous')list=list.filter(p=>p.id===UI.indivClient); // filtre par client·e sélectionné·e (option « Tous » conservée)
+  return list.sort((a,b)=>(a.cat||'').localeCompare(b.cat||'')||(a.number||99)-(b.number||99)||a.name.localeCompare(b.name));}
 const pname=pid=>DATA.players[pid]?DATA.players[pid].name:(INDIV?'Client·e supprimé·e':'Joueur supprimé');
 const plink=(pid,label)=>`<button class="plink" data-act="player" data-id="${esc(pid)}">${esc(label||pname(pid))}</button>`;
 const inCat=o=>INDIV||UI.cat==='Tous'||o.cat===UI.cat||o.cat==='Tous';
+// En coaching individuel : un plan / mésocycle peut être rattaché à un·e client·e précis·e (o.pid).
+const pidOK=o=>!INDIV||UI.indivClient==='Tous'||!o.pid||o.pid==='all'||o.pid===UI.indivClient;
+const indivSess=s=>!INDIV||UI.indivClient==='Tous'||(s&&s.players&&s.players[UI.indivClient]);
+const indivName=pid=>(pid&&pid!=='all'&&DATA.players[pid])?DATA.players[pid].name:'Tous les client·es';
 
 /* ===================== SHELL ===================== */
 function counts(){const ps=playersOf(UI.cat);let red=0,orange=0;ps.forEach(p=>{const s=playerStatus(p,UI.ref);if(s.lv>=3)red++;else if(s.lv===2)orange++;});
@@ -754,8 +760,11 @@ function tabLabel(id){for(const t of TABS){if(t.id===id)return t.label;if(t.chil
 function renderTop(){
   const cs=['Tous',...cats()];const ph=curPhase(UI.cat,UI.ref);const nm=nextMatch(UI.cat,UI.ref);
   let ctx=[fmtD(UI.ref,{weekday:'long',day:'numeric',month:'long'})];if(ph)ctx.push(ph.name);if(nm){const d=dayDiff(nm.date,UI.ref);ctx.push((d===0?'Jour de match':'J-'+d)+' · '+(UI.cat==='Tous'?nm.cat+' ':'')+nm.label);}
+  const indivClients=INDIV?Object.values(DATA.players).filter(p=>p.active!==false).sort((a,b)=>a.name.localeCompare(b.name)):[];
   $('#top').innerHTML=`<div><h1>${esc(tabLabel(UI.tab))}</h1><div class="ctx">${esc(ctx.join(' · '))}</div></div>
-  <div class="tools">${INDIV?'':`<div class="seg" role="group" aria-label="Catégorie">${cs.map(c=>`<button class="${UI.cat===c?'on':''}" data-act="cat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div>`}
+  <div class="tools">${INDIV
+    ?`<select data-chg="indivClient" aria-label="Client·e" style="width:auto"><option value="Tous" ${UI.indivClient==='Tous'?'selected':''}>Tous les client·es</option>${indivClients.map(c=>`<option value="${esc(c.id)}" ${UI.indivClient===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`
+    :`<div class="seg" role="group" aria-label="Catégorie">${cs.map(c=>`<button class="${UI.cat===c?'on':''}" data-act="cat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div>`}
   <input type="date" id="refDate" value="${UI.ref}" aria-label="Date de référence" style="width:auto">
   ${UI.ref!==TODAY?`<button class="btn sm" data-act="today">Aujourd'hui</button>`:''}</div>`;
 }
@@ -822,8 +831,8 @@ VIEWS.programme=()=>{
   if(!allC.length)return `<div class="empty"><p>Ajoute d'abord un·e client·e dans « Saisie › Client·es ».</p></div>`;
   const cid=(UI.progClient&&DATA.players[UI.progClient])?UI.progClient:allC[0].id;
   const hasPlan=DATA.seanceplans&&DATA.seanceplans[cid];
-  const clientSel=`<select data-chg="progClient" style="width:auto">${allC.map(c=>`<option value="${esc(c.id)}" ${c.id===cid?'selected':''}>${esc(c.name)}${DATA.seanceplans&&DATA.seanceplans[c.id]?'':' — (sans programme)'}</option>`).join('')}</select>`;
-  const head=`<div class="hrow"><h2>Programme — ${clientSel}</h2>${hasPlan&&!UI.progEdit?`<button class="btn sm" data-act="progEdit">✏️ Modifier le programme</button>`:''}</div>`;
+  const clientSel=`<select data-chg="progClient" style="width:auto;font-size:13.5px;font-weight:600;padding:5px 8px">${allC.map(c=>`<option value="${esc(c.id)}" ${c.id===cid?'selected':''}>${esc(c.name)}${DATA.seanceplans&&DATA.seanceplans[c.id]?'':' — (sans programme)'}</option>`).join('')}</select>`;
+  const head=`<div class="hrow" style="align-items:center"><div class="row" style="align-items:center;gap:8px"><span class="small muted" style="text-transform:uppercase;letter-spacing:.05em">Programme de</span>${clientSel}</div>${hasPlan&&!UI.progEdit?`<button class="btn sm" data-act="progEdit">✏️ Modifier le programme</button>`:''}</div>`;
   if(!hasPlan){
     return head+`<div class="empty"><p>${esc(DATA.players[cid].name)} n'a pas encore de programme.</p>
       <div class="row" style="justify-content:center;flex-wrap:wrap"><button class="btn pri" data-act="progCreateBlank" data-cid="${esc(cid)}">Créer un programme sur mesure</button>${window.PROG12?`<button class="btn" data-act="progLoadTemplate" data-cid="${esc(cid)}">Charger le modèle 12 semaines</button>`:''}</div></div>`;
@@ -1079,8 +1088,8 @@ VIEWS.training=()=>{
   const cat=UI.cat;const catLbl=cat==='Tous'?'toutes catégories':cat;
   if(v==='week'){
     const mon=UI.planWeek;const days=range(mon,addDays(mon,6));
-    const ents=Object.values(DATA.plan).filter(inCat).filter(e=>e.date>=mon&&e.date<=days[6]);
-    const real=Object.values(DATA.sessions).filter(inCat).filter(s=>s.date>=mon&&s.date<=days[6]);
+    const ents=Object.values(DATA.plan).filter(inCat).filter(pidOK).filter(e=>e.date>=mon&&e.date<=days[6]);
+    const real=Object.values(DATA.sessions).filter(inCat).filter(indivSess).filter(s=>s.date>=mon&&s.date<=days[6]);
     const stt=ents.map(planStatus);const done=stt.filter(s=>s==='done').length,miss=stt.filter(s=>s==='miss').length;
     const pMin=sum(ents.filter(e=>e.type!=='Match').map(e=>num(e.duration))),rMin=sum(real.map(s=>num(s.duration)));
     const objs={};ents.forEach(e=>{objs[e.objective||'Autre']=(objs[e.objective||'Autre']||0)+(num(e.duration)||0);});
@@ -1089,7 +1098,7 @@ VIEWS.training=()=>{
       <div class="row"><button class="btn sm" data-act="dupWeek">Dupliquer vers la semaine suivante</button><button class="btn sm pri" data-act="addPlan" data-id="${mon}">Planifier une séance</button></div></div>
     <div class="week">${days.map(d=>{const es=ents.filter(e=>e.date===d);const jl=jLabel(d,cat==='Tous'?(cats()[cats().length-1]||'Tous'):cat);const rs=real.filter(s=>s.date===d&&!es.some(e=>e.cat===s.cat&&(e.type===s.type)));
       return `<div class="day ${d===TODAY?'today':''}"><div class="dh"><b>${DAYS[wd(d)]} ${fmtShort(d)}</b>${jl?`<span class="jx ${jl.m?'m':''}">${jl.t}</span>`:''}</div>
-      ${es.map(e=>`<div class="ent ${entCls(e)}"><b>${esc(e.title||e.objective)}</b><span class="muted">${cat==='Tous'?esc(e.cat)+' · ':''}${esc(e.objective||'')} · ${r0(e.duration)} min${e.intensity?' · '+esc(e.intensity):''}</span>${e.content?`<span class="small">${esc(e.content)}</span>`:''}
+      ${es.map(e=>`<div class="ent ${entCls(e)}"><b>${esc(e.title||e.objective)}</b><span class="muted">${INDIV?(e.pid&&e.pid!=='all'?esc(indivName(e.pid))+' · ':''):(cat==='Tous'?esc(e.cat)+' · ':'')}${esc(e.objective||'')} · ${r0(e.duration)} min${e.intensity?' · '+esc(e.intensity):''}</span>${e.content?`<span class="small">${esc(e.content)}</span>`:''}
         <div class="acts">${PS[planStatus(e)]}${e.type!=='Match'?`<button class="btn sm" data-act="toggleDone" data-id="${esc(e.id)}">${e.done?'Annuler':'Fait'}</button>`:''}<button class="btn sm" data-act="edit" data-col="plan" data-id="${esc(e.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="plan" data-id="${esc(e.id)}">×</button></div></div>`).join('')}
       ${rs.map(s=>`<div class="ent" style="border-left-style:dashed"><b>${esc(s.title||s.type)}</b><span class="muted">${esc(s.cat)} · réalisé hors planning · ${r0(s.duration)} min</span></div>`).join('')}
       <button class="btn sm" data-act="addPlan" data-id="${d}" style="margin-top:auto;align-self:flex-start">+ Ajouter</button></div>`;}).join('')}</div>
@@ -1105,7 +1114,7 @@ VIEWS.training=()=>{
   }
   if(v==='month'){
     const [y,mo]=UI.planMonth.split('-').map(Number);const first=`${y}-${String(mo).padStart(2,'0')}-01`;const start=mondayOf(first);const lastD=iso(new Date(y,mo,0));const end=addDays(mondayOf(lastD),6);
-    const days=range(start,end);const ents=Object.values(DATA.plan).filter(inCat);const ss=Object.values(DATA.sessions).filter(inCat);const mm=Object.values(DATA.matches).filter(inCat);
+    const days=range(start,end);const ents=Object.values(DATA.plan).filter(inCat).filter(pidOK);const ss=Object.values(DATA.sessions).filter(inCat).filter(indivSess);const mm=Object.values(DATA.matches).filter(inCat);
     const inM=ents.filter(e=>e.date>=first&&e.date<=lastD);const st=inM.map(planStatus);
     return sw+`<div class="row sb"><div class="row"><button class="btn sm" data-act="month" data-id="-1" aria-label="Mois précédent">◀</button><b style="font-family:var(--fd);font-size:20px;text-transform:capitalize">${new Date(first+'T12:00:00').toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}</b><button class="btn sm" data-act="month" data-id="1" aria-label="Mois suivant">▶</button></div>
       <div class="row small"><span class="pill neutral">${inM.length} planifiées</span><span class="pill good">${st.filter(s=>s==='done').length} réalisées</span><span class="pill crit">${st.filter(s=>s==='miss').length} non réalisées</span><span class="pill info">${ss.filter(s=>s.date>=first&&s.date<=lastD).length} séances enregistrées</span></div></div>
@@ -1117,14 +1126,14 @@ VIEWS.training=()=>{
       ${mx.map(m=>`<span class="tag match done">${cat==='Tous'?esc(m.cat)+' ':''}vs ${esc(m.opponent)}</span>`).join('')}</div>`;}).join('')}</div></div>`;
   }
   // saison
-  const phs=Object.values(DATA.phases).filter(p=>inCat(p)).sort((a,b)=>a.start.localeCompare(b.start));
+  const phs=Object.values(DATA.phases).filter(p=>inCat(p)).filter(pidOK).sort((a,b)=>a.start.localeCompare(b.start));
   let tl='<div class="empty">Aucune phase définie.</div>';
   if(phs.length){const a=phs[0].start,b=phs[phs.length-1].end;const span=Math.max(1,dayDiff(b,a));const cols=['#1B46C9','#0C8A8A','#8A5CC7','#2E6BD8','#B7760A','#0E6F55'];
     tl=`<div class="phases">${phs.map((p,i)=>`<div class="ph" style="left:${dayDiff(p.start,a)/span*100}%;width:${(dayDiff(p.end,p.start)+1)/span*100}%;background:${cols[i%cols.length]}" data-tip="${esc(p.name+'\n'+fmtD(p.start)+' → '+fmtD(p.end)+'\n'+(p.objective||''))}">${esc(p.name)}</div>`).join('')}${UI.ref>=a&&UI.ref<=b?`<div class="now" style="left:${dayDiff(UI.ref,a)/span*100}%" data-tip="Aujourd'hui"></div>`:''}</div>
     <div class="row sb small muted" style="margin-top:4px"><span>${fmtD(a)}</span><span>${fmtD(b)}</span></div>`;}
   return sw+`<div class="card"><div class="hrow"><h2>Planification de la saison</h2><button class="btn sm pri" data-act="goEntry" data-id="season">Ajouter une phase</button></div>${tl}</div>
-  <div class="card"><div class="tw"><table><thead><tr><th>Phase</th><th>Catégorie</th><th>Début</th><th>Fin</th><th class="n">Semaines</th><th>Objectifs</th><th></th></tr></thead><tbody>
-  ${phs.map(p=>`<tr><td><b>${esc(p.name)}</b> ${p.start<=UI.ref&&p.end>=UI.ref?'<span class="pill info">En cours</span>':''}</td><td>${esc(p.cat)}</td><td>${fmtD(p.start)}</td><td>${fmtD(p.end)}</td><td class="n">${r0((dayDiff(p.end,p.start)+1)/7)}</td><td class="wrap small">${esc(p.objective||'')}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="phases" data-id="${esc(p.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="phases" data-id="${esc(p.id)}">×</button></div></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Aucune phase</td></tr>'}
+  <div class="card"><div class="tw"><table><thead><tr><th>Phase</th><th>${INDIV?'Client·e':'Catégorie'}</th><th>Début</th><th>Fin</th><th class="n">Semaines</th><th>Objectifs</th><th></th></tr></thead><tbody>
+  ${phs.map(p=>`<tr><td><b>${esc(p.name)}</b> ${p.start<=UI.ref&&p.end>=UI.ref?'<span class="pill info">En cours</span>':''}</td><td>${INDIV?esc(indivName(p.pid)):esc(p.cat)}</td><td>${fmtD(p.start)}</td><td>${fmtD(p.end)}</td><td class="n">${r0((dayDiff(p.end,p.start)+1)/7)}</td><td class="wrap small">${esc(p.objective||'')}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="phases" data-id="${esc(p.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="phases" data-id="${esc(p.id)}">×</button></div></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Aucune phase</td></tr>'}
   </tbody></table></div></div>`;
 };
 
@@ -1378,6 +1387,11 @@ const opt=(list,cur)=>list.map(x=>{const [v,l]=Array.isArray(x)?x:[x,x];return `
 const fld=(id,label,inner,span)=>`<div class="f" ${span?`style="grid-column:span ${span}"`:''}><label for="${id}">${label}</label>${inner}</div>`;
 /* Champ catégorie : masqué en coaching individuel (une seule catégorie implicite), rendu en input caché pour que les formulaires continuent d'envoyer cat. */
 const catFld=(id,cur,attrs)=>INDIV?`<input type="hidden" id="${id}" name="cat" value="${INDIV_CAT}">`:fld(id,'Catégorie',`<select id="${id}" name="cat" ${attrs||''}>${opt(cats(),cur)}</select>`);
+// Coaching individuel : à qui rattacher un plan / un mésocycle (une personne précise ou tout le monde).
+function indivPidField(id,e){if(!INDIV)return '';
+  const cur=(e&&e.pid)||(UI.indivClient&&UI.indivClient!=='Tous'?UI.indivClient:'all');
+  const cls=Object.values(DATA.players).filter(p=>p.active!==false).sort((a,b)=>a.name.localeCompare(b.name));
+  return fld(id,'Pour quel·le client·e ?',`<select id="${id}" name="pid"><option value="all" ${cur==='all'?'selected':''}>Tous les client·es</option>${cls.map(c=>`<option value="${esc(c.id)}" ${cur===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`,2);}
 function editing(col){return UI.edit&&UI.edit.col===col?DATA[col][UI.edit.id]:null;}
 function gridHTML(kind,cat,existing,dur){
   const F=GF[kind];const ps=playersOf(cat);if(!ps.length)return `<tr><td colspan="${F.length+1}" class="muted">Aucun joueur dans cette catégorie</td></tr>`;
@@ -1513,7 +1527,7 @@ ENTRY.injury=()=>{const e=editing('injuries');const ps=playersOf('Tous');
 ENTRY.plan=()=>{const e=editing('plan');const s=S();
   return `<form data-form="plan" class="stack"><div class="fgrid">
     ${fld('pl-date','Date',`<input type="date" id="pl-date" name="date" value="${e?e.date:(UI.prefDate||UI.ref)}" required>`)}
-    ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('pl-cat','Catégorie',`<select id="pl-cat" name="cat">${e?opt(cats(),e.cat):opt([['*','Toutes les catégories'],...cats()],UI.cat==='Tous'?'*':UI.cat)}</select>`)}
+    ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`+indivPidField('pl-pid',e):fld('pl-cat','Catégorie',`<select id="pl-cat" name="cat">${e?opt(cats(),e.cat):opt([['*','Toutes les catégories'],...cats()],UI.cat==='Tous'?'*':UI.cat)}</select>`)}
     ${fld('pl-type','Type',`<select id="pl-type" name="type">${opt([...s.sessionTypes,'Match'],e&&e.type)}</select>`)}
     ${fld('pl-obj','Objectif',`<select id="pl-obj" name="objective">${opt(s.objectives,e&&e.objective)}</select>`)}
     ${fld('pl-title','Intitulé (ou « Match vs … »)',`<input type="text" id="pl-title" name="title" value="${esc(e&&e.title||'')}">`,2)}
@@ -1524,7 +1538,7 @@ ENTRY.plan=()=>{const e=editing('plan');const s=S();
 ENTRY.season=()=>{const e=editing('phases');
   return `<form data-form="phase" class="stack"><div class="fgrid">
     ${fld('ph-name','Nom de la phase',`<input type="text" id="ph-name" name="name" value="${esc(e&&e.name||'')}" required placeholder="ex. Compétition — bloc 2">`,2)}
-    ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('ph-cat','Catégorie',`<select id="ph-cat" name="cat">${opt(['Tous',...cats()],e?e.cat:'Tous')}</select>`)}
+    ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`+indivPidField('ph-pid',e):fld('ph-cat','Catégorie',`<select id="ph-cat" name="cat">${opt(['Tous',...cats()],e?e.cat:'Tous')}</select>`)}
     ${fld('ph-start','Début',`<input type="date" id="ph-start" name="start" value="${esc(e&&e.start||UI.ref)}" required>`)}
     ${fld('ph-end','Fin',`<input type="date" id="ph-end" name="end" value="${esc(e&&e.end||addDays(UI.ref,27))}" required>`)}
     ${fld('ph-obj','Objectifs',`<textarea id="ph-obj" name="objective">${esc(e&&e.objective||'')}</textarea>`,4)}
@@ -1615,10 +1629,11 @@ FORMS.injury=async f=>{const e=editing('injuries');const v=Object.fromEntries(ne
   if(o.status==='apte'&&!o.returnDate)o.returnDate=UI.ref;
   await put('injuries',id,o);UI.edit=null;UI.medSel=id;toast(e?'Fiche modifiée':'Blessure déclarée');go('medical');};
 FORMS.plan=async f=>{const e=editing('plan');const v=Object.fromEntries(new FormData(f));const base={date:v.date,type:v.type,objective:v.type==='Match'?'Match':v.objective,title:v.title,duration:num(v.duration)||0,intensity:v.intensity,content:v.content};
+  if(INDIV)base.pid=v.pid||'all';
   if(e){await put('plan',e.id,Object.assign({},e,base));}else{const cs=v.cat==='*'?cats():[v.cat];for(const c of cs){const id=uid();await put('plan',id,Object.assign({id,cat:c,done:false},base));}}
   UI.edit=null;UI.prefDate=null;UI.planWeek=mondayOf(v.date);toast('Planning mis à jour');go('training');};
 FORMS.phase=async f=>{const e=editing('phases');const v=Object.fromEntries(new FormData(f));if(v.end<v.start){toast('La fin doit être après le début');return;}const id=e?e.id:uid();
-  await put('phases',id,{id,name:v.name,cat:v.cat,start:v.start,end:v.end,objective:v.objective});UI.edit=null;UI.planView='season';toast('Phase enregistrée');go('training');};
+  await put('phases',id,Object.assign({},e||{},{id,name:v.name,cat:v.cat,start:v.start,end:v.end,objective:v.objective},INDIV?{pid:v.pid||'all'}:{}));UI.edit=null;UI.planView='season';toast('Phase enregistrée');go('training');};
 FORMS.tests=async f=>{const e=editing('tests');const v=Object.fromEntries(new FormData(f));const cat=e?e.cat:(v.cat||defCat());const id=e?e.id:uid();const res={};
   S().tests.forEach(t=>{playersOf(cat).forEach(p=>{const x=num(v['t-'+t.id+'-'+p.id]);if(x!=null){(res[t.id]=res[t.id]||{})[p.id]=x;}});});
   if(!Object.keys(res).length){toast('Aucun résultat saisi');return;}
@@ -1807,6 +1822,7 @@ const CHG={
   assignCat:t=>{UI.assignCat=t.value;render();},
   assignDate:t=>{UI.assignDate=t.value;render();},
   rpeSess:t=>{UI.rpeSess=t.value;render();},
+  indivClient:t=>{UI.indivClient=t.value;render();},
   reminderToggle:async t=>{await saveSettings({reminders:t.checked});toast(t.checked?'Rappels activés':'Rappels désactivés');},
   pe:t=>{const d=UI.progDraft;if(!d)return;const p=(t.dataset.path||'').split(':');const v=t.value;
     if(p[0]==='plan'){d.name=v;return;}
