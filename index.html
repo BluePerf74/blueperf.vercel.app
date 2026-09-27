@@ -1934,6 +1934,12 @@ async function openAdminPanel(){
         <h2 style="margin:0;font-size:18px;font-family:'Space Grotesk',system-ui,sans-serif">⚙️ ${admEsc(t('Paramètres administrateur','Admin settings'))}</h2>
         <button id="bp-admin-x" style="appearance:none;cursor:pointer;background:transparent;border:0;color:#B7C4D6;font-size:20px;line-height:1;padding:4px">✕</button>
       </div>
+      <div style="border:1px solid #25344b;border-radius:9px;padding:12px;margin-bottom:14px;background:#0f1d30">
+        <b style="font-size:14px">➕ ${admEsc(t('Équipe U18F (Football)','U18F team (Football)'))}</b>
+        <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t("Crée l'équipe U18F et ajoute les 31 joueuses avec leurs identifiants (prénom@aca.com / 3 premières lettres du prénom + 123).","Creates the U18F team and adds the 31 players with their logins (firstname@aca.com / first 3 letters + 123)."))}</p>
+        <button id="bp-import-u18f" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${admEsc(t('Importer l’équipe U18F (31 joueuses)','Import U18F team (31 players)'))}</button>
+        <div id="bp-import-status" style="font-size:12.5px;color:#8fe0b0;margin-top:8px;line-height:1.5"></div>
+      </div>
       <p style="color:#7E90A8;font-size:13px;margin:0 0 14px;line-height:1.5">${admEsc(t("Autorise un·e joueur·se de l'espace Football à accéder aussi à l'espace Coaching individuel, avec les mêmes identifiants. Coche la case pour chaque personne concernée.","Allow a Football player to also access the Individual coaching space, with the same login. Tick the box for each person."))}</p>
       <div id="bp-admin-body" style="font-size:14px">${admEsc(t('Chargement…','Loading…'))}</div>
       <div style="margin-top:16px;display:flex;justify-content:flex-end">
@@ -1944,7 +1950,64 @@ async function openAdminPanel(){
   ov.addEventListener('click', e => { if(e.target === ov) ov.remove(); });
   ov.querySelector('#bp-admin-x').onclick = () => ov.remove();
   ov.querySelector('#bp-admin-close').onclick = () => ov.remove();
+  const imp = ov.querySelector('#bp-import-u18f');
+  if(imp) imp.onclick = () => importU18F(imp, ov.querySelector('#bp-import-status'));
   await renderAdminBody();
+}
+// Effectif U18F (prénom, nom) — identifiants dérivés : prénom@aca.com / 3 lettres + 123.
+const U18F_ROSTER = [
+  ['Maryam','Akichouch'],['Amina','Akichouch'],['Elsa','Arnol'],['Nayla','Ben Thayer'],
+  ['Siarra','Da Rocha'],['Océane','Deblick'],['Aicha','Dore'],['Lia','Durand'],
+  ['Hana','El Garbahoui'],['Kahynna','Fleurant Diouf'],['Clea','Franco'],['Feliciana','Gomes Tavares'],
+  ['Lison','Hureau'],['Eléa','Irles'],['Charlotte','Kerharo'],['Anaïs','Lacroix'],
+  ['Lucine','Laude'],['Melissa','Matringe'],['Cassandra','Meyer'],['Aya','Moulaoui'],
+  ['Tasmine','Nid Boukdir'],['Lyana','Perrin'],['Margaux','Pinheiro'],['Manon','Rey'],
+  ['Lilou','Rodrigues'],['Lise','Rosset'],['Anna','Rosset'],['Jannah','Sabet'],
+  ['Audrina','Streit'],['Eliana','Tavares'],['Lina','Younsi']
+];
+function admStrip(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+async function importU18F(btn, status){
+  const say = m => { if(status) status.textContent = m; };
+  if(btn) btn.disabled = true;
+  say(t('Import en cours…','Importing…'));
+  try{
+    // 1) Catégorie : on ajoute U18F (en reprenant le préfixe d'une éventuelle catégorie U18 existante, ex. « PSG U18 » → « PSG U18F »).
+    const cfgRaw = await sGet('aca:config', true);
+    let cfg; try{ cfg = cfgRaw ? JSON.parse(cfgRaw) : {}; }catch(e){ cfg = {}; }
+    cfg.settings = cfg.settings || {};
+    const catsArr = Array.isArray(cfg.settings.categories) ? cfg.settings.categories.slice() : ['U15','U18'];
+    const u18 = catsArr.find(c => /u\s*18(?!\s*f)/i.test(c));
+    const newCat = u18 ? u18.replace(/u\s*18/i, 'U18F') : 'U18F';
+    if(!catsArr.includes(newCat)) catsArr.push(newCat);
+    cfg.settings.categories = catsArr;
+    if(cfg.settings.started === undefined) cfg.settings.started = true;
+    const okC = await sSet('aca:config', JSON.stringify(cfg), true);
+    // 2) Joueuses : ajout dans aca:players avec identifiants dérivés (dédoublonnage du login par 1re lettre du nom si besoin).
+    const plRaw = await sGet('aca:players', true);
+    let players; try{ players = plRaw ? JSON.parse(plRaw) : {}; }catch(e){ players = {}; }
+    const usedLogins = new Set(Object.values(players).map(p => p && (p.login||'').toLowerCase()).filter(Boolean));
+    let added = 0, skipped = 0;
+    U18F_ROSTER.forEach(([fn, ln]) => {
+      const base = admStrip(fn);
+      let login = base + '@aca.com';
+      if(usedLogins.has(login)){ const li = admStrip(ln)[0] || ''; login = base + li + '@aca.com'; }
+      usedLogins.add(login);
+      const pass = base.slice(0,3) + '123';
+      const id = 'u18f-' + base + '-' + admStrip(ln);
+      if(players[id]){ skipped++; return; }
+      players[id] = { id, name: fn + ' ' + ln.toUpperCase(), cat: newCat, pos:'', login, pass, active:true };
+      added++;
+    });
+    const okP = await sSet('aca:players', JSON.stringify(players), true);
+    if(okC && okP){
+      say(t(`✓ Équipe « ${newCat} » créée · ${added} joueuse(s) ajoutée(s)${skipped?', '+skipped+' déjà présente(s)':''}. Recharge l'onglet Football pour les voir.`,`✓ Team "${newCat}" created · ${added} player(s) added${skipped?', '+skipped+' already there':''}. Reload the Football tab.`));
+    } else {
+      say(t("Échec de l'enregistrement. Vérifie ta connexion et réessaie.","Save failed. Check your connection and retry."));
+    }
+  }catch(e){
+    say(t("Erreur : ",'Error: ') + (e && e.message || e));
+  }
+  if(btn) btn.disabled = false;
 }
 async function renderAdminBody(){
   const body = document.getElementById('bp-admin-body');
