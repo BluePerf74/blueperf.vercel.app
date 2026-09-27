@@ -977,9 +977,9 @@ VIEWS.health=()=>{
     ${ps.map(p=>{const v=days.map(d=>wOf(p.id,d));return `<tr><td>${plink(p.id)}</td>${v.map((x,i)=>`<td class="c" style="background:${x==null?'transparent':`var(--${wCls(x)}-soft)`};color:${x==null?'var(--muted)':`var(--${wCls(x)})`}" data-tip="${esc(p.name+' · '+fmtD(days[i])+'\n'+(x==null?'Non rempli':wTip(wEntry(p.id,days[i]))))}">${x==null?'·':r0(x)}</td>`).join('')}<td class="n"><b>${r0(mean(v))}</b></td></tr>`;}).join('')}
     </tbody></table></div></div>
   <div class="card"><div class="hrow"><h2>Détail du ${fmtD(ref,{day:'numeric',month:'long'})}</h2><span class="small muted">échelle 1 (très bien) → 5 (mauvais) · z = écart à la moyenne individuelle des 28 derniers jours</span></div>
-    <div class="tw"><table><thead><tr><th>${PL.One}</th>${WK.map(k=>`<th class="n">${WL[k]}</th>`).join('')}<th class="n">Score</th><th class="n">z</th><th>Commentaire</th></tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th>${WK.map(k=>`<th class="n">${WL[k]}</th>`).join('')}<th class="n">Score</th><th class="n">z</th><th>Commentaire</th><th></th></tr></thead><tbody>
     ${st.map(({p,w,e})=>`<tr><td>${plink(p.id)}</td>${WK.map(k=>{const v=num(e&&e[k]);return `<td class="n" style="${v!=null&&v<=2?'color:var(--crit);font-weight:700':''}">${v!=null?6-v:'–'}</td>`;}).join('')}
-      <td class="n">${w.today!=null?`<span class="pill ${wCls(w.today)}">${r0(w.today)} %</span>`:'–'}</td><td class="n" style="${w.z!=null&&w.z<th.wz?'color:var(--crit);font-weight:700':''}">${w.z!=null?r1(w.z):'–'}</td><td class="small">${esc(e&&e.note||'')}</td></tr>`).join('')}
+      <td class="n">${w.today!=null?`<span class="pill ${wCls(w.today)}">${r0(w.today)} %</span>`:'–'}</td><td class="n" style="${w.z!=null&&w.z<th.wz?'color:var(--crit);font-weight:700':''}">${w.z!=null?r1(w.z):'–'}</td><td class="small">${esc(e&&e.note||'')}</td><td>${e?`<button class="btn sm danger" data-act="delWell" data-pid="${esc(p.id)}" data-date="${ref}">Suppr.</button>`:''}</td></tr>`).join('')}
     </tbody></table></div>
     ${missing.length?`<p class="note">Non remplis : ${missing.map(x=>esc(x.p.name)).join(', ')}</p>`:''}</div>`;
 };
@@ -1463,7 +1463,7 @@ ENTRY.assign=()=>{
     else if(st.open){badge=`<span class="pill good">Ouvert · ferme dans <b data-chrono="${st.end}">${fmtRemain(st.remain)}</b></span>`;btn=`<button class="btn sm" data-act="sendRpe" data-id="${esc(s.id)}">Prolonger 4 h</button>`;}
     else{badge='<span class="pill warn">Fenêtre fermée</span>';btn=`<button class="btn sm" data-act="sendRpe" data-id="${esc(s.id)}">Rouvrir 4 h</button>`;}
     return `<div class="card flat" style="margin-top:8px"><div class="hrow" style="margin:0"><div><b>${esc(s.title||s.type||'Séance')}</b> <span class="small muted">${esc(s.type||'')}${s.duration?' · '+s.duration+' min':''}</span></div>${badge}</div>
-      <div class="hrow" style="margin:6px 0 0"><span class="small muted">${nP} affecté·es · <b>${nR}</b> RPE reçu${nR>1?'s':''}</span><div class="row" style="flex-wrap:nowrap">${btn}<button class="btn sm" data-act="edit" data-col="${s.__col||'sessions'}" data-id="${esc(s.id)}">${s.__col==='matches'?'Ouvrir le match':'Ouvrir la séance'}</button></div></div></div>`;
+      <div class="hrow" style="margin:6px 0 0"><span class="small muted">${nP} affecté·es · <b>${nR}</b> RPE reçu${nR>1?'s':''}</span><div class="row" style="flex-wrap:nowrap">${btn}<button class="btn sm" data-act="edit" data-col="${s.__col||'sessions'}" data-id="${esc(s.id)}">${s.__col==='matches'?'Ouvrir le match':'Ouvrir la séance'}</button><button class="btn sm danger" data-act="del" data-col="${s.__col||'sessions'}" data-id="${esc(s.id)}">Supprimer</button></div></div></div>`;
   }).join('');
   return `<div class="hrow"><h2>Affectation des ${PL.many}</h2></div>
     <p class="note" style="margin:0 0 10px">Crée la séance du jour et coche ${INDIV?'les '+PL.many+' concerné·es':'les présents'}. Puis clique <b>Envoyer RPE</b> : chaque ${PL.one} dispose alors de <b>4 h</b> pour saisir son RPE depuis son espace perso.</p>
@@ -1798,6 +1798,9 @@ const ACT={
     else{UI.edit=null;UI.entryTab='wellness';UI.wCat=p.cat;UI.wDate=ref;go('entry');}},
   del:b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
     const col=b.dataset.col,id=b.dataset.id;if(col==='players'&&UI.drawer===id)UI.drawer=null;if(col==='injuries'&&UI.medSel===id)UI.medSel=null;del(col,id);toast('Supprimé');},
+  delWell:async b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
+    const pid=b.dataset.pid,date=b.dataset.date;const doc=DATA.wellness[date];
+    if(doc&&doc.entries&&doc.entries[pid]){const nd=JSON.parse(JSON.stringify(doc));delete nd.entries[pid];if(Object.keys(nd.entries).length)await put('wellness',date,nd);else await del('wellness',date);toast('Wellness supprimé');}else{render();}},
   keepDemo:async b=>{b.disabled=true;await keepDemo();},
   startEmpty:async b=>{b.disabled=true;await startEmpty();},
   loadMore:()=>{UI.loadMore=true;render();},
