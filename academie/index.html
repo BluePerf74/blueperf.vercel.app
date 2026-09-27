@@ -1378,7 +1378,7 @@ VIEWS.medical=()=>{
 <script>
 /* ---------- SAISIE ---------- */
 const ENTRY_TABS=[['session','Séance'],['wellness','Wellness'],['match','Match'],['injury','Blessure'],['plan','Planification'],['season','Phase de saison'],['tests','Tests'],['player','Joueurs'],['gps','Import GPS']];
-const ENTRY_MENU=[['assign','⚑ Affectation des '+PL.many],['session','Saisir une séance'],['rpe','Saisir les RPE'],['gps','Importer les GPS'],['match','Match'],['wellness','Wellness'],['injury','Blessure'],['plan','Planification'],['season','Phase de saison'],['tests','Tests'],['player',PL.Many]].filter(x=>!(MODE==='individuel'&&(x[0]==='gps'||x[0]==='match')));
+const ENTRY_MENU=[['assign','⚑ Affectation des '+PL.many],['session','Saisir une séance'],['rpe','Saisir les RPE'],['gps','Importer les GPS'],['match','Match'],['wellness','Wellness'],['injury','Blessure'],['plan','Entraînement (planifier une séance)'],['season','Phase de saison'],['tests','Tests'],['player',PL.Many]].filter(x=>!(MODE==='individuel'&&(x[0]==='gps'||x[0]==='match')));
 const COL2TAB={sessions:'session',matches:'match',injuries:'injury',plan:'plan',phases:'season',players:'player',tests:'tests'};
 const GF={session:[['min','Min'],['rpe','RPE'],['dist','Dist. (m)'],['hsr','HSR (m)'],['sprint','Sprint (m)'],['acc','Acc.'],['dec','Déc.'],['vmax','Vmax']],
  match:[['min','Min'],['starter','Tit.','chk'],['goals','Buts'],['assists','PD'],['yellow','J'],['red','R'],['rating','Note'],['rpe','RPE'],['dist','Dist. (m)'],['hsr','HSR (m)'],['sprint','Sprint (m)'],['acc','Acc.'],['dec','Déc.'],['vmax','Vmax']]};
@@ -1507,9 +1507,9 @@ ENTRY.wellness=()=>{const cat=UI.wCat||defCat();const date=UI.wDate||UI.ref;cons
   return `<form data-form="wellness" class="stack"><div class="fgrid">
     ${fld('we-date','Date',`<input type="date" id="we-date" name="date" value="${date}" data-rew="1">`)}
     ${catFld('we-cat',cat,'data-rew="1"')}</div>
-  <p class="note" style="margin:0">Échelle de 1 (très mauvais) à 5 (très bon) pour chaque item : pour fatigue, courbatures et stress, 5 = aucune fatigue, aucune courbature, aucun stress.</p>
+  <p class="note" style="margin:0">Échelle de 1 (très bien) à 5 (mauvais) pour chaque item, comme dans l'espace joueur·se : 1 = tout va bien (bien dormi, aucune fatigue, aucune courbature, aucun stress, très bonne humeur), 5 = mauvais.</p>
   <div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th>${WK.map(k=>`<th>${WL[k]}</th>`).join('')}<th>Commentaire</th></tr></thead><tbody>
-  ${ps.map(p=>{const x=doc&&doc.entries&&doc.entries[p.id]||{};return `<tr><td>${esc(p.name)}</td>${WK.map(k=>`<td><select name="${k}-${p.id}" aria-label="${WL[k]} ${esc(p.name)}" style="width:60px"><option value="">–</option>${[1,2,3,4,5].map(v=>`<option ${num(x[k])===v?'selected':''}>${v}</option>`).join('')}</select></td>`).join('')}<td><input class="w" type="text" name="note-${p.id}" value="${esc(x.note||'')}" aria-label="Commentaire ${esc(p.name)}"></td></tr>`;}).join('')||'<tr><td class="muted">Aucun joueur</td></tr>'}
+  ${ps.map(p=>{const x=doc&&doc.entries&&doc.entries[p.id]||{};const disp=k=>num(x[k])!=null?6-num(x[k]):null;return `<tr><td>${esc(p.name)}</td>${WK.map(k=>`<td><select name="${k}-${p.id}" aria-label="${WL[k]} ${esc(p.name)}" style="width:60px"><option value="">–</option>${[1,2,3,4,5].map(v=>`<option ${disp(k)===v?'selected':''}>${v}</option>`).join('')}</select></td>`).join('')}<td><input class="w" type="text" name="note-${p.id}" value="${esc(x.note||'')}" aria-label="Commentaire ${esc(p.name)}"></td></tr>`;}).join('')||'<tr><td class="muted">Aucun joueur</td></tr>'}
   </tbody></table></div><div class="row"><button class="btn pri">Enregistrer le wellness</button></div></form>`;};
 ENTRY.injury=()=>{const e=editing('injuries');const ps=playersOf('Tous');
   return `<form data-form="injury" class="stack"><div class="fgrid">
@@ -1622,7 +1622,7 @@ FORMS.match=async f=>{const e=editing('matches');const v=Object.fromEntries(new 
   const o={id,date:v.date,cat:v.cat,opponent:v.opponent,competition:v.competition,venue:v.venue,gf:num(v.gf)??0,ga:num(v.ga)??0,duration:num(v.duration)||90,players:readGrid(f,'match',v.cat)};
   await put('matches',id,o);UI.edit=null;toast(e?'Match modifié':'Match enregistré');UI.compMatch=id;render();};
 FORMS.wellness=async f=>{const v=Object.fromEntries(new FormData(f));const date=v.date;const doc=DATA.wellness[date]?JSON.parse(JSON.stringify(DATA.wellness[date])):{date,entries:{}};doc.entries=doc.entries||{};let n=0;
-  playersOf(v.cat).forEach(p=>{const o={};WK.forEach(k=>{const x=num(v[k+'-'+p.id]);if(x!=null)o[k]=x;});const note=(v['note-'+p.id]||'').trim();if(note)o.note=note;if(Object.keys(o).length){doc.entries[p.id]=o;n++;}else delete doc.entries[p.id];});
+  playersOf(v.cat).forEach(p=>{const o={};WK.forEach(k=>{const x=num(v[k+'-'+p.id]);if(x!=null)o[k]=6-x;});const note=(v['note-'+p.id]||'').trim();if(note)o.note=note;if(Object.keys(o).length){doc.entries[p.id]=o;n++;}else delete doc.entries[p.id];});
   await put('wellness',date,doc);toast(n+' questionnaire'+(n>1?'s':'')+' enregistré'+(n>1?'s':''));};
 FORMS.injury=async f=>{const e=editing('injuries');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
   const o=Object.assign({criteria:{},followups:[],log:[],phase:0},e||{},{id,pid:v.pid,date:v.date,zone:v.zone,type:v.type,side:v.side,mechanism:v.mechanism,context:v.context,status:v.status,expectedReturn:v.expectedReturn,notes:v.notes});
