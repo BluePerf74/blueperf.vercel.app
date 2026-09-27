@@ -1669,9 +1669,17 @@ FORMS.match=async f=>{const e=editing('matches');const v=Object.fromEntries(new 
   await put('matches',id,o);UI.edit=null;toast(e?'Match modifié':'Match enregistré');UI.compMatch=id;render();};
 FORMS.simple=async (f,submitter)=>{const v=Object.fromEntries(new FormData(f));const cat=INDIV?INDIV_CAT:v.cat;const ps=playersOf(cat);
   const act=(submitter&&submitter.value)||v.act||'send';
-  const players={};ps.forEach(p=>{if(v['pl-'+p.id])players[p.id]={min:num(v.duration)||0};});
+  const isMatch=(v.type||'')==='Match';
+  const players={};ps.forEach(p=>{if(v['pl-'+p.id])players[p.id]={min:num(v.duration)||(isMatch?90:0)};});
   if(!Object.keys(players).length){toast('Coche au moins un·e '+PL.one);return;}
-  const id=uid();const o={id,date:v.date,cat,type:v.type||'Entraînement',title:(v.title||'').trim()||(v.type==='Match'?'Match':'Séance'),duration:num(v.duration)||0,objective:'',content:'',source:'coach',simple:true,players};
+  const id=uid();
+  if(isMatch){
+    // Match simple : stocké comme match → l'espace demande difficulté (RPE) + note de performance (1-10) + commentaire.
+    const o={id,date:v.date,cat,opponent:(v.title||'').trim()||'Match',competition:'',venue:'',gf:0,ga:0,duration:num(v.duration)||90,source:'coach',simple:true,players};
+    if(act==='send')o.rpeOpenedAt=Date.now();
+    await put('matches',id,o);UI.entryTab='assign';UI.assignDate=v.date;toast(act==='send'?'Match créé · RPE envoyé (4 h)':'Match créé');render();return;
+  }
+  const o={id,date:v.date,cat,type:'Entraînement',title:(v.title||'').trim()||'Séance',duration:num(v.duration)||0,objective:'',content:'',source:'coach',simple:true,players};
   if(act==='send')o.rpeOpenedAt=Date.now();
   await put('sessions',id,o);UI.entryTab='assign';UI.assignDate=v.date;toast(act==='send'?'Séance créée · RPE envoyé (4 h)':'Séance créée');render();};
 FORMS.wellness=async f=>{const v=Object.fromEntries(new FormData(f));const date=v.date;const doc=DATA.wellness[date]?JSON.parse(JSON.stringify(DATA.wellness[date])):{date,entries:{}};doc.entries=doc.entries||{};let n=0;

@@ -604,6 +604,9 @@ let PS_RPE=null;
 function rpeScale(id,val){
   return `<div class="scale" data-rpe="${id}">${[0,1,2,3,4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" style="min-width:30px;padding:8px 0" class="${val===v?'on':''}">${v}</button>`).join('')}</div>`;
 }
+function scaleTen(id,val){ // échelle 1 → 10 (difficulté & performance des matchs)
+  return `<div class="scale" data-rpe="${id}">${[1,2,3,4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" style="min-width:30px;padding:8px 0" class="${val===v?'on':''}">${v}</button>`).join('')}</div>`;
+}
 
 const RPE_WINDOW_MS=4*3600*1000;
 async function loadSessionsToday(){
@@ -646,8 +649,8 @@ function drawSessions(){
       <div class="m">${esc(o.session.type||'')}${o.session.duration?' · '+o.session.duration+' min':''}${o.rpe!=null?' · RPE '+o.rpe:''}${o.isMatch&&o.perf!=null?' · Perf '+o.perf:''}${chrono}</div>`;
     let body;
     if(o.isMatch){
-      body=`<label>Difficulté du match — RPE (0 → 10)</label>${rpeScale('sess-'+i+'-0',o.rpe)}
-        <label style="display:block;margin-top:12px">Ta note de performance (0 → 10)</label>${rpeScale('perf-'+i,o.perf)}
+      body=`<label>Difficulté du match (1 → 10)</label>${scaleTen('sess-'+i+'-0',o.rpe)}
+        <label style="display:block;margin-top:12px">Ta note de performance (1 → 10)</label>${scaleTen('perf-'+i,o.perf)}
         <label style="display:block;margin-top:12px">Commentaire (optionnel)</label><input id="cmt-${i}" value="${esc(o.comment||'')}" placeholder="Ton ressenti sur le match…" style="margin-top:2px">`;
     }else if(o.parts.length){
       body=o.parts.map((name,j)=>`<div style="margin-bottom:10px"><label>${(j+1)+'. '+esc(name)} — RPE (0 → 10)</label>${rpeScale('sess-'+i+'-'+j,o.partVals[j])}</div>`).join('');
