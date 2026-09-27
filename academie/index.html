@@ -276,6 +276,8 @@ function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.i
 
 /* ===================== SETTINGS ===================== */
 const MODE=(function(){try{return new URLSearchParams(location.search).get('mode')==='individuel'?'individuel':'football';}catch(e){return 'football';}})();
+// Restriction « gérant·e d'équipe » : équipe imposée + onglets autorisés (passés en paramètres d'URL par l'app de base).
+const RESTRICT=(function(){try{const q=new URLSearchParams(location.search);const team=q.get('team');const tabs=q.get('tabs');return {team:(team&&team.trim())||null,tabs:tabs?tabs.split(',').map(s=>s.trim()).filter(Boolean):null};}catch(e){return {team:null,tabs:null};}})();
 const DB_PREFIX=MODE==='individuel'?'ci':'aca';               // espace de données séparé pour le coaching individuel
 const HIDDEN_TABS=MODE==='individuel'?['gps','comp']:['programme'];  // individuel: pas de GPS/compétition ; football: pas de programme perso
 const TABS=[
@@ -316,7 +318,7 @@ const DEF={
  skills:['Squat','Charnière hanche','Fente','Tirage','Poussée','Réception de saut']
 };
 function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assign({},DEF,s,{th:Object.assign({},DEF.th,s.th||{}),tabs:Object.assign({},DEF.tabs,s.tabs||{})});}
-const tabOn=id=>S().tabs[id]!==false;
+const tabOn=id=>{ if(RESTRICT.tabs){ if(id!=='overview'&&!RESTRICT.tabs.includes(id))return false; } return S().tabs[id]!==false; };
 
 /* ===================== STORE ===================== */
 const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans'];
@@ -717,6 +719,8 @@ function zbars(items){ // diverging, value = z (−3..3)
 const UI={tab:'overview',cat:'Tous',ref:TODAY,drawer:null,entryTab:'assign',edit:null,planView:'week',planWeek:mondayOf(TODAY),planMonth:TODAY.slice(0,7),
   gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null,indivClient:'Tous'};
 try{const t=JSON.parse(localStorage.getItem(LSKEY+'-ui')||'{}');if(t.tab)UI.tab=t.tab;if(t.cat)UI.cat=t.cat;}catch(e){}
+if(RESTRICT.team)UI.cat=RESTRICT.team; // gérant·e : équipe imposée
+if(RESTRICT.tabs&&!tabOn(UI.tab))UI.tab='overview';
 if(/^#[a-z]+$/.test(location.hash)){const h=location.hash.slice(1);if(allTabIds().includes(h))UI.tab=h;}
 function allTabIds(){const o=[];TABS.forEach(t=>{if(t.children)t.children.forEach(c=>o.push(c.id));else o.push(t.id);});return o;}
 function saveUI(){try{localStorage.setItem(LSKEY+'-ui',JSON.stringify({tab:UI.tab,cat:UI.cat}));}catch(e){}}
@@ -726,7 +730,7 @@ const INDIV_CAT='Individuel';
 const PL={one:INDIV?'client·e':'joueur·se',One:INDIV?'Client·e':'Joueur·se',many:INDIV?'client·es':'joueur·ses',Many:INDIV?'Client·es':'Joueur·ses'};
 /* Sports possibles en coaching individuel (le sport n'est pas forcément le football). */
 const SPORTS=['Football','Course à pied','Triathlon','Cyclisme / vélo','Musculation','Natation','Trail','Rugby','Basket','Autre'];
-function cats(){return INDIV?[INDIV_CAT]:S().categories;}
+function cats(){return INDIV?[INDIV_CAT]:(RESTRICT.team?[RESTRICT.team]:S().categories);}
 function playersOf(cat,all){let list=Object.values(DATA.players).filter(p=>(all||p.active!==false)&&(INDIV||cat==='Tous'||p.cat===cat));
   if(INDIV&&UI.indivClient&&UI.indivClient!=='Tous')list=list.filter(p=>p.id===UI.indivClient); // filtre par client·e sélectionné·e (option « Tous » conservée)
   return list.sort((a,b)=>(a.cat||'').localeCompare(b.cat||'')||(a.number||99)-(b.number||99)||a.name.localeCompare(b.name));}
@@ -749,7 +753,7 @@ function renderNav(){
   TABS.forEach(t=>{
     if(t.children){const kids=t.children.filter(k=>tabOn(k.id));if(!tabOn('perf')||!kids.length)return;const open=!!UI.perfOpen||inPerf;
       h+=`<li class="${open?'open':''}"><button class="ni ${inPerf&&!open?'on':''}" data-act="perfToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${kids.map(k=>`<li><button class="ni ${UI.tab===k.id?'on':''}" data-act="tab" data-id="${k.id}"><span>${k.label}</span>${badge[k.id]||''}</button></li>`).join('')}</ul>`:''}</li>`;return;}
-    if(!tabOn(t.id)&&t.id!=='settings')return;
+    if(!tabOn(t.id)&&(t.id!=='settings'||RESTRICT.tabs))return; // gérant·e : Paramètres masqué s'il n'est pas dans ses onglets
     h+=`<li><button class="ni ${UI.tab===t.id?'on':''}" data-act="tab" data-id="${t.id}"><span>${t.label}</span>${badge[t.id]||''}</button></li>`;});
   h+=`</ul><div class="navfoot" id="navfoot"></div>`;
   $('#nav').innerHTML=h;renderNavFoot();
@@ -758,7 +762,7 @@ function renderNavFoot(){const f=$('#navfoot');if(!f)return;
   f.innerHTML=Store.mode==='db'?'<span class="dot ok"></span>Données partagées, enregistrées en ligne':Store.mode==='local'?'<span class="dot loc"></span>Enregistrement dans ce navigateur uniquement':'<span class="dot"></span>Connexion à la base…';}
 function tabLabel(id){for(const t of TABS){if(t.id===id)return t.label;if(t.children)for(const k of t.children)if(k.id===id)return (t.label+' · '+k.label);}return '';}
 function renderTop(){
-  const cs=['Tous',...cats()];const ph=curPhase(UI.cat,UI.ref);const nm=nextMatch(UI.cat,UI.ref);
+  const cs=RESTRICT.team?[RESTRICT.team]:['Tous',...cats()];const ph=curPhase(UI.cat,UI.ref);const nm=nextMatch(UI.cat,UI.ref);
   let ctx=[fmtD(UI.ref,{weekday:'long',day:'numeric',month:'long'})];if(ph)ctx.push(ph.name);if(nm){const d=dayDiff(nm.date,UI.ref);ctx.push((d===0?'Jour de match':'J-'+d)+' · '+(UI.cat==='Tous'?nm.cat+' ':'')+nm.label);}
   const indivClients=INDIV?Object.values(DATA.players).filter(p=>p.active!==false).sort((a,b)=>a.name.localeCompare(b.name)):[];
   $('#top').innerHTML=`<div><h1>${esc(tabLabel(UI.tab))}</h1><div class="ctx">${esc(ctx.join(' · '))}</div></div>
@@ -776,7 +780,7 @@ function banner(){
 }
 function render(){
   buildIndex();
-  if(!tabOn(UI.tab)&&UI.tab!=='settings'){UI.tab=allTabIds().find(t=>tabOn(t))||'settings';}
+  if(!tabOn(UI.tab)&&(UI.tab!=='settings'||RESTRICT.tabs)){UI.tab=allTabIds().find(t=>tabOn(t))||'overview';}
   if(['testing','reathle','muscu'].includes(UI.tab)&&!tabOn('perf'))UI.tab='overview';
   renderNav();renderTop();
   const v=VIEWS[UI.tab]||VIEWS.overview;let html='';
