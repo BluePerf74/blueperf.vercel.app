@@ -523,7 +523,7 @@ const SPORTS_ESPACE=[
   {k:'tennis',l:'Tennis',e:'🎾',dist:true}
 ];
 const sportOf=k=>SPORTS_ESPACE.find(x=>x.k===k);
-let ACT_WEEK=null, ACT_DAY=null, ACT_SPORT=null, ACT_RPE=null;
+let ACT_WEEK=null, ACT_DAY=null, ACT_SPORT=null, ACT_RPE=null, ACT_EDIT=null;
 function mondayOfISO(d){const [y,m,dd]=d.split('-').map(Number);const t=new Date(Date.UTC(y,m-1,dd));const wd=(t.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-wd);return t.toISOString().slice(0,10);} // UTC : indépendant du fuseau (semaine lundi→dimanche partout)
 function weekdayLabel(d){try{return new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long'});}catch(e){return d;}}
 function activityWeekCard(){
@@ -537,7 +537,8 @@ function activityWeekCard(){
     const items=list.map(s=>{const me=s.players[PLAYER.id]||{};const sp=sportOf(s.sport);
       return `<div class="session" style="margin-bottom:8px;padding:10px"><div class="t">${sp?sp.e+' ':''}${esc(s.title||s.type||'Activité')}</div>
         <div class="m">${me.min?me.min+' min':''}${s.distance?' · '+s.distance+' km':''}${me.rpe!=null?' · RPE '+me.rpe:''}</div>
-        <button class="btn sec" data-delact="${esc(s.id)}" style="padding:5px 10px;font-size:12px;margin-top:2px">Supprimer</button></div>`;}).join('')
+        ${s.detail?`<div class="muted" style="font-size:12px;margin-top:3px;white-space:pre-wrap">${esc(s.detail)}</div>`:''}
+        <div class="row" style="gap:6px;margin-top:6px"><button class="btn sec" data-editact="${esc(s.id)}" style="padding:5px 10px;font-size:12px">Modifier</button><button class="btn sec" data-delact="${esc(s.id)}" style="padding:5px 10px;font-size:12px">Supprimer</button></div></div>`;}).join('')
       ||'<p class="muted" style="font-size:12.5px;margin:0 0 6px">Aucune activité ce jour.</p>';
     const isOpen=ACT_DAY===d;
     const form=isOpen?activityForm(d):'';
@@ -557,24 +558,36 @@ function activityWeekCard(){
     ${dayBlocks}</div>`;
 }
 function activityForm(d){
+  const ed=ACT_EDIT?MY_SESSIONS.find(s=>s.id===ACT_EDIT):null;
+  const km=ed&&ed.distance!=null?ed.distance:'';
+  const min=ed?((ed.players[PLAYER.id]||{}).min||''):'';
   return `<div style="border-top:1px dashed var(--line);margin-top:10px;padding-top:12px">
     <label>Type de séance</label>
     <div class="row" style="gap:6px;flex-wrap:wrap">${SPORTS_ESPACE.map(s=>`<button type="button" class="tabbtn ${ACT_SPORT===s.k?'on':''}" data-sport="${s.k}" style="flex:none;min-width:auto;padding:8px 11px;font-size:13px">${s.e} ${s.l}</button>`).join('')}</div>
     <div class="row" style="margin-top:12px;align-items:flex-end">
-      <div style="flex:1;min-width:110px"><label>Distance (km, si applicable)</label><input id="act-km" type="number" step="any" min="0" placeholder="ex : 8"></div>
-      <div style="flex:1;min-width:90px"><label>Temps (min)</label><input id="act-min" type="number" min="0" placeholder="ex : 45"></div>
+      <div style="flex:1;min-width:110px"><label>Distance (km, si applicable)</label><input id="act-km" type="number" step="any" min="0" placeholder="ex : 8" value="${esc(km)}"></div>
+      <div style="flex:1;min-width:90px"><label>Temps (min)</label><input id="act-min" type="number" min="0" placeholder="ex : 45" value="${esc(min)}"></div>
     </div>
     <div class="field" style="margin-top:12px"><label>RPE (0 très facile → 10 maximal)</label>${rpeScale('act-rpe',ACT_RPE)}</div>
-    <button class="btn block" data-saveact="${d}">Enregistrer l'activité</button>
+    <div class="field" style="margin-top:12px"><label>Détail de la séance (optionnel)</label><textarea id="act-detail" placeholder="ex : 3×1000m récup 2', sensations, contenu travaillé…" style="width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px;font:inherit;font-size:14px;min-height:64px">${ed?esc(ed.detail||''):''}</textarea></div>
+    <button class="btn block" data-saveact="${d}">${ed?'Enregistrer les modifications':'Enregistrer l\'activité'}</button>
     <div class="ok" id="act-ok"></div>
   </div>`;
 }
-async function addActivity(date,sportK,km,min,rpe){
+async function addActivity(date,sportK,km,min,rpe,detail){
   const sp=sportOf(sportK);
   const all=await kvGet(SPACE+':sessions');
   const sid='ps-'+PLAYER.id+'-'+date+'-'+Math.random().toString(36).slice(2,6);
-  all[sid]={id:sid,date:date,cat:PLAYER.cat,sport:sportK,type:sp?sp.l:'Activité',title:sp?sp.l:'Activité',duration:min||0,distance:km||null,objective:'',content:'',source:'joueur',
+  all[sid]={id:sid,date:date,cat:PLAYER.cat,sport:sportK,type:sp?sp.l:'Activité',title:sp?sp.l:'Activité',duration:min||0,distance:km||null,detail:(detail||'').trim(),objective:'',content:'',source:'joueur',
     players:{[PLAYER.id]:{rpe:rpe,min:min||0,distance:km||null}}};
+  await kvSet(SPACE+':sessions',all);
+}
+async function updateActivity(sid,sportK,km,min,rpe,detail){
+  const sp=sportOf(sportK);
+  const all=await kvGet(SPACE+':sessions');
+  const s=all[sid];if(!s){await addActivity(TODAY,sportK,km,min,rpe,detail);return;}
+  s.sport=sportK;s.type=sp?sp.l:'Activité';s.title=sp?sp.l:'Activité';s.duration=min||0;s.distance=km||null;s.detail=(detail||'').trim();
+  s.players=s.players||{};s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{rpe:rpe,min:min||0,distance:km||null});
   await kvSet(SPACE+':sessions',all);
 }
 async function delActivity(sid){
@@ -591,9 +604,10 @@ async function renderRpeTab(){
   if(selfLog())bindActivityWeek();
 }
 function bindActivityWeek(){
-  document.querySelectorAll('[data-actweek]').forEach(b=>b.onclick=()=>{ACT_WEEK=addDaysISO(ACT_WEEK,+b.getAttribute('data-actweek'));ACT_DAY=null;renderRpeTab();});
-  document.querySelectorAll('[data-addday]').forEach(b=>b.onclick=()=>{const d=b.getAttribute('data-addday');ACT_DAY=(ACT_DAY===d)?null:d;ACT_SPORT=null;ACT_RPE=null;renderRpeTab();});
-  document.querySelectorAll('[data-delact]').forEach(b=>b.onclick=async()=>{b.disabled=true;await delActivity(b.getAttribute('data-delact'));await loadMySessions();renderRpeTab();});
+  document.querySelectorAll('[data-actweek]').forEach(b=>b.onclick=()=>{ACT_WEEK=addDaysISO(ACT_WEEK,+b.getAttribute('data-actweek'));ACT_DAY=null;ACT_EDIT=null;renderRpeTab();});
+  document.querySelectorAll('[data-addday]').forEach(b=>b.onclick=()=>{const d=b.getAttribute('data-addday');ACT_DAY=(ACT_DAY===d)?null:d;ACT_SPORT=null;ACT_RPE=null;ACT_EDIT=null;renderRpeTab();});
+  document.querySelectorAll('[data-editact]').forEach(b=>b.onclick=()=>{const id=b.getAttribute('data-editact');const s=MY_SESSIONS.find(x=>x.id===id);if(!s)return;ACT_EDIT=id;ACT_DAY=s.date;ACT_SPORT=s.sport||null;ACT_RPE=(s.players[PLAYER.id]||{}).rpe;renderRpeTab();});
+  document.querySelectorAll('[data-delact]').forEach(b=>b.onclick=async()=>{b.disabled=true;await delActivity(b.getAttribute('data-delact'));if(ACT_EDIT===b.getAttribute('data-delact')){ACT_EDIT=null;ACT_DAY=null;}await loadMySessions();renderRpeTab();});
   document.querySelectorAll('[data-sport]').forEach(b=>b.onclick=()=>{ACT_SPORT=b.getAttribute('data-sport');document.querySelectorAll('[data-sport]').forEach(x=>x.classList.toggle('on',x.getAttribute('data-sport')===ACT_SPORT));});
   bindRpeScale('act-rpe',v=>ACT_RPE=v);
   document.querySelectorAll('[data-saveact]').forEach(b=>b.onclick=async()=>{
@@ -602,8 +616,9 @@ function bindActivityWeek(){
     if(ACT_RPE==null){if(ok)ok.textContent='⚠️ Choisis ton RPE.';return;}
     const km=$('#act-km')&&$('#act-km').value!==''?Math.max(0,+$('#act-km').value):null;
     const min=$('#act-min')&&$('#act-min').value!==''?Math.max(0,+$('#act-min').value):0;
+    const detail=$('#act-detail')?$('#act-detail').value:'';
     b.disabled=true;if(ok)ok.textContent='Enregistrement…';
-    try{await addActivity(d,ACT_SPORT,km,min,ACT_RPE);await loadMySessions();ACT_DAY=null;ACT_SPORT=null;ACT_RPE=null;renderRpeTab();}
+    try{if(ACT_EDIT)await updateActivity(ACT_EDIT,ACT_SPORT,km,min,ACT_RPE,detail);else await addActivity(d,ACT_SPORT,km,min,ACT_RPE,detail);await loadMySessions();ACT_DAY=null;ACT_SPORT=null;ACT_RPE=null;ACT_EDIT=null;renderRpeTab();}
     catch(e){if(ok)ok.textContent='échec';b.disabled=false;}
   });
 }
