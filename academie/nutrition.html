@@ -312,7 +312,7 @@ async function saveJournal(cid,date,entries){return await kvSet('journal:'+cid+'
 async function loadWeights(cid){const v=await kvGet('weight:'+cid);return Array.isArray(v)?v:[];}
 async function saveWeights(cid,arr){return await kvSet('weight:'+cid,arr);}
 
-const TABS=[['clients','Clients'],['anamnese','Anamnèse'],['programme','Programme généré'],['poids','Poids & mensurations'],['journal','Journal'],['ressources','Ressources']];
+const TABS=[['clients','Clients'],['anamnese','Anamnèse'],['programme','Programme généré'],['analyse','Analyse repas'],['poids','Poids & mensurations'],['journal','Journal'],['ressources','Ressources']];
 
 function renderShell(){
   const sel=$('#client-select');
@@ -334,6 +334,7 @@ async function render(){
   if(!S.cid){screen.innerHTML='<div class="empty">Ajoute d\'abord un client dans l\'onglet <b>Clients</b>.</div>';return;}
   if(S.tab==='anamnese')return renderAnamnese(screen);
   if(S.tab==='programme')return renderProgramme(screen);
+  if(S.tab==='analyse')return renderAnalyse(screen);
   if(S.tab==='poids')return renderPoids(screen);
   if(S.tab==='journal')return renderJournal(screen);
   if(S.tab==='ressources')return renderRessources(screen);
@@ -530,6 +531,137 @@ async function renderPoids(screen){
   screen.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
     if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent='Supprimer';}},3000);return;}
     S.weights=S.weights.filter(x=>x.id!==b.dataset.del);await saveWeights(cid,S.weights);renderPoids(screen);});
+}
+
+/* ---- Analyse repas ---- */
+function nutAddDays(dstr,n){const d=new Date(dstr+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+async function nutWeekAggregate(cid,anam){
+  const dayType=await getDaytype(cid);const r=nutriCompute(anam,dayType);
+  const groups=r.foods.filter(f=>f.grams!=null);
+  const today=todayStr();const days=[];for(let i=6;i>=0;i--)days.push(nutAddDays(today,-i));
+  const totals={};groups.forEach(g=>totals[g.id]=0);let daysWithData=0;
+  for(const d of days){const entries=await loadJournal(cid,d);if(entries.length)daysWithData++;entries.forEach(e=>{totals[e.groupId]=(totals[e.groupId]||0)+e.grams;});}
+  return {r,groups,days,totals,daysWithData,dayType};
+}
+function nutInline(s){return s.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');}
+function nutriMdToHtml(text){
+  const lines=esc(text).split('\n');let html='',inList=false;
+  const close=()=>{if(inList){html+='</ul>';inList=false;}};
+  lines.forEach(raw=>{
+    const line=raw.trim();
+    if(!line){close();return;}
+    const hh=line.match(/^#{1,4}\s+(.*)$/);
+    const bh=line.match(/^\*\*(.+?)\*\*\s*:?\s*$/);
+    if(hh){close();html+=`<h3 style="margin:16px 0 6px;color:var(--ink)">${nutInline(hh[1])}</h3>`;return;}
+    if(bh){close();html+=`<h3 style="margin:16px 0 6px;color:var(--ink)">${nutInline(bh[1])}</h3>`;return;}
+    const b=line.match(/^[-•*]\s+(.*)$/);
+    if(b){if(!inList){html+='<ul style="margin:4px 0 4px 18px;padding:0">';inList=true;}html+=`<li style="margin:3px 0;color:var(--ink-soft)">${nutInline(b[1])}</li>`;return;}
+    close();html+=`<p style="margin:6px 0;color:var(--ink-soft)">${nutInline(line)}</p>`;
+  });
+  close();return html;
+}
+function nutriAnalyzePrompt(anam,agg,mealsText,r){
+  const objectifs=(anam.objectifs&&anam.objectifs.length)?anam.objectifs.join(', '):'non précisé';
+  const groupLines=agg.groups.map(g=>{const avg=agg.daysWithData?Math.round(agg.totals[g.id]/agg.daysWithData):0;return `- ${g.name} : ${avg} ${g.unit}/jour en moyenne (repère ${g.grams} ${g.unit})`;}).join('\n');
+  const structured=agg.daysWithData?`Journal structuré — ${agg.daysWithData} jour(s) renseigné(s) sur 7 :\n${groupLines}`:'Aucune donnée dans le journal structuré des 7 derniers jours.';
+  const libre=(mealsText&&mealsText.trim())?`Description libre saisie par le coach :\n${mealsText.trim()}`:'Aucune description libre saisie.';
+  return [
+    "Tu es diététicien·ne du sport. Analyse une semaine d'alimentation d'un·e sportif·ve en bonne santé (aucune prise en charge de pathologie ; en cas de doute médical, oriente vers un·e professionnel·le de santé).",
+    "","PROFIL",
+    `- Sexe : ${anam.sex}, âge : ${anam.age} ans, taille : ${anam.height} cm, poids : ${anam.weight} kg`,
+    `- Objectifs : ${objectifs}`,
+    `- Régime / préférence : ${anam.regime||'Omnivore'}`,
+    `- Allergies / intolérances : ${anam.allergies||'aucune'}`,
+    `- Aliments évités (choix) : ${anam.evites||'aucun'}`,
+    `- Entraînement : ${anam.seancesSemaine||'?'} séances/sem, ${anam.dureeSeance||'?'} min, RPE moyen ${anam.rpeMoyen||'?'}/10`,
+    `- Repères quotidiens calculés : ${r.kcal} kcal, ${r.prot} g protéines, ${r.carb} g glucides, ${r.lip} g lipides, ${r.water} L d'eau`,
+    "",structured,"",libre,"",
+    "Rends une analyse en français, concrète et bienveillante (pas de régime strict ni de comptage obsessionnel), adaptée à la pratique sportive et aux objectifs ci-dessus.",
+    "Structure impérativement la réponse en 4 sections, chacune introduite par un titre en gras seul sur sa ligne, exactement ainsi :",
+    "**Points positifs**","**Points négatifs / manques**","**À garder**","**À modifier**",
+    "Utilise des puces courtes. Justifie ce qui est à garder et à modifier en t'appuyant sur le profil et les objectifs."
+  ].join('\n');
+}
+function nutriRuleHtml(agg,anam){
+  if(!agg.daysWithData) return `<div class="nutri-tip">Aucune donnée dans le journal des 7 derniers jours et l'analyse IA n'est pas disponible. Remplis le <b>Journal</b> sur quelques jours (ou active l'IA) pour obtenir une analyse détaillée.</div>`;
+  const pos=[],manque=[],garder=[],modif=[];
+  agg.groups.forEach(g=>{
+    const total=agg.totals[g.id]||0;const avg=total/agg.daysWithData;const ratio=avg/g.grams;const avgR=Math.round(avg);const gl=g.name.toLowerCase();
+    if(total===0){manque.push(`Aucun apport noté en <b>${gl}</b> cette semaine (repère ${g.grams} ${g.unit}/j).`);modif.push(`Réintroduire <b>${gl}</b> : viser ~${g.grams} ${g.unit}/j.`);}
+    else if(ratio<0.85){manque.push(`Apport un peu faible en <b>${gl}</b> : ~${avgR} ${g.unit}/j pour un repère de ${g.grams}.`);modif.push(`Augmenter légèrement <b>${gl}</b> (viser ~${g.grams} ${g.unit}/j).`);}
+    else if(ratio>1.15){modif.push(`Apport élevé en <b>${gl}</b> : ~${avgR} ${g.unit}/j (repère ${g.grams}) — possible de réduire un peu.`);}
+    else{pos.push(`<b>${g.name}</b> bien dosé·e : ~${avgR} ${g.unit}/j (repère ${g.grams}).`);garder.push(`Maintenir l'apport en <b>${gl}</b>, proche du repère.`);}
+  });
+  const objs=anam.objectifs||[];
+  if(objs.includes('Prise de masse'))garder.push("Garder un apport suffisant en glucides et protéines réparti sur la journée pour soutenir la prise de masse.");
+  if(objs.includes('Perte de poids'))modif.push("Objectif perte de poids : conserver protéines et légumes, réduire surtout les extras/plaisir et les portions de féculents le soir.");
+  if(objs.includes('Recomposition corporelle'))garder.push("Protéines à chaque repas : point clé pour la recomposition corporelle.");
+  if(objs.includes('Meilleure récupération'))garder.push("Collation glucides + protéines dans l'heure après les séances pour la récupération.");
+  if(objs.includes('Performance / progression sportive'))garder.push("Glucides suffisants autour des séances pour soutenir la performance.");
+  garder.push("Continuer à s'hydrater régulièrement sur la journée et autour des séances.");
+  if(!pos.length)pos.push("Tenir un journal alimentaire est déjà un très bon point de départ.");
+  const block=(title,items,color,icon)=>`<div class="nutri-card"><h3 style="color:${color}">${icon} ${title}</h3><ul style="margin:4px 0 0 18px;padding:0">${items.map(i=>`<li style="margin:4px 0;color:var(--ink-soft)">${i}</li>`).join('')}</ul></div>`;
+  return block('Points positifs',pos,'var(--grass)','✅')
+    +block('Points négatifs / manques',manque.length?manque:['Rien de préoccupant repéré sur les groupes suivis.'],'#c98a00','⚠️')
+    +block('À garder',garder,'var(--carb)','💾')
+    +block('À modifier',modif.length?modif:["Rien d'urgent à modifier — continuer ainsi."],'#c0392b','🔧');
+}
+function analysisResultCard(a){
+  const when=a.at?fmtDate(a.at.slice(0,10)):'';
+  const badge=a.mode==='ia'?`<span class="res-tag">Analyse IA</span>`:`<span class="res-tag">Analyse automatique</span>`;
+  let note='';
+  if(a.mode==='regles'){
+    const why=a.reason==='no-key'?"L'analyse IA n'est pas activée (clé API non configurée) — voici une analyse automatique basée sur le journal structuré."
+      :a.reason==='network'?"Connexion à l'IA impossible — analyse automatique basée sur le journal structuré."
+      :"L'IA n'a pas répondu — analyse automatique basée sur le journal structuré.";
+    note=`<div class="nutri-tip" style="margin:0 0 10px">ℹ️ ${why}</div>`;
+  }
+  const trunc=a.truncated?`<div class="nutri-tip" style="margin:10px 0 0">✂️ Réponse tronquée — relance l'analyse pour la suite si besoin.</div>`:'';
+  const body=a.mode==='ia'?`<div class="nutri-card">${a.html}</div>`:a.html;
+  return `<div class="section-label" style="margin-top:18px">Résultat de l'analyse &nbsp;${badge}</div>${when?`<div style="font-size:10.5px;color:var(--ink-soft);margin:0 0 8px">Généré le ${when}</div>`:''}${note}${body}${trunc}`;
+}
+async function renderAnalyse(screen){
+  const cid=S.cid;const anam=await getAnam(cid);
+  if(!anam||!anam.age||!anam.height||!anam.weight){screen.innerHTML=`<div class="section-label">Analyse repas — ${esc(clientName(cid))}</div><div class="nutri-empty">Complète d'abord l'anamnèse (âge, taille, poids) pour pouvoir analyser l'alimentation.</div>`;return;}
+  if(S.mealsCid!==cid){S.mealsText=(await kvGet('meals:'+cid))||'';S.analysis=await kvGet('analysis:'+cid);S.mealsCid=cid;}
+  const dayType=await getDaytype(cid);const r=nutriCompute(anam,dayType);
+  const objectifs=(anam.objectifs&&anam.objectifs.length)?anam.objectifs.join(', '):'non précisé';
+  screen.innerHTML=`
+    <div class="section-label">Analyse repas — ${esc(clientName(cid))}</div>
+    <div class="nutri-intro">🔍 <span>Analyse d'une semaine de repas au regard du <b>profil</b> et des <b>objectifs</b> : points positifs, manques, ce qu'il faut garder et ce qui peut être modifié. Fonctionne pour les joueuses comme pour les client·es.</span></div>
+    <div class="nutri-card"><h3>Profil pris en compte</h3>
+      <div style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ink-soft)">
+        <span><b>Objectifs :</b> ${esc(objectifs)}</span>
+        <span><b>Profil :</b> ${esc(anam.sex)}, ${anam.age} ans, ${anam.height} cm, ${anam.weight} kg</span>
+        <span><b>Régime :</b> ${esc(anam.regime||'Omnivore')}${anam.allergies?` · allergies : ${esc(anam.allergies)}`:''}</span>
+        <span><b>Repères/j :</b> ${r.kcal} kcal · ${r.prot} g prot · ${r.carb} g gluc · ${r.water.toString().replace('.',',')} L eau</span>
+      </div>
+    </div>
+    <div class="nutri-card"><h3>Journal de la semaine</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 8px">Décris les repas de la semaine (jour par jour ou repas par repas). Le journal structuré déjà rempli (7 derniers jours) est ajouté automatiquement à l'analyse.</p>
+      <textarea id="an-meals" rows="9" style="width:100%;padding:10px 11px;border-radius:9px;border:1px solid var(--line);font-size:13.5px;font-family:inherit;background:var(--surface-2);color:var(--ink)" placeholder="Ex. Lundi — matin : flocons d'avoine + banane + yaourt ; midi : riz, poulet, légumes ; …">${esc(S.mealsText)}</textarea>
+      <button class="save-btn" id="an-run" style="margin-top:10px">🔍 Analyser la semaine</button>
+      <div id="an-status" style="font-size:12px;color:var(--ink-soft);margin-top:8px"></div>
+    </div>
+    <div id="an-result">${S.analysis?analysisResultCard(S.analysis):''}</div>`;
+  const ta=$('#an-meals');
+  ta.addEventListener('input',()=>{S.mealsText=ta.value;});
+  ta.addEventListener('blur',()=>{kvSet('meals:'+cid,S.mealsText);});
+  $('#an-run').onclick=async()=>{
+    S.mealsText=ta.value;await kvSet('meals:'+cid,S.mealsText);
+    const btn=$('#an-run');btn.disabled=true;const st=$('#an-status');st.textContent='Analyse en cours…';
+    const agg=await nutWeekAggregate(cid,anam);
+    let result=null;
+    try{
+      const resp=await fetch('/api/reco',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:nutriAnalyzePrompt(anam,agg,S.mealsText,r)})});
+      const j=await resp.json().catch(()=>({}));
+      if(resp.ok&&j.text){result={mode:'ia',html:nutriMdToHtml(j.text),at:new Date().toISOString(),truncated:!!j.truncated};}
+      else{result={mode:'regles',html:nutriRuleHtml(agg,anam),at:new Date().toISOString(),reason:(j&&j.code==='sampling_disabled')?'no-key':'error'};}
+    }catch(e){result={mode:'regles',html:nutriRuleHtml(agg,anam),at:new Date().toISOString(),reason:'network'};}
+    S.analysis=result;await kvSet('analysis:'+cid,result);
+    btn.disabled=false;st.textContent='';
+    $('#an-result').innerHTML=analysisResultCard(result);
+  };
 }
 
 /* ---- Ressources ---- */
