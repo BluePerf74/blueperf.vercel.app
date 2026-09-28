@@ -1694,10 +1694,19 @@ async function loadManagers(){
   try{ return raw ? JSON.parse(raw) : {}; }catch(e){ return {}; }
 }
 async function findManager(userRaw, passRaw){
-  const u = normalizeCode(userRaw), p = normalizeCode(passRaw);
-  if(!u || !p) return null;
+  const L = (userRaw||'').trim().toLowerCase(), Ls = L.replace(/[^a-z0-9]/g,'');
+  const P = (passRaw||'').trim();
+  if(!L || !P) return null;
   const mgrs = await loadManagers();
-  return Object.values(mgrs).find(x => x && normalizeCode(x.username)===u && normalizeCode(x.password)===p && x.active!==false) || null;
+  // Tolérant : identifiant exact OU convention prénom@aca.com ; mot de passe exact OU convention (3 lettres + 123).
+  return Object.values(mgrs).find(x => {
+    if(!x || x.active===false) return false;
+    const su = (x.username||'').trim().toLowerCase(), sus = su.replace(/[^a-z0-9]/g,'');
+    const dl = acaDefLogin(x.username||''), dls = dl.replace(/[^a-z0-9]/g,''), dp = acaDefPass(x.username||'');
+    const loginOk = (su && (su===L || sus===Ls)) || (dl && (dl===L || dls===Ls));
+    const passOk = (x.password && x.password===P) || (dp && dp===P);
+    return loginOk && passOk;
+  }) || null;
 }
 async function findAcademieClient(userRaw, passRaw){
   const L = (userRaw||'').trim().toLowerCase(), Ls = L.replace(/[^a-z0-9]/g,'');
