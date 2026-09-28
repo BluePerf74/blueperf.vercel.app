@@ -178,6 +178,11 @@ input,select,textarea{background:var(--surface-2);color:var(--ink)}
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const PFX='nut:';
+// Mode « joueuse / cliente » intégré dans l'espace : ?client=<id>&view=player → programme/journal/poids en accès personnel, sans les outils coach.
+const NUTRI_Q=new URLSearchParams(location.search);
+const PLAYER_VIEW=NUTRI_Q.get('view')==='player';
+const FORCED_CID=NUTRI_Q.get('client')||null;
+const PLAYER_TABS=[['programme','Mon programme'],['journal','Journal'],['poids','Poids & mensurations']];
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function todayStr(){return new Date().toISOString().slice(0,10);}
 function fmtDate(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});}catch(e){return d;}}
@@ -310,19 +315,21 @@ async function saveWeights(cid,arr){return await kvSet('weight:'+cid,arr);}
 const TABS=[['clients','Clients'],['anamnese','Anamnèse'],['programme','Programme généré'],['poids','Poids & mensurations'],['journal','Journal'],['ressources','Ressources']];
 
 function renderShell(){
-  const cs=clientList();
   const sel=$('#client-select');
-  sel.innerHTML=cs.length?cs.map(c=>`<option value="${esc(c.id)}" ${c.id===S.cid?'selected':''}>${esc(c.name)}</option>`).join(''):'<option value="">Aucun client</option>';
-  sel.onchange=()=>{S.cid=sel.value;S.anamCid=null;S.weightsCid=null;S.journalKey=null;render();};
-  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab ${S.tab===k?'active':''}" data-tab="${k}">${l}</button>`).join('');
+  const tabs=PLAYER_VIEW?PLAYER_TABS:TABS;
+  if(PLAYER_VIEW&&sel)sel.style.display='none';
+  else if(sel){const cs=clientList();sel.innerHTML=cs.length?cs.map(c=>`<option value="${esc(c.id)}" ${c.id===S.cid?'selected':''}>${esc(c.name)}</option>`).join(''):'<option value="">Aucun client</option>';
+    sel.onchange=()=>{S.cid=sel.value;S.anamCid=null;S.weightsCid=null;S.journalKey=null;render();};}
+  $('#tabs').innerHTML=tabs.map(([k,l])=>`<button class="tab ${S.tab===k?'active':''}" data-tab="${k}">${l}</button>`).join('');
   $$('#tabs .tab').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render();});
 }
 
 async function render(){
+  if(PLAYER_VIEW){S.cid=FORCED_CID;if(!PLAYER_TABS.some(t=>t[0]===S.tab))S.tab='programme';}
   renderShell();
   const screen=$('#screen');
   const cs=clientList();
-  if(!S.cid&&cs.length)S.cid=cs[0].id;
+  if(!PLAYER_VIEW&&!S.cid&&cs.length)S.cid=cs[0].id;
   if(S.tab==='clients')return renderClients(screen);
   if(!S.cid){screen.innerHTML='<div class="empty">Ajoute d\'abord un client dans l\'onglet <b>Clients</b>.</div>';return;}
   if(S.tab==='anamnese')return renderAnamnese(screen);
@@ -552,8 +559,8 @@ Eau (L/j)  = poids(kg) × 0,035 + bonus entraînement (0 / 0,5 / 0,8 L)</code></
 /* ===== Boot ===== */
 (async function init(){
   await loadClients();
-  const cs=clientList();
-  if(cs.length)S.cid=cs[0].id;
+  if(PLAYER_VIEW){S.cid=FORCED_CID;S.tab='programme';}
+  else{const cs=clientList();if(cs.length)S.cid=cs[0].id;}
   render();
 })();
 </script>

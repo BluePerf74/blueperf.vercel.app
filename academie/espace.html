@@ -242,6 +242,20 @@ async function kvSet(key,obj){
   const r=await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key,value:JSON.stringify(obj)})});
   if(!r.ok)throw new Error('save');
 }
+// Lien nutrition : on relie le·la joueur·se/cliente à un client du module Nutrition par son identifiant.
+let NUTRI_CID=null;
+async function nutGet(key){try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent('nut:'+key)+'&_='+Date.now(),{cache:'no-store'});if(!r.ok)return null;const j=await r.json();return j&&j.value?JSON.parse(j.value):null;}catch(e){return null;}}
+function nutSlug(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+async function loadNutriLink(){
+  NUTRI_CID=null;
+  try{
+    const clients=await nutGet('clients')||{};
+    const myLogin=nutSlug(PLAYER.login||'');
+    const conv=nutSlug((PLAYER.name||'').trim().split(/\s+/)[0]); // prénom (convention)
+    const match=Object.values(clients).find(c=>{if(!c)return false;const cl=nutSlug(c.login||'');return cl&&(cl===myLogin||cl===conv||cl===conv+'acacom'||cl===myLogin);});
+    if(match){const anam=await nutGet('anam:'+match.id);if(anam&&anam.age&&anam.height&&anam.weight)NUTRI_CID=match.id;}
+  }catch(e){}
+}
 
 /* ---------- Notifications push (rappels wellness / RPE) ---------- */
 function urlB64ToUint8Array(b64){const pad='='.repeat((4-b64.length%4)%4);const s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(s);const a=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i);return a;}
@@ -934,6 +948,7 @@ function tabbar(){
   const tabs=[['apercu',"Vue d'ensemble"]];
   if(MY_PLAN)tabs.push(['programme','Mon programme']);
   tabs.push(['sante','Santé & forme'],['rpe','RPE & charge']);
+  if(NUTRI_CID)tabs.push(['nutrition','🥗 Nutrition']);
   return `<div class="tabbar">${tabs.map(([k,l])=>`<button class="tabbtn ${ESPACE_TAB===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
 }
 async function renderSpace(skipLoad){
@@ -941,6 +956,8 @@ async function renderSpace(skipLoad){
   if(!skipLoad)await loadSessionsToday();
   await loadMySessions();
   await loadMyPlan();
+  await loadNutriLink();
+  if(ESPACE_TAB==='nutrition'&&!NUTRI_CID)ESPACE_TAB='apercu';
   if(ESPACE_TAB==='programme'&&!MY_PLAN)ESPACE_TAB='apercu';
   $('#app').innerHTML=`
     <div class="topbar">
@@ -967,6 +984,8 @@ async function renderTab(){
     bindWellness();loadHistory();
   }else if(ESPACE_TAB==='rpe'){
     await renderRpeTab();
+  }else if(ESPACE_TAB==='nutrition'){
+    c.innerHTML=`<div class="card" style="padding:0;overflow:hidden;background:#0f1d30"><iframe src="/academie/nutrition.html?client=${encodeURIComponent(NUTRI_CID)}&view=player" title="Nutrition" style="width:100%;height:78vh;border:0;display:block"></iframe></div>`;
   }else if(ESPACE_TAB==='programme'){
     c.innerHTML=programmeHtml();
     document.querySelectorAll('[data-pweek]').forEach(b=>b.onclick=()=>{PROG_WEEK=+b.getAttribute('data-pweek');PROG_OPEN=null;renderTab();});
