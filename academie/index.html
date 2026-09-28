@@ -328,7 +328,7 @@ function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assig
 const tabOn=id=>{ if(RESTRICT.tabs){ if(id!=='overview'&&!RESTRICT.tabs.includes(id))return false; } return S().tabs[id]!==false; };
 
 /* ===================== STORE ===================== */
-const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans'];
+const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans','seasonplan'];
 const LSKEY='blueperf-'+MODE+'-v1';
 const empty=()=>{const o={};COLS.forEach(c=>o[c]={});return o;};
 let DATA=empty();
@@ -760,7 +760,7 @@ function renderNav(){
   TABS.forEach(t=>{
     if(t.entryGroup){ // groupe Saisie : menu déroulant dans la barre, navigation par goEntry (UI.entryTab)
       if(!tabOn('entry'))return;const inGrp=UI.tab==='entry';const open=!!UI.entryOpen; // ouvert seulement au clic sur « Saisie » ; se referme après avoir choisi une entrée
-      h+=`<li class="${open?'open':''}"><button class="ni ${inGrp?'on':''}" data-act="entryToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${t.children.map(k=>`<li><button class="ni ${(inGrp&&UI.entryTab===k.id)||(k.season&&UI.tab==='training'&&UI.planView==='season')?'on':''}" data-act="${k.season?'goSeason':'goEntry'}" data-id="${k.id}"><span>${k.icon?k.icon+' ':''}${k.label}</span></button></li>`).join('')}</ul>`:''}</li>`;return;}
+      h+=`<li class="${open?'open':''}"><button class="ni ${inGrp?'on':''}" data-act="entryToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${t.children.map(k=>`<li><button class="ni ${(inGrp&&UI.entryTab===k.id)||(k.season&&UI.tab==='seasonplan')?'on':''}" data-act="${k.season?'goSeason':'goEntry'}" data-id="${k.id}"><span>${k.icon?k.icon+' ':''}${k.label}</span></button></li>`).join('')}</ul>`:''}</li>`;return;}
     if(t.children){const kids=t.children.filter(k=>tabOn(k.id));if(!tabOn('perf')||!kids.length)return;const open=!!UI.perfOpen||inPerf;
       h+=`<li class="${open?'open':''}"><button class="ni ${inPerf&&!open?'on':''}" data-act="perfToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${kids.map(k=>`<li><button class="ni ${UI.tab===k.id?'on':''}" data-act="tab" data-id="${k.id}"><span>${k.label}</span>${badge[k.id]||''}</button></li>`).join('')}</ul>`:''}</li>`;return;}
     if(!tabOn(t.id)&&(t.id!=='settings'||RESTRICT.tabs))return; // gérant·e : Paramètres masqué s'il n'est pas dans ses onglets
@@ -1117,6 +1117,89 @@ function planStatus(e){if(e.type==='Match'){const m=Object.values(DATA.matches).
   if(e.done)return 'done';const s=Object.values(DATA.sessions).some(x=>x.date===e.date&&x.cat===e.cat&&(x.type===e.type||e.type==='Mixte'||x.type==='Mixte'));return s?'done':e.date<TODAY?'miss':'todo';}
 const PS={done:'<span class="pill good">Réalisé</span>',miss:'<span class="pill crit">Non réalisé</span>',todo:'<span class="pill neutral">À venir</span>'};
 function entCls(e){return e.type==='Match'?'match':e.type==='Récupération'?'rec':e.type==='Salle'?'salle':'';}
+/* ================= PLANIFICATION SAISON (périodisation) ================= */
+const SP_WEEKS=40;
+const SP_PHASES=[
+  ['','—','#2a3a52'],
+  ['ppr','PPR / Reprise','#8a6d3b'],
+  ['prepa','Préparation','#c0563a'],
+  ['comp','Compétition','#3a6ea5'],
+  ['transition','Transition','#2f8f6b'],
+  ['coupure','Coupure','#555b66']
+];
+const SP_CONTENT=[
+  ['explo','Explo + Réactivité','#e0c040'],
+  ['submax','Submax (HSR/RSA)','#e08a3a'],
+  ['vitesse','Vitesse + Appui','#e5604d'],
+  ['coord','Chgt direction / Coord.','#a06ff0'],
+  ['vma','VMA / Récup','#2fbf71']
+];
+const SP_COLW=46;
+function spKey(){return INDIV?INDIV_CAT:(UI.cat==='Tous'?(cats()[0]||'U15'):UI.cat);}
+function spStartDefault(){const now=new Date(TODAY+'T12:00:00Z');const y=now.getUTCMonth()>=6?now.getUTCFullYear():now.getUTCFullYear()-1;let d=new Date(Date.UTC(y,7,1));while(d.getUTCDay()!==1)d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);}
+function spGet(cat){const s=DATA.seasonplan&&DATA.seasonplan[cat];return {cat,start:(s&&s.start)||spStartDefault(),weeks:JSON.parse(JSON.stringify((s&&s.weeks)||{}))};}
+async function spSave(cat,plan,silent){await put('seasonplan',cat,plan,silent);}
+function spW(plan,i){return plan.weeks[i]||{};}
+function isoWeekNum(s){const d=new Date(s+'T12:00:00Z');const day=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-day+3);const first=new Date(Date.UTC(d.getUTCFullYear(),0,4));return 1+Math.round(((d-first)/86400000-3+((first.getUTCDay()+6)%7))/7);}
+function spIsMatch(plan,i,cat){const a=addDays(plan.start,7*i),b=addDays(a,6);return Object.values(DATA.matches).some(m=>m&&m.cat===cat&&m.date>=a&&m.date<=b)||Object.values(DATA.plan).some(p=>p&&p.type==='Match'&&p.cat===cat&&p.date>=a&&p.date<=b);}
+function spReal(plan,i,cat){const a=addDays(plan.start,7*i),b=addDays(a,6);let load=0;const pids=new Set();const scan=o=>Object.values(o).forEach(s=>{if(!s||s.cat!==cat||s.date<a||s.date>b)return;Object.entries(s.players||{}).forEach(([pid,e])=>{if(e&&e.rpe!=null){load+=e.rpe*(e.min||s.duration||0);pids.add(pid);}});});scan(DATA.sessions);scan(DATA.matches);return pids.size?Math.round(load/pids.size):0;}
+function spEst(w){return (+w.vol||0)*(+w.int||0)*40;}
+function spChart(plan,cat){
+  const W=SP_WEEKS*SP_COLW,H=200,band=16,padTop=34,padBot=22,plotH=H-padTop-padBot;
+  let phases='',bars='',dots='',matches='',ticks='';const lp=[];
+  for(let i=0;i<SP_WEEKS;i++){const w=spW(plan,i);const x=i*SP_COLW,cx=x+SP_COLW/2;
+    const vol=+w.vol||0,int=+w.int||0;
+    const ph=SP_PHASES.find(p=>p[0]===(w.phase||''))||SP_PHASES[0];
+    phases+=`<rect x="${x}" y="0" width="${SP_COLW}" height="${band}" fill="${ph[2]}" opacity="${w.phase?0.92:0.22}"/>`;
+    const bh=(vol/5)*plotH;bars+=`<rect x="${x+7}" y="${H-padBot-bh}" width="${SP_COLW-14}" height="${bh}" rx="3" fill="#3DA9FC" opacity="0.82"/>`;
+    lp.push([cx,H-padBot-(int/5)*plotH]);
+    if(spIsMatch(plan,i,cat))matches+=`<circle cx="${cx}" cy="${band+9}" r="4.5" fill="#E7A13B"/>`;
+    SP_CONTENT.forEach((c,ci)=>{const lv=+((w.content||{})[c[0]])||0;if(lv>0)dots+=`<circle cx="${cx}" cy="${padTop-4+ci*5}" r="${1.5+lv*0.9}" fill="${c[2]}" opacity="0.92"/>`;});
+    if(i%2===0)ticks+=`<text x="${cx}" y="${H-6}" text-anchor="middle" font-size="9" fill="#7E90A8">S${isoWeekNum(addDays(plan.start,7*i))}</text>`;
+  }
+  const line=`<polyline points="${lp.map(p=>p[0]+','+p[1]).join(' ')}" fill="none" stroke="#E5604D" stroke-width="2.2"/>`+lp.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#E5604D"/>`).join('');
+  return `<div style="overflow-x:auto" id="sp-chart"><svg width="${W}" height="${H}" style="display:block;min-width:100%">${phases}${matches}${bars}${line}${dots}${ticks}</svg></div>`;
+}
+function spBarsCell(i,key,lv,color){const bars=[5,4,3,2,1].map(n=>`<div style="height:3px;margin:1.5px 0;border-radius:2px;background:${n<=lv?color:'rgba(255,255,255,.12)'}"></div>`).join('');return `<td data-act="spLevel" data-wk="${i}" data-key="${key}" title="${lv}/5 — clique pour changer" style="cursor:pointer;padding:5px;text-align:center;min-width:${SP_COLW}px;width:${SP_COLW}px">${bars}</td>`;}
+function spTxtCell(i,key,val){return `<td style="padding:2px;min-width:${SP_COLW}px;width:${SP_COLW}px"><input data-chg="spText" data-wk="${i}" data-key="${key}" value="${esc(val||'')}" style="width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:5px;padding:4px;font-size:11px"></td>`;}
+function spPhaseCell(i,phase){const ph=SP_PHASES.find(p=>p[0]===(phase||''))||SP_PHASES[0];return `<td data-act="spPhase" data-wk="${i}" title="clique pour changer la phase" style="cursor:pointer;padding:3px;text-align:center;min-width:${SP_COLW}px;width:${SP_COLW}px"><span style="display:block;background:${ph[2]};color:#fff;border-radius:5px;padding:4px 2px;font-size:9.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ph[1])}</span></td>`;}
+VIEWS.seasonplan=()=>{
+  if(!INDIV&&UI.cat==='Tous')return `<div class="hrow"><h2>Planification de la saison</h2></div><p class="muted">Choisis une catégorie en haut pour planifier sa saison.</p>`;
+  const cat=spKey();const plan=spGet(cat);
+  const lbl=i=>({wk:isoWeekNum(addDays(plan.start,7*i)),d:addDays(plan.start,7*i)});
+  const th=`<th style="position:sticky;left:0;z-index:3;background:var(--nav);min-width:150px;width:150px;text-align:left;padding:6px 8px"></th>`;
+  const headWk=`<tr>${th}${range0(SP_WEEKS).map(i=>{const {wk,d}=lbl(i);const m=spIsMatch(plan,i,cat);return `<th style="min-width:${SP_COLW}px;width:${SP_COLW}px;padding:5px 2px;text-align:center;font-size:10px;color:${m?'#E7A13B':'var(--ink-2)'}">S${wk}<br><span class="muted" style="font-weight:400">${fmtShort(d)}</span>${m?'<br>⚽':''}</th>`;}).join('')}</tr>`;
+  const rowLbl=t=>`<td style="position:sticky;left:0;z-index:2;background:var(--surface-2);min-width:150px;width:150px;font-size:11px;font-weight:600;color:var(--ink-2);padding:5px 8px;white-space:nowrap">${t}</td>`;
+  const rows=[];
+  rows.push(`<tr>${rowLbl('Phase')}${range0(SP_WEEKS).map(i=>spPhaseCell(i,spW(plan,i).phase)).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Événement')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'event',spW(plan,i).event)).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Adversaire')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'opp',spW(plan,i).opp)).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('▮ Volume')}${range0(SP_WEEKS).map(i=>spBarsCell(i,'vol',+spW(plan,i).vol||0,'#3DA9FC')).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('▲ Intensité')}${range0(SP_WEEKS).map(i=>spBarsCell(i,'int',+spW(plan,i).int||0,'#E5604D')).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Charge estimée')}${range0(SP_WEEKS).map(i=>`<td style="text-align:center;font-size:11px;color:var(--muted)">${spEst(spW(plan,i))||'·'}</td>`).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Charge réelle')}${range0(SP_WEEKS).map(i=>{const r=spReal(plan,i,cat);return `<td style="text-align:center;font-size:11px;font-weight:600">${r||'·'}</td>`;}).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('% réel / estimé')}${range0(SP_WEEKS).map(i=>{const e=spEst(spW(plan,i)),r=spReal(plan,i,cat);const pc=e?Math.round(r/e*100):null;return `<td style="text-align:center;font-size:11px;color:${pc==null?'var(--muted)':(pc>115||pc<85?'#E7A13B':'#2FBF71')}">${pc==null?'·':pc+'%'}</td>`;}).join('')}</tr>`);
+  SP_CONTENT.forEach(c=>{rows.push(`<tr>${rowLbl('<span style="color:'+c[2]+'">●</span> '+c[1])}${range0(SP_WEEKS).map(i=>spBarsCell(i,'content.'+c[0],+((spW(plan,i).content||{})[c[0]])||0,c[2])).join('')}</tr>`);});
+  rows.push(`<tr>${rowLbl('Objectif collectif')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'objCol',spW(plan,i).objCol)).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Objectif individuel')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'objInd',spW(plan,i).objInd)).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Test')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'test',spW(plan,i).test)).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Thème principal')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'themeA',spW(plan,i).themeA)).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Thème secondaire')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'themeB',spW(plan,i).themeB)).join('')}</tr>`);
+  const legend=`<div class="row" style="gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2);margin-top:8px">
+    <span><span style="display:inline-block;width:12px;height:8px;background:#3DA9FC;border-radius:2px"></span> Volume</span>
+    <span><span style="display:inline-block;width:16px;height:2px;background:#E5604D;vertical-align:middle"></span> Intensité</span>
+    <span>⚽ semaine de match</span>
+    ${SP_CONTENT.map(c=>`<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c[2]}"></span> ${c[1]}</span>`).join('')}</div>`;
+  return `<div class="card"><div class="hrow"><h2>Planification de la saison — ${esc(cat)}</h2>
+      <div class="row" style="gap:8px"><label class="small muted" style="margin:0">Début de saison</label><input type="date" data-chg="spStart" value="${plan.start}" style="width:auto"></div></div>
+    <p class="note" style="margin:0 0 10px">Clique une barre pour régler le niveau (0→5). Les cases texte, phases et thèmes sont modifiables directement. Bande du haut = phases · points = contenus athlétiques · ⚽ = match. Tout est enregistré automatiquement.</p>
+    ${spChart(plan,cat)}
+    ${legend}
+    <div id="sp-scroll" style="overflow-x:auto;margin-top:14px"><table style="border-collapse:separate;border-spacing:0"><thead>${headWk}</thead><tbody>${rows.join('')}</tbody></table></div>
+  </div>`;
+};
+function range0(n){return Array.from({length:n},(_,i)=>i);}
+POST.seasonplan=()=>{const el=$('#sp-scroll');if(el){el.scrollLeft=UI.spScroll||0;el.addEventListener('scroll',()=>{UI.spScroll=el.scrollLeft;});const ch=$('#sp-chart');if(ch)ch.scrollLeft=UI.spScroll||0;}};
 VIEWS.training=()=>{
   const v=UI.planView;
   const sw=`<div class="subtabs">${[['week','Semaine (microcycle)'],['month','Mois'],['season','Saison']].map(([k,l])=>`<button class="${v===k?'on':''}" data-act="planView" data-id="${k}">${l}</button>`).join('')}</div>`;
@@ -1810,7 +1893,10 @@ const ACT={
   closeDrawer:()=>{UI.drawer=null;renderDrawer();},
   perfToggle:()=>{UI.perfOpen=!UI.perfOpen;renderNav();},
   entryToggle:()=>{UI.entryOpen=!UI.entryOpen;renderNav();},
-  goSeason:()=>{UI.entryOpen=false;UI.planView='season';go('training');},
+  goSeason:()=>{UI.entryOpen=false;go('seasonplan');},
+  spLevel:b=>{const cat=spKey();const plan=spGet(cat);const i=+b.dataset.wk,key=b.dataset.key;const w=plan.weeks[i]=plan.weeks[i]||{};
+    if(key.indexOf('content.')===0){const ck=key.slice(8);w.content=w.content||{};w.content[ck]=((+w.content[ck]||0)+1)%6;}else{w[key]=((+w[key]||0)+1)%6;}spSave(cat,plan);},
+  spPhase:b=>{const cat=spKey();const plan=spGet(cat);const i=+b.dataset.wk;const w=plan.weeks[i]=plan.weeks[i]||{};const cur=SP_PHASES.findIndex(p=>p[0]===(w.phase||''));w.phase=SP_PHASES[(cur+1)%SP_PHASES.length][0];spSave(cat,plan);},
   goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
@@ -1901,6 +1987,8 @@ const CHG={
   entryPick:t=>{UI.edit=null;UI.entryTab=t.value;formDirty=false;render();},
   assignCat:t=>{UI.assignCat=t.value;render();},
   assignDate:t=>{UI.assignDate=t.value;render();},
+  spText:t=>{const cat=spKey();const plan=spGet(cat);const i=+t.dataset.wk,key=t.dataset.key;const w=plan.weeks[i]=plan.weeks[i]||{};w[key]=t.value;spSave(cat,plan,true);},
+  spStart:t=>{const cat=spKey();const plan=spGet(cat);plan.start=t.value||spStartDefault();spSave(cat,plan);},
   rpeSess:t=>{UI.rpeSess=t.value;render();},
   indivClient:t=>{UI.indivClient=t.value;render();},
   reminderToggle:async t=>{await saveSettings({reminders:t.checked});toast(t.checked?'Rappels activés':'Rappels désactivés');},
