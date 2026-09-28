@@ -104,7 +104,7 @@ const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;
 const TODAY=new Date().toISOString().slice(0,10);
 function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hidden');}
 function showBoot(){const b=document.getElementById('boot');if(b){b.classList.remove('hidden');b.classList.remove('solid');}} // voile semi-transparent (interface visible derrière)
-function isoLong(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
+function isoLong(d){try{return new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
 
 /* ---------- Personnalisation des couleurs (par cliente, sur cet appareil) ---------- */
 const DEF_BG='#0E1A2C', DEF_KPI='#152439';
@@ -517,14 +517,14 @@ const SPORTS_ESPACE=[
 ];
 const sportOf=k=>SPORTS_ESPACE.find(x=>x.k===k);
 let ACT_WEEK=null, ACT_DAY=null, ACT_SPORT=null, ACT_RPE=null;
-function mondayOfISO(d){const t=new Date(d+'T00:00');const wd=(t.getDay()+6)%7;t.setDate(t.getDate()-wd);return t.toISOString().slice(0,10);}
-function weekdayLabel(d){try{return new Date(d+'T00:00').toLocaleDateString('fr-FR',{weekday:'long'});}catch(e){return d;}}
+function mondayOfISO(d){const [y,m,dd]=d.split('-').map(Number);const t=new Date(Date.UTC(y,m-1,dd));const wd=(t.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-wd);return t.toISOString().slice(0,10);} // UTC : indépendant du fuseau (semaine lundi→dimanche partout)
+function weekdayLabel(d){try{return new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long'});}catch(e){return d;}}
 function activityWeekCard(){
   if(!ACT_WEEK)ACT_WEEK=mondayOfISO(TODAY);
   const days=[];for(let i=0;i<7;i++)days.push(addDaysISO(ACT_WEEK,i));
   const acts=MY_SESSIONS.filter(s=>s.source==='joueur');
   const sun=days[6];
-  const title=`${new Date(ACT_WEEK+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} → ${new Date(sun+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`;
+  const title=`${new Date(ACT_WEEK+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} → ${new Date(sun+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`;
   const dayBlocks=days.map(d=>{
     const list=acts.filter(s=>s.date===d);
     const items=list.map(s=>{const me=s.players[PLAYER.id]||{};const sp=sportOf(s.sport);
@@ -795,7 +795,7 @@ async function loadMySessions(){
   Object.values(allM).forEach(m=>{if(m&&m.players&&m.players[PLAYER.id])list.push(Object.assign({},m,{type:'Match',title:'Match vs '+(m.opponent||''),isMatch:true}));});
   MY_SESSIONS=list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
-function addDaysISO(d,n){const t=new Date(d+'T00:00');t.setDate(t.getDate()+n);return t.toISOString().slice(0,10);}
+function addDaysISO(d,n){const [y,m,dd]=d.split('-').map(Number);const t=new Date(Date.UTC(y,m-1,dd));t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10);} // UTC : pas de décalage de fuseau
 function dayLoad(date){let load=0,match=false;MY_SESSIONS.filter(s=>s.date===date).forEach(s=>{const me=s.players[PLAYER.id]||{};const rpe=me.rpe;const min=me.min||s.duration||0;if(rpe!=null)load+=rpe*min;if(s.type==='Match'||s.competition)match=true;});return {load:Math.round(load),match};}
 function load7(){let sum=0;for(let i=0;i<7;i++)sum+=dayLoad(addDaysISO(TODAY,-i)).load;return sum;}
 async function wellnessToday(){const all=await kvGet(SPACE+':wellness');const e=all[TODAY]&&all[TODAY].entries&&all[TODAY].entries[PLAYER.id];if(!e)return null;const score=Math.round(((e.sleep||0)+(e.fatigue||0)+(e.soreness||0)+(e.stress||0)+(e.mood||0))/25*100);return {e,score};}
@@ -823,7 +823,7 @@ function progressionCard(){
   const starts=[];for(let k=5;k>=0;k--)starts.push(addDaysISO(wkStart,-7*k));
   const weeks=starts.map(weekStat);const max=Math.max(1,...weeks.map(w=>w.load));
   const bars=weeks.map(w=>`<div class="b" style="height:${Math.round(w.load/max*88)||2}px" title="${w.load} UA"></div>`).join('');
-  const labs=starts.map(st=>`<span>${new Date(st+'T00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'numeric'})}</span>`).join('');
+  const labs=starts.map(st=>`<span>${new Date(st+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'numeric'})}</span>`).join('');
   const bySport={};acts.filter(s=>s.date>=wkStart&&s.date<addDaysISO(wkStart,7)).forEach(s=>{const sp=sportOf(s.sport);const key=sp?sp.e+' '+sp.l:'Autre';bySport[key]=(bySport[key]||0)+1;});
   const sportChips=Object.entries(bySport).map(([k,v])=>`<span class="pill">${k} ×${v}</span>`).join(' ')||'<span class="muted" style="font-size:12.5px">Aucune activité cette semaine.</span>';
   return `<div class="card"><h2>Ma progression</h2>
