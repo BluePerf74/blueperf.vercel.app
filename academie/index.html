@@ -724,13 +724,13 @@ function zbars(items){ // diverging, value = z (−3..3)
 
 /* ===================== UI STATE ===================== */
 const UI={tab:'overview',cat:'Tous',ref:TODAY,drawer:null,entryTab:'assign',edit:null,planView:'week',planWeek:mondayOf(TODAY),planMonth:TODAY.slice(0,7),
-  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null,indivClient:'Tous'};
-try{const t=JSON.parse(localStorage.getItem(LSKEY+'-ui')||'{}');if(t.tab)UI.tab=t.tab;if(t.cat)UI.cat=t.cat;}catch(e){}
+  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null,indivClient:'Tous',seen:{}};
+try{const t=JSON.parse(localStorage.getItem(LSKEY+'-ui')||'{}');if(t.tab)UI.tab=t.tab;if(t.cat)UI.cat=t.cat;if(t.seen)UI.seen=t.seen;}catch(e){}
 if(RESTRICT.team)UI.cat=RESTRICT.team; // gérant·e : équipe imposée
 if(RESTRICT.tabs&&!tabOn(UI.tab))UI.tab='overview';
 if(/^#[a-z]+$/.test(location.hash)){const h=location.hash.slice(1);if(allTabIds().includes(h))UI.tab=h;}
 function allTabIds(){const o=[];TABS.forEach(t=>{if(t.children)t.children.forEach(c=>o.push(c.id));else o.push(t.id);});return o;}
-function saveUI(){try{localStorage.setItem(LSKEY+'-ui',JSON.stringify({tab:UI.tab,cat:UI.cat}));}catch(e){}}
+function saveUI(){try{localStorage.setItem(LSKEY+'-ui',JSON.stringify({tab:UI.tab,cat:UI.cat,seen:UI.seen}));}catch(e){}}
 const INDIV=MODE==='individuel';
 const INDIV_CAT='Individuel';
 /* Libellés : en coaching individuel on parle de « client·e·s », pas de « joueur·se·s ». */
@@ -753,8 +753,19 @@ const indivName=pid=>(pid&&pid!=='all'&&DATA.players[pid])?DATA.players[pid].nam
 function counts(){const ps=playersOf(UI.cat);let red=0,orange=0;ps.forEach(p=>{const s=playerStatus(p,UI.ref);if(s.lv>=3)red++;else if(s.lv===2)orange++;});
   const inj=Object.values(DATA.injuries).filter(i=>i.status!=='apte'&&DATA.players[i.pid]&&inCat(DATA.players[i.pid])).length;
   const rea=Object.values(DATA.injuries).filter(i=>(i.status==='reathle'||i.status==='reprise')&&DATA.players[i.pid]&&inCat(DATA.players[i.pid])).length;return{red,orange,inj,rea};}
+// Signature des alertes en cours (par catégorie) : sert à faire disparaître la pastille de notif une fois l'onglet consulté, et à la refaire apparaître si une nouvelle alerte survient.
+function alertSig(){
+  const ps=playersOf(UI.cat);
+  const overview=ps.map(p=>({p,s:playerStatus(p,UI.ref)})).filter(o=>o.s.lv>=2).map(o=>o.p.id+':'+o.s.lv).sort().join(',');
+  const inj=Object.values(DATA.injuries).filter(i=>i.status!=='apte'&&DATA.players[i.pid]&&inCat(DATA.players[i.pid]));
+  const medical=inj.map(i=>i.id+':'+i.status).sort().join(',');
+  const reathle=inj.filter(i=>i.status==='reathle'||i.status==='reprise').map(i=>i.id).sort().join(',');
+  return {overview,medical,reathle};
+}
+function markSeen(tabId){if(!['overview','medical','reathle'].includes(tabId))return;const sig=alertSig();UI.seen=UI.seen||{};UI.seen[UI.cat]=Object.assign({},UI.seen[UI.cat]);UI.seen[UI.cat][tabId]=sig[tabId];saveUI();}
 function renderNav(){
-  const c=counts();const badge={overview:c.red?`<span class="badge crit">${c.red}</span>`:c.orange?`<span class="badge warn">${c.orange}</span>`:'',medical:c.inj?`<span class="badge">${c.inj}</span>`:'',reathle:c.rea?`<span class="badge">${c.rea}</span>`:''};
+  const c=counts();const sig=alertSig();const seen=(UI.seen&&UI.seen[UI.cat])||{};const show=k=>sig[k]&&sig[k]!==seen[k]; // pastille masquée tant que l'alerte a déjà été consultée
+  const badge={overview:show('overview')?(c.red?`<span class="badge crit">${c.red}</span>`:c.orange?`<span class="badge warn">${c.orange}</span>`:''):'',medical:show('medical')&&c.inj?`<span class="badge">${c.inj}</span>`:'',reathle:show('reathle')&&c.rea?`<span class="badge">${c.rea}</span>`:''};
   const inPerf=['testing','reathle','muscu'].includes(UI.tab);
   let h=`<div class="brand"><b>Blueperf</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
   TABS.forEach(t=>{
@@ -1880,7 +1891,7 @@ function renderDrawer(){
 
 /* ---------- ACTIONS ---------- */
 const ACT={
-  tab:b=>{UI.drawer=null;go(b.dataset.id);},
+  tab:b=>{UI.drawer=null;markSeen(b.dataset.id);go(b.dataset.id);},
   saveTemplate:async()=>{const f=$('form[data-form="session"]');if(!f)return;const v=Object.fromEntries(new FormData(f));
     const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
     if(!procedes.length){toast('Ajoute au moins un procédé avant d\'enregistrer un modèle');return;}
