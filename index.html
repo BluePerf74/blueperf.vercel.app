@@ -2004,6 +2004,7 @@ async function openAdminPanel(){
   await renderAdminBody();
 }
 const MGR_INPUT_STYLE='width:100%;background:#0E1A2C;border:1px solid #25344b;color:#EAF1FB;border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
+let MGR_EDIT_ID=null; // gérant·e en cours de modification
 async function renderManagers(){
   const listEl=document.getElementById('bp-mgr-list'), formEl=document.getElementById('bp-mgr-form');
   if(!listEl||!formEl) return;
@@ -2011,24 +2012,35 @@ async function renderManagers(){
   const cfgRaw=await sGet('aca:config',true); let cfg; try{cfg=cfgRaw?JSON.parse(cfgRaw):{};}catch(e){cfg={};}
   const catsArr=(cfg.settings&&Array.isArray(cfg.settings.categories))?cfg.settings.categories:['U15','U18'];
   const arr=Object.values(mgrs);
-  listEl.innerHTML=arr.length?arr.map(m=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #25344b;border-radius:8px;margin-bottom:6px">
+  const editing = MGR_EDIT_ID && mgrs[MGR_EDIT_ID] ? mgrs[MGR_EDIT_ID] : null;
+  if(MGR_EDIT_ID && !editing) MGR_EDIT_ID=null;
+  listEl.innerHTML=arr.length?arr.map(m=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid ${m.id===MGR_EDIT_ID?'#3DA9FC':'#25344b'};border-radius:8px;margin-bottom:6px">
       <div style="flex:1"><b>${admEsc(m.label||m.username)}</b><div style="font-size:11.5px;color:#7E90A8">${admEsc(m.username)} · ${admEsc(m.team||'—')} · ${(m.tabs&&m.tabs.length)?m.tabs.length+' onglet(s)':'tous onglets'}</div></div>
-      <button data-mgr-del="${admEsc(m.id)}" style="appearance:none;cursor:pointer;border:1px solid #6b3a3a;background:transparent;color:#ffb4a8;border-radius:7px;padding:6px 10px;font-size:12px">Supprimer</button>
+      <button data-mgr-edit="${admEsc(m.id)}" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:transparent;color:#8FCBFF;border-radius:7px;padding:6px 10px;font-size:12px">${admEsc(t('Modifier','Edit'))}</button>
+      <button data-mgr-del="${admEsc(m.id)}" style="appearance:none;cursor:pointer;border:1px solid #6b3a3a;background:transparent;color:#ffb4a8;border-radius:7px;padding:6px 10px;font-size:12px">${admEsc(t('Supprimer','Delete'))}</button>
     </div>`).join(''):`<p style="color:#7E90A8;font-size:12.5px;margin:0 0 6px">${admEsc(t("Aucun·e gérant·e pour l'instant.","No managers yet."))}</p>`;
-  const teamOpts=catsArr.map(c=>`<option value="${admEsc(c)}">${admEsc(c)}</option>`).join('');
-  const tabChecks=ACA_TABS.map(([id,lbl])=>`<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#EAF1FB"><input type="checkbox" data-mgr-tab="${id}" ${id==='overview'?'checked':''} style="accent-color:#3DA9FC"> ${admEsc(lbl)}</label>`).join('');
+  const teamOpts=catsArr.map(c=>`<option value="${admEsc(c)}" ${editing&&editing.team===c?'selected':''}>${admEsc(c)}</option>`).join('');
+  const checked=editing?(editing.tabs&&editing.tabs.length?new Set(editing.tabs):new Set(ACA_TABS.map(x=>x[0]))):new Set(['overview']);
+  const tabChecks=ACA_TABS.map(([id,lbl])=>`<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#EAF1FB"><input type="checkbox" data-mgr-tab="${id}" ${checked.has(id)?'checked':''} style="accent-color:#3DA9FC"> ${admEsc(lbl)}</label>`).join('');
   formEl.innerHTML=`<div style="border-top:1px dashed #25344b;margin-top:8px;padding-top:10px">
+    ${editing?`<div style="font-size:12.5px;color:#8FCBFF;margin-bottom:8px">${admEsc(t('Modification de','Editing'))} « ${admEsc(editing.username)} »</div>`:''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <input id="mgr-user" placeholder="${admEsc(t('Identifiant','Username'))}" style="${MGR_INPUT_STYLE}">
-      <input id="mgr-pass" placeholder="${admEsc(t('Mot de passe','Password'))}" style="${MGR_INPUT_STYLE}">
+      <input id="mgr-user" placeholder="${admEsc(t('Identifiant','Username'))}" value="${editing?admEsc(editing.username):''}" style="${MGR_INPUT_STYLE}">
+      <input id="mgr-pass" placeholder="${admEsc(t('Mot de passe','Password'))}" value="${editing?admEsc(editing.password||''):''}" style="${MGR_INPUT_STYLE}">
     </div>
     <div style="margin-bottom:8px"><div style="font-size:12px;color:#7E90A8;margin-bottom:3px">${admEsc(t('Équipe','Team'))}</div><select id="mgr-team" style="${MGR_INPUT_STYLE}">${teamOpts}</select></div>
     <div style="font-size:12px;color:#7E90A8;margin-bottom:5px">${admEsc(t('Onglets autorisés','Allowed tabs'))}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px">${tabChecks}</div>
-    <button id="mgr-add" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${admEsc(t('Ajouter le/la gérant·e','Add manager'))}</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="mgr-add" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer les modifications','Save changes')):admEsc(t('Ajouter le/la gérant·e','Add manager'))}</button>
+      ${editing?`<button id="mgr-cancel" style="appearance:none;cursor:pointer;border:1px solid #33465f;background:transparent;color:#EAF1FB;border-radius:9px;padding:9px 14px;font-size:13.5px">${admEsc(t('Annuler','Cancel'))}</button>`:''}
+    </div>
     <div id="mgr-status" style="font-size:12.5px;color:#8fe0b0;margin-top:6px"></div>
   </div>`;
-  listEl.querySelectorAll('[data-mgr-del]').forEach(b=>b.onclick=async()=>{b.disabled=true;await deleteManager(b.getAttribute('data-mgr-del'));renderManagers();});
+  listEl.querySelectorAll('[data-mgr-edit]').forEach(b=>b.onclick=()=>{MGR_EDIT_ID=b.getAttribute('data-mgr-edit');renderManagers();});
+  listEl.querySelectorAll('[data-mgr-del]').forEach(b=>b.onclick=async()=>{b.disabled=true;const id=b.getAttribute('data-mgr-del');if(MGR_EDIT_ID===id)MGR_EDIT_ID=null;await deleteManager(id);renderManagers();});
+  const cancel=document.getElementById('mgr-cancel');
+  if(cancel)cancel.onclick=()=>{MGR_EDIT_ID=null;renderManagers();};
   const add=document.getElementById('mgr-add');
   if(add)add.onclick=async()=>{
     const u=(document.getElementById('mgr-user').value||'').trim();
@@ -2038,15 +2050,15 @@ async function renderManagers(){
     const st=document.getElementById('mgr-status');
     if(!u||!p){st.textContent=t('⚠️ Identifiant et mot de passe requis.','⚠️ Username and password required.');st.style.color='#f0c583';return;}
     add.disabled=true;
-    const ok=await saveManager({username:u,password:p,team,tabs});
+    const ok=await saveManager({id:MGR_EDIT_ID,username:u,password:p,team,tabs});
     add.disabled=false;
-    if(ok){renderManagers();}else{st.textContent=t('Échec, réessaie.','Failed, retry.');st.style.color='#f0c583';}
+    if(ok){MGR_EDIT_ID=null;renderManagers();}else{st.textContent=t('Échec, réessaie.','Failed, retry.');st.style.color='#f0c583';}
   };
 }
 async function saveManager(m){
   const mgrs=await loadManagers();
-  const id='mgr-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
-  mgrs[id]={id,username:m.username,password:m.password,team:m.team,tabs:m.tabs||[],label:m.username,active:true};
+  const id=(m.id&&mgrs[m.id])?m.id:('mgr-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
+  mgrs[id]=Object.assign({},mgrs[id]||{},{id,username:m.username,password:m.password,team:m.team,tabs:m.tabs||[],label:m.username,active:true});
   return (await sSet('aca:managers',JSON.stringify(mgrs),true))===true;
 }
 async function deleteManager(id){
