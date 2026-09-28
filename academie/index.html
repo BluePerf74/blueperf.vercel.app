@@ -759,8 +759,8 @@ function renderNav(){
   let h=`<div class="brand"><b>Blueperf</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
   TABS.forEach(t=>{
     if(t.entryGroup){ // groupe Saisie : menu déroulant dans la barre, navigation par goEntry (UI.entryTab)
-      if(!tabOn('entry'))return;const inGrp=UI.tab==='entry';const open=!!UI.entryOpen||inGrp;
-      h+=`<li class="${open?'open':''}"><button class="ni ${inGrp&&!open?'on':''}" data-act="entryToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${t.children.map(k=>`<li><button class="ni ${(inGrp&&UI.entryTab===k.id)||(k.season&&UI.tab==='training'&&UI.planView==='season')?'on':''}" data-act="${k.season?'goSeason':'goEntry'}" data-id="${k.id}"><span>${k.icon?k.icon+' ':''}${k.label}</span></button></li>`).join('')}</ul>`:''}</li>`;return;}
+      if(!tabOn('entry'))return;const inGrp=UI.tab==='entry';const open=!!UI.entryOpen; // ouvert seulement au clic sur « Saisie » ; se referme après avoir choisi une entrée
+      h+=`<li class="${open?'open':''}"><button class="ni ${inGrp?'on':''}" data-act="entryToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${t.children.map(k=>`<li><button class="ni ${(inGrp&&UI.entryTab===k.id)||(k.season&&UI.tab==='training'&&UI.planView==='season')?'on':''}" data-act="${k.season?'goSeason':'goEntry'}" data-id="${k.id}"><span>${k.icon?k.icon+' ':''}${k.label}</span></button></li>`).join('')}</ul>`:''}</li>`;return;}
     if(t.children){const kids=t.children.filter(k=>tabOn(k.id));if(!tabOn('perf')||!kids.length)return;const open=!!UI.perfOpen||inPerf;
       h+=`<li class="${open?'open':''}"><button class="ni ${inPerf&&!open?'on':''}" data-act="perfToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${kids.map(k=>`<li><button class="ni ${UI.tab===k.id?'on':''}" data-act="tab" data-id="${k.id}"><span>${k.label}</span>${badge[k.id]||''}</button></li>`).join('')}</ul>`:''}</li>`;return;}
     if(!tabOn(t.id)&&(t.id!=='settings'||RESTRICT.tabs))return; // gérant·e : Paramètres masqué s'il n'est pas dans ses onglets
@@ -1810,8 +1810,8 @@ const ACT={
   closeDrawer:()=>{UI.drawer=null;renderDrawer();},
   perfToggle:()=>{UI.perfOpen=!UI.perfOpen;renderNav();},
   entryToggle:()=>{UI.entryOpen=!UI.entryOpen;renderNav();},
-  goSeason:()=>{UI.planView='season';go('training');},
-  goEntry:b=>{UI.edit=null;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
+  goSeason:()=>{UI.entryOpen=false;UI.planView='season';go('training');},
+  goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
   edit:b=>{UI.edit={col:b.dataset.col,id:b.dataset.id};UI.entryTab=COL2TAB[b.dataset.col];UI.drawer=null;if(b.dataset.col==='tests')UI.tSel=null;go('entry');},
