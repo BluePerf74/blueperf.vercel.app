@@ -94,22 +94,35 @@ input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px
 .boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(14,26,44,.66);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);color:var(--ink);font-size:13.5px;font-weight:600}
 .boot.solid{background:var(--bg)}
 .boot.hidden{display:none}
-.boot .panel{display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 28px;box-shadow:0 16px 40px rgba(0,0,0,.4)}
+.boot .panel{display:flex;flex-direction:column;align-items:center;gap:12px;background:color-mix(in srgb,var(--surface) 88%,transparent);border:1px solid var(--line);border-radius:14px;padding:20px 26px;box-shadow:0 16px 40px rgba(0,0,0,.4)}
 .spin{width:34px;height:34px;border:3px solid var(--line-2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* Écran de fond au chargement : squelette aux couleurs de l'app sous un voile léger (plus de page blanche). */
+.splash{position:fixed;inset:0;z-index:9998;background:var(--bg);padding:16px 16px calc(16px + env(safe-area-inset-bottom,0));overflow:hidden}
+.splash.hidden{display:none}
+.sp-top{display:flex;align-items:center;justify-content:space-between;max-width:720px;margin:0 auto 18px}
+.sp-brand{font-weight:800;letter-spacing:.06em;font-size:19px;color:var(--ink)}
+.sp-brand span{color:var(--accent)}
+.sp-body{max-width:720px;margin:0 auto}
+.sp-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.sp-row .sk{height:74px}
+.sp-card{height:150px;margin-bottom:14px}
+.sk{border-radius:14px;background:linear-gradient(90deg,rgba(140,155,175,.10) 25%,rgba(140,155,175,.22) 37%,rgba(140,155,175,.10) 63%);background-size:200% 100%;animation:skmove 1.3s ease-in-out infinite;border:1px solid rgba(140,155,175,.10)}
+@keyframes skmove{100%{background-position:-200% 0}}
 #updbar{position:fixed;top:0;left:0;right:0;z-index:10000;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
 #updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
-<div class="boot solid" id="boot"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
+<div class="splash" id="splash" aria-hidden="true"><div class="sp-top"><div class="sp-brand">BLUE<span>PERF</span></div></div><div class="sp-body"><div class="sp-row"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sp-card sk"></div><div class="sp-card sk"></div></div></div>
+<div class="boot" id="boot"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
 <div class="wrap" id="app"></div>
 <script src="program-data.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const TODAY=new Date().toISOString().slice(0,10);
-function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hidden');}
+function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hidden');const sp=document.getElementById('splash');if(sp)sp.classList.add('hidden');}
 function showBoot(){const b=document.getElementById('boot');if(b){b.classList.remove('hidden');b.classList.remove('solid');}} // voile semi-transparent (interface visible derrière)
 function isoLong(d){try{return new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
 

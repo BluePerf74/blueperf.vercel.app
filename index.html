@@ -665,19 +665,33 @@
     .cdb-navbar-inner{padding:9px 14px;}
     .cdb-right{margin-left:0;width:100%;justify-content:flex-start;}
   }
-<style>
-#boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(9,16,26,.6);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);color:#EAF1FB;font-family:system-ui,sans-serif;font-size:13.5px;font-weight:600}
+#boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(9,16,26,.28);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);color:#EAF1FB;font-family:system-ui,sans-serif;font-size:13.5px;font-weight:600}
 #boot.solid{background:#0D1B2A}
 #boot.hidden{display:none}
-#boot .panel{display:flex;flex-direction:column;align-items:center;gap:12px;background:#152439;border:1px solid #25344b;border-radius:14px;padding:22px 30px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+#boot .panel{display:flex;flex-direction:column;align-items:center;gap:12px;background:rgba(21,36,57,.94);border:1px solid #25344b;border-radius:14px;padding:20px 28px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
 #boot .spin{width:34px;height:34px;border:3px solid #33465f;border-top-color:#3DA9FC;border-radius:50%;animation:bootspin .8s linear infinite}
 @keyframes bootspin{to{transform:rotate(360deg)}}
+/* Écran de fond au chargement : squelette de la page sous un voile léger (plus de page blanche). */
+#splash{position:fixed;inset:0;z-index:99998;background:var(--chalk,#F4F6F9);padding:16px 16px calc(16px + env(safe-area-inset-bottom,0));overflow:hidden}
+#splash.hidden{display:none}
+#splash .sp-top{display:flex;align-items:center;justify-content:space-between;max-width:1180px;margin:0 auto 18px}
+#splash .sp-brand{font-family:system-ui,sans-serif;font-weight:800;letter-spacing:.02em;font-size:19px;color:#0D1B2A}
+#splash .sp-brand span{color:#2A8CE0}
+#splash .sp-body{max-width:1180px;margin:0 auto}
+#splash .sp-hero{height:120px;margin-bottom:14px}
+#splash .sp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+#splash .sp-row .sk{height:80px}
+#splash .sp-card{height:210px;margin-bottom:14px}
+#splash .sk{border-radius:14px;background:linear-gradient(90deg,rgba(13,27,42,.06) 25%,rgba(13,27,42,.12) 37%,rgba(13,27,42,.06) 63%);background-size:200% 100%;animation:bootsk 1.3s ease-in-out infinite;border:1px solid rgba(13,27,42,.05)}
+@keyframes bootsk{100%{background-position:-200% 0}}
+@media (max-width:640px){#splash .sp-row{grid-template-columns:repeat(2,1fr)}}
 #updbar{position:fixed;top:0;left:0;right:0;z-index:100000;background:#3DA9FC;color:#04121f;font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
 #updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
-<div id="boot" class="solid"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
+<div id="splash" aria-hidden="true"><div class="sp-top"><div class="sp-brand">BLUE<span>PERF</span></div></div><div class="sp-body"><div class="sp-hero sk"></div><div class="sp-row"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sp-card sk"></div><div class="sp-card sk"></div></div></div>
+<div id="boot"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
 <div id="app"></div>
 
 <script>
@@ -6351,7 +6365,8 @@ init();
   // Le voile (plein écran, rond centré) reste tant que le CONTENU réel n'est pas affiché
   // (écran de connexion, contenu du tableau de bord, ou module en iframe) — plus d'écran blanc.
   function ready(){ const scr=document.getElementById('screen'); return (scr&&scr.children.length>0)||!!document.getElementById('login-form')||!!document.querySelector('#app iframe')||!!document.getElementById('storage-retry'); }
-  if(boot){ let n=0; const iv=setInterval(()=>{ n++; if(ready()||n>60){ boot.classList.add('hidden'); clearInterval(iv); } },100); }
+  const hideLoad=()=>{ if(boot)boot.classList.add('hidden'); const sp=document.getElementById('splash'); if(sp)sp.classList.add('hidden'); };
+  if(boot){ let n=0; const iv=setInterval(()=>{ n++; if(ready()||n>60){ hideLoad(); clearInterval(iv); } },100); }
   // Bannière « nouvelle version » quand le code change (pas de rechargement automatique brutal).
   let PAGE_TAG=null;
   async function checkVersion(){ try{ const r=await fetch('/?v='+Date.now(),{method:'HEAD',cache:'no-store'}); const et=r.headers.get('etag')||r.headers.get('last-modified'); if(et){ if(PAGE_TAG&&et!==PAGE_TAG)showUpdateBanner(); PAGE_TAG=et; } }catch(e){} }
