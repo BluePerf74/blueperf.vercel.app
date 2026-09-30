@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" style="background:#0D1B2A">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
@@ -671,18 +671,18 @@
 #boot .panel{display:flex;flex-direction:column;align-items:center;gap:12px;background:rgba(21,36,57,.94);border:1px solid #25344b;border-radius:14px;padding:20px 28px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
 #boot .spin{width:34px;height:34px;border:3px solid #33465f;border-top-color:#3DA9FC;border-radius:50%;animation:bootspin .8s linear infinite}
 @keyframes bootspin{to{transform:rotate(360deg)}}
-/* Écran de fond au chargement : squelette de la page sous un voile léger (plus de page blanche). */
-#splash{position:fixed;inset:0;z-index:99998;background:var(--chalk,#F4F6F9);padding:16px 16px calc(16px + env(safe-area-inset-bottom,0));overflow:hidden}
+/* Écran de fond au chargement : fond sombre (aux couleurs de la marque) + squelette, jamais d'écran blanc. */
+#splash{position:fixed;inset:0;z-index:99998;background:#0D1B2A;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0));overflow:hidden}
 #splash.hidden{display:none}
 #splash .sp-top{display:flex;align-items:center;justify-content:space-between;max-width:1180px;margin:0 auto 18px}
-#splash .sp-brand{font-family:system-ui,sans-serif;font-weight:800;letter-spacing:.02em;font-size:19px;color:#0D1B2A}
-#splash .sp-brand span{color:#2A8CE0}
+#splash .sp-brand{font-family:system-ui,sans-serif;font-weight:800;letter-spacing:.02em;font-size:19px;color:#EAF1FB}
+#splash .sp-brand span{color:#3DA9FC}
 #splash .sp-body{max-width:1180px;margin:0 auto}
 #splash .sp-hero{height:120px;margin-bottom:14px}
 #splash .sp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
 #splash .sp-row .sk{height:80px}
 #splash .sp-card{height:210px;margin-bottom:14px}
-#splash .sk{border-radius:14px;background:linear-gradient(90deg,rgba(13,27,42,.06) 25%,rgba(13,27,42,.12) 37%,rgba(13,27,42,.06) 63%);background-size:200% 100%;animation:bootsk 1.3s ease-in-out infinite;border:1px solid rgba(13,27,42,.05)}
+#splash .sk{border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 37%,rgba(255,255,255,.05) 63%);background-size:200% 100%;animation:bootsk 1.3s ease-in-out infinite;border:1px solid rgba(255,255,255,.05)}
 @keyframes bootsk{100%{background-position:-200% 0}}
 @media (max-width:640px){#splash .sp-row{grid-template-columns:repeat(2,1fr)}}
 #updbar{position:fixed;top:0;left:0;right:0;z-index:100000;background:#3DA9FC;color:#04121f;font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
