@@ -518,6 +518,7 @@ function wellnessCard(){
 }
 
 let SESSIONS_TODAY=[]; // {sid, session, rpe}
+let OV_SAISIR=null; // id de l'élément déplié pour saisie dans la Vue d'ensemble
 function sessionsCard(){
   return `<div class="card">
     <h2>Séances du coach à noter</h2>
@@ -652,12 +653,13 @@ async function loadSessionsToday(){
   const items=[];
   // Séances affectées par le coach (à noter en RPE)
   Object.values(allS).forEach(s=>{
-    if(!s||s.date!==FEEL_DATE||s.cat!==PLAYER.cat)return;
+    if(!s||s.cat!==PLAYER.cat)return;
     if(s.source==='joueur')return; // activités perso : gérées dans l'onglet activité de la semaine
     const me=(s.players&&s.players[PLAYER.id])||null;if(!me)return;
     const submitted=me.rpe!=null||(me.partRpe&&Object.keys(me.partRpe).length);
     const open=s.rpeOpenedAt&&(now-s.rpeOpenedAt)<RPE_WINDOW_MS;
-    if(!(open||submitted))return;
+    // Apparaît dès que le coach a ouvert la fenêtre RPE (quelle que soit la date de la séance), ou si déjà notée aujourd'hui.
+    if(!open&&!(submitted&&s.date===FEEL_DATE))return;
     const parts=(Array.isArray(s.procedes)&&s.procedes.length)?s.procedes.map((p,j)=>p.type||('Procédé '+(j+1))):(Array.isArray(s.parts)?s.parts:[]);
     const partRpe=me.partRpe||{};
     items.push({sid:s.id,col:'sessions',session:s,isMatch:false,parts,open:!!open,remain:s.rpeOpenedAt?(s.rpeOpenedAt+RPE_WINDOW_MS-now):null,
@@ -665,11 +667,12 @@ async function loadSessionsToday(){
   });
   // Matchs affectés (difficulté RPE + note de perf + commentaire)
   Object.values(allM).forEach(m=>{
-    if(!m||m.date!==FEEL_DATE||m.cat!==PLAYER.cat)return;
+    if(!m||m.cat!==PLAYER.cat)return;
     const me=(m.players&&m.players[PLAYER.id])||null;if(!me)return; // seulement les participantes
     const submitted=me.rpe!=null||me.perf!=null;
     const open=m.rpeOpenedAt&&(now-m.rpeOpenedAt)<RPE_WINDOW_MS;
-    if(!(open||submitted))return;
+    // Apparaît dès que le coach a envoyé le RPE du match (fenêtre ouverte), quelle que soit la date du match.
+    if(!open&&!(submitted&&m.date===FEEL_DATE))return;
     items.push({sid:m.id,col:'matches',isMatch:true,session:Object.assign({},m,{title:'Match vs '+(m.opponent||''),type:'Match'}),
       open:!!open,remain:m.rpeOpenedAt?(m.rpeOpenedAt+RPE_WINDOW_MS-now):null,parts:[],
       rpe:me.rpe!=null?me.rpe:null,perf:me.perf!=null?me.perf:null,comment:me.comment||''});
@@ -874,6 +877,68 @@ function progressionCard(){
     <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:12px">${sportChips}</div>
   </div>`;
 }
+/* ---------- « À saisir » dans la Vue d'ensemble : bouton Saisir → RPE (+ note de perf si match) ---------- */
+function ovSaisirCard(){
+  if(!SESSIONS_TODAY.length)return '';
+  const rows=SESSIONS_TODAY.map((o,i)=>{
+    const rated=o.rpe!=null;const openForm=OV_SAISIR===o.sid&&o.open;
+    const meta=`${esc(o.session.type||'')}${o.session.duration?' · '+o.session.duration+' min':''}${rated?' · RPE '+o.rpe:''}${o.isMatch&&o.perf!=null?' · Perf '+o.perf:''}`;
+    const chrono=o.open&&o.remain!=null?` · <span class="chrono" data-remain="${(o.session.rpeOpenedAt||0)+RPE_WINDOW_MS}" style="color:var(--good);font-weight:600">ferme dans ${fmtRemainE(o.remain)}</span>`:'';
+    let form='';
+    if(openForm){
+      if(o.isMatch){
+        form=`<div style="margin-top:10px">
+          <label>Difficulté du match (1 → 10)</label>${scaleTen('ov-'+i+'-diff',o.rpe)}
+          <label style="display:block;margin-top:12px">Ta note de performance (1 → 10)</label>${scaleTen('ov-'+i+'-perf',o.perf)}
+          <label style="display:block;margin-top:12px">Commentaire (optionnel)</label><input id="ov-cmt-${i}" value="${esc(o.comment||'')}" placeholder="Ton ressenti sur le match…" style="margin-top:2px">
+          <div style="margin-top:10px"><button class="btn" data-ovsave="${i}">Enregistrer ma note</button> <span class="ok" id="ov-ok-${i}"></span></div></div>`;
+      }else if(o.parts.length){
+        form=`<div style="margin-top:10px">${o.parts.map((name,j)=>`<div style="margin-bottom:10px"><label>${(j+1)+'. '+esc(name)} — RPE (0 → 10)</label>${rpeScale('ov-'+i+'-'+j,o.partVals[j])}</div>`).join('')}
+          <div><button class="btn" data-ovsave="${i}">Enregistrer les RPE</button> <span class="ok" id="ov-ok-${i}"></span></div></div>`;
+      }else{
+        form=`<div style="margin-top:10px"><label>RPE ressenti (0 → 10)</label>${rpeScale('ov-'+i+'-0',o.rpe)}
+          <div style="margin-top:10px"><button class="btn" data-ovsave="${i}">Enregistrer le RPE</button> <span class="ok" id="ov-ok-${i}"></span></div></div>`;
+      }
+    }
+    const action=o.open
+      ?`<button class="btn ${rated&&!openForm?'sec':''}" data-ovtoggle="${esc(o.sid)}" style="padding:9px 16px;white-space:nowrap">${openForm?'Fermer':(rated?'Modifier':'Saisir')}</button>`
+      :`<span class="pill" style="color:var(--warn)">fenêtre fermée</span>`;
+    return `<div class="session"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+        <div style="min-width:0"><div class="t">${esc(o.session.title||o.session.type||'Séance')}${o.isMatch?' <span class="pill">Match</span>':''}</div><div class="m">${meta}${chrono}</div></div>
+        ${action}</div>${form}</div>`;
+  }).join('');
+  const pend=SESSIONS_TODAY.filter(o=>o.open&&o.rpe==null).length;
+  const hasMatch=SESSIONS_TODAY.some(o=>o.isMatch);
+  return `<div class="card"><h2>À saisir — séances &amp; matchs du coach</h2>
+    <p class="muted" style="font-size:12.5px;margin:-4px 0 10px">${pend?('Ton coach t\'a envoyé '+pend+' élément'+(pend>1?'s':'')+' à noter. Clique « Saisir » pour entrer ton RPE'+(hasMatch?' et ta note de performance':'')+'.'):'Tout est noté pour le moment.'}</p>
+    ${rows}</div>`;
+}
+function bindOvSaisir(){
+  document.querySelectorAll('[data-ovtoggle]').forEach(b=>b.onclick=()=>{const id=b.getAttribute('data-ovtoggle');OV_SAISIR=(OV_SAISIR===id)?null:id;renderTab();});
+  SESSIONS_TODAY.forEach((o,i)=>{
+    if(OV_SAISIR!==o.sid||!o.open)return;
+    if(o.isMatch){bindRpeScale('ov-'+i+'-diff',v=>o.rpe=v);bindRpeScale('ov-'+i+'-perf',v=>o.perf=v);}
+    else{const n=o.parts.length||1;for(let j=0;j<n;j++){bindRpeScale('ov-'+i+'-'+j,v=>{if(o.parts.length){o.partVals[j]=v;}else{o.rpe=v;}});}}
+  });
+  document.querySelectorAll('[data-ovsave]').forEach(b=>b.onclick=async()=>{
+    const i=+b.getAttribute('data-ovsave');const o=SESSIONS_TODAY[i];const ok=$('#ov-ok-'+i);
+    if(o.isMatch){
+      if(o.rpe==null){ok.textContent='⚠️ Choisis la difficulté (RPE).';return;}
+      b.disabled=true;
+      try{const cmt=$('#ov-cmt-'+i)?$('#ov-cmt-'+i).value:'';await saveMatchRating(o.sid,o.rpe,o.perf,cmt);OV_SAISIR=null;await loadSessionsToday();await loadMySessions();await renderTab();}
+      catch(e){ok.textContent='échec';b.disabled=false;}
+      return;
+    }
+    if(o.parts.length?o.partVals.some(v=>v==null):o.rpe==null){ok.textContent='⚠️ Choisis ton RPE'+(o.parts.length>1?' pour chaque procédé':'')+'.';return;}
+    b.disabled=true;
+    try{
+      if(o.parts.length)await saveSessionParts(o.sid,o.partVals);
+      else await saveSessionRpe(o.sid,o.rpe);
+      OV_SAISIR=null;await loadSessionsToday();await loadMySessions();await renderTab();
+    }catch(e){ok.textContent='échec';b.disabled=false;}
+  });
+  startEspaceChrono();
+}
 async function overviewHtml(){
   const wt=await wellnessToday();
   const toRate=SESSIONS_TODAY.filter(o=>o.rpe==null).length;
@@ -887,10 +952,11 @@ async function overviewHtml(){
       <div class="kpi" data-kidx="2" style="${kpiStyle(2)}"><div class="lab">Charge 7 jours</div><div class="val">${l7}<small> UA</small></div><div class="d">RPE × minutes</div></div>
       <div class="kpi" data-kidx="3" style="${kpiStyle(3)}"><div class="lab">Séances suivies</div><div class="val">${MY_SESSIONS.length}</div><div class="d">au total avec toi</div></div>
     </div>
+    ${ovSaisirCard()}
     ${selfLog()?progressionCard():''}
     <div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
     <div class="card"><h2>Mes dernières séances${selfLog()?'':' & matchs'}</h2>${recentHtml}</div>
-    ${(!wt||toRate)?`<div class="row">${wt?'':'<button class="btn block" data-goto="sante">Remplir mon wellness</button>'}${toRate?'<button class="btn block" data-goto="rpe">Noter mes RPE</button>':''}</div>`:''}`;
+    ${!wt?`<div class="row"><button class="btn block" data-goto="sante">Remplir mon wellness</button></div>`:''}`;
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
 let MY_PLAN=null, PROG_WEEK=null, PROG_OPEN=null;
@@ -996,6 +1062,7 @@ async function renderTab(){
   }else{
     c.innerHTML=await overviewHtml();
     document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
+    bindOvSaisir();
   }
 }
 
