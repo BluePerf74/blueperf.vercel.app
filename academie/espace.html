@@ -530,6 +530,58 @@ function wellnessCard(){
   </div>`;
 }
 
+/* ===== Suivi du cycle menstruel (profils féminins ; pour l'instant activé pour Sarah) ===== */
+function menstruAllowed(p){if(!p)return false;const n=(p.name||'').trim().toLowerCase();return /^sarah\b/.test(n)||p.sex==='F';}
+function mParse(d){return Date.parse(d+'T12:00:00');}
+function mDaysBetween(a,b){return Math.round((mParse(b)-mParse(a))/86400000);}
+function menstruCycleLen(starts){if(!starts||starts.length<2)return 28;const g=[];for(let i=1;i<starts.length;i++){const d=mDaysBetween(starts[i-1],starts[i]);if(d>=18&&d<=40)g.push(d);}if(!g.length)return 28;return Math.min(35,Math.max(21,Math.round(g.reduce((a,b)=>a+b,0)/g.length)));}
+function menstruZones(L){const ovul=Math.max(11,L-14);const z=[];
+  z.push({key:'regles',name:'Règles',from:1,to:Math.min(5,L),level:'watch',color:'#C0392B',advice:"Énergie parfois plus basse, pertes de fer : garde le mouvement mais ajuste l'intensité à ton ressenti, bien t'hydrater."});
+  const folFrom=Math.min(6,L),folTo=Math.max(folFrom,ovul-2);
+  z.push({key:'folliculaire',name:'Folliculaire',from:folFrom,to:folTo,level:'ok',color:'#1E9E6A',advice:"Phase souvent la plus en forme : bon moment pour les séances intenses et le travail de force."});
+  z.push({key:'ovulation',name:'Ovulation',from:Math.max(1,ovul-1),to:Math.min(L,ovul+1),level:'care',color:'#E08A0B',advice:"Laxité ligamentaire accrue : prudence sur les sauts, pivots et changements de direction (risque de blessure au genou)."});
+  const lutFrom=Math.min(L,ovul+2),lutTo=Math.max(lutFrom,L-4);
+  z.push({key:'luteale',name:'Lutéale',from:lutFrom,to:lutTo,level:'ok',color:'#2E78C7',advice:"Phase intermédiaire : charge normale possible, soigne ta récupération et ton sommeil."});
+  z.push({key:'premenstruel',name:'Prémenstruel',from:Math.max(1,L-3),to:L,level:'care',color:'#B9770E',advice:"Fatigue et SPM possibles : n'hésite pas à alléger l'intensité et à privilégier la récupération."});
+  return z;}
+function menstruDayOf(lastStart,ref,L){if(!lastStart)return null;const d=mDaysBetween(lastStart,ref);if(d<0)return null;return (d%L)+1;}
+function menstruZoneForDay(zones,day){if(day==null)return null;for(const z of zones){if(day>=z.from&&day<=z.to)return z;}return null;}
+function menstruBar(zones,L,day){
+  const segs=zones.map(z=>{const len=z.to-z.from+1;return `<div style="flex:${len};min-width:0;background:${z.color}26;border-top:3px solid ${z.color};padding:7px 4px;text-align:center"><div style="font-size:10px;font-weight:700;color:${z.color};text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${z.name}</div><div style="font-size:9.5px;color:var(--muted)">J${z.from}${z.to>z.from?'–'+z.to:''}</div></div>`;}).join('');
+  const pos=day!=null?Math.min(100,Math.max(0,((day-0.5)/L)*100)):null;
+  const marker=pos!=null?`<div style="position:absolute;top:-5px;bottom:-5px;left:${pos}%;width:2px;background:var(--ink);box-shadow:0 0 0 2px var(--surface)"><div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:11px">▼</div></div>`:'';
+  return `<div style="position:relative;margin:20px 0 6px"><div style="display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--line)">${segs}</div>${marker}</div>`;
+}
+let MY_MENSTRU=null, MENSTRU_DATE=null;
+async function loadMenstru(){const all=await kvGet(SPACE+':menstru');const rec=(all&&all[PLAYER.id])||{pid:PLAYER.id,starts:[]};if(!Array.isArray(rec.starts))rec.starts=[];MY_MENSTRU=rec;}
+async function saveMenstruStart(date){const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id]||{pid:PLAYER.id,starts:[]};rec.starts=Array.isArray(rec.starts)?rec.starts:[];if(!rec.starts.includes(date))rec.starts.push(date);rec.starts.sort();rec.updatedAt=new Date().toISOString();rec.name=PLAYER.name;all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}
+async function deleteMenstruStart(date){const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id];if(!rec||!Array.isArray(rec.starts))return;rec.starts=rec.starts.filter(d=>d!==date);rec.updatedAt=new Date().toISOString();all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}
+function renderMenstruTab(){
+  const c=$('#tabc');if(!c)return;
+  const starts=(MY_MENSTRU&&MY_MENSTRU.starts)||[];const last=starts.length?starts[starts.length-1]:null;
+  const L=menstruCycleLen(starts);const zones=menstruZones(L);const day=menstruDayOf(last,TODAY,L);const zone=menstruZoneForDay(zones,day);
+  const next=last?addDaysISO(last,L):null;
+  if(!MENSTRU_DATE)MENSTRU_DATE=TODAY;
+  const vigil = zone&&zone.level!=='ok' ? `<div class="card" style="border-left:4px solid ${zone.color};background:${zone.color}14"><b style="color:${zone.color}">${zone.level==='care'?'⚠️ Phase de vigilance':'ℹ️ Phase à écouter'} — ${zone.name}</b><p style="margin:6px 0 0;font-size:13px">${zone.advice}</p></div>`:'';
+  c.innerHTML=`
+    <div class="card"><h2>🩸 Mon cycle</h2>
+      <p class="muted" style="font-size:12.5px;margin:0 0 12px">Espace privé. Quand tu débutes tes règles, appuie sur le bouton : c'est enregistré et ton coach en est informé pour adapter les séances. Rien d'autre à remplir.</p>
+      <div class="field"><label>Date de début</label><input type="date" id="mn-date" value="${MENSTRU_DATE}" max="${TODAY}"></div>
+      <button class="btn block" id="mn-start">J'ai mes règles — enregistrer le début</button>
+      <div class="ok" id="mn-ok" style="margin-top:8px"></div>
+    </div>
+    ${last?`<div class="card"><h2>Où j'en suis</h2>
+      <p style="margin:0 0 2px;font-size:14px">Dernier début : <b>${isoLong(last)}</b>${day!=null?` · aujourd'hui <b>J${day}</b> — <b style="color:${zone?zone.color:'inherit'}">${zone?zone.name:''}</b>`:''}</p>
+      <p class="muted" style="font-size:12.5px;margin:2px 0 0">Cycle estimé : ${L} jours${next?` · prochaines règles estimées vers le ${isoLong(next)}`:''}.</p>
+      ${menstruBar(zones,L,day)}
+    </div>
+    ${vigil}
+    <div class="card"><h2>Historique</h2>${starts.length?starts.slice().reverse().map(d=>`<div class="hist"><span>${isoLong(d)}</span><button class="btn sec" data-mndel="${d}" style="padding:4px 10px">Supprimer</button></div>`).join(''):'<p class="muted" style="font-size:13px;margin:0">Aucun début enregistré pour l\'instant.</p>'}</div>`:''}`;
+  $('#mn-date').addEventListener('change',e=>{MENSTRU_DATE=e.target.value||TODAY;});
+  $('#mn-start').onclick=async()=>{const d=$('#mn-date').value||TODAY;const btn=$('#mn-start');btn.disabled=true;try{await saveMenstruStart(d);renderMenstruTab();const ok=$('#mn-ok');if(ok)ok.textContent='✓ Enregistré. Ton coach est informé.';}catch(e){const ok=$('#mn-ok');if(ok)ok.textContent='échec, réessaie';btn.disabled=false;}};
+  document.querySelectorAll('[data-mndel]').forEach(b=>b.onclick=async()=>{if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent='Supprimer';}},3000);return;}await deleteMenstruStart(b.getAttribute('data-mndel'));renderMenstruTab();});
+}
+
 let SESSIONS_TODAY=[]; // {sid, session, rpe}
 let OV_SAISIR=null; // id de l'élément déplié pour saisie dans la Vue d'ensemble
 function sessionsCard(){
@@ -1027,6 +1079,7 @@ function tabbar(){
   const tabs=[['apercu',"Vue d'ensemble"]];
   if(MY_PLAN)tabs.push(['programme','Mon programme']);
   tabs.push(['sante','Santé & forme'],['rpe','RPE & charge']);
+  if(menstruAllowed(PLAYER))tabs.push(['menstruation','🩸 Menstruation']);
   if(NUTRI_CID)tabs.push(['nutrition','🥗 Nutrition']);
   return `<div class="tabbar">${tabs.map(([k,l])=>`<button class="tabbtn ${ESPACE_TAB===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
 }
@@ -1036,7 +1089,9 @@ async function renderSpace(skipLoad){
   await loadMySessions();
   await loadMyPlan();
   await loadNutriLink();
+  if(menstruAllowed(PLAYER))await loadMenstru();
   if(ESPACE_TAB==='nutrition'&&!NUTRI_CID)ESPACE_TAB='apercu';
+  if(ESPACE_TAB==='menstruation'&&!menstruAllowed(PLAYER))ESPACE_TAB='apercu';
   if(ESPACE_TAB==='programme'&&!MY_PLAN)ESPACE_TAB='apercu';
   $('#app').innerHTML=`
     <div class="topbar">
@@ -1063,6 +1118,8 @@ async function renderTab(){
     bindWellness();loadHistory();
   }else if(ESPACE_TAB==='rpe'){
     await renderRpeTab();
+  }else if(ESPACE_TAB==='menstruation'){
+    renderMenstruTab();
   }else if(ESPACE_TAB==='nutrition'){
     c.innerHTML=`<div class="card" style="padding:0;overflow:hidden;background:#0f1d30"><iframe src="/academie/nutrition.html?client=${encodeURIComponent(NUTRI_CID)}&view=player" title="Nutrition" style="width:100%;height:78vh;border:0;display:block"></iframe></div>`;
   }else if(ESPACE_TAB==='programme'){

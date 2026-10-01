@@ -343,7 +343,7 @@ function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assig
 const tabOn=id=>{ if(RESTRICT.tabs){ if(id!=='overview'&&!RESTRICT.tabs.includes(id))return false; } return S().tabs[id]!==false; };
 
 /* ===================== STORE ===================== */
-const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans','seasonplan'];
+const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans','seasonplan','menstru'];
 const LSKEY='blueperf-'+MODE+'-v1';
 const empty=()=>{const o={};COLS.forEach(c=>o[c]={});return o;};
 let DATA=empty();
@@ -775,12 +775,15 @@ function alertSig(){
   const inj=Object.values(DATA.injuries).filter(i=>i.status!=='apte'&&DATA.players[i.pid]&&inCat(DATA.players[i.pid]));
   const medical=inj.map(i=>i.id+':'+i.status).sort().join(',');
   const reathle=inj.filter(i=>i.status==='reathle'||i.status==='reprise').map(i=>i.id).sort().join(',');
-  return {overview,medical,reathle};
+  // Signalements de cycle récents (≤ 21 j) : la pastille « Santé & forme » prévient le coach d'un nouveau début de règles.
+  const health=ps.filter(p=>menstruStarts(p.id).length).map(p=>{const s=menstruStarts(p.id);return {pid:p.id,last:s[s.length-1]};}).filter(x=>{const d=mDaysBetween(x.last,UI.ref);return d>=0&&d<=21;}).map(x=>x.pid+':'+x.last).sort().join(',');
+  return {overview,medical,reathle,health};
 }
-function markSeen(tabId){if(!['overview','medical','reathle'].includes(tabId))return;const sig=alertSig();UI.seen=UI.seen||{};UI.seen[UI.cat]=Object.assign({},UI.seen[UI.cat]);UI.seen[UI.cat][tabId]=sig[tabId];saveUI();}
+function markSeen(tabId){if(!['overview','medical','reathle','health'].includes(tabId))return;const sig=alertSig();UI.seen=UI.seen||{};UI.seen[UI.cat]=Object.assign({},UI.seen[UI.cat]);UI.seen[UI.cat][tabId]=sig[tabId];saveUI();}
 function renderNav(){
   const c=counts();const sig=alertSig();const seen=(UI.seen&&UI.seen[UI.cat])||{};const show=k=>sig[k]&&sig[k]!==seen[k]; // pastille masquée tant que l'alerte a déjà été consultée
-  const badge={overview:show('overview')?(c.red?`<span class="badge crit">${c.red}</span>`:c.orange?`<span class="badge warn">${c.orange}</span>`:''):'',medical:show('medical')&&c.inj?`<span class="badge">${c.inj}</span>`:'',reathle:show('reathle')&&c.rea?`<span class="badge">${c.rea}</span>`:''};
+  const healthN=sig.health?sig.health.split(',').length:0;
+  const badge={overview:show('overview')?(c.red?`<span class="badge crit">${c.red}</span>`:c.orange?`<span class="badge warn">${c.orange}</span>`:''):'',medical:show('medical')&&c.inj?`<span class="badge">${c.inj}</span>`:'',reathle:show('reathle')&&c.rea?`<span class="badge">${c.rea}</span>`:'',health:show('health')&&healthN?`<span class="badge warn">🩸${healthN}</span>`:''};
   const inPerf=['testing','reathle','muscu'].includes(UI.tab);
   let h=`<div class="brand"><b>Blueperf</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
   TABS.forEach(t=>{
@@ -990,6 +993,57 @@ VIEWS.overview=()=>{
 };
 
 /* ---------- SANTÉ & FORME ---------- */
+/* ===== Cycle menstruel (profils féminins ; pour l'instant activé pour Sarah) =====
+   Repères physiologiques généraux pour adapter la charge — ce n'est pas un avis médical. */
+function menstruAllowed(p){if(!p)return false;const n=(p.name||'').trim().toLowerCase();return /^sarah\b/.test(n)||p.sex==='F';}
+function mParse(d){return Date.parse(d+'T12:00:00');}
+function mDaysBetween(a,b){return Math.round((mParse(b)-mParse(a))/86400000);}
+function menstruStarts(pid){const r=DATA.menstru&&DATA.menstru[pid];const s=(r&&Array.isArray(r.starts))?r.starts.slice().sort():[];return s;}
+function menstruCycleLen(starts){if(!starts||starts.length<2)return 28;const g=[];for(let i=1;i<starts.length;i++){const d=mDaysBetween(starts[i-1],starts[i]);if(d>=18&&d<=40)g.push(d);}if(!g.length)return 28;return Math.min(35,Math.max(21,Math.round(g.reduce((a,b)=>a+b,0)/g.length)));}
+function menstruZones(L){const ovul=Math.max(11,L-14);const z=[];
+  z.push({key:'regles',name:'Règles',from:1,to:Math.min(5,L),level:'watch',color:'#C0392B',advice:"Énergie parfois plus basse, pertes de fer : garder le mouvement mais ajuster l'intensité au ressenti."});
+  const folFrom=Math.min(6,L),folTo=Math.max(folFrom,ovul-2);
+  z.push({key:'folliculaire',name:'Folliculaire',from:folFrom,to:folTo,level:'ok',color:'#1E9E6A',advice:"Phase souvent la plus favorable : bon moment pour les séances intenses, la force et le travail de qualité."});
+  z.push({key:'ovulation',name:'Ovulation',from:Math.max(1,ovul-1),to:Math.min(L,ovul+1),level:'care',color:'#E08A0B',advice:"Laxité ligamentaire accrue : vigilance sur l'impact, les pivots, la pliométrie et les changements de direction (risque de blessure au genou)."});
+  const lutFrom=Math.min(L,ovul+2),lutTo=Math.max(lutFrom,L-4);
+  z.push({key:'luteale',name:'Lutéale',from:lutFrom,to:lutTo,level:'ok',color:'#2E78C7',advice:"Phase intermédiaire : charge normale possible, soigner la récupération et le sommeil."});
+  z.push({key:'premenstruel',name:'Prémenstruel',from:Math.max(1,L-3),to:L,level:'care',color:'#B9770E',advice:"Fatigue et SPM possibles : alléger si besoin l'intensité des séances physiques, privilégier technique et récupération."});
+  return z;}
+function menstruDayOf(lastStart,ref,L){if(!lastStart)return null;const d=mDaysBetween(lastStart,ref);if(d<0)return null;return (d%L)+1;}
+function menstruZoneForDay(zones,day){if(day==null)return null;for(const z of zones){if(day>=z.from&&day<=z.to)return z;}return null;}
+function menstruBar(zones,L,day){
+  const segs=zones.map(z=>{const len=z.to-z.from+1;return `<div style="flex:${len};min-width:0;background:${z.color}26;border-top:3px solid ${z.color};padding:7px 4px;text-align:center"><div style="font-size:10px;font-weight:700;color:${z.color};text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${z.name}</div><div style="font-size:9.5px;color:var(--muted)">J${z.from}${z.to>z.from?'–'+z.to:''}</div></div>`;}).join('');
+  const pos=day!=null?Math.min(100,Math.max(0,((day-0.5)/L)*100)):null;
+  const marker=pos!=null?`<div style="position:absolute;top:-5px;bottom:-5px;left:${pos}%;width:2px;background:var(--ink);box-shadow:0 0 0 2px var(--surface)"><div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--ink)">▼</div></div>`:'';
+  return `<div style="position:relative;margin:20px 0 6px"><div style="display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--line)">${segs}</div>${marker}</div>`;
+}
+function menstruCard(){
+  const ps=playersOf(UI.cat);
+  const mps=ps.filter(p=>menstruAllowed(p)||menstruStarts(p.id).length);
+  if(!mps.length)return '';
+  if(!UI.menstruPid||!mps.some(p=>p.id===UI.menstruPid))UI.menstruPid=mps[0].id;
+  const pid=UI.menstruPid;const p=DATA.players[pid];
+  const starts=menstruStarts(pid);const last=starts.length?starts[starts.length-1]:null;
+  const L=menstruCycleLen(starts);const zones=menstruZones(L);const day=menstruDayOf(last,UI.ref,L);const zone=menstruZoneForDay(zones,day);
+  const next=last?addDays(last,L):null;
+  const sel=`<select data-chg="menstruPid" aria-label="${PL.One}" style="width:auto">${mps.map(x=>{const s=menstruStarts(x.id);const lst=s.length?s[s.length-1]:null;const recent=lst&&mDaysBetween(lst,UI.ref)>=0&&mDaysBetween(lst,UI.ref)<=10;return `<option value="${esc(x.id)}" ${x.id===pid?'selected':''}>${esc(x.name)}${recent?' 🩸':''}</option>`;}).join('')}</select>`;
+  let vigil='';
+  if(zone&&zone.level==='care')vigil=`<div class="banner" style="border-left:4px solid ${zone.color};background:${zone.color}14"><p><b style="color:${zone.color}">⚠️ Vigilance — ${zone.name} (J${day})</b><br>${zone.advice}<br><b>Entraînement physique :</b> privilégier technique/volume maîtrisé, limiter l'impact et la pliométrie à haute intensité.</p></div>`;
+  else if(zone&&zone.level==='watch')vigil=`<div class="banner" style="border-left:4px solid ${zone.color};background:${zone.color}10"><p><b style="color:${zone.color}">ℹ️ À écouter — ${zone.name} (J${day})</b><br>${zone.advice}</p></div>`;
+  const body=last?`
+    <p style="margin:0 0 2px">Dernier début des règles : <b>${fmtD(last,{day:'numeric',month:'long'})}</b>${day!=null?` · au ${fmtD(UI.ref,{day:'numeric',month:'long'})} : <b>J${day}</b> — <b style="color:${zone?zone.color:'inherit'}">${zone?zone.name:''}</b>`:''}</p>
+    <p class="small muted" style="margin:2px 0 0">Cycle estimé : ${L} jours${next?` · prochaines règles estimées vers le ${fmtD(next,{day:'numeric',month:'long'})}`:''}${starts.length<2?" (valeur par défaut tant qu'il n'y a qu'un seul début enregistré)":''}.</p>
+    ${menstruBar(zones,L,day)}
+    ${vigil}
+    <div class="tw" style="margin-top:8px"><table><thead><tr><th>Phase</th><th>Jours</th><th>Repère entraînement</th></tr></thead><tbody>
+      ${zones.map(z=>`<tr${zone&&z.key===zone.key?' style="font-weight:600"':''}><td><span class="pill" style="background:${z.color}22;color:${z.color}">${z.name}${zone&&z.key===zone.key?' • en cours':''}</span></td><td class="n">J${z.from}${z.to>z.from?'–'+z.to:''}</td><td class="small">${z.advice}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="note" style="margin:10px 0 0">Débuts enregistrés : ${starts.slice().reverse().slice(0,8).map(d=>fmtD(d,{day:'numeric',month:'short'})).join(' · ')}</p>`
+  :`<p class="muted" style="margin:0">${esc(p.name)} n'a pas encore signalé de début de règles depuis son espace. Dès qu'elle le fait, le cycle et les zones de vigilance s'affichent ici.</p>`;
+  return `<div class="card"><div class="hrow"><h2>🩸 Cycle menstruel</h2>${sel}</div>
+    <p class="small muted" style="margin:0 0 6px">Signalé par la ${INDIV?'cliente':'joueuse'} depuis son espace. Repères généraux pour adapter la charge — pas un avis médical.</p>
+    ${body}</div>`;
+}
 VIEWS.health=()=>{
   const ps=playersOf(UI.cat);if(!ps.length)return emptyPlayers();const ref=UI.ref;const th=S().th;
   const st=ps.map(p=>({p,w:wStats(p.id,ref),e:wEntry(p.id,ref)}));
@@ -1017,7 +1071,8 @@ VIEWS.health=()=>{
     ${st.map(({p,w,e})=>`<tr><td>${plink(p.id)}</td>${WK.map(k=>{const v=num(e&&e[k]);return `<td class="n" style="${v!=null&&v<=2?'color:var(--crit);font-weight:700':''}">${v!=null?6-v:'–'}</td>`;}).join('')}
       <td class="n">${w.today!=null?`<span class="pill ${wCls(w.today)}">${r0(w.today)} %</span>`:'–'}</td><td class="n" style="${w.z!=null&&w.z<th.wz?'color:var(--crit);font-weight:700':''}">${w.z!=null?r1(w.z):'–'}</td><td class="small">${esc(e&&e.note||'')}</td><td>${e?`<button class="btn sm danger" data-act="delWell" data-pid="${esc(p.id)}" data-date="${ref}">Suppr.</button>`:''}</td></tr>`).join('')}
     </tbody></table></div>
-    ${missing.length?`<p class="note">Non remplis : ${missing.map(x=>esc(x.p.name)).join(', ')}</p>`:''}</div>`;
+    ${missing.length?`<p class="note">Non remplis : ${missing.map(x=>esc(x.p.name)).join(', ')}</p>`:''}</div>
+  ${menstruCard()}`;
 };
 function wTip(e){if(!e)return '';return WK.map(k=>WL[k]+' : '+(e[k]!=null?6-e[k]:'–')).join('\n')+(e.note?'\n« '+e.note+' »':'');}
 
@@ -1731,6 +1786,7 @@ ENTRY.player=()=>{const e=editing('players');const s=S();const all=playersOf('To
       : fld('pp-pos','Poste',`<select id="pp-pos" name="pos">${opt(s.positions,e&&e.pos)}</select>`)}
     ${INDIV?'':fld('pp-num','Numéro',`<input type="number" id="pp-num" name="number" value="${esc(e&&e.number||'')}">`)}
     ${fld('pp-birth','Date de naissance',`<input type="date" id="pp-birth" name="birth" value="${esc(e&&e.birth||'')}">`)}
+    ${fld('pp-sex','Sexe',`<select id="pp-sex" name="sex"><option value="" ${!e||!e.sex?'selected':''}>—</option><option value="F" ${e&&e.sex==='F'?'selected':''}>Féminin</option><option value="M" ${e&&e.sex==='M'?'selected':''}>Masculin</option></select>`)}
     ${fld('pp-h','Taille (cm)',`<input type="number" id="pp-h" name="height" value="${esc(e&&e.height||'')}">`)}
     ${fld('pp-m','Masse (kg)',`<input type="number" id="pp-m" name="mass" step="0.1" value="${esc(e&&e.mass||'')}">`)}
     ${fld('pp-v','Vmax de référence (km/h)',`<input type="number" id="pp-v" name="vmax" step="0.1" value="${esc(e&&e.vmax||'')}">`)}
@@ -1833,7 +1889,7 @@ FORMS.player=async f=>{const e=editing('players');const v=Object.fromEntries(new
   let login=(v.login||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9@._-]+/g,'');
   if(!login)login=defLogin(name);
   let pass=(v.pass||'').trim();if(!pass)pass=defPass(name);
-  await put('players',id,Object.assign({},e||{},{id,name,cat:v.cat,pos:v.pos,sport:v.sport!=null?v.sport:(e&&e.sport),number:num(v.number),birth:v.birth,height:num(v.height),mass:num(v.mass),vmax:num(v.vmax),login,pass,active:!!v.active}));UI.edit=null;toast(e?(INDIV?'Client·e modifié·e':'Joueur modifié'):(INDIV?'Client·e ajouté·e':'Joueur ajouté'));render();};
+  await put('players',id,Object.assign({},e||{},{id,name,cat:v.cat,pos:v.pos,sport:v.sport!=null?v.sport:(e&&e.sport),number:num(v.number),birth:v.birth,sex:v.sex!=null?v.sex:(e&&e.sex||''),height:num(v.height),mass:num(v.mass),vmax:num(v.vmax),login,pass,active:!!v.active}));UI.edit=null;toast(e?(INDIV?'Client·e modifié·e':'Joueur modifié'):(INDIV?'Client·e ajouté·e':'Joueur ajouté'));render();};
 FORMS.bulk=async f=>{const v=Object.fromEntries(new FormData(f));const lines=v.list.split('\n').map(l=>l.trim()).filter(Boolean);for(const l of lines){const [n,pos,nb]=l.split(/[;,\t]/).map(x=>(x||'').trim());const id=uid();await put('players',id,{id,name:n,cat:v.cat,pos:pos||'',number:num(nb),login:defLogin(n),pass:defPass(n),active:true});}toast(lines.length+(INDIV?' client·e':' joueur')+(lines.length>1?'s':'')+' ajouté'+(lines.length>1?'s':''));render();};
 FORMS.followup=async f=>{const v=Object.fromEntries(new FormData(f));const i=JSON.parse(JSON.stringify(DATA.injuries[f.dataset.id]));i.followups=(i.followups||[]);i.followups.push({date:v.date,text:v.text,pain:num(v.pain)});i.followups.sort((a,b)=>a.date.localeCompare(b.date));await put('injuries',i.id,i);toast('Suivi ajouté');};
 FORMS.rlog=async f=>{const v=Object.fromEntries(new FormData(f));const i=JSON.parse(JSON.stringify(DATA.injuries[f.dataset.id]));i.log=i.log||[];i.log.push({date:v.date,content:v.content,min:num(v.min),rpe:num(v.rpe),dist:num(v.dist),hsr:num(v.hsr),vmax:num(v.vmax)});await put('injuries',i.id,i);toast('Séance de réathlé ajoutée');};
@@ -2011,6 +2067,7 @@ const CHG={
   progClient:t=>{UI.progClient=t.value;UI.progWeek=null;UI.progOpen=null;UI.progEdit=false;UI.progDraft=null;render();},
   progRpe:async t=>{const v=num(t.value);await progSet(t.dataset.cid,t.dataset.ref,{rpe:v==null?null:clamp(v,0,10)});},
   entryPick:t=>{UI.edit=null;UI.entryTab=t.value;formDirty=false;render();},
+  menstruPid:t=>{UI.menstruPid=t.value;render();},
   assignCat:t=>{UI.assignCat=t.value;render();},
   assignDate:t=>{UI.assignDate=t.value;render();},
   spText:t=>{const cat=spKey();const plan=spGet(cat);const i=+t.dataset.wk,key=t.dataset.key;const w=plan.weeks[i]=plan.weeks[i]||{};w[key]=t.value;spSave(cat,plan,true);},
