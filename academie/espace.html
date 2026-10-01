@@ -295,6 +295,11 @@ async function disablePush(){
 
 let PLAYER=null; // {id,name,cat,...}
 let SPACE='aca'; // 'aca' = football, 'ci' = coaching individuel — détecté à la connexion
+// Mode « saisie par le coach » : la fiche s'ouvre dans un cadre côté coach (?coach=1&space=&pid=&tab=&date=) pour remplir wellness/RPE à la place de la personne.
+const ESPACE_Q=new URLSearchParams(location.search);
+const COACH_MODE=ESPACE_Q.get('coach')==='1';
+const COACH_PID=ESPACE_Q.get('pid')||null;
+const COACH_SPACE=ESPACE_Q.get('space')||null;
 function selfLog(){return SPACE==='ci';} // seules les client·es individuel·les saisissent leurs propres séances
 
 /* ---------- Auth ---------- */
@@ -722,9 +727,9 @@ async function loadSessionsToday(){
     if(s.source==='joueur')return; // activités perso : gérées dans l'onglet activité de la semaine
     const me=(s.players&&s.players[PLAYER.id])||null;if(!me)return;
     const submitted=me.rpe!=null||(me.partRpe&&Object.keys(me.partRpe).length);
-    const open=s.rpeOpenedAt&&(now-s.rpeOpenedAt)<RPE_WINDOW_MS;
-    // Apparaît dès que le coach a ouvert la fenêtre RPE (quelle que soit la date de la séance), ou si déjà notée aujourd'hui.
-    if(!open&&!(submitted&&s.date===FEEL_DATE))return;
+    const open=COACH_MODE?true:(s.rpeOpenedAt&&(now-s.rpeOpenedAt)<RPE_WINDOW_MS);
+    // Saisie coach : toutes les séances du jour sont modifiables. Sinon : fenêtre RPE ouverte (quelle que soit la date) ou déjà notée aujourd'hui.
+    if(COACH_MODE){if(s.date!==FEEL_DATE)return;}else if(!open&&!(submitted&&s.date===FEEL_DATE))return;
     const parts=(Array.isArray(s.procedes)&&s.procedes.length)?s.procedes.map((p,j)=>p.type||('Procédé '+(j+1))):(Array.isArray(s.parts)?s.parts:[]);
     const partRpe=me.partRpe||{};
     items.push({sid:s.id,col:'sessions',session:s,isMatch:false,parts,open:!!open,remain:s.rpeOpenedAt?(s.rpeOpenedAt+RPE_WINDOW_MS-now):null,
@@ -735,9 +740,9 @@ async function loadSessionsToday(){
     if(!m||m.cat!==PLAYER.cat)return;
     const me=(m.players&&m.players[PLAYER.id])||null;if(!me)return; // seulement les participantes
     const submitted=me.rpe!=null||me.perf!=null;
-    const open=m.rpeOpenedAt&&(now-m.rpeOpenedAt)<RPE_WINDOW_MS;
-    // Apparaît dès que le coach a envoyé le RPE du match (fenêtre ouverte), quelle que soit la date du match.
-    if(!open&&!(submitted&&m.date===FEEL_DATE))return;
+    const open=COACH_MODE?true:(m.rpeOpenedAt&&(now-m.rpeOpenedAt)<RPE_WINDOW_MS);
+    // Saisie coach : tous les matchs du jour sont modifiables. Sinon : fenêtre RPE ouverte (quelle que soit la date) ou déjà noté aujourd'hui.
+    if(COACH_MODE){if(m.date!==FEEL_DATE)return;}else if(!open&&!(submitted&&m.date===FEEL_DATE))return;
     items.push({sid:m.id,col:'matches',isMatch:true,session:Object.assign({},m,{title:'Match vs '+(m.opponent||''),type:'Match'}),
       open:!!open,remain:m.rpeOpenedAt?(m.rpeOpenedAt+RPE_WINDOW_MS-now):null,parts:[],
       rpe:me.rpe!=null?me.rpe:null,perf:me.perf!=null?me.perf:null,comment:me.comment||''});
@@ -1095,15 +1100,15 @@ async function renderSpace(skipLoad){
   if(ESPACE_TAB==='programme'&&!MY_PLAN)ESPACE_TAB='apercu';
   $('#app').innerHTML=`
     <div class="topbar">
-      <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">Bonjour ${PLAYER.name}${PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+PLAYER.cat:''}</div></div>
-      <div class="row" style="gap:8px;flex-wrap:nowrap">
+      <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">${COACH_MODE?'✍️ Saisie coach — <b>'+esc(PLAYER.name)+'</b>'+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):''):'Bonjour '+esc(PLAYER.name)+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):'')}</div></div>
+      ${COACH_MODE?'':`<div class="row" style="gap:8px;flex-wrap:nowrap">
         <button class="iconbtn" id="settingsbtn" title="Paramètres" aria-label="Paramètres">⚙️</button>
         <button class="btn sec" id="logout">Déconnexion</button>
-      </div>
+      </div>`}
     </div>
     ${tabbar()}
     <div id="tabc"></div>`;
-  $('#logout').onclick=()=>{clearSession();PLAYER=null;renderLogin();};
+  const lo=$('#logout');if(lo)lo.onclick=()=>{clearSession();PLAYER=null;renderLogin();};
   const tb=$('#settingsbtn');if(tb)tb.onclick=openSettings;
   document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-tab');renderTab();});
   await renderTab();
@@ -1114,7 +1119,7 @@ async function renderTab(){
   const c=$('#tabc');if(!c)return;
   if(ESPACE_TAB==='sante'){
     const done=await hasWellnessEntry(FEEL_DATE);
-    c.innerHTML=(done?wellnessLockedCard():wellnessCard())+`<div class="card"><h2>Mes derniers wellness</h2><div id="hist"></div></div>`;
+    c.innerHTML=((done&&!COACH_MODE)?wellnessLockedCard():wellnessCard())+`<div class="card"><h2>${COACH_MODE?'Derniers wellness':'Mes derniers wellness'}</h2><div id="hist"></div></div>`;
     bindWellness();loadHistory();
   }else if(ESPACE_TAB==='rpe'){
     await renderRpeTab();
@@ -1138,6 +1143,15 @@ async function renderTab(){
 
 /* ---------- boot ---------- */
 (async function(){
+  if(COACH_MODE&&COACH_PID&&COACH_SPACE){
+    SPACE=COACH_SPACE;
+    const players=await kvGet(SPACE+':players');
+    if(players[COACH_PID]){PLAYER=players[COACH_PID];
+      const dt=ESPACE_Q.get('date');if(dt)FEEL_DATE=dt;
+      const tb=ESPACE_Q.get('tab');if(tb)ESPACE_TAB=tb;
+      await loadSessionsToday();renderSpace(true);return;}
+    document.body.innerHTML='<p style="padding:20px;color:#fff">Profil introuvable.</p>';return;
+  }
   let pid=null,sp=null;try{pid=sessionStorage.getItem('espace_pid');sp=sessionStorage.getItem('espace_space');}catch(e){}
   if(pid&&sp){
     SPACE=sp;

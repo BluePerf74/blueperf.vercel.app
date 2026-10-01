@@ -739,7 +739,7 @@ function zbars(items){ // diverging, value = z (−3..3)
 
 /* ===================== UI STATE ===================== */
 const UI={tab:'overview',cat:'Tous',ref:TODAY,drawer:null,entryTab:'assign',edit:null,planView:'week',planWeek:mondayOf(TODAY),planMonth:TODAY.slice(0,7),
-  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null,indivClient:'Tous',seen:{}};
+  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null,indivClient:'Tous',seen:{},fill:null};
 try{const t=JSON.parse(localStorage.getItem(LSKEY+'-ui')||'{}');if(t.tab)UI.tab=t.tab;if(t.cat)UI.cat=t.cat;if(t.seen)UI.seen=t.seen;}catch(e){}
 if(RESTRICT.team)UI.cat=RESTRICT.team; // gérant·e : équipe imposée
 if(RESTRICT.tabs&&!tabOn(UI.tab))UI.tab='overview';
@@ -936,7 +936,7 @@ VIEWS.overview=()=>{
     ${toFill.length?`<div class="tw"><table><thead><tr><th>${PL.One}</th><th>Manque</th><th></th></tr></thead><tbody>
       ${toFill.map(x=>`<tr><td>${plink(x.p.id)}</td>
         <td>${[x.noWell?'<span class="pill warn">Wellness</span>':'',x.noRpe?'<span class="pill warn">RPE séance</span>':''].filter(Boolean).join(' ')}</td>
-        <td><button class="btn sm pri" data-act="fillPlayer" data-id="${esc(x.p.id)}">Saisir</button></td></tr>`).join('')}
+        <td><button class="btn sm pri" data-act="fillPlayer" data-id="${esc(x.p.id)}" data-tab="${x.noWell?'sante':'rpe'}">Saisir</button></td></tr>`).join('')}
       </tbody></table></div>`:'<p class="muted" style="margin:0">Tous les RPE et wellness du jour sont saisis. 👍</p>'}</div>`;
   // --- À relancer (semaine) : jours avec RPE/wellness manquants + oublis RPE par joueur sur 21 j ---
   const relDays=range(addDays(ref,-6),ref).slice().reverse();
@@ -956,7 +956,7 @@ VIEWS.overview=()=>{
       </div>
     </div>
     <h3 style="margin:14px 0 6px">Check-in wellness du jour non rempli${wellMiss.length?' ('+wellMiss.length+')':''}</h3>
-    ${wellMiss.length?`<div>${wellMiss.map(p=>`<button class="btn sm" data-act="fillPlayer" data-id="${esc(p.id)}" style="margin:0 8px 8px 0">${esc(p.name)} →</button>`).join('')}</div>`:'<p class="muted" style="margin:0">Tout le monde a rempli son wellness du jour ✅</p>'}
+    ${wellMiss.length?`<div>${wellMiss.map(p=>`<button class="btn sm" data-act="fillPlayer" data-id="${esc(p.id)}" data-tab="sante" style="margin:0 8px 8px 0">${esc(p.name)} →</button>`).join('')}</div>`:'<p class="muted" style="margin:0">Tout le monde a rempli son wellness du jour ✅</p>'}
   </div>`;
   return `<div class="grid g6">
     ${kpi('Disponibles',ps.length-unavail,'/'+ps.length,unavail?unavail+' blessé'+(unavail>1?'s':'')+' ou en réathlé':'Tout le groupe est disponible')}
@@ -1935,9 +1935,30 @@ VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['players',IN
   return subtabs+`<div class="card">${body}</div>`;};
 function testRow(x){return `<tr data-id="${esc(x.id||'')}"><td><input class="w" type="text" name="tn" value="${esc(x.name||'')}" aria-label="Nom"></td><td><input type="text" name="tu" value="${esc(x.unit||'')}" aria-label="Unité"></td><td><select name="tb" style="width:auto" aria-label="Meilleur si">${opt([['high','valeur haute'],['low','valeur basse']],x.better||'high')}</select></td><td><button type="button" class="btn sm danger" data-act="rmRow">×</button></td></tr>`;}
 
+/* ---------- SAISIE À LA PLACE DE LA PERSONNE (fiche espace dans un panneau) ---------- */
+// Recharge toutes les collections depuis la base (après une saisie faite dans le cadre espace).
+async function reloadData(){
+  if(Store.mode!=='db'){render();return;}
+  try{const o=empty();await Promise.all(COLS.map(async col=>{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(DB_PREFIX+':'+col)+'&_='+Date.now(),{cache:'no-store'});if(r.ok){const j=await r.json();o[col]=(j&&j.value)?JSON.parse(j.value):{};}}));DATA=o;if(Store.fresh)Store.fresh=o;render();}catch(e){render();}
+}
+function renderFillDrawer(host){
+  const f=UI.fill;const p=DATA.players[f.pid];if(!p){host.innerHTML='';host.dataset.fillSig='';document.body.style.overflow='';return;}
+  const sig=f.pid+'|'+(f.tab||'')+'|'+UI.ref;
+  if(host.dataset.fillSig===sig&&host.querySelector('iframe'))return; // déjà affiché : ne pas recharger l'iframe (saisie en cours)
+  host.dataset.fillSig=sig;
+  const src='/academie/espace.html?coach=1&space='+encodeURIComponent(DB_PREFIX)+'&pid='+encodeURIComponent(f.pid)+'&tab='+encodeURIComponent(f.tab||'sante')+'&date='+encodeURIComponent(UI.ref);
+  host.innerHTML=`<div class="scrim" data-act="closeFill"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="Saisie pour ${esc(p.name)}" style="padding:0;gap:0">
+    <div class="row sb" style="padding:14px 16px;border-bottom:1px solid var(--line)"><div><div class="eyebrow">Saisie à la place de — ${fmtD(UI.ref,{weekday:'short',day:'numeric',month:'short'})}</div><h2 style="margin:2px 0 0;font-size:22px">${esc(p.name)}</h2></div>
+      <button class="btn sm pri" data-act="closeFill" aria-label="Fermer">✓ Fermer</button></div>
+    <iframe src="${src}" title="Saisie ${esc(p.name)}" style="flex:1;width:100%;border:0;display:block;min-height:72vh"></iframe></aside>`;
+  document.body.style.overflow='hidden';
+}
 /* ---------- FICHE JOUEUR (panneau) ---------- */
 function renderDrawer(){
-  const host=$('#drawerHost');const p=DATA.players[UI.drawer];if(!p){host.innerHTML='';document.body.style.overflow='';return;}
+  const host=$('#drawerHost');
+  if(UI.fill)return renderFillDrawer(host);
+  host.dataset.fillSig='';
+  const p=DATA.players[UI.drawer];if(!p){host.innerHTML='';document.body.style.overflow='';return;}
   const ref=UI.ref;const s=playerStatus(p,ref);const days=range(addDays(ref,-27),ref);
   const wv=days.map(d=>wOf(p.id,d));const lv=days.map(d=>{const x=pday(p.id,d);return x?x.load:0;});const isM=days.map(d=>{const x=pday(p.id,d);return x&&x.match;});
   const ac=days.map(d=>ewma(p.id,d).acwr);const w=weekStats(p.id,ref);
@@ -1984,11 +2005,8 @@ const ACT={
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
   edit:b=>{UI.edit={col:b.dataset.col,id:b.dataset.id};UI.entryTab=COL2TAB[b.dataset.col];UI.drawer=null;if(b.dataset.col==='tests')UI.tSel=null;go('entry');},
-  fillPlayer:b=>{const p=DATA.players[b.dataset.id];if(!p)return;const ref=UI.ref;UI.drawer=null;
-    if(!wEntry(p.id,ref)){UI.edit=null;UI.entryTab='wellness';UI.wCat=p.cat;UI.wDate=ref;go('entry');return;}
-    const sess=Object.values(DATA.sessions).filter(s=>s.date===ref&&s.cat===p.cat&&s.players&&s.players[p.id]&&s.players[p.id].rpe==null);
-    if(sess.length){UI.edit={col:'sessions',id:sess[0].id};UI.entryTab='session';go('entry');}
-    else{UI.edit=null;UI.entryTab='wellness';UI.wCat=p.cat;UI.wDate=ref;go('entry');}},
+  fillPlayer:b=>{const p=DATA.players[b.dataset.id];if(!p)return;let tab=b.dataset.tab;if(!tab)tab=!wEntry(p.id,UI.ref)?'sante':'rpe';UI.drawer=null;UI.fill={pid:p.id,tab};renderDrawer();},
+  closeFill:async()=>{UI.fill=null;renderDrawer();document.body.style.overflow='';await reloadData();},
   del:b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
     const col=b.dataset.col,id=b.dataset.id;if(col==='players'&&UI.drawer===id)UI.drawer=null;if(col==='injuries'&&UI.medSel===id)UI.medSel=null;del(col,id);toast('Supprimé');},
   delWell:async b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
@@ -2112,7 +2130,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='refDate'){UI.ref=t.value||TODAY;render();return;}if(t.dataset&&t.dataset.chg&&CHG[t.dataset.chg])CHG[t.dataset.chg](t);});
 document.addEventListener('input',e=>{const t=e.target;if(t.closest('form'))formDirty=true;if(t.dataset&&t.dataset.fill){const k=t.dataset.fill;const form=t.closest('form');$$('#grid tr',form).forEach(tr=>{const on=tr.querySelector('input[name^="on-"]');const inp=tr.querySelector(`input[name^="${k}-"]`);if(on&&on.checked&&inp)inp.value=t.value;});}});
 document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();formDirty=false;const h=FORMS[f.dataset.form];if(h)h(f,e.submitter);});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&UI.drawer){UI.drawer=null;renderDrawer();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(UI.drawer||UI.fill)){if(UI.fill){UI.fill=null;renderDrawer();document.body.style.overflow='';reloadData();}else{UI.drawer=null;renderDrawer();}}});
 boot();
 /* Rechargement pour récupérer les dernières données (RPE/charges saisis par les joueur·ses, etc.).
    On évite de recharger pendant une saisie en cours (formulaire modifié). */
