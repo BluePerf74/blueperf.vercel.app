@@ -1680,6 +1680,7 @@ ENTRY.rpe=()=>{
   const rows=affected.length?affected.map(p=>{const me=s.players[p.id]||{};return `<tr><td>${esc(p.name)}</td><td><input type="number" step="any" min="0" max="10" name="rpe-${p.id}" value="${esc(me.rpe!=null?me.rpe:'')}" placeholder="0-10"></td><td class="small muted">${me.partRpe&&Object.keys(me.partRpe).length?'saisi par '+(INDIV?'le/la client·e':'le/la joueur·se'):(me.rpe!=null?'':'—')}</td></tr>`;}).join(''):`<tr><td colspan="3" class="muted">Aucun·e ${PL.one} affecté·e à cette séance.</td></tr>`;
   return `<div class="hrow"><h2>Saisir les RPE</h2>${st.sent?(st.open?`<span class="pill good">Fenêtre ${PL.many} ouverte · <b data-chrono="${st.end}">${fmtRemain(st.remain)}</b></span>`:`<span class="pill warn">Fenêtre ${PL.many} fermée</span>`):`<span class="pill neutral">RPE non envoyé aux ${PL.many}</span>`}</div>
     <form data-form="rpe" class="stack"><input type="hidden" name="sid" value="${esc(sid)}"><div class="fgrid">${dc}${sel}</div>
+    ${affected.length?`<div class="row" style="align-items:center;gap:8px;flex-wrap:wrap"><label style="margin:0">Même RPE pour tout le monde</label><input type="number" id="rp-fill" min="0" max="10" step="any" value="5" style="width:90px"><button type="button" class="btn sm" data-act="rpeFillAll">Appliquer à tous</button><span class="small muted">puis « Enregistrer les RPE »</span></div>`:''}
     <div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th><th>RPE (0-10)</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="row">${!st.sent?`<button type="button" class="btn" data-act="sendRpe" data-id="${esc(sid)}">Envoyer aux ${PL.many} (4 h)</button>`:''}<button class="btn pri">Enregistrer les RPE</button></div></form>`;
 };
@@ -2038,6 +2039,7 @@ const ACT={
   progValidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,{date:UI.ref,rpe:null});toast('Séance validée');},
   progUnvalidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,null);toast('Validation annulée');},
   sendRpe:async b=>{const id=b.dataset.id;const col=DATA.sessions[id]?'sessions':(DATA.matches[id]?'matches':null);if(!col)return;const s=DATA[col][id];await put(col,id,Object.assign({},s,{rpeOpenedAt:Date.now()}));toast('Fenêtre RPE ouverte · 4 h');},
+  rpeFillAll:()=>{const f=$('#rp-fill');if(!f||f.value==='')return;const inputs=$$('input[name^="rpe-"]');inputs.forEach(inp=>{inp.value=f.value;});formDirty=true;toast('RPE pré-rempli pour '+inputs.length+' '+(inputs.length>1?PL.many:PL.one)+' — clique « Enregistrer les RPE »');},
   sendReminders:async b=>{b.disabled=true;const prev=b.textContent;b.textContent='Envoi…';
     try{const r=await fetch('/api/push?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:DB_PREFIX})});const j=await r.json();
       toast(j&&j.ok?('Rappel envoyé à '+j.sent+' personne'+(j.sent>1?'s':'')+(j.subscribed?' · '+j.subscribed+' abonné'+(j.subscribed>1?'s':''):'')):'Envoi impossible');}
