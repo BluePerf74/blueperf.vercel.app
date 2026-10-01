@@ -644,9 +644,8 @@ function menstruOverviewCard(){
   if(!menstruAllowed(PLAYER))return '';
   const m=menstruPlayerMessage();if(!m||!m.zone.msg)return '';
   return `<div class="card" style="border-left:4px solid ${m.zone.color};background:${m.zone.color}12">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:17px">🌸</span><b>Mon cycle · ${m.zone.name}</b></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:17px">📝</span><b>À noter</b></div>
     <p style="margin:0;font-size:13.5px;line-height:1.5">${m.zone.msg}</p>
-    <p class="muted" style="font-size:11.5px;margin:7px 0 0">Tu peux noter le début de tes règles dans « Santé &amp; forme ».</p>
   </div>`;
 }
 function menstruDayOf(lastStart,ref,L){if(!lastStart)return null;const d=mDaysBetween(lastStart,ref);if(d<0)return null;return (d%L)+1;}
