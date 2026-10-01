@@ -661,30 +661,38 @@ let MY_MENSTRU=null, MENSTRU_DATE=null;
 async function loadMenstru(){const all=await kvGet(SPACE+':menstru');const rec=(all&&all[PLAYER.id])||{pid:PLAYER.id,starts:[]};if(!Array.isArray(rec.starts))rec.starts=[];MY_MENSTRU=rec;}
 async function saveMenstruStart(date){const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id]||{pid:PLAYER.id,starts:[]};rec.starts=Array.isArray(rec.starts)?rec.starts:[];if(!rec.starts.includes(date))rec.starts.push(date);rec.starts.sort();rec.updatedAt=new Date().toISOString();rec.name=PLAYER.name;all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}
 async function deleteMenstruStart(date){const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id];if(!rec||!Array.isArray(rec.starts))return;rec.starts=rec.starts.filter(d=>d!==date);rec.updatedAt=new Date().toISOString();all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}
-// Section « Mon cycle » intégrée en bas de Santé & forme — présentée de façon souple et bienveillante.
+// Section « Mon cycle » dans Santé & forme — interface complète : bouton « Débuter », où j'en suis, historique.
+// Le bouton ne se saisit qu'une fois par cycle : il se réactive quand les prochaines règles approchent.
 function menstruSectionHtml(){
   const starts=(MY_MENSTRU&&MY_MENSTRU.starts)||[];const last=starts.length?starts[starts.length-1]:null;
   const L=menstruCycleLen(starts);const zones=menstruZones(L);const day=menstruDayOf(last,TODAY,L);const zone=menstruZoneForDay(zones,day);
   const next=last?addDaysISO(last,L):null;
+  const dSince=last!=null?mDaysBetween(last,TODAY):null;
+  const canStart=(last==null)||(dSince>=Math.max(10,L-3)); // une seule saisie par cycle
   if(!MENSTRU_DATE)MENSTRU_DATE=TODAY;
-  return `<div class="card" style="border:1px solid var(--line)">
-    <h2>🌸 Mon cycle <span class="muted" style="font-size:12px;font-weight:400">· facultatif &amp; privé</span></h2>
-    <p class="muted" style="font-size:12.5px;margin:0 0 12px">Suivre ton cycle peut t'aider à mieux comprendre ton énergie et ta récupération. Quand tes règles démarrent, appuie sur le bouton — c'est tout. Ça reste privé ; seul ton coach le voit, pour adapter les séances.</p>
-    <div class="field"><label>Date de début</label><input type="date" id="mn-date" value="${MENSTRU_DATE}" max="${TODAY}" style="max-width:210px"></div>
-    <button class="btn block" id="mn-start">🌸 Démarrer — mes règles ont commencé</button>
-    <div class="ok" id="mn-ok" style="margin-top:8px"></div>
-    ${last?`<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
-      <p style="margin:0 0 2px;font-size:14px">Dernier début : <b>${isoLong(last)}</b>${day!=null?` · aujourd'hui <b>J${day}</b> — <b style="color:${zone?zone.color:'inherit'}">${zone?zone.name:''}</b>`:''}</p>
-      <p class="muted" style="font-size:12.5px;margin:2px 0 0">Cycle estimé : ${L} jours${next?` · prochaines règles estimées vers le ${isoLong(next)}`:''}.</p>
-      ${menstruBar(zones,L,day)}
-      ${zone&&zone.msg?`<p style="font-size:13px;margin:8px 0 0;line-height:1.5">${zone.msg}</p>`:''}
-      <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--accent);font-size:12.5px">Historique</summary><div style="margin-top:6px">${starts.slice().reverse().map(d=>`<div class="hist"><span>${isoLong(d)}</span><button class="btn sec" data-mndel="${d}" style="padding:4px 10px">Supprimer</button></div>`).join('')}</div></details>
-    </div>`:''}
+  const startCard=`<div class="card"><h2>🌸 Mon cycle <span class="muted" style="font-size:12px;font-weight:400">· facultatif &amp; privé</span></h2>
+    <p class="muted" style="font-size:12.5px;margin:0 0 12px">Quand tes règles commencent, appuie une fois sur le bouton. C'est privé ; seul ton coach le voit, pour adapter les séances.</p>
+    ${canStart
+      ? `<div class="field"><label>Date de début</label><input type="date" id="mn-date" value="${MENSTRU_DATE}" max="${TODAY}" style="max-width:210px"></div>
+         <button class="btn block" id="mn-start">🌸 Débuter — mes règles ont commencé</button>
+         <div class="ok" id="mn-ok" style="margin-top:8px"></div>`
+      : `<div style="background:var(--surface-2);border:1px dashed var(--line);border-radius:10px;padding:12px 14px">
+           <b>✓ Règles enregistrées le ${isoLong(last)}</b>
+           <p class="muted" style="font-size:12.5px;margin:6px 0 0">Rien à saisir pour le moment.${next?` Le bouton se réactivera vers le ${isoLong(next)} (prochaines règles estimées).`:''}</p>
+         </div>`}
   </div>`;
+  const whereCard=last?`<div class="card"><h2>Où j'en suis</h2>
+    <p style="margin:0 0 2px;font-size:14px">Dernier début : <b>${isoLong(last)}</b>${day!=null?` · aujourd'hui <b>J${day}</b> — <b style="color:${zone?zone.color:'inherit'}">${zone?zone.name:''}</b>`:''}</p>
+    <p class="muted" style="font-size:12.5px;margin:2px 0 0">Cycle estimé : ${L} jours${next?` · prochaines règles estimées vers le ${isoLong(next)}`:''}.</p>
+    ${menstruBar(zones,L,day)}
+    ${zone&&zone.msg?`<p style="font-size:13px;margin:8px 0 0;line-height:1.5">${zone.msg}</p>`:''}
+  </div>`:'';
+  const histCard=starts.length?`<div class="card"><details><summary style="cursor:pointer;font-weight:600">Historique &amp; corrections</summary><div style="margin-top:8px">${starts.slice().reverse().map(d=>`<div class="hist"><span>${isoLong(d)}</span><button class="btn sec" data-mndel="${d}" style="padding:4px 10px">Supprimer</button></div>`).join('')}<p class="muted" style="font-size:11.5px;margin:8px 0 0">Supprime une date saisie par erreur : le bouton « Débuter » redeviendra disponible.</p></div></details></div>`:'';
+  return startCard+whereCard+histCard;
 }
 function bindMenstruSection(){
   const dt=$('#mn-date');if(dt)dt.addEventListener('change',e=>{MENSTRU_DATE=e.target.value||TODAY;});
-  const st=$('#mn-start');if(st)st.onclick=async()=>{const d=$('#mn-date').value||TODAY;st.disabled=true;const ok=$('#mn-ok');if(ok)ok.textContent='Enregistrement…';try{await saveMenstruStart(d);await renderTab();}catch(e){if(ok)ok.textContent='échec, réessaie';st.disabled=false;}};
+  const st=$('#mn-start');if(st)st.onclick=async()=>{const d=$('#mn-date').value||TODAY;st.disabled=true;const ok=$('#mn-ok');if(ok)ok.textContent='Enregistrement…';try{await saveMenstruStart(d);MENSTRU_DATE=TODAY;await renderTab();}catch(e){if(ok)ok.textContent='échec, réessaie';st.disabled=false;}};
   document.querySelectorAll('[data-mndel]').forEach(b=>b.onclick=async()=>{if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent='Supprimer';}},3000);return;}await deleteMenstruStart(b.getAttribute('data-mndel'));await renderTab();});
 }
 
