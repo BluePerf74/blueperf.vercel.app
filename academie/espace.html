@@ -42,6 +42,17 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .scale{display:flex;gap:6px;flex-wrap:wrap}
 .scale button{flex:1;min-width:42px;appearance:none;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);border-radius:9px;padding:9px 0;font-weight:700;font-size:15px}
 .scale button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.scale.big{gap:10px}
+.scale.big button{min-width:52px;padding:16px 0;font-size:17px;border-radius:12px}
+.staff-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(90deg,rgba(61,169,252,.18),rgba(61,169,252,.04));border:1px solid var(--line);border-radius:12px;padding:9px 14px;margin-bottom:14px;font-size:13px;color:var(--accent);font-weight:600}
+.staff-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.staff-chip{appearance:none;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:20px;padding:7px 14px;font-size:13px;font-weight:600}
+.staff-chip:hover{border-color:var(--accent)}
+.staff-chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.qcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;margin-bottom:14px}
+.qcard h3{margin:0 0 2px;font-size:16px}
+.qcard .qsub{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+.scale-help{font-size:11.5px;color:var(--muted);text-align:center;margin-top:8px}
 .field{margin-bottom:14px}
 .hint{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between}
 .bodywrap{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px}
@@ -535,6 +546,76 @@ function wellnessCard(){
     <button class="btn block" id="w-save">Enregistrer mon wellness</button>
     <div class="ok" id="w-ok"></div>
   </div>`;
+}
+
+/* ---------- Mode staff : check-in à la place du joueur (grandes cartes, sélecteur de joueur, sans smiley) ---------- */
+const WELL_META={
+  sleep:{icon:'🌙',q:'Qualité du sommeil de la nuit dernière ?'},
+  fatigue:{icon:'⚡',q:'Niveau de fatigue en ce moment ?'},
+  soreness:{icon:'💪',q:'Présence de courbatures ?'},
+  stress:{icon:'🧠',q:'Niveau de stress aujourd\'hui ?'},
+  mood:{icon:'☀️',q:'Humeur générale ?'}
+};
+let COACH_ROSTER=[], COACH_WELLMAP={}, STAFF_FLASH='';
+async function loadCoachRoster(){
+  const players=await kvGet(SPACE+':players');
+  COACH_ROSTER=Object.values(players||{}).filter(p=>p&&p.active!==false&&p.cat===PLAYER.cat).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const all=await kvGet(SPACE+':wellness');
+  COACH_WELLMAP=(all&&all[FEEL_DATE]&&all[FEEL_DATE].entries)||{};
+}
+async function coachLoadWVAL(){
+  const all=await kvGet(SPACE+':wellness');
+  const ent=all[FEEL_DATE]&&all[FEEL_DATE].entries&&all[FEEL_DATE].entries[PLAYER.id];
+  if(ent){const back=v=>v!=null?6-v:null;WVAL={sleep:back(ent.sleep),fatigue:back(ent.fatigue),soreness:back(ent.soreness),stress:back(ent.stress),mood:back(ent.mood)};SORE=new Set(ent.soreZones||[]);}
+  else{WVAL={sleep:null,fatigue:null,soreness:null,stress:null,mood:null};SORE=new Set();}
+}
+function staffScaleHtml(k){return `<div class="scale big" data-scale="${k}">${[1,2,3,4,5].map(v=>`<button data-v="${v}" class="${WVAL[k]===v?'on':''}">${v}</button>`).join('')}</div>`;}
+function wellnessStaffHtml(){
+  const roster=COACH_ROSTER;const filled=roster.filter(p=>COACH_WELLMAP[p.id]).length;const total=roster.length;const missing=total-filled;
+  const chipsList=roster.filter(p=>!COACH_WELLMAP[p.id]||p.id===PLAYER.id);
+  const chips=chipsList.map(p=>`<button class="staff-chip ${p.id===PLAYER.id?'on':''}" data-fillpid="${esc(p.id)}">${esc(p.name)}</button>`).join('');
+  const flash=STAFF_FLASH;STAFF_FLASH='';
+  const note=esc((COACH_WELLMAP[PLAYER.id]||{}).note||'');
+  const questions=WELL.map(w=>{const m=WELL_META[w.k]||{icon:'',q:w.label};return `<div class="qcard">
+      <h3>${m.icon} ${w.label}</h3><p class="qsub">${m.q}</p>
+      ${staffScaleHtml(w.k)}
+      <div class="hint"><span>${w.lo}</span><span>${w.hi}</span></div>
+      ${w.body?`<div id="bodymap" ${WVAL.soreness>=2?'':'hidden'}><p class="muted" style="font-size:12.5px;margin:12px 0 4px">Indique la ou les zones de courbatures :</p><div class="bodywrap"><div class="bodyfig"><div class="cap">DEVANT</div>${frontSvg()}</div><div class="bodyfig"><div class="cap">DOS</div>${backSvg()}</div></div><div class="zones-list" id="zones-list"></div></div>`:'<div class="scale-help">Touche un chiffre pour noter</div>'}
+    </div>`;}).join('');
+  return `
+    <div class="staff-banner"><span>✍️ Mode staff : tu remplis le check-in à la place du joueur sélectionné.</span><button class="btn sec" id="staff-back" style="flex:none;padding:7px 12px">← Retour</button></div>
+    ${flash?`<div class="card" style="background:rgba(30,158,106,.12);border-color:rgba(30,158,106,.4);color:var(--good);font-weight:600">${esc(flash)}</div>`:''}
+    <div class="card"><div class="row" style="justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><h2 style="margin:0">📋 Joueurs sans check-in — ${isoLong(FEEL_DATE)}</h2><span class="muted" style="font-size:12.5px">${filled}/${total} saisies · <b style="color:var(--warn)">${missing} manquante${missing>1?'s':''}</b></span></div>
+      <p class="muted" style="font-size:12.5px;margin:6px 0 0">Clique un joueur pour le sélectionner et remplir son état de forme.</p>
+      <div class="staff-chips">${chips||'<span class="muted" style="font-size:13px">Tout le monde a rempli ✅</span>'}</div>
+      <div class="field" style="margin-top:12px"><label>Date</label><input type="date" id="w-date" value="${FEEL_DATE}" max="${TODAY}" style="max-width:210px"></div>
+    </div>
+    <div class="card" style="background:rgba(61,169,252,.06);border-color:rgba(61,169,252,.25);margin-bottom:14px"><b style="color:var(--accent)">👉 ${esc(PLAYER.name)}</b> — réponds aux questions ci-dessous pour le ${isoLong(FEEL_DATE)}.</div>
+    ${questions}
+    <div class="qcard"><h3>💬 Commentaire (optionnel)</h3><input id="w-note" value="${note}" placeholder="ex : mal dormi, genou sensible…" style="width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-family:inherit;font-size:14px"></div>
+    <button class="btn block" id="w-save">Enregistrer le check-in de ${esc(PLAYER.name)}</button>
+    <div class="ok" id="w-ok" style="margin-top:8px"></div>`;
+}
+async function coachSelectPlayer(pid){const players=await kvGet(SPACE+':players');if(players&&players[pid])PLAYER=players[pid];await coachLoadWVAL();renderTab();}
+async function coachSaveWellness(){
+  const ok=$('#w-ok');
+  if(WELL.some(w=>WVAL[w.k]==null)){if(ok)ok.textContent='⚠️ Réponds à tous les critères avant d\'enregistrer.';return;}
+  const sv=$('#w-save');if(sv)sv.disabled=true;if(ok)ok.textContent='Enregistrement…';
+  try{
+    await saveWellness();
+    const doneName=PLAYER.name;
+    await loadCoachRoster();
+    const next=COACH_ROSTER.find(p=>!COACH_WELLMAP[p.id]);
+    if(next){PLAYER=next;await coachLoadWVAL();STAFF_FLASH='✓ Check-in de '+doneName+' enregistré — au suivant : '+next.name;}
+    else{STAFF_FLASH='✓ Check-in de '+doneName+' enregistré — tout le monde est à jour ✅';}
+    await renderTab();
+  }catch(e){if(ok)ok.textContent='Échec de l\'enregistrement';if(sv)sv.disabled=false;}
+}
+function bindStaffWellness(){
+  bindWellness(); // échelles + schéma du corps + date
+  const sv=$('#w-save');if(sv)sv.onclick=coachSaveWellness;
+  const bk=$('#staff-back');if(bk)bk.onclick=()=>{try{window.parent.postMessage('blueperf-close-fill','*');}catch(e){}};
+  document.querySelectorAll('[data-fillpid]').forEach(b=>b.onclick=()=>coachSelectPlayer(b.getAttribute('data-fillpid')));
 }
 
 /* ===== Suivi du cycle menstruel (profils féminins ; pour l'instant activé pour Sarah) ===== */
@@ -1123,8 +1204,14 @@ async function renderTab(){
   document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('on',b.getAttribute('data-tab')===ESPACE_TAB));
   const c=$('#tabc');if(!c)return;
   if(ESPACE_TAB==='sante'){
+    if(COACH_MODE){
+      await loadCoachRoster();
+      c.innerHTML=wellnessStaffHtml();
+      bindStaffWellness();
+      return;
+    }
     const done=await hasWellnessEntry(FEEL_DATE);
-    c.innerHTML=((done&&!COACH_MODE)?wellnessLockedCard():wellnessCard())+`<div class="card"><h2>${COACH_MODE?'Derniers wellness':'Mes derniers wellness'}</h2><div id="hist"></div></div>`;
+    c.innerHTML=(done?wellnessLockedCard():wellnessCard())+`<div class="card"><h2>Mes derniers wellness</h2><div id="hist"></div></div>`;
     bindWellness();loadHistory();
   }else if(ESPACE_TAB==='rpe'){
     await renderRpeTab();
@@ -1154,6 +1241,7 @@ async function renderTab(){
     if(players[COACH_PID]){PLAYER=players[COACH_PID];
       const dt=ESPACE_Q.get('date');if(dt)FEEL_DATE=dt;
       const tb=ESPACE_Q.get('tab');if(tb)ESPACE_TAB=tb;
+      await coachLoadWVAL(); // pré-remplit l'état de forme existant du joueur sélectionné
       renderSpace();return;} // chargements en parallèle (rapide)
     document.body.innerHTML='<p style="padding:20px;color:#fff">Profil introuvable.</p>';return;
   }
@@ -1169,6 +1257,7 @@ async function renderTab(){
 /* Rechargement automatique pour récupérer les dernières modifications du coach
    (nouvelles séances, programme, etc.) — au retour sur l'onglet ou après une période d'inactivité. */
 (function(){
+  if(COACH_MODE)return; // mode staff (dans un cadre côté coach) : pas de rechargement auto qui effacerait une saisie en cours
   let hiddenAt=0,lastActive=Date.now();
   ['click','keydown','input','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev,()=>{lastActive=Date.now();},{passive:true}));
   // Rafraîchissement DOUX : on recharge les données et on ré-affiche par-dessus l'interface

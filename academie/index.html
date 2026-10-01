@@ -1948,9 +1948,10 @@ function renderFillDrawer(host){
   if(host.dataset.fillSig===sig&&host.querySelector('iframe'))return; // déjà affiché : ne pas recharger l'iframe (saisie en cours)
   host.dataset.fillSig=sig;
   const src='/academie/espace.html?coach=1&space='+encodeURIComponent(DB_PREFIX)+'&pid='+encodeURIComponent(f.pid)+'&tab='+encodeURIComponent(f.tab||'sante')+'&date='+encodeURIComponent(UI.ref);
+  const showHeader=(f.tab!=='sante'); // l'écran wellness (staff) fournit sa propre bannière + bouton « ← Retour »
   host.innerHTML=`<aside class="drawer fillfull" role="dialog" aria-modal="true" aria-label="Saisie pour ${esc(p.name)}" style="padding:0;gap:0;left:0;right:0;width:100%;max-width:100%">
-    <div class="row sb" style="padding:12px 16px;border-bottom:1px solid var(--line);flex:none"><div><div class="eyebrow">Saisie à la place de — ${fmtD(UI.ref,{weekday:'short',day:'numeric',month:'short'})}</div><h2 style="margin:2px 0 0;font-size:22px">${esc(p.name)}</h2></div>
-      <button class="btn pri" data-act="closeFill" aria-label="Fermer">✓ Fermer</button></div>
+    ${showHeader?`<div class="row sb" style="padding:12px 16px;border-bottom:1px solid var(--line);flex:none"><div><div class="eyebrow">Saisie à la place de — ${fmtD(UI.ref,{weekday:'short',day:'numeric',month:'short'})}</div><h2 style="margin:2px 0 0;font-size:22px">${esc(p.name)}</h2></div>
+      <button class="btn pri" data-act="closeFill" aria-label="Fermer">✓ Fermer</button></div>`:''}
     <iframe src="${src}" title="Saisie ${esc(p.name)}" style="flex:1;width:100%;border:0;display:block"></iframe></aside>`;
   document.body.style.overflow='hidden';
 }
@@ -2132,6 +2133,8 @@ document.addEventListener('change',e=>{const t=e.target;if(t.id==='refDate'){UI.
 document.addEventListener('input',e=>{const t=e.target;if(t.closest('form'))formDirty=true;if(t.dataset&&t.dataset.fill){const k=t.dataset.fill;const form=t.closest('form');$$('#grid tr',form).forEach(tr=>{const on=tr.querySelector('input[name^="on-"]');const inp=tr.querySelector(`input[name^="${k}-"]`);if(on&&on.checked&&inp)inp.value=t.value;});}});
 document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();formDirty=false;const h=FORMS[f.dataset.form];if(h)h(f,e.submitter);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(UI.drawer||UI.fill)){if(UI.fill){UI.fill=null;renderDrawer();document.body.style.overflow='';reloadData();}else{UI.drawer=null;renderDrawer();}}});
+// Fermeture du cadre de saisie staff demandée depuis l'intérieur (bouton « ← Retour »).
+window.addEventListener('message',e=>{if(e&&e.data==='blueperf-close-fill'&&UI.fill&&ACT.closeFill)ACT.closeFill();});
 boot();
 /* Rechargement pour récupérer les dernières données (RPE/charges saisis par les joueur·ses, etc.).
    On évite de recharger pendant une saisie en cours (formulaire modifié). */
