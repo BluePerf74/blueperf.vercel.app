@@ -300,6 +300,8 @@ const ESPACE_Q=new URLSearchParams(location.search);
 const COACH_MODE=ESPACE_Q.get('coach')==='1';
 const COACH_PID=ESPACE_Q.get('pid')||null;
 const COACH_SPACE=ESPACE_Q.get('space')||null;
+// Mode coach : on retire tout de suite l'écran de chargement (squelette) — l'interface doit apparaître vite, pas de long chargement.
+if(COACH_MODE){try{const sp=document.getElementById('splash');if(sp)sp.classList.add('hidden');const bt=document.getElementById('boot');if(bt){bt.classList.remove('solid');}}catch(e){}}
 function selfLog(){return SPACE==='ci';} // seules les client·es individuel·les saisissent leurs propres séances
 
 /* ---------- Auth ---------- */
@@ -1090,11 +1092,14 @@ function tabbar(){
 }
 async function renderSpace(skipLoad){
   applyTheme(loadTheme());
-  if(!skipLoad)await loadSessionsToday();
-  await loadMySessions();
-  await loadMyPlan();
-  await loadNutriLink();
-  if(menstruAllowed(PLAYER))await loadMenstru();
+  // Chargements en parallèle (une seule salve réseau) pour éviter un long temps d'attente.
+  await Promise.all([
+    skipLoad?Promise.resolve():loadSessionsToday(),
+    loadMySessions(),
+    loadMyPlan(),
+    loadNutriLink(),
+    menstruAllowed(PLAYER)?loadMenstru():Promise.resolve()
+  ]);
   if(ESPACE_TAB==='nutrition'&&!NUTRI_CID)ESPACE_TAB='apercu';
   if(ESPACE_TAB==='menstruation'&&!menstruAllowed(PLAYER))ESPACE_TAB='apercu';
   if(ESPACE_TAB==='programme'&&!MY_PLAN)ESPACE_TAB='apercu';
@@ -1149,7 +1154,7 @@ async function renderTab(){
     if(players[COACH_PID]){PLAYER=players[COACH_PID];
       const dt=ESPACE_Q.get('date');if(dt)FEEL_DATE=dt;
       const tb=ESPACE_Q.get('tab');if(tb)ESPACE_TAB=tb;
-      await loadSessionsToday();renderSpace(true);return;}
+      renderSpace();return;} // chargements en parallèle (rapide)
     document.body.innerHTML='<p style="padding:20px;color:#fff">Profil introuvable.</p>';return;
   }
   let pid=null,sp=null;try{pid=sessionStorage.getItem('espace_pid');sp=sessionStorage.getItem('espace_space');}catch(e){}
