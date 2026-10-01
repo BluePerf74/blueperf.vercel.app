@@ -2,7 +2,7 @@
 <html lang="fr" style="background:#0D1B2A">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
 <title>Blueperf - Suivi Sportif</title>
 <meta name="description" content="Blueperf — Suivi Sportif : coaching, programmes, RPE, wellness et nutrition.">
 <link rel="manifest" href="/manifest.json">
@@ -64,7 +64,7 @@
   /* ---------- Header ---------- */
   .topbar{
     position:sticky;top:0;z-index:20;background:var(--navy);color:var(--chalk);
-    padding:14px 18px 0;
+    padding:calc(14px + env(safe-area-inset-top,0px)) calc(18px + env(safe-area-inset-right,0px)) 0 calc(18px + env(safe-area-inset-left,0px));
   }
   .topbar-row{display:flex;align-items:center;justify-content:space-between;}
   .wordmark{font-family:'Space Grotesk';font-weight:700;font-size:13px;letter-spacing:.13em;color:var(--grass-tint);}
@@ -618,9 +618,9 @@
     color:var(--ink-soft);padding:3px 8px;border-radius:99px;}
 
   /* ---------- Dashboard coach (barre de navigation sombre avec menus déroulants) ---------- */
-  .cdb-navbar{background:var(--navy);width:100%;}
+  .cdb-navbar{background:var(--navy);width:100%;padding-top:env(safe-area-inset-top,0px);}
   .cdb-navbar-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:16px;
-    padding:9px 18px;flex-wrap:wrap;}
+    padding:9px calc(18px + env(safe-area-inset-right,0px)) 9px calc(18px + env(safe-area-inset-left,0px));flex-wrap:wrap;}
   .cdb-brand{display:flex;align-items:center;gap:7px;flex:0 0 auto;}
   .cdb-brand svg{width:22px;height:25px;display:block;}
   .cdb-brand-text{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;letter-spacing:.02em;color:#fff;white-space:nowrap;}
