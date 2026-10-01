@@ -22,6 +22,8 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:15px;line-height:1.5}
 .wrap{max-width:640px;margin:0 auto;padding:18px 16px 60px}
+body.coach-fill .wrap{max-width:1180px}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;align-items:start}
 h1{font-family:var(--fd);font-weight:700;font-size:22px;margin:0 0 2px}
 h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
@@ -312,7 +314,7 @@ const COACH_MODE=ESPACE_Q.get('coach')==='1';
 const COACH_PID=ESPACE_Q.get('pid')||null;
 const COACH_SPACE=ESPACE_Q.get('space')||null;
 // Mode coach : on retire tout de suite l'écran de chargement (squelette) — l'interface doit apparaître vite, pas de long chargement.
-if(COACH_MODE){try{const sp=document.getElementById('splash');if(sp)sp.classList.add('hidden');const bt=document.getElementById('boot');if(bt){bt.classList.remove('solid');}}catch(e){}}
+if(COACH_MODE){try{const sp=document.getElementById('splash');if(sp)sp.classList.add('hidden');const bt=document.getElementById('boot');if(bt){bt.classList.remove('solid');}document.body.classList.add('coach-fill');}catch(e){}}
 function selfLog(){return SPACE==='ci';} // seules les client·es individuel·les saisissent leurs propres séances
 
 /* ---------- Auth ---------- */
@@ -591,8 +593,8 @@ function wellnessStaffHtml(){
       <div class="field" style="margin-top:12px"><label>Date</label><input type="date" id="w-date" value="${FEEL_DATE}" max="${TODAY}" style="max-width:210px"></div>
     </div>
     <div class="card" style="background:rgba(61,169,252,.06);border-color:rgba(61,169,252,.25);margin-bottom:14px"><b style="color:var(--accent)">👉 ${esc(PLAYER.name)}</b> — réponds aux questions ci-dessous pour le ${isoLong(FEEL_DATE)}.</div>
-    ${questions}
-    <div class="qcard"><h3>💬 Commentaire (optionnel)</h3><input id="w-note" value="${note}" placeholder="ex : mal dormi, genou sensible…" style="width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-family:inherit;font-size:14px"></div>
+    <div class="qgrid">${questions}</div>
+    <div class="qcard" style="margin-top:14px"><h3>💬 Commentaire (optionnel)</h3><input id="w-note" value="${note}" placeholder="ex : mal dormi, genou sensible…" style="width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-family:inherit;font-size:14px"></div>
     <button class="btn block" id="w-save">Enregistrer le check-in de ${esc(PLAYER.name)}</button>
     <div class="ok" id="w-ok" style="margin-top:8px"></div>`;
 }
