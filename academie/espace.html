@@ -103,6 +103,11 @@ input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px
 .loadbars{display:flex;align-items:flex-end;gap:5px;height:90px;margin-top:8px}
 .loadbars .b{flex:1;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px;opacity:.85}
 .loadbars .b.match{background:var(--warn)}
+.loadbars .bcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
+.loadbars .seg{width:100%;border-radius:4px 4px 0 0;min-height:2px}
+.loadbars .seg.real{background:var(--accent);opacity:.9}
+.loadbars .seg.real.match{background:var(--warn)}
+.loadbars .seg.prev{background:var(--accent);opacity:.3;border:1px dashed var(--accent)}
 .loadlab{display:flex;gap:5px;margin-top:5px}
 .loadlab span{flex:1;text-align:center;font-size:9.5px;color:var(--muted)}
 .boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(14,26,44,.66);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);color:var(--ink);font-size:13.5px;font-weight:600}
@@ -1015,15 +1020,38 @@ async function loadMySessions(){
   MY_SESSIONS=list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
 function addDaysISO(d,n){const [y,m,dd]=d.split('-').map(Number);const t=new Date(Date.UTC(y,m-1,dd));t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10);} // UTC : pas de décalage de fuseau
-function dayLoad(date){let load=0,match=false;MY_SESSIONS.filter(s=>s.date===date).forEach(s=>{const me=s.players[PLAYER.id]||{};const rpe=me.rpe;const min=me.min||s.duration||0;if(rpe!=null)load+=rpe*min;if(s.type==='Match'||s.competition)match=true;});return {load:Math.round(load),match};}
+// Minutes estimées pour une séance du programme (pas de durée saisie dans le programme).
+function progEstMin(ref){
+  if(!MY_PLAN||!Array.isArray(MY_PLAN.weeks))return 60;
+  const m=/^S(\d+):(.+)$/.exec(ref);if(!m)return 60;
+  const wk=MY_PLAN.weeks.find(w=>String(w.n)===m[1]);if(!wk)return 60;
+  const s=(wk.sessions||[]).find(x=>String(x.id)===m[2]);if(!s)return 55;
+  if(s.kind==='course')return s.km?Math.min(150,Math.max(20,Math.round(s.km*6))):45;
+  return 55;
+}
+// RPE cible estimé d'une séance envoyée par le coach, tant qu'aucun RPE n'a été saisi.
+function estRpeOf(s){if(s&&Array.isArray(s.procedes)&&s.procedes.length){const r=s.procedes.map(p=>+p.rpe).filter(v=>v>0);if(r.length)return Math.round(r.reduce((a,b)=>a+b,0)/r.length);}return 6;}
+function dayLoad(date){
+  let real=0,planned=0,match=false;
+  MY_SESSIONS.filter(s=>s.date===date).forEach(s=>{const me=s.players[PLAYER.id]||{};const min=me.min||s.duration||0;
+    if(me.rpe!=null)real+=me.rpe*min;
+    else if(s.source!=='joueur')planned+=estRpeOf(s)*(min||60); // séance envoyée par le coach, RPE pas encore saisi
+    if(s.type==='Match'||s.competition)match=true;});
+  // séances du programme validées (« Mon programme ») : RPE saisi, minutes estimées
+  if(MY_PLAN&&MY_PLAN.done)Object.entries(MY_PLAN.done).forEach(([ref,d])=>{if(d&&d.date===date&&d.rpe!=null)real+=d.rpe*progEstMin(ref);});
+  return {load:Math.round(real),planned:Math.round(planned),match};
+}
 function load7(){let sum=0;for(let i=0;i<7;i++)sum+=dayLoad(addDaysISO(TODAY,-i)).load;return sum;}
 async function wellnessToday(){const all=await kvGet(SPACE+':wellness');const e=all[TODAY]&&all[TODAY].entries&&all[TODAY].entries[PLAYER.id];if(!e)return null;const score=Math.round(((e.sleep||0)+(e.fatigue||0)+(e.soreness||0)+(e.stress||0)+(e.mood||0))/25*100);return {e,score};}
 function loadChartHtml(){
   const days=[];for(let i=13;i>=0;i--)days.push(addDaysISO(TODAY,-i));
-  const vals=days.map(d=>dayLoad(d));const max=Math.max(1,...vals.map(v=>v.load));
-  const bars=vals.map((v,i)=>`<div class="b ${v.match?'match':''}" style="height:${Math.round(v.load/max*88)||2}px" title="${days[i]} : ${v.load} UA"></div>`).join('');
+  const vals=days.map(d=>dayLoad(d));const max=Math.max(1,...vals.map(v=>v.load+v.planned));
+  const bars=vals.map((v,i)=>{const tot=v.load+v.planned;const h=Math.max(2,Math.round(tot/max*88));const realH=tot?Math.round(h*v.load/tot):2;const planH=Math.max(0,h-realH);
+    const tip=`${days[i]} : ${v.load} UA réalisé${v.planned?' · '+v.planned+' UA prévu':''}`;
+    return `<div class="bcol" title="${tip}">${planH?`<div class="seg prev" style="height:${planH}px"></div>`:''}${realH?`<div class="seg real ${v.match?'match':''}" style="height:${realH}px"></div>`:''}</div>`;}).join('');
   const labs=days.map((d,i)=>`<span>${i%2===0?d.slice(8):''}</span>`).join('');
-  return `<div class="loadbars">${bars}</div><div class="loadlab">${labs}</div><p class="muted" style="font-size:11.5px;margin:8px 0 0">Charge = RPE × minutes (unités arbitraires). Orange = match/compétition.</p>`;
+  const hasPlanned=vals.some(v=>v.planned>0);
+  return `<div class="loadbars">${bars}</div><div class="loadlab">${labs}</div><p class="muted" style="font-size:11.5px;margin:8px 0 0">Charge = RPE × minutes (unités arbitraires). Orange = match.${hasPlanned?' Barres hachurées = séances envoyées, RPE pas encore saisi.':''}</p>`;
 }
 function weekStat(start){
   const end=addDaysISO(start,7);
