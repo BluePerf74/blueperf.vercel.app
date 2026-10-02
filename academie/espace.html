@@ -1053,16 +1053,17 @@ function loadChartHtml(){
   const hasPlanned=vals.some(v=>v.planned>0);
   return `<div class="loadbars">${bars}</div><div class="loadlab">${labs}</div><p class="muted" style="font-size:11.5px;margin:8px 0 0">Charge = RPE × minutes (unités arbitraires). Orange = match.${hasPlanned?' Barres hachurées = séances envoyées, RPE pas encore saisi.':''}</p>`;
 }
+// Progression : compte TOUTES les séances réalisées (notées) — les tiennes, celles du coach, et le programme validé.
 function weekStat(start){
   const end=addDaysISO(start,7);
-  const l=MY_SESSIONS.filter(s=>s.source==='joueur'&&s.date>=start&&s.date<end);
-  let min=0,km=0,load=0;
-  l.forEach(s=>{const me=s.players[PLAYER.id]||{};min+=me.min||0;km+=(+s.distance||0);if(me.rpe!=null)load+=me.rpe*(me.min||0);});
-  return {n:l.length,min,km:Math.round(km*10)/10,load:Math.round(load)};
+  let n=0,min=0,km=0,load=0;
+  MY_SESSIONS.filter(s=>s.date>=start&&s.date<end).forEach(s=>{const me=s.players[PLAYER.id]||{};if(me.rpe==null)return;const m=me.min||s.duration||0;n++;min+=m;km+=(+s.distance||0);load+=me.rpe*m;});
+  if(MY_PLAN&&MY_PLAN.done)Object.entries(MY_PLAN.done).forEach(([ref,d])=>{if(d&&d.date>=start&&d.date<end&&d.rpe!=null){const m=progEstMin(ref);n++;min+=m;load+=d.rpe*m;}});
+  return {n,min,km:Math.round(km*10)/10,load:Math.round(load)};
 }
 function progressionCard(){
-  const acts=MY_SESSIONS.filter(s=>s.source==='joueur');
-  if(!acts.length)return `<div class="card"><h2>Ma progression</h2><p class="muted" style="font-size:13px;margin:0">Ajoute tes activités dans l'onglet « RPE & charge » pour suivre ta progression, semaine après semaine.</p></div>`;
+  const anyDone=MY_SESSIONS.some(s=>(s.players[PLAYER.id]||{}).rpe!=null)||!!(MY_PLAN&&MY_PLAN.done&&Object.values(MY_PLAN.done).some(d=>d&&d.rpe!=null));
+  if(!anyDone)return `<div class="card"><h2>Ma progression</h2><p class="muted" style="font-size:13px;margin:0">Les séances réalisées — les tiennes comme celles que ton coach t'envoie — apparaîtront ici, semaine après semaine.</p></div>`;
   const wkStart=mondayOfISO(TODAY);
   const cur=weekStat(wkStart),prev=weekStat(addDaysISO(wkStart,-7));
   const delta=(a,b)=>{if(!prev.n)return '';const d=Math.round((a-b)*10)/10;if(d===0)return '<span style="font-size:11px;color:var(--muted)"> =</span>';return `<span style="font-size:11px;color:${d>0?'var(--good)':'var(--warn)'}"> ${d>0?'▲':'▼'} ${Math.abs(d)}</span>`;};
@@ -1071,8 +1072,10 @@ function progressionCard(){
   const weeks=starts.map(weekStat);const max=Math.max(1,...weeks.map(w=>w.load));
   const bars=weeks.map(w=>`<div class="b" style="height:${Math.round(w.load/max*88)||2}px" title="${w.load} UA"></div>`).join('');
   const labs=starts.map(st=>`<span>${new Date(st+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'numeric'})}</span>`).join('');
-  const bySport={};acts.filter(s=>s.date>=wkStart&&s.date<addDaysISO(wkStart,7)).forEach(s=>{const sp=sportOf(s.sport);const key=sp?sp.e+' '+sp.l:'Autre';bySport[key]=(bySport[key]||0)+1;});
-  const sportChips=Object.entries(bySport).map(([k,v])=>`<span class="pill">${k} ×${v}</span>`).join(' ')||'<span class="muted" style="font-size:12.5px">Aucune activité cette semaine.</span>';
+  const wkEnd=addDaysISO(wkStart,7);const bySport={};
+  MY_SESSIONS.filter(s=>s.date>=wkStart&&s.date<wkEnd&&(s.players[PLAYER.id]||{}).rpe!=null).forEach(s=>{const sp=sportOf(s.sport);const key=sp?sp.e+' '+sp.l:((s.isMatch||s.type==='Match')?'⚽ Match':'🏋️ '+(s.type||'Séance'));bySport[key]=(bySport[key]||0)+1;});
+  if(MY_PLAN&&MY_PLAN.done){let pc=0;Object.values(MY_PLAN.done).forEach(d=>{if(d&&d.rpe!=null&&d.date>=wkStart&&d.date<wkEnd)pc++;});if(pc)bySport['📋 Programme']=(bySport['📋 Programme']||0)+pc;}
+  const sportChips=Object.entries(bySport).map(([k,v])=>`<span class="pill">${k} ×${v}</span>`).join(' ')||'<span class="muted" style="font-size:12.5px">Aucune séance réalisée cette semaine.</span>';
   return `<div class="card"><h2>Ma progression</h2>
     <div class="kpis" style="margin-bottom:12px">
       ${stat('Séances (7 j)',cur.n,'',delta(cur.n,prev.n))}
