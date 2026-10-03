@@ -959,6 +959,17 @@ VIEWS.overview=()=>{
     <h3 style="margin:14px 0 6px">Check-in wellness du jour non rempli${wellMiss.length?' ('+wellMiss.length+')':''}</h3>
     ${wellMiss.length?`<div>${wellMiss.map(p=>`<button class="btn sm" data-act="fillPlayer" data-id="${esc(p.id)}" data-tab="sante" style="margin:0 8px 8px 0">${esc(p.name)} →</button>`).join('')}</div>`:'<p class="muted" style="margin:0">Tout le monde a rempli son wellness du jour ✅</p>'}
   </div>`;
+  // Séances / matchs des 21 derniers jours avec au moins un RPE manquant — à compléter en un clic.
+  const rpeMiss=[...Object.values(DATA.sessions).map(s=>({e:s,col:'sessions'})),...Object.values(DATA.matches).map(m=>({e:Object.assign({},m,{title:'Match vs '+(m.opponent||''),type:'Match'}),col:'matches'}))]
+    .filter(x=>inCat(x.e)&&x.e.players&&x.e.date<=ref&&x.e.date>=addDays(ref,-21))
+    .map(x=>{const assigned=Object.keys(x.e.players).filter(pid=>DATA.players[pid]);const miss=assigned.filter(pid=>{const pl=x.e.players[pid];return pl&&pl.rpe==null&&!(pl.partRpe&&Object.keys(pl.partRpe).length);});return {col:x.col,id:x.e.id,date:x.e.date,title:x.e.title||x.e.type||'Séance',cat:x.e.cat,names:miss.map(pid=>DATA.players[pid].name)};})
+    .filter(x=>x.names.length>0).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20);
+  const rpeMissCard=`<div class="card"><div class="hrow"><h2>RPE à compléter</h2><span class="small muted">séances & matchs des 21 derniers jours</span></div>
+    ${rpeMiss.length?`<div class="tw"><table><thead><tr><th>Date</th><th>${INDIV?'Séance':'Séance / match'}</th><th>RPE manquants</th><th></th></tr></thead><tbody>
+      ${rpeMiss.map(x=>`<tr><td>${fmtD(x.date)}</td><td>${esc(x.title)}${(!INDIV&&UI.cat==='Tous')?' · '+esc(x.cat):''}</td>
+        <td><span class="pill warn">${x.names.length}</span> <span class="small muted">${esc(x.names.slice(0,4).join(', '))}${x.names.length>4?'…':''}</span></td>
+        <td><button class="btn sm pri" data-act="rpeComplete" data-col="${x.col}" data-id="${esc(x.id)}">Compléter</button></td></tr>`).join('')}
+    </tbody></table></div>`:'<p class="muted" style="margin:0">Tous les RPE des 21 derniers jours sont saisis 👍</p>'}</div>`;
   return `<div class="grid g6">
     ${kpi('Disponibles',ps.length-unavail,'/'+ps.length,unavail?unavail+' blessé'+(unavail>1?'s':'')+' ou en réathlé':'Tout le groupe est disponible')}
     ${kpi('Alertes',red,'',`<span class="pill crit">${red} rouge${red>1?'s':''}</span> <span class="pill warn">${orange} orange</span>`,red?'crit':null)}
@@ -968,6 +979,7 @@ VIEWS.overview=()=>{
     ${kpi('Prochain match',nm?(dayDiff(nm.date,ref)===0?'J':'J-'+dayDiff(nm.date,ref)):'–','',nm?esc(fmtD(nm.date)+' · '+nm.label):'Aucun match planifié')}
   </div>
   ${toFillCard}
+  ${rpeMissCard}
   ${relanceCard}
   <div class="grid g2">
     <div class="card"><div class="hrow"><h2>Charge d'équipe, 28 jours</h2><span class="small muted">sRPE moyen par joueur présent</span></div>
@@ -2060,6 +2072,9 @@ const ACT={
   progUnvalidate:async b=>{await progSet(b.dataset.cid,b.dataset.ref,null);toast('Validation annulée');},
   sendRpe:async b=>{const id=b.dataset.id;const col=DATA.sessions[id]?'sessions':(DATA.matches[id]?'matches':null);if(!col)return;const s=DATA[col][id];await put(col,id,Object.assign({},s,{rpeOpenedAt:Date.now()}));toast('Fenêtre RPE ouverte · 4 h');},
   rpeFillAll:()=>{const f=$('#rp-fill');if(!f||f.value==='')return;const inputs=$$('input[name^="rpe-"]');inputs.forEach(inp=>{inp.value=f.value;});formDirty=true;toast('RPE pré-rempli pour '+inputs.length+' '+(inputs.length>1?PL.many:PL.one)+' — clique « Enregistrer les RPE »');},
+  rpeComplete:b=>{const col=b.dataset.col,id=b.dataset.id;const ev=DATA[col]&&DATA[col][id];if(!ev)return;UI.assignDate=ev.date;UI.assignCat=INDIV?INDIV_CAT:ev.cat;UI.edit=null;UI.entryOpen=false;UI.drawer=null;
+    if(col==='matches'){UI.edit={col:'matches',id};UI.entryTab='match';}else{UI.rpeSess=id;UI.entryTab='rpe';}
+    go('entry');},
   sendReminders:async b=>{b.disabled=true;const prev=b.textContent;b.textContent='Envoi…';
     try{const r=await fetch('/api/push?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:DB_PREFIX})});const j=await r.json();
       toast(j&&j.ok?('Rappel envoyé à '+j.sent+' personne'+(j.sent>1?'s':'')+(j.subscribed?' · '+j.subscribed+' abonné'+(j.subscribed>1?'s':''):'')):'Envoi impossible');}
