@@ -799,9 +799,10 @@ async function renderRpeTab(){
   const c=$('#tabc');if(!c)return;
   // Football : pas de saisie libre de séances — seulement les séances/matchs affectés + la charge.
   // Individuel : la cliente saisit ses propres séances (journal d'activité).
-  c.innerHTML=sessionsCard()+(selfLog()?activityWeekCard():`<div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>`);
+  c.innerHTML=sessionsCard()+(selfLog()?activityWeekCard():`<div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>`)+historyCard();
   drawSessions();
   if(selfLog())bindActivityWeek();
+  bindHistory();
 }
 function bindActivityWeek(){
   document.querySelectorAll('[data-actweek]').forEach(b=>b.onclick=()=>{ACT_WEEK=addDaysISO(ACT_WEEK,+b.getAttribute('data-actweek'));ACT_DAY=null;ACT_EDIT=null;renderRpeTab();});
@@ -842,9 +843,10 @@ async function loadSessionsToday(){
     if(s.source==='joueur')return; // activités perso : gérées dans l'onglet activité de la semaine
     const me=(s.players&&s.players[PLAYER.id])||null;if(!me)return;
     const submitted=me.rpe!=null||(me.partRpe&&Object.keys(me.partRpe).length);
-    const open=COACH_MODE?true:(s.rpeOpenedAt&&(now-s.rpeOpenedAt)<RPE_WINDOW_MS);
-    // Saisie coach : toutes les séances du jour sont modifiables. Sinon : fenêtre RPE ouverte (quelle que soit la date) ou déjà notée aujourd'hui.
-    if(COACH_MODE){if(s.date!==FEEL_DATE)return;}else if(!open&&!(submitted&&s.date===FEEL_DATE))return;
+    const windowOpen=s.rpeOpenedAt&&(now-s.rpeOpenedAt)<RPE_WINDOW_MS;
+    const recent=s.date<=TODAY&&s.date>=addDaysISO(TODAY,-30);
+    const open=COACH_MODE?true:(windowOpen||(!submitted&&recent)); // on peut toujours saisir un RPE manquant (séance récente), même fenêtre fermée
+    if(COACH_MODE){if(s.date!==FEEL_DATE)return;}else if(!(open||(submitted&&s.date===FEEL_DATE)))return;
     const parts=(Array.isArray(s.procedes)&&s.procedes.length)?s.procedes.map((p,j)=>p.type||('Procédé '+(j+1))):(Array.isArray(s.parts)?s.parts:[]);
     const partRpe=me.partRpe||{};
     items.push({sid:s.id,col:'sessions',session:s,isMatch:false,parts,open:!!open,remain:s.rpeOpenedAt?(s.rpeOpenedAt+RPE_WINDOW_MS-now):null,
@@ -855,9 +857,10 @@ async function loadSessionsToday(){
     if(!m||m.cat!==PLAYER.cat)return;
     const me=(m.players&&m.players[PLAYER.id])||null;if(!me)return; // seulement les participantes
     const submitted=me.rpe!=null||me.perf!=null;
-    const open=COACH_MODE?true:(m.rpeOpenedAt&&(now-m.rpeOpenedAt)<RPE_WINDOW_MS);
-    // Saisie coach : tous les matchs du jour sont modifiables. Sinon : fenêtre RPE ouverte (quelle que soit la date) ou déjà noté aujourd'hui.
-    if(COACH_MODE){if(m.date!==FEEL_DATE)return;}else if(!open&&!(submitted&&m.date===FEEL_DATE))return;
+    const windowOpen=m.rpeOpenedAt&&(now-m.rpeOpenedAt)<RPE_WINDOW_MS;
+    const recent=m.date<=TODAY&&m.date>=addDaysISO(TODAY,-30);
+    const open=COACH_MODE?true:(windowOpen||(!submitted&&recent)); // match récent sans note : saisie toujours possible
+    if(COACH_MODE){if(m.date!==FEEL_DATE)return;}else if(!(open||(submitted&&m.date===FEEL_DATE)))return;
     items.push({sid:m.id,col:'matches',isMatch:true,session:Object.assign({},m,{title:'Match vs '+(m.opponent||''),type:'Match'}),
       open:!!open,remain:m.rpeOpenedAt?(m.rpeOpenedAt+RPE_WINDOW_MS-now):null,parts:[],
       rpe:me.rpe!=null?me.rpe:null,perf:me.perf!=null?me.perf:null,comment:me.comment||''});
@@ -947,6 +950,46 @@ async function saveMatchRating(mid,rpe,perf,comment){
   m.players[PLAYER.id]=Object.assign({},m.players[PLAYER.id]||{},{rpe:rpe,perf:(perf==null?null:perf),comment:(comment||'').trim(),min:(m.players[PLAYER.id]&&m.players[PLAYER.id].min)||m.duration||90});
   all[mid]=m;
   await kvSet(SPACE+':matches',all);
+}
+/* ---------- Historique des séances (RPE manquants à compléter) ---------- */
+let HIST_OPEN=null;
+function historyCard(){
+  const items=MY_SESSIONS.slice(0,40);
+  if(!items.length)return `<div class="card"><h2>Historique des séances</h2><p class="muted" style="font-size:13px;margin:0">Aucune séance pour l'instant.</p></div>`;
+  const miss=MY_SESSIONS.filter(s=>(s.players[PLAYER.id]||{}).rpe==null).length;
+  const rows=items.map(s=>{
+    const me=s.players[PLAYER.id]||{};const rated=me.rpe!=null;const isMatch=s.isMatch||s.type==='Match';
+    const open=HIST_OPEN===s.id;
+    const meta=`${isoLong(s.date)} · ${esc(s.title||s.type||'Séance')}${s.duration?' · '+s.duration+' min':''}`;
+    let form='';
+    if(open){
+      if(isMatch)form=`<div style="margin-top:10px"><label>Difficulté du match (1 → 10)</label>${scaleTen('h-'+s.id+'-diff',me.rpe)}<label style="display:block;margin-top:12px">Note de performance (1 → 10)</label>${scaleTen('h-'+s.id+'-perf',me.perf)}<div style="margin-top:10px"><button class="btn sec" data-histsave="${esc(s.id)}">Enregistrer</button> <span class="ok" id="h-ok-${esc(s.id)}"></span></div></div>`;
+      else form=`<div style="margin-top:10px"><label>RPE ressenti (0 → 10)</label>${rpeScale('h-'+s.id+'-rpe',me.rpe)}<div style="margin-top:10px"><button class="btn sec" data-histsave="${esc(s.id)}">Enregistrer</button> <span class="ok" id="h-ok-${esc(s.id)}"></span></div></div>`;
+    }
+    const right=rated
+      ?`<span class="pill">RPE ${me.rpe}${isMatch&&me.perf!=null?' · Perf '+me.perf:''}</span> <button class="btn sec" data-histtoggle="${esc(s.id)}" style="padding:4px 10px">${open?'Fermer':'Modifier'}</button>`
+      :`<button class="btn" data-histtoggle="${esc(s.id)}" style="padding:5px 12px">${open?'Fermer':'Saisir le RPE'}</button>`;
+    return `<div class="hist" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span>${meta}</span><span style="white-space:nowrap">${right}</span></div>${form}</div>`;
+  }).join('');
+  return `<div class="card"><h2>Historique des séances</h2>${miss?`<p class="muted" style="font-size:12.5px;margin:0 0 8px">⚠️ ${miss} séance(s) sans RPE — clique « Saisir le RPE » pour compléter.</p>`:''}${rows}</div>`;
+}
+function bindHistory(){
+  document.querySelectorAll('[data-histtoggle]').forEach(b=>b.onclick=()=>{const id=b.getAttribute('data-histtoggle');HIST_OPEN=HIST_OPEN===id?null:id;renderRpeTab();});
+  const o=MY_SESSIONS.find(s=>s.id===HIST_OPEN);
+  if(o){const isMatch=o.isMatch||o.type==='Match';
+    if(isMatch){bindRpeScale('h-'+o.id+'-diff',v=>{o.__rpe=v;});bindRpeScale('h-'+o.id+'-perf',v=>{o.__perf=v;});}
+    else bindRpeScale('h-'+o.id+'-rpe',v=>{o.__rpe=v;});}
+  document.querySelectorAll('[data-histsave]').forEach(b=>b.onclick=async()=>{
+    const id=b.getAttribute('data-histsave');const o=MY_SESSIONS.find(s=>s.id===id);if(!o)return;const ok=$('#h-ok-'+id);const me=o.players[PLAYER.id]||{};const isMatch=o.isMatch||o.type==='Match';
+    const rpe=o.__rpe!=null?o.__rpe:me.rpe;
+    if(rpe==null){if(ok)ok.textContent='⚠️ Choisis le RPE';return;}
+    b.disabled=true;
+    try{
+      if(isMatch){const perf=o.__perf!=null?o.__perf:(me.perf!=null?me.perf:null);await saveMatchRating(id,rpe,perf,me.comment||'');}
+      else await saveSessionRpe(id,rpe);
+      HIST_OPEN=null;await loadSessionsToday();await loadMySessions();renderRpeTab();
+    }catch(e){if(ok)ok.textContent='échec';b.disabled=false;}
+  });
 }
 async function addPersonalSession(type,dur,rpe){
   const all=await kvGet(SPACE+':sessions');
