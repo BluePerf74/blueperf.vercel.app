@@ -2144,6 +2144,9 @@ async function gpsApply(){if(!GPS_PARSED)return;const {c,id,rows}=GPS_PARSED;con
 
 /* ---------- ÉVÉNEMENTS ---------- */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const f=ACT[b.dataset.act];if(!f)return;if(b.tagName==='BUTTON'&&b.type!=='submit')e.preventDefault();f(b,e);});
+// Clic en dehors de la barre : referme les menus déroulants ouverts (Saisie, Performance) pour ne pas gêner.
+// Phase capture : on teste la cible avant que renderNav ne reconstruise la barre.
+document.addEventListener('click',e=>{if(!UI.entryOpen&&!UI.perfOpen)return;if(e.target.closest&&e.target.closest('#nav'))return;UI.entryOpen=false;UI.perfOpen=false;renderNav();},true);
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='refDate'){UI.ref=t.value||TODAY;render();return;}if(t.dataset&&t.dataset.chg&&CHG[t.dataset.chg])CHG[t.dataset.chg](t);});
 document.addEventListener('input',e=>{const t=e.target;if(t.closest('form'))formDirty=true;if(t.dataset&&t.dataset.fill){const k=t.dataset.fill;const form=t.closest('form');$$('#grid tr',form).forEach(tr=>{const on=tr.querySelector('input[name^="on-"]');const inp=tr.querySelector(`input[name^="${k}-"]`);if(on&&on.checked&&inp)inp.value=t.value;});}});
 document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();formDirty=false;const h=FORMS[f.dataset.form];if(h)h(f,e.submitter);});
