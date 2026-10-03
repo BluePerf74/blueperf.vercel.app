@@ -1198,7 +1198,10 @@ async function overviewHtml(){
   const toRate=SESSIONS_TODAY.filter(o=>o.rpe==null).length;
   const l7=load7();
   const recent=MY_SESSIONS.slice(0,6);
-  const recentHtml=recent.length?recent.map(s=>{const me=s.players[PLAYER.id]||{};return `<div class="hist"><span>${isoLong(s.date)} · ${esc(s.title||s.type||'Séance')}</span><span class="pill">${me.rpe!=null?('RPE '+me.rpe):'—'}${s.isMatch&&me.perf!=null?' · Perf '+me.perf:''}${me.min?' · '+me.min+' min':''}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
+  const recentHtml=recent.length?recent.map(s=>{const me=s.players[PLAYER.id]||{};const right=me.rpe!=null
+      ?`<span class="pill">RPE ${me.rpe}${s.isMatch&&me.perf!=null?' · Perf '+me.perf:''}${me.min?' · '+me.min+' min':''}</span>`
+      :`<button class="btn sec" data-rate="${esc(s.id)}" style="padding:4px 12px">Saisir</button>`;
+    return `<div class="hist"><span>${isoLong(s.date)} · ${esc(s.title||s.type||'Séance')}</span>${right}</div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
   return `
     <div class="kpis">
       <div class="kpi" data-kidx="0" style="${kpiStyle(0)}"><div class="lab">Wellness du jour</div><div class="val">${wt?wt.score+'<small>%</small>':'—'}</div><div class="d">${wt?'rempli ✓':'à remplir'}</div></div>
@@ -1328,6 +1331,7 @@ async function renderTab(){
   }else{
     c.innerHTML=await overviewHtml();
     document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
+    document.querySelectorAll('[data-rate]').forEach(b=>b.onclick=()=>{HIST_OPEN=b.getAttribute('data-rate');ESPACE_TAB='rpe';renderTab();setTimeout(()=>{const el=document.querySelector('[data-histsave]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},60);});
     bindOvSaisir();
   }
 }
