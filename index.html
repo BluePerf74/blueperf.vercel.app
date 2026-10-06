@@ -6372,8 +6372,14 @@ init();
   async function checkVersion(){ try{ const r=await fetch('/?v='+Date.now(),{method:'HEAD',cache:'no-store'}); const et=r.headers.get('etag')||r.headers.get('last-modified'); if(et){ if(PAGE_TAG&&et!==PAGE_TAG)showUpdateBanner(); PAGE_TAG=et; } }catch(e){} }
   function showUpdateBanner(){ if(document.getElementById('updbar'))return; const d=document.createElement('div'); d.id='updbar'; d.innerHTML='🔄 Une nouvelle version est disponible. <button>Recharger</button>'; document.body.appendChild(d); d.querySelector('button').onclick=()=>{if(boot){boot.classList.add('solid');boot.classList.remove('hidden');}location.reload();}; }
   checkVersion();
-  document.addEventListener('visibilitychange',()=>{ if(!document.hidden)checkVersion(); });
-  setInterval(()=>{ if(!document.hidden)checkVersion(); },90000);
+  // Bouton flottant « Recharger » quand la page reste ouverte longtemps, pour se remettre à jour sur les données.
+  let lastRefresh=Date.now();
+  const fab=document.createElement('button'); fab.id='reloadfab'; fab.type='button'; fab.textContent='🔄 Recharger';
+  fab.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:100001;display:none;background:#2A8CE0;color:#fff;border:0;border-radius:22px;padding:11px 20px;font-family:system-ui,sans-serif;font-weight:700;font-size:14px;box-shadow:0 8px 24px rgba(13,27,42,.35);cursor:pointer';
+  fab.onclick=()=>{ if(boot){boot.classList.add('solid');boot.classList.remove('hidden');} location.reload(); };
+  function maybeShowFab(){ if(document.hidden||document.getElementById('updbar'))return; if(Date.now()-lastRefresh>20*60*1000){ if(!fab.isConnected)document.body.appendChild(fab); fab.style.display='block'; } }
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ checkVersion(); lastRefresh=Date.now(); const f=document.getElementById('reloadfab'); if(f)f.style.display='none'; } });
+  setInterval(()=>{ if(!document.hidden){ checkVersion(); maybeShowFab(); } },90000);
 })();
 </script>
 </body>

@@ -1366,8 +1366,14 @@ async function renderTab(){
   // Rafraîchissement DOUX : on recharge les données et on ré-affiche par-dessus l'interface
   // (voile semi-transparent), sans page blanche. Une bannière propose de recharger si le CODE change.
   let refreshing=false;
+  let lastRefresh=Date.now();
   async function softRefresh(){ if(!PLAYER||refreshing||document.hidden)return; refreshing=true; showBoot();
-    try{ await renderSpace(false); }catch(e){ hideBoot(); } refreshing=false; }
+    try{ await renderSpace(false); lastRefresh=Date.now(); const f=document.getElementById('reloadfab'); if(f)f.style.display='none'; }catch(e){ hideBoot(); } refreshing=false; }
+  // Bouton flottant « Recharger » quand la page reste ouverte longtemps, pour se remettre à jour sur les données.
+  const fab=document.createElement('button'); fab.id='reloadfab'; fab.type='button'; fab.textContent='🔄 Recharger';
+  fab.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9999;display:none;background:var(--accent);color:var(--accent-ink);border:0;border-radius:22px;padding:11px 20px;font-family:inherit;font-weight:700;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.4);cursor:pointer';
+  fab.onclick=async()=>{ fab.style.display='none'; await softRefresh(); };
+  function maybeShowFab(){ if(!PLAYER||document.hidden||document.getElementById('updbar'))return; if(Date.now()-lastRefresh>20*60*1000){ if(!fab.isConnected)document.body.appendChild(fab); fab.style.display='block'; } }
   let PAGE_TAG=null;
   async function checkVersion(){ try{ const r=await fetch(location.pathname+'?v='+Date.now(),{method:'HEAD',cache:'no-store'});
       const et=r.headers.get('etag')||r.headers.get('last-modified'); if(et){ if(PAGE_TAG&&et!==PAGE_TAG)showUpdateBanner(); PAGE_TAG=et; } }catch(e){} }
@@ -1379,7 +1385,7 @@ async function renderTab(){
     if(document.hidden)hiddenAt=Date.now();
     else if(hiddenAt&&Date.now()-hiddenAt>15000){ checkVersion(); softRefresh(); }
   });
-  setInterval(()=>{ if(!document.hidden){ checkVersion(); if(Date.now()-lastActive>3*60*1000) softRefresh(); } },90000);
+  setInterval(()=>{ if(!document.hidden){ checkVersion(); if(Date.now()-lastActive>3*60*1000) softRefresh(); maybeShowFab(); } },90000);
 })();
 </script>
 </body>

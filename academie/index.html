@@ -2164,7 +2164,13 @@ boot();
   const safe=()=>!(typeof formDirty!=='undefined'&&formDirty);
   // Rafraîchissement DOUX : les données sont déjà rechargées en continu (polling toutes les 8 s) ;
   // au retour sur l'onglet on ré-affiche par-dessus l'interface (voile semi-transparent), sans page blanche.
-  function softRefresh(){ if(document.hidden||!safe())return; if(boot){boot.classList.remove('solid');boot.classList.remove('hidden');} try{render();}catch(e){} if(boot)setTimeout(()=>boot.classList.add('hidden'),350); }
+  let lastRefresh=Date.now();
+  function softRefresh(){ if(document.hidden||!safe())return; if(boot){boot.classList.remove('solid');boot.classList.remove('hidden');} try{render();}catch(e){} if(boot)setTimeout(()=>boot.classList.add('hidden'),350); lastRefresh=Date.now(); const f=document.getElementById('reloadfab'); if(f)f.style.display='none'; }
+  // Bouton flottant « Recharger » quand la page reste ouverte longtemps — recharge toutes les données.
+  const fab=document.createElement('button'); fab.id='reloadfab'; fab.type='button'; fab.textContent='🔄 Recharger';
+  fab.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:100001;display:none;background:var(--accent);color:var(--accent-ink);border:0;border-radius:22px;padding:11px 20px;font-family:inherit;font-weight:700;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.4);cursor:pointer';
+  fab.onclick=async()=>{ fab.style.display='none'; try{ if(typeof reloadData==='function'){await reloadData();} else {location.reload();return;} }catch(e){ location.reload(); return; } lastRefresh=Date.now(); };
+  function maybeShowFab(){ if(document.hidden||document.getElementById('updbar')||(typeof formDirty!=='undefined'&&formDirty))return; if(Date.now()-lastRefresh>20*60*1000){ if(!fab.isConnected)document.body.appendChild(fab); fab.style.display='block'; } }
   let PAGE_TAG=null;
   async function checkVersion(){ try{ const r=await fetch(location.pathname+'?v='+Date.now(),{method:'HEAD',cache:'no-store'}); const et=r.headers.get('etag')||r.headers.get('last-modified'); if(et){ if(PAGE_TAG&&et!==PAGE_TAG)showUpdateBanner(); PAGE_TAG=et; } }catch(e){} }
   function showUpdateBanner(){ if(document.getElementById('updbar'))return; const d=document.createElement('div'); d.id='updbar'; d.innerHTML='🔄 Une nouvelle version est disponible. <button>Recharger</button>'; document.body.appendChild(d); d.querySelector('button').onclick=()=>{if(boot){boot.classList.add('solid');boot.classList.remove('hidden');}location.reload();}; }
@@ -2174,7 +2180,7 @@ boot();
     if(document.hidden)hiddenAt=Date.now();
     else if(hiddenAt&&Date.now()-hiddenAt>15000){ checkVersion(); softRefresh(); }
   });
-  setInterval(()=>{ if(!document.hidden)checkVersion(); },90000);
+  setInterval(()=>{ if(!document.hidden){ checkVersion(); maybeShowFab(); } },90000);
 })();
 </script>
 
