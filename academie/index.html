@@ -2053,13 +2053,13 @@ function reportPrint(r){
   const g=repGlobal(r);const club=esc(S().appName||'Blueperf');
   const ctx=r.type==='Match'?[['Adversaire',r.opponent],['Compétition',r.competition],['Score',r.score],['Temps de jeu',r.minutes?r.minutes+' min':''],['Poste',r.position]]:[['Thème de séance',r.sessionTheme],['Intensité / durée',r.intensity],['Poste',r.position]];
   const ctxHtml=ctx.filter(x=>x[1]).map(x=>`<div class="meta"><span>${esc(x[0])}</span><b>${esc(x[1])}</b></div>`).join('');
-  const critTags=(k,c)=>{const cr=c.crit||{};const list=(REP_CRIT[k]||[]).filter(([id])=>cr[id]);if(!list.length)return '';
-    const order={acquis:0,ameliorer:1,encours:2,travailler:3};const sorted=list.slice().sort((a,b)=>order[cr[a[0]]]-order[cr[b[0]]]);
-    return `<div class="ctags">${sorted.map(([id,lab])=>{const st=REP_ST_MAP[cr[id]];return `<span class="ctag" style="background:${st[2]}1a;color:${st[2]};border-color:${st[2]}66"><i style="background:${st[2]}"></i>${esc(lab)}</span>`;}).join('')}</div>`;};
+  const critGroups=(k,c)=>{const cr=c.crit||{};
+    const rows=REP_STATUS.map(st=>{const items=(REP_CRIT[k]||[]).filter(([id])=>cr[id]===st[0]).map(([id,lab])=>lab);if(!items.length)return '';
+      return `<div class="tg"><span class="tgl"><i style="background:${st[2]}"></i>${esc(st[1])}</span><span class="tgv">${items.map(esc).join(' · ')}</span></div>`;}).join('');
+    return rows?`<div class="tgroups">${rows}</div>`:'';};
   const themeRows=REP_THEMES.map(t=>{const k=t[0];const c=r.themes[k]||{};const hasCrit=c.crit&&Object.keys(c.crit).length;if(!c.note&&!c.comment&&!hasCrit)return '';const n=c.note||0;
-    return `<div class="theme"><div class="theme-head"><div><div class="tname">${esc(t[1])}</div><div class="tdesc">${esc(t[2])}</div></div><div class="tnote">${n?n+'<small>/5</small>':'<span class="na">n/é</span>'}</div></div>${n?`<div class="bar"><span style="width:${n/5*100}%"></span></div>`:''}${critTags(k,c)}${c.comment?`<div class="tcom">${esc(c.comment)}</div>`:''}</div>`;}).join('');
-  const anyCrit=REP_THEMES.some(t=>{const c=r.themes[t[0]]||{};return c.crit&&Object.keys(c.crit).length;});
-  const legendHtml=anyCrit?`<div class="legend">${REP_STATUS.map(s=>`<span><i style="background:${s[2]}"></i>${esc(s[1])}</span>`).join('')}</div>`:'';
+    return `<div class="theme"><div class="theme-head"><div><div class="tname">${esc(t[1])}</div><div class="tdesc">${esc(t[2])}</div></div><div class="tnote">${n?n+'<small>/5</small>':'<span class="na">n/é</span>'}</div></div>${n?`<div class="bar"><span style="width:${n/5*100}%"></span></div>`:''}${critGroups(k,c)}${c.comment?`<div class="tcom">${esc(c.comment)}</div>`:''}</div>`;}).join('');
+  const legendHtml='';
   const notedThemes=REP_THEMES.filter(t=>(r.themes[t[0]]||{}).note>0);
   const notesRecap=notedThemes.length?`<div class="recap">${notedThemes.map(t=>{const n=r.themes[t[0]].note;return `<div class="rc"><div class="rcn">${n}<small>/5</small></div><div class="rcl">${esc(t[1])}</div></div>`;}).join('')}${g!=null?`<div class="rc rcg"><div class="rcn">${g}<small>/5</small></div><div class="rcl">Note globale</div></div>`:''}</div>`:'';
   const sec=(title,txt)=>(txt&&txt.trim())?`<div class="sec"><h3>${esc(title)}</h3><p>${esc(txt).replace(/\n/g,'<br>')}</p></div>`:'';
@@ -2085,11 +2085,12 @@ function reportPrint(r){
     .rc .rcn{font-size:21px;font-weight:800;color:#0D1B2A;line-height:1}.rc .rcn small{font-size:11px;color:#8aa;font-weight:700}
     .rc .rcl{font-size:10.5px;color:#5b6b7d;margin-top:3px;text-transform:uppercase;letter-spacing:.03em}
     .rc.rcg{background:#0D1B2A;border-color:#0D1B2A}.rc.rcg .rcn{color:#fff}.rc.rcg .rcn small{color:#9fb6d6}.rc.rcg .rcl{color:#9fb6d6}
-    .ctags{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
-    .ctag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid}
-    .ctag i{width:8px;height:8px;border-radius:50%;display:inline-block}
-    .legend{display:flex;flex-wrap:wrap;gap:14px;margin:-4px 0 14px;font-size:11px;color:#5b6b7d}.legend span{display:inline-flex;align-items:center;gap:5px}.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .tgroups{margin-top:8px}
+    .tg{display:flex;gap:10px;align-items:baseline;font-size:12.5px;margin-top:4px}
+    .tgl{flex:none;width:118px;display:inline-flex;align-items:center;gap:6px;color:#5b6b7d;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em}
+    .tgl i{width:9px;height:9px;border-radius:50%;flex:none}
+    .tgv{color:#2b3a4b;line-height:1.45}
+    .grid2{display:flex;gap:16px}.grid2>.sec{flex:1 1 0;width:0}
     .sec{background:#f7f9fc;border:1px solid #e6ebf1;border-radius:8px;padding:12px 14px;margin-bottom:14px;page-break-inside:avoid}.sec h3{margin:0 0 6px;font-size:13px;color:#0D1B2A}.sec p{margin:0;font-size:13px;line-height:1.55;color:#2b3a4b}
     .foot{display:flex;justify-content:space-between;align-items:flex-end;padding:18px 28px;border-top:1px solid #e6ebf1;color:#5b6b7d;font-size:12px}
     .signline{margin-top:28px;border-top:1px solid #9fb0c2;width:210px}
@@ -2134,7 +2135,7 @@ async function reportToPdf(css,pageHtml,fname){
     holder.innerHTML='<style>'+css+'</style>'+pageHtml;
     document.body.appendChild(holder);
     const el=holder.querySelector('.page');
-    await h2p().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy']}}).from(el).save();
+    await h2p().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:800,scrollX:0,scrollY:0,width:800},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy']}}).from(el).save();
     holder.remove();
     toast('PDF enregistré');
   }catch(e){ reportPrintWindow(css,pageHtml); }
