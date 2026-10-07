@@ -2063,11 +2063,11 @@ function reportPrint(r){
   const notedThemes=REP_THEMES.filter(t=>(r.themes[t[0]]||{}).note>0);
   const notesRecap=notedThemes.length?`<div class="recap">${notedThemes.map(t=>{const n=r.themes[t[0]].note;return `<div class="rc"><div class="rcn">${n}<small>/5</small></div><div class="rcl">${esc(t[1])}</div></div>`;}).join('')}${g!=null?`<div class="rc rcg"><div class="rcn">${g}<small>/5</small></div><div class="rcl">Note globale</div></div>`:''}</div>`:'';
   const sec=(title,txt)=>(txt&&txt.trim())?`<div class="sec"><h3>${esc(title)}</h3><p>${esc(txt).replace(/\n/g,'<br>')}</p></div>`:'';
-  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Compte rendu — ${esc(r.playerName||'')}</title><style>
-    *{box-sizing:border-box}html,body{margin:0;padding:0;background:#eef2f6;color:#14202e;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    .page{max-width:800px;margin:16px auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.12);border-radius:10px;overflow:hidden}
-    .top{background:linear-gradient(120deg,#0D1B2A,#13335a);color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-    .brand{font-weight:800;letter-spacing:.04em;font-size:20px}.brand span{color:#3DA9FC}.brand small{display:block;font-weight:500;letter-spacing:0;color:#acc4e0;font-size:12px;margin-top:3px}
+  const css=`
+    *{box-sizing:border-box}html,body{margin:0;padding:0;background:#eef2f6;color:#14202e;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .page{width:800px;max-width:800px;margin:0 auto;background:#fff}
+    .top{background:#0D1B2A;background:linear-gradient(120deg,#0D1B2A,#13335a);color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+    .brand{font-weight:800;letter-spacing:.04em;font-size:20px;color:#fff}.brand span{color:#3DA9FC}.brand small{display:block;font-weight:500;letter-spacing:0;color:#acc4e0;font-size:12px;margin-top:3px}
     .doctype{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#acc4e0;text-align:right}
     .typebadge{display:inline-block;margin-top:7px;background:${r.type==='Match'?'#C23A2E':'#2A7DE1'};color:#fff;border-radius:20px;padding:4px 13px;font-size:12px;font-weight:700}
     .ident{padding:18px 28px;border-bottom:1px solid #e6ebf1;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
@@ -2076,11 +2076,11 @@ function reportPrint(r){
     .metas{display:flex;flex-wrap:wrap;gap:9px 26px;padding:13px 28px;background:#f7f9fc;border-bottom:1px solid #e6ebf1}.meta{font-size:13px}.meta span{color:#8595a6;margin-right:6px}.meta b{color:#14202e}
     .body{padding:22px 28px}
     h2.sct{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:#2A7DE1;margin:0 0 12px;border-bottom:2px solid #eaf1f9;padding-bottom:6px}
-    .theme{margin-bottom:13px}.theme-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .theme{margin-bottom:13px;page-break-inside:avoid}.theme-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
     .tname{font-weight:700;font-size:14px}.tdesc{font-size:11.5px;color:#8595a6}.tnote{font-weight:800;font-size:17px;color:#0D1B2A;white-space:nowrap}.tnote small{font-size:11px;color:#8aa}.tnote .na{font-size:12px;color:#aab;font-weight:600}
     .bar{height:7px;background:#e9eef4;border-radius:5px;margin-top:6px;overflow:hidden}.bar span{display:block;height:100%;background:linear-gradient(90deg,#2A7DE1,#3DA9FC)}
     .tcom{font-size:12.5px;color:#45566a;margin-top:5px;font-style:italic}
-    .recap{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+    .recap{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;page-break-inside:avoid}
     .rc{flex:1;min-width:92px;background:#f7f9fc;border:1px solid #e6ebf1;border-radius:8px;padding:9px 8px;text-align:center}
     .rc .rcn{font-size:21px;font-weight:800;color:#0D1B2A;line-height:1}.rc .rcn small{font-size:11px;color:#8aa;font-weight:700}
     .rc .rcl{font-size:10.5px;color:#5b6b7d;margin-top:3px;text-transform:uppercase;letter-spacing:.03em}
@@ -2090,13 +2090,12 @@ function reportPrint(r){
     .ctag i{width:8px;height:8px;border-radius:50%;display:inline-block}
     .legend{display:flex;flex-wrap:wrap;gap:14px;margin:-4px 0 14px;font-size:11px;color:#5b6b7d}.legend span{display:inline-flex;align-items:center;gap:5px}.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .sec{background:#f7f9fc;border:1px solid #e6ebf1;border-radius:8px;padding:12px 14px;margin-bottom:14px}.sec h3{margin:0 0 6px;font-size:13px;color:#0D1B2A}.sec p{margin:0;font-size:13px;line-height:1.55;color:#2b3a4b}
+    .sec{background:#f7f9fc;border:1px solid #e6ebf1;border-radius:8px;padding:12px 14px;margin-bottom:14px;page-break-inside:avoid}.sec h3{margin:0 0 6px;font-size:13px;color:#0D1B2A}.sec p{margin:0;font-size:13px;line-height:1.55;color:#2b3a4b}
     .foot{display:flex;justify-content:space-between;align-items:flex-end;padding:18px 28px;border-top:1px solid #e6ebf1;color:#5b6b7d;font-size:12px}
     .signline{margin-top:28px;border-top:1px solid #9fb0c2;width:210px}
     .noprint{text-align:center;margin:14px}.noprint button{background:#2A7DE1;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:700;font-size:14px;cursor:pointer}
-    @media print{body{background:#fff}.page{box-shadow:none;margin:0;max-width:100%;border-radius:0}.noprint{display:none}@page{margin:12mm}}
-  </style></head><body>
-  <div class="page">
+    @media print{body{background:#fff}.page{box-shadow:none;margin:0;width:100%;max-width:100%}.noprint{display:none}@page{margin:10mm}}`;
+  const pageHtml=`<div class="page">
     <div class="top"><div class="brand">BLUE<span>PERF</span><small>${club}</small></div><div><div class="doctype">Compte rendu de performance</div><div style="text-align:right"><span class="typebadge">${esc(r.type)}${(r.type==='Match'&&r.opponent)?' · vs '+esc(r.opponent):''}</span></div></div></div>
     <div class="ident"><div><div class="pname">${esc(r.playerName||'—')}</div><div class="pmeta">${[r.position,r.cat,fmtD(r.date)].filter(Boolean).map(esc).join(' · ')}</div></div>${g!=null?`<div class="global"><div class="gnum">${g}<small>/5</small></div><div class="glab">Note globale</div></div>`:''}</div>
     ${ctxHtml?`<div class="metas">${ctxHtml}</div>`:''}
@@ -2106,10 +2105,43 @@ function reportPrint(r){
       ${(r.objectives||r.general)?`<h2 class="sct" style="margin-top:6px">Suite &amp; synthèse</h2>${sec('Objectifs / consignes',r.objectives)}${sec('Appréciation générale',r.general)}`:''}
     </div>
     <div class="foot"><div>Établi le ${fmtD(r.date)} · ${club}</div><div style="text-align:right"><div>${r.author?('Coach : '+esc(r.author)):'Signature du coach'}</div><div class="signline"></div></div></div>
-  </div>
-  <div class="noprint"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
-  <script>window.addEventListener('load',function(){setTimeout(function(){try{window.print();}catch(e){}},300);});<\/script>
-  </body></html>`;
+  </div>`;
+  const slug=(r.playerName||'joueur').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'')||'joueur';
+  const fname='Compte-rendu-'+slug+'-'+(r.date||'').replace(/[^\d-]/g,'')+'.pdf';
+  reportToPdf(css,pageHtml,fname);
+}
+function ensureHtml2pdf(){
+  return new Promise((res,rej)=>{
+    if(window.html2pdf)return res(window.html2pdf);
+    const srcs=['html2pdf.bundle.min.js','https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js'];
+    let i=0;
+    const tryNext=()=>{
+      if(i>=srcs.length)return rej(new Error('load-failed'));
+      const s=document.createElement('script');s.src=srcs[i++];
+      s.onload=()=>window.html2pdf?res(window.html2pdf):tryNext();
+      s.onerror=tryNext;
+      document.head.appendChild(s);
+    };
+    tryNext();
+  });
+}
+async function reportToPdf(css,pageHtml,fname){
+  toast('Génération du PDF…');
+  try{
+    const h2p=await ensureHtml2pdf();
+    const holder=document.createElement('div');
+    holder.style.cssText='position:fixed;left:0;top:0;width:800px;background:#fff;z-index:-1;pointer-events:none';
+    holder.innerHTML='<style>'+css+'</style>'+pageHtml;
+    document.body.appendChild(holder);
+    const el=holder.querySelector('.page');
+    await h2p().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy']}}).from(el).save();
+    holder.remove();
+    toast('PDF enregistré');
+  }catch(e){ reportPrintWindow(css,pageHtml); }
+}
+function reportPrintWindow(css,pageHtml){
+  // Repli si la génération directe échoue (hors-ligne, etc.) : fenêtre d'impression.
+  const html='<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Compte rendu</title><style>'+css+'</style></head><body>'+pageHtml+'<div class="noprint"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div><script>window.addEventListener("load",function(){setTimeout(function(){try{window.print();}catch(e){}},300);});<\/script></body></html>';
   const w=window.open('','_blank');if(!w){toast('Autorise les pop-ups pour exporter le PDF');return;}
   w.document.open();w.document.write(html);w.document.close();
 }
