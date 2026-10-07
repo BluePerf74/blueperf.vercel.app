@@ -2154,19 +2154,21 @@ async function reportPrint(r){
     F('bold',12); setText(C.ink); doc.text(t[1],M,y);
     if(c.note){ F('bold',11); setText(C.navy); doc.text(String(c.note),PW-M-5,y,{align:'right'}); F('normal',8); setText(C.lmuted); doc.text('/5',PW-M,y,{align:'right'}); }
     y+=4; F('normal',8.5); setText(C.lmuted); doc.text(t[2],M,y);
-    y+=2.6; const bh=3;
-    setFill(C.barbg); doc.rect(M,y,CW,bh,'F');
-    if(c.note){ setFill(barColor(c.note)); doc.rect(M,y,CW*(c.note/5),bh,'F'); }
-    y+=7;
+    y+=2.6;
+    if(c.note){ const bh=3; setFill(C.barbg); doc.rect(M,y,CW,bh,'F'); setFill(C.blue); doc.rect(M,y,CW*(c.note/5),bh,'F'); y+=7.5; }
+    else { y+=2; }
     const cr=c.crit||{};
     ORDER.forEach(stk=>{
       const items=(REP_CRIT[k]||[]).filter(([id])=>cr[id]===stk).map(([id,lab])=>lab);
       if(!items.length) return;
       ensure(8);
       const txtX=M+6;
-      setFill(STC[stk]); doc.circle(M+2,y-1.2,1.35,'F');
-      F('normal',9.7); setText(C.ink); const vlines=doc.splitTextToSize(items.map(clean).join('   ·   '),PW-M-txtX); doc.text(vlines,txtX,y-0.9);
-      y+=vlines.length*4.7+2.2;
+      F('normal',9.7); setText(C.ink);
+      const vlines=doc.splitTextToSize(items.map(clean).join('   ·   '),PW-M-txtX);
+      const by=y;
+      doc.text(vlines,txtX,by);
+      setFill(STC[stk]); doc.circle(M+2.1,by-1.15,1.3,'F');
+      y=by+vlines.length*4.7+2.4;
     });
     if(c.comment&&c.comment.trim()){ ensure(7); F('italic',9); setText(C.body); const cl=doc.splitTextToSize(clean(c.comment),CW); doc.text(cl,M,y); y+=cl.length*4.3+1; }
     y+=3.5;
