@@ -205,6 +205,17 @@ textarea{min-height:70px;resize:vertical}
 .rep-scale button:hover{border-color:var(--accent)}
 .rep-scale button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .rep-input{width:100%;font-family:inherit}
+.rep-crit{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.rep-crit button{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;font-weight:600;font-size:12.5px;cursor:pointer;font-family:inherit}
+.rep-crit button .dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.rep-crit button:hover{border-color:var(--accent)}
+.rep-crit button.s-acquis{background:#e7f6ee;border-color:#9fdcb9;color:#14633a}.rep-crit button.s-acquis .dot{background:#2E9E5B}
+.rep-crit button.s-ameliorer{background:#fdf5d8;border-color:#ecd482;color:#7a5a08}.rep-crit button.s-ameliorer .dot{background:#E6B800}
+.rep-crit button.s-encours{background:#fdeadb;border-color:#f3c196;color:#8a4414}.rep-crit button.s-encours .dot{background:#E8792B}
+.rep-crit button.s-travailler{background:#fbe4e4;border-color:#efb3b3;color:#8f2a2a}.rep-crit button.s-travailler .dot{background:#D64545}
+.rep-legend{display:flex;flex-wrap:wrap;gap:12px;margin:2px 0 0;font-size:11.5px;color:var(--muted)}
+.rep-legend span{display:inline-flex;align-items:center;gap:5px}
+.rep-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;z-index:60;font-weight:600;font-size:13px;box-shadow:var(--shadow)}
 .empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line-2);border-radius:var(--r)}
 details summary{cursor:pointer;font-weight:600}
@@ -1932,6 +1943,25 @@ const REP_THEMES=[
   ['poste','Spécifique au poste','Qualités propres au poste occupé']
 ];
 const REP_SCALE=['','Insuffisant','Fragile','Correct','Bon','Excellent'];
+// Critères sélectionnables par thème (ce qui est acquis / à travailler)
+const REP_CRIT={
+  technique:[['ctrl','Contrôle / 1re touche'],['passe','Qualité de passe'],['passel','Passe longue / jeu long'],['conduite','Conduite de balle'],['frappe','Qualité de frappe'],['tete','Jeu de tête'],['dribble','Dribble / 1 contre 1'],['remise','Remise / jeu dos au but'],['pied','Jeu des deux pieds'],['centre','Centres']],
+  tactique:[['place','Placement / positionnement'],['lecture','Lecture du jeu / anticipation'],['decision','Prise de décision'],['appels','Jeu sans ballon / appels'],['couv','Couverture / rééquilibrage'],['press','Pressing / orientation'],['trans','Transitions'],['consignes','Respect des consignes'],['largeur','Occupation des espaces']],
+  physique:[['vitesse','Vitesse / explosivité'],['endurance','Endurance / répétition d\'efforts'],['puissance','Puissance / duels'],['vivacite','Vivacité / agilité'],['detente','Détente / jeu aérien'],['recup','Récupération'],['volume','Volume de course']],
+  mental:[['concentration','Concentration'],['combat','Combativité'],['communication','Communication'],['discipline','Discipline / respect'],['confiance','Confiance'],['emotions','Gestion des émotions'],['leader','Leadership'],['implication','Implication / sérieux']],
+  poste:[['role','Compréhension du rôle'],['impact','Impact dans sa zone'],['defposte','Tâches défensives du poste'],['offposte','Tâches offensives du poste'],['place2','Placement spécifique'],['influence','Influence sur le jeu']]
+};
+// Statuts de couleur (du mieux acquis au plus à travailler)
+const REP_STATUS=[
+  ['acquis','Acquis','#2E9E5B',5],
+  ['ameliorer','À améliorer','#E6B800',3.5],
+  ['encours','En cours / fragile','#E8792B',2.5],
+  ['travailler','À travailler','#D64545',1]
+];
+const REP_ST_MAP=Object.fromEntries(REP_STATUS.map(s=>[s[0],s]));
+const REP_ST_ORDER=['','acquis','ameliorer','encours','travailler'];
+// Note suggérée pour un thème à partir des critères sélectionnés
+function repThemeSuggest(r,k){const cr=(r.themes[k]||{}).crit||{};const vals=Object.values(cr).map(st=>REP_ST_MAP[st]&&REP_ST_MAP[st][3]).filter(v=>v>0);if(!vals.length)return null;return Math.round(mean(vals)*10)/10;}
 let REP=null; // compte rendu en cours d'édition (brouillon)
 function repBlank(){return {id:uid(),type:'Match',date:UI.ref,playerName:'',pid:null,cat:(!INDIV&&UI.cat!=='Tous')?UI.cat:'',opponent:'',competition:'',score:'',minutes:'',position:'',sessionTheme:'',intensity:'',themes:{},strengths:'',improvements:'',objectives:'',general:'',author:'',createdAt:new Date().toISOString()};}
 function repGlobal(r){const vals=REP_THEMES.map(t=>(r.themes[t[0]]||{}).note).filter(v=>v>0);if(!vals.length)return null;return Math.round(mean(vals)*10)/10;}
@@ -1950,8 +1980,11 @@ VIEWS.report=()=>{
 function reportForm(){
   const r=REP;const isMatch=r.type==='Match';const g=repGlobal(r);
   const names=playersOf('Tous',true).map(p=>p.name);
-  const rateRow=(k,label,desc)=>{const c=r.themes[k]||{};return `<div class="card flat" style="margin:0 0 10px"><div class="hrow" style="align-items:flex-start;margin:0"><div><b>${label}</b><div class="small muted">${desc}</div></div><div class="small muted">${c.note?REP_SCALE[c.note]:''}</div></div>
-    <div class="rep-scale" style="margin-top:8px">${[1,2,3,4,5].map(v=>`<button type="button" class="${c.note===v?'on':''}" data-act="repRate" data-rt="${k}" data-v="${v}">${v}</button>`).join('')}</div>
+  const rateRow=(k,label,desc)=>{const c=r.themes[k]||{};const cr=c.crit||{};const sug=repThemeSuggest(r,k);const crits=REP_CRIT[k]||[];
+    const chips=crits.map(([id,lab])=>{const st=cr[id]||'';return `<button type="button" class="${st?'s-'+st:''}" data-act="repCrit" data-rt="${k}" data-ck="${id}" title="Clique pour changer le statut"><span class="dot"></span>${esc(lab)}</button>`;}).join('');
+    return `<div class="card flat" style="margin:0 0 10px"><div class="hrow" style="align-items:flex-start;margin:0"><div><b>${label}</b><div class="small muted">${desc}</div></div><div class="small muted" style="text-align:right">${c.note?('Note : <b>'+c.note+'</b>/5'):(sug!=null?'Suggestion : '+sug+'/5':'')}</div></div>
+    <div class="rep-crit">${chips}</div>
+    <div class="rep-scale" style="margin-top:12px"><span class="small muted" style="align-self:center;margin-right:2px">Note du thème</span>${[1,2,3,4,5].map(v=>`<button type="button" class="${c.note===v?'on':''}" data-act="repRate" data-rt="${k}" data-v="${v}">${v}</button>`).join('')}</div>
     <input class="rep-input" data-rf="themes.${k}.comment" placeholder="Commentaire (facultatif)" value="${esc(c.comment||'')}" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink)"></div>`;};
   return `<div class="hrow"><h2>${(DATA.reports&&DATA.reports[r.id])?'Modifier le compte rendu':'Nouveau compte rendu'}</h2>
     <div class="row"><button class="btn" data-act="reportCancel">← Retour</button><button class="btn" data-act="reportExport">Exporter en PDF</button><button class="btn pri" data-act="reportSave">Enregistrer</button></div></div>
@@ -1973,9 +2006,11 @@ function reportForm(){
       ${fld('rep-int','Intensité / durée',`<input class="rep-input" data-rf="intensity" value="${esc(r.intensity)}" placeholder="ex. Élevée · 90 min">`)}
     </div>`}
   </div>
-  <div class="card"><div class="hrow"><h2>Évaluation par thème</h2><span class="small muted">Note globale <b id="rep-global">${g!=null?g:'–'}</b>/5</span></div>
-    ${REP_THEMES.map(t=>rateRow(t[0],t[1],t[2])).join('')}
-    <p class="note" style="margin:4px 0 0">1 Insuffisant · 2 Fragile · 3 Correct · 4 Bon · 5 Excellent — laisse vide un thème non évalué.</p>
+  <div class="card"><div class="hrow"><h2>Évaluation par thème</h2><span class="small muted">Note moyenne <b id="rep-global">${g!=null?g:'–'}</b>/5</span></div>
+    <p class="note" style="margin:0 0 8px">Pour chaque thème, clique sur les critères pour indiquer où en est le/la ${PL.one} (clique plusieurs fois pour changer la couleur), puis attribue une note finale au thème.</p>
+    <div class="rep-legend">${REP_STATUS.map(s=>`<span><i style="background:${s[2]}"></i>${s[1]}</span>`).join('')}</div>
+    <div style="margin-top:10px">${REP_THEMES.map(t=>rateRow(t[0],t[1],t[2])).join('')}</div>
+    <p class="note" style="margin:4px 0 0">Note du thème : 1 Insuffisant · 2 Fragile · 3 Correct · 4 Bon · 5 Excellent — laisse vide un thème non évalué. La note moyenne regroupe les notes de chaque thème.</p>
   </div>
   <div class="grid g2">
     <div class="card flat"><h3>Points forts</h3><textarea class="rep-input" data-rf="strengths" style="min-height:90px" placeholder="Ce qui a bien fonctionné…">${esc(r.strengths)}</textarea></div>
@@ -1996,8 +2031,13 @@ function reportPrint(r){
   const g=repGlobal(r);const club=esc(S().appName||'Blueperf');
   const ctx=r.type==='Match'?[['Adversaire',r.opponent],['Compétition',r.competition],['Score',r.score],['Temps de jeu',r.minutes?r.minutes+' min':''],['Poste',r.position]]:[['Thème de séance',r.sessionTheme],['Intensité / durée',r.intensity],['Poste',r.position]];
   const ctxHtml=ctx.filter(x=>x[1]).map(x=>`<div class="meta"><span>${esc(x[0])}</span><b>${esc(x[1])}</b></div>`).join('');
-  const themeRows=REP_THEMES.map(t=>{const c=r.themes[t[0]]||{};if(!c.note&&!c.comment)return '';const n=c.note||0;
-    return `<div class="theme"><div class="theme-head"><div><div class="tname">${esc(t[1])}</div><div class="tdesc">${esc(t[2])}</div></div><div class="tnote">${n?n+'<small>/5</small>':'<span class="na">n/é</span>'}</div></div><div class="bar"><span style="width:${n/5*100}%"></span></div>${c.comment?`<div class="tcom">${esc(c.comment)}</div>`:''}</div>`;}).join('');
+  const critTags=(k,c)=>{const cr=c.crit||{};const list=(REP_CRIT[k]||[]).filter(([id])=>cr[id]);if(!list.length)return '';
+    const order={acquis:0,ameliorer:1,encours:2,travailler:3};const sorted=list.slice().sort((a,b)=>order[cr[a[0]]]-order[cr[b[0]]]);
+    return `<div class="ctags">${sorted.map(([id,lab])=>{const st=REP_ST_MAP[cr[id]];return `<span class="ctag" style="background:${st[2]}1a;color:${st[2]};border-color:${st[2]}66"><i style="background:${st[2]}"></i>${esc(lab)}</span>`;}).join('')}</div>`;};
+  const themeRows=REP_THEMES.map(t=>{const k=t[0];const c=r.themes[k]||{};const hasCrit=c.crit&&Object.keys(c.crit).length;if(!c.note&&!c.comment&&!hasCrit)return '';const n=c.note||0;
+    return `<div class="theme"><div class="theme-head"><div><div class="tname">${esc(t[1])}</div><div class="tdesc">${esc(t[2])}</div></div><div class="tnote">${n?n+'<small>/5</small>':'<span class="na">n/é</span>'}</div></div>${n?`<div class="bar"><span style="width:${n/5*100}%"></span></div>`:''}${critTags(k,c)}${c.comment?`<div class="tcom">${esc(c.comment)}</div>`:''}</div>`;}).join('');
+  const anyCrit=REP_THEMES.some(t=>{const c=r.themes[t[0]]||{};return c.crit&&Object.keys(c.crit).length;});
+  const legendHtml=anyCrit?`<div class="legend">${REP_STATUS.map(s=>`<span><i style="background:${s[2]}"></i>${esc(s[1])}</span>`).join('')}</div>`:'';
   const sec=(title,txt)=>(txt&&txt.trim())?`<div class="sec"><h3>${esc(title)}</h3><p>${esc(txt).replace(/\n/g,'<br>')}</p></div>`:'';
   const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Compte rendu — ${esc(r.playerName||'')}</title><style>
     *{box-sizing:border-box}html,body{margin:0;padding:0;background:#eef2f6;color:#14202e;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -2016,6 +2056,10 @@ function reportPrint(r){
     .tname{font-weight:700;font-size:14px}.tdesc{font-size:11.5px;color:#8595a6}.tnote{font-weight:800;font-size:17px;color:#0D1B2A;white-space:nowrap}.tnote small{font-size:11px;color:#8aa}.tnote .na{font-size:12px;color:#aab;font-weight:600}
     .bar{height:7px;background:#e9eef4;border-radius:5px;margin-top:6px;overflow:hidden}.bar span{display:block;height:100%;background:linear-gradient(90deg,#2A7DE1,#3DA9FC)}
     .tcom{font-size:12.5px;color:#45566a;margin-top:5px;font-style:italic}
+    .ctags{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+    .ctag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid}
+    .ctag i{width:8px;height:8px;border-radius:50%;display:inline-block}
+    .legend{display:flex;flex-wrap:wrap;gap:14px;margin:-4px 0 14px;font-size:11px;color:#5b6b7d}.legend span{display:inline-flex;align-items:center;gap:5px}.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
     .sec{background:#f7f9fc;border:1px solid #e6ebf1;border-radius:8px;padding:12px 14px;margin-bottom:14px}.sec h3{margin:0 0 6px;font-size:13px;color:#0D1B2A}.sec p{margin:0;font-size:13px;line-height:1.55;color:#2b3a4b}
     .foot{display:flex;justify-content:space-between;align-items:flex-end;padding:18px 28px;border-top:1px solid #e6ebf1;color:#5b6b7d;font-size:12px}
@@ -2028,7 +2072,7 @@ function reportPrint(r){
     <div class="ident"><div><div class="pname">${esc(r.playerName||'—')}</div><div class="pmeta">${[r.position,r.cat,fmtD(r.date)].filter(Boolean).map(esc).join(' · ')}</div></div>${g!=null?`<div class="global"><div class="gnum">${g}<small>/5</small></div><div class="glab">Note globale</div></div>`:''}</div>
     ${ctxHtml?`<div class="metas">${ctxHtml}</div>`:''}
     <div class="body">
-      ${themeRows?`<h2 class="sct">Évaluation par thème</h2>${themeRows}`:''}
+      ${themeRows?`<h2 class="sct">Évaluation par thème</h2>${legendHtml}${themeRows}`:''}
       ${(r.strengths||r.improvements)?`<h2 class="sct" style="margin-top:20px">Bilan</h2><div class="grid2">${sec('Points forts',r.strengths)}${sec('Axes de progression',r.improvements)}</div>`:''}
       ${(r.objectives||r.general)?`<h2 class="sct" style="margin-top:6px">Suite &amp; synthèse</h2>${sec('Objectifs / consignes',r.objectives)}${sec('Appréciation générale',r.general)}`:''}
     </div>
@@ -2204,6 +2248,7 @@ const ACT={
   reportCancel:()=>{REP=null;render();},
   reportSave:async()=>{if(!REP)return;if(!REP.playerName||!REP.playerName.trim()){toast('Indique le nom du/de la '+PL.one);return;}REP.updatedAt=new Date().toISOString();await put('reports',REP.id,JSON.parse(JSON.stringify(REP)));toast('Compte rendu enregistré');REP=null;render();},
   repRate:b=>{if(!REP)return;const k=b.dataset.rt,v=+b.dataset.v;REP.themes=REP.themes||{};const cur=REP.themes[k]||{};REP.themes[k]=Object.assign({},cur,{note:(cur.note===v)?0:v});render();},
+  repCrit:b=>{if(!REP)return;const k=b.dataset.rt,ck=b.dataset.ck;REP.themes=REP.themes||{};const cur=REP.themes[k]||{};const crit=Object.assign({},cur.crit);const now=crit[ck]||'';const i=REP_ST_ORDER.indexOf(now);const next=REP_ST_ORDER[(i+1)%REP_ST_ORDER.length];if(next)crit[ck]=next;else delete crit[ck];REP.themes[k]=Object.assign({},cur,{crit});render();},
   reportExport:async b=>{let r;if(REP){if(!REP.playerName||!REP.playerName.trim()){toast('Indique le nom du/de la '+PL.one);return;}REP.updatedAt=new Date().toISOString();await put('reports',REP.id,JSON.parse(JSON.stringify(REP)));r=REP;}else{r=DATA.reports[b.dataset.id];}if(r)reportPrint(r);},
   sendReminders:async b=>{b.disabled=true;const prev=b.textContent;b.textContent='Envoi…';
     try{const r=await fetch('/api/push?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:DB_PREFIX})});const j=await r.json();
