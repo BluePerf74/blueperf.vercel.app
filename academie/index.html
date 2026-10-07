@@ -200,6 +200,11 @@ textarea{min-height:70px;resize:vertical}
 .scrim{position:fixed;inset:0;background:rgba(5,10,20,.45);z-index:20}
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100%);background:var(--bg);z-index:21;overflow-y:auto;padding-block:calc(env(safe-area-inset-top,0px) + 18px) 40px;padding-inline:20px;box-shadow:-10px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:14px}
 .drawer.fillfull{overflow:hidden;z-index:60;padding-block:0}
+.rep-scale{display:flex;gap:6px;flex-wrap:wrap}
+.rep-scale button{flex:1;min-width:40px;padding:9px 0;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:9px;font-weight:700;font-size:14px;cursor:pointer}
+.rep-scale button:hover{border-color:var(--accent)}
+.rep-scale button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rep-input{width:100%;font-family:inherit}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;z-index:60;font-weight:600;font-size:13px;box-shadow:var(--shadow)}
 .empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line-2);border-radius:var(--r)}
 details summary{cursor:pointer;font-weight:600}
@@ -307,6 +312,7 @@ const TABS=[
  {id:'reco',label:'Recommandations'},
  {id:'perf',label:'Performance',children:[{id:'testing',label:'Testing'},{id:'reathle',label:'Réathlétisation'},{id:'muscu',label:'Musculation'}]},
  {id:'medical',label:'Médical'},
+ {id:'report',label:'Compte rendu'},
  {id:'entry',label:'Saisie',entryGroup:true,children:[
    {id:'simple',label:'Séance simple',icon:'⚡'},
    {id:'smatch',label:'Match simple',icon:'🥅'},
@@ -344,7 +350,7 @@ function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assig
 const tabOn=id=>{ if(RESTRICT.tabs){ if(id!=='overview'&&!RESTRICT.tabs.includes(id))return false; } return S().tabs[id]!==false; };
 
 /* ===================== STORE ===================== */
-const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans','seasonplan','menstru'];
+const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans','seasonplan','menstru','reports'];
 const LSKEY='blueperf-'+MODE+'-v1';
 const empty=()=>{const o={};COLS.forEach(c=>o[c]={});return o;};
 let DATA=empty();
@@ -1917,6 +1923,123 @@ FORMS.settingsTests=async f=>{const rows=$$('#testRows tr');const tests=rows.map
 FORMS.settingsRtp=async f=>{const rtp=$$('[data-rtp]').map(b=>({name:b.querySelector('input').value.trim(),criteria:b.querySelector('textarea').value.split('\n').map(x=>x.trim()).filter(Boolean)})).filter(r=>r.name);await saveSettings({rtp});toast('Protocole enregistré');};
 
 /* ---------- PARAMÈTRES ---------- */
+/* ===================== COMPTE RENDU DE PERFORMANCE ===================== */
+const REP_THEMES=[
+  ['technique','Technique','Contrôle, passes, conduite, qualité de frappe'],
+  ['tactique','Tactique','Placement, lecture du jeu, prises de décision'],
+  ['physique','Physique / Athlétique','Intensité, vitesse, endurance, duels'],
+  ['mental','Mental / Attitude','Concentration, combativité, communication, discipline'],
+  ['poste','Spécifique au poste','Qualités propres au poste occupé']
+];
+const REP_SCALE=['','Insuffisant','Fragile','Correct','Bon','Excellent'];
+let REP=null; // compte rendu en cours d'édition (brouillon)
+function repBlank(){return {id:uid(),type:'Match',date:UI.ref,playerName:'',pid:null,cat:(!INDIV&&UI.cat!=='Tous')?UI.cat:'',opponent:'',competition:'',score:'',minutes:'',position:'',sessionTheme:'',intensity:'',themes:{},strengths:'',improvements:'',objectives:'',general:'',author:'',createdAt:new Date().toISOString()};}
+function repGlobal(r){const vals=REP_THEMES.map(t=>(r.themes[t[0]]||{}).note).filter(v=>v>0);if(!vals.length)return null;return Math.round(mean(vals)*10)/10;}
+function repSet(path,val){if(!REP||!path)return;const parts=path.split('.');let o=REP;for(let i=0;i<parts.length-1;i++){o[parts[i]]=o[parts[i]]||{};o=o[parts[i]];}o[parts[parts.length-1]]=val;}
+VIEWS.report=()=>{
+  if(REP)return reportForm();
+  const list=Object.values(DATA.reports||{}).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+  return `<div class="card flat"><div class="hrow"><h2>Comptes rendus de performance</h2><button class="btn pri" data-act="reportNew">+ Nouveau compte rendu</button></div>
+    <p class="note" style="margin:6px 0 0">Débriefe un entraînement ou un match pour un·e ${PL.one} de ton effectif ou un·e ${PL.one} extérieur·e. Évaluation par thèmes, points forts, axes de progrès — exportable en PDF propre.</p></div>
+  ${list.length?`<div class="card"><div class="tw"><table><thead><tr><th>Date</th><th>Type</th><th>${PL.One}</th><th class="n">Note</th><th>Contexte</th><th></th></tr></thead><tbody>
+    ${list.map(r=>{const g=repGlobal(r);const ext=r.playerName&&!(r.pid&&DATA.players[r.pid]);return `<tr><td>${fmtD(r.date)}</td><td><span class="pill ${r.type==='Match'?'crit':'neutral'}">${esc(r.type)}</span></td><td>${esc(r.playerName||'—')}${ext?' <span class="small muted">(ext.)</span>':''}</td>
+      <td class="n">${g!=null?('<b>'+g+'</b><span class="muted">/5</span>'):'–'}</td><td class="small">${esc(r.type==='Match'?('vs '+(r.opponent||'?')):(r.sessionTheme||'Entraînement'))}</td>
+      <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="reportEdit" data-id="${esc(r.id)}">Ouvrir</button><button class="btn sm" data-act="reportExport" data-id="${esc(r.id)}">PDF</button><button class="btn sm danger" data-act="del" data-col="reports" data-id="${esc(r.id)}">×</button></div></td></tr>`;}).join('')}
+  </tbody></table></div></div>`:'<div class="card"><p class="muted" style="margin:0">Aucun compte rendu pour l\'instant. Clique « + Nouveau compte rendu » pour commencer.</p></div>'}`;
+};
+function reportForm(){
+  const r=REP;const isMatch=r.type==='Match';const g=repGlobal(r);
+  const names=playersOf('Tous',true).map(p=>p.name);
+  const rateRow=(k,label,desc)=>{const c=r.themes[k]||{};return `<div class="card flat" style="margin:0 0 10px"><div class="hrow" style="align-items:flex-start;margin:0"><div><b>${label}</b><div class="small muted">${desc}</div></div><div class="small muted">${c.note?REP_SCALE[c.note]:''}</div></div>
+    <div class="rep-scale" style="margin-top:8px">${[1,2,3,4,5].map(v=>`<button type="button" class="${c.note===v?'on':''}" data-act="repRate" data-rt="${k}" data-v="${v}">${v}</button>`).join('')}</div>
+    <input class="rep-input" data-rf="themes.${k}.comment" placeholder="Commentaire (facultatif)" value="${esc(c.comment||'')}" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink)"></div>`;};
+  return `<div class="hrow"><h2>${(DATA.reports&&DATA.reports[r.id])?'Modifier le compte rendu':'Nouveau compte rendu'}</h2>
+    <div class="row"><button class="btn" data-act="reportCancel">← Retour</button><button class="btn" data-act="reportExport">Exporter en PDF</button><button class="btn pri" data-act="reportSave">Enregistrer</button></div></div>
+  <div class="card flat stack">
+    <div class="fgrid">
+      ${fld('rep-player',PL.One,`<input id="rep-player" class="rep-input" data-rf="playerName" list="rep-players" value="${esc(r.playerName)}" placeholder="Nom (effectif ou extérieur)" autocomplete="off"><datalist id="rep-players">${names.map(n=>`<option value="${esc(n)}"></option>`).join('')}</datalist>`)}
+      ${fld('rep-type','Type',`<select id="rep-type" data-chg="reportType"><option ${isMatch?'selected':''}>Match</option><option ${!isMatch?'selected':''}>Entraînement</option></select>`)}
+      ${fld('rep-date','Date',`<input type="date" id="rep-date" class="rep-input" data-rf="date" value="${esc(r.date)}">`)}
+      ${INDIV?'':fld('rep-cat','Équipe / catégorie',`<input id="rep-cat" class="rep-input" data-rf="cat" value="${esc(r.cat)}" placeholder="ex. U18" list="rep-cats"><datalist id="rep-cats">${cats().map(c=>`<option value="${esc(c)}"></option>`).join('')}</datalist>`)}
+      ${fld('rep-pos','Poste',`<input id="rep-pos" class="rep-input" data-rf="position" value="${esc(r.position)}" placeholder="ex. Milieu">`)}
+    </div>
+    ${isMatch?`<div class="fgrid">
+      ${fld('rep-opp','Adversaire',`<input class="rep-input" data-rf="opponent" value="${esc(r.opponent)}" placeholder="ex. FC Voisin">`)}
+      ${fld('rep-comp','Compétition',`<input class="rep-input" data-rf="competition" value="${esc(r.competition)}" placeholder="ex. Championnat">`)}
+      ${fld('rep-score','Score',`<input class="rep-input" data-rf="score" value="${esc(r.score)}" placeholder="ex. 2-1">`)}
+      ${fld('rep-min','Temps de jeu (min)',`<input class="rep-input" data-rf="minutes" value="${esc(r.minutes)}" placeholder="ex. 70">`)}
+    </div>`:`<div class="fgrid">
+      ${fld('rep-theme','Thème de la séance',`<input class="rep-input" data-rf="sessionTheme" value="${esc(r.sessionTheme)}" placeholder="ex. Transitions offensives">`)}
+      ${fld('rep-int','Intensité / durée',`<input class="rep-input" data-rf="intensity" value="${esc(r.intensity)}" placeholder="ex. Élevée · 90 min">`)}
+    </div>`}
+  </div>
+  <div class="card"><div class="hrow"><h2>Évaluation par thème</h2><span class="small muted">Note globale <b id="rep-global">${g!=null?g:'–'}</b>/5</span></div>
+    ${REP_THEMES.map(t=>rateRow(t[0],t[1],t[2])).join('')}
+    <p class="note" style="margin:4px 0 0">1 Insuffisant · 2 Fragile · 3 Correct · 4 Bon · 5 Excellent — laisse vide un thème non évalué.</p>
+  </div>
+  <div class="grid g2">
+    <div class="card flat"><h3>Points forts</h3><textarea class="rep-input" data-rf="strengths" style="min-height:90px" placeholder="Ce qui a bien fonctionné…">${esc(r.strengths)}</textarea></div>
+    <div class="card flat"><h3>Axes de progression</h3><textarea class="rep-input" data-rf="improvements" style="min-height:90px" placeholder="À travailler…">${esc(r.improvements)}</textarea></div>
+  </div>
+  <div class="grid g2">
+    <div class="card flat"><h3>Objectifs / consignes</h3><textarea class="rep-input" data-rf="objectives" style="min-height:80px" placeholder="Pour la suite…">${esc(r.objectives)}</textarea></div>
+    <div class="card flat"><h3>Appréciation générale</h3><textarea class="rep-input" data-rf="general" style="min-height:80px" placeholder="Synthèse du coach…">${esc(r.general)}</textarea></div>
+  </div>
+  <div class="card flat"><div class="fgrid">${fld('rep-author','Établi par (coach)',`<input class="rep-input" data-rf="author" value="${esc(r.author)}" placeholder="Ton nom">`)}</div></div>`;
+}
+POST.report=()=>{
+  if(!REP)return;
+  document.querySelectorAll('.rep-input').forEach(el=>{el.oninput=()=>{repSet(el.getAttribute('data-rf'),el.value);};});
+  const pl=document.getElementById('rep-player');if(pl)pl.onchange=()=>{const n=pl.value.trim().toLowerCase();const m=Object.values(DATA.players).find(p=>(p.name||'').trim().toLowerCase()===n);REP.pid=m?m.id:null;if(m){if(!REP.cat)REP.cat=m.cat;if(!REP.position&&m.pos)REP.position=m.pos;}};
+};
+function reportPrint(r){
+  const g=repGlobal(r);const club=esc(S().appName||'Blueperf');
+  const ctx=r.type==='Match'?[['Adversaire',r.opponent],['Compétition',r.competition],['Score',r.score],['Temps de jeu',r.minutes?r.minutes+' min':''],['Poste',r.position]]:[['Thème de séance',r.sessionTheme],['Intensité / durée',r.intensity],['Poste',r.position]];
+  const ctxHtml=ctx.filter(x=>x[1]).map(x=>`<div class="meta"><span>${esc(x[0])}</span><b>${esc(x[1])}</b></div>`).join('');
+  const themeRows=REP_THEMES.map(t=>{const c=r.themes[t[0]]||{};if(!c.note&&!c.comment)return '';const n=c.note||0;
+    return `<div class="theme"><div class="theme-head"><div><div class="tname">${esc(t[1])}</div><div class="tdesc">${esc(t[2])}</div></div><div class="tnote">${n?n+'<small>/5</small>':'<span class="na">n/é</span>'}</div></div><div class="bar"><span style="width:${n/5*100}%"></span></div>${c.comment?`<div class="tcom">${esc(c.comment)}</div>`:''}</div>`;}).join('');
+  const sec=(title,txt)=>(txt&&txt.trim())?`<div class="sec"><h3>${esc(title)}</h3><p>${esc(txt).replace(/\n/g,'<br>')}</p></div>`:'';
+  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Compte rendu — ${esc(r.playerName||'')}</title><style>
+    *{box-sizing:border-box}html,body{margin:0;padding:0;background:#eef2f6;color:#14202e;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .page{max-width:800px;margin:16px auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.12);border-radius:10px;overflow:hidden}
+    .top{background:linear-gradient(120deg,#0D1B2A,#13335a);color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+    .brand{font-weight:800;letter-spacing:.04em;font-size:20px}.brand span{color:#3DA9FC}.brand small{display:block;font-weight:500;letter-spacing:0;color:#acc4e0;font-size:12px;margin-top:3px}
+    .doctype{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#acc4e0;text-align:right}
+    .typebadge{display:inline-block;margin-top:7px;background:${r.type==='Match'?'#C23A2E':'#2A7DE1'};color:#fff;border-radius:20px;padding:4px 13px;font-size:12px;font-weight:700}
+    .ident{padding:18px 28px;border-bottom:1px solid #e6ebf1;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+    .pname{font-size:24px;font-weight:800;line-height:1.1}.pmeta{color:#5b6b7d;font-size:13px;margin-top:3px}
+    .global{text-align:center;min-width:110px}.gnum{font-size:40px;font-weight:800;color:#0D1B2A;line-height:1}.gnum small{font-size:16px;color:#8aa}.glab{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#8aa;margin-top:3px}
+    .metas{display:flex;flex-wrap:wrap;gap:9px 26px;padding:13px 28px;background:#f7f9fc;border-bottom:1px solid #e6ebf1}.meta{font-size:13px}.meta span{color:#8595a6;margin-right:6px}.meta b{color:#14202e}
+    .body{padding:22px 28px}
+    h2.sct{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:#2A7DE1;margin:0 0 12px;border-bottom:2px solid #eaf1f9;padding-bottom:6px}
+    .theme{margin-bottom:13px}.theme-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .tname{font-weight:700;font-size:14px}.tdesc{font-size:11.5px;color:#8595a6}.tnote{font-weight:800;font-size:17px;color:#0D1B2A;white-space:nowrap}.tnote small{font-size:11px;color:#8aa}.tnote .na{font-size:12px;color:#aab;font-weight:600}
+    .bar{height:7px;background:#e9eef4;border-radius:5px;margin-top:6px;overflow:hidden}.bar span{display:block;height:100%;background:linear-gradient(90deg,#2A7DE1,#3DA9FC)}
+    .tcom{font-size:12.5px;color:#45566a;margin-top:5px;font-style:italic}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .sec{background:#f7f9fc;border:1px solid #e6ebf1;border-radius:8px;padding:12px 14px;margin-bottom:14px}.sec h3{margin:0 0 6px;font-size:13px;color:#0D1B2A}.sec p{margin:0;font-size:13px;line-height:1.55;color:#2b3a4b}
+    .foot{display:flex;justify-content:space-between;align-items:flex-end;padding:18px 28px;border-top:1px solid #e6ebf1;color:#5b6b7d;font-size:12px}
+    .signline{margin-top:28px;border-top:1px solid #9fb0c2;width:210px}
+    .noprint{text-align:center;margin:14px}.noprint button{background:#2A7DE1;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:700;font-size:14px;cursor:pointer}
+    @media print{body{background:#fff}.page{box-shadow:none;margin:0;max-width:100%;border-radius:0}.noprint{display:none}@page{margin:12mm}}
+  </style></head><body>
+  <div class="page">
+    <div class="top"><div class="brand">BLUE<span>PERF</span><small>${club}</small></div><div><div class="doctype">Compte rendu de performance</div><div style="text-align:right"><span class="typebadge">${esc(r.type)}${(r.type==='Match'&&r.opponent)?' · vs '+esc(r.opponent):''}</span></div></div></div>
+    <div class="ident"><div><div class="pname">${esc(r.playerName||'—')}</div><div class="pmeta">${[r.position,r.cat,fmtD(r.date)].filter(Boolean).map(esc).join(' · ')}</div></div>${g!=null?`<div class="global"><div class="gnum">${g}<small>/5</small></div><div class="glab">Note globale</div></div>`:''}</div>
+    ${ctxHtml?`<div class="metas">${ctxHtml}</div>`:''}
+    <div class="body">
+      ${themeRows?`<h2 class="sct">Évaluation par thème</h2>${themeRows}`:''}
+      ${(r.strengths||r.improvements)?`<h2 class="sct" style="margin-top:20px">Bilan</h2><div class="grid2">${sec('Points forts',r.strengths)}${sec('Axes de progression',r.improvements)}</div>`:''}
+      ${(r.objectives||r.general)?`<h2 class="sct" style="margin-top:6px">Suite &amp; synthèse</h2>${sec('Objectifs / consignes',r.objectives)}${sec('Appréciation générale',r.general)}`:''}
+    </div>
+    <div class="foot"><div>Établi le ${fmtD(r.date)} · ${club}</div><div style="text-align:right"><div>${r.author?('Coach : '+esc(r.author)):'Signature du coach'}</div><div class="signline"></div></div></div>
+  </div>
+  <div class="noprint"><button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
+  <script>window.addEventListener('load',function(){setTimeout(function(){try{window.print();}catch(e){}},300);});<\/script>
+  </body></html>`;
+  const w=window.open('','_blank');if(!w){toast('Autorise les pop-ups pour exporter le PDF');return;}
+  w.document.open();w.document.write(html);w.document.close();
+}
 VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['players',INDIV?'Client·es & accès':'Joueur·ses & accès'],['notifs','Rappels'],['tabs','Onglets'],['lists','Club et listes'],['th','Seuils d’alerte'],['tests','Tests'],['rtp','Protocole réathlé'],['data','Données']];
   let body='';
   if(t==='notifs'){const who=INDIV?'client·es':'joueur·ses';const one=INDIV?'client·e':'joueur·se';
@@ -2075,6 +2198,13 @@ const ACT={
   rpeComplete:b=>{const col=b.dataset.col,id=b.dataset.id;const ev=DATA[col]&&DATA[col][id];if(!ev)return;UI.assignDate=ev.date;UI.assignCat=INDIV?INDIV_CAT:ev.cat;UI.edit=null;UI.entryOpen=false;UI.drawer=null;
     if(col==='matches'){UI.edit={col:'matches',id};UI.entryTab='match';}else{UI.rpeSess=id;UI.entryTab='rpe';}
     go('entry');},
+  /* ----- Compte rendu de performance ----- */
+  reportNew:()=>{REP=repBlank();render();},
+  reportEdit:b=>{const r=DATA.reports[b.dataset.id];if(!r)return;REP=JSON.parse(JSON.stringify(r));render();},
+  reportCancel:()=>{REP=null;render();},
+  reportSave:async()=>{if(!REP)return;if(!REP.playerName||!REP.playerName.trim()){toast('Indique le nom du/de la '+PL.one);return;}REP.updatedAt=new Date().toISOString();await put('reports',REP.id,JSON.parse(JSON.stringify(REP)));toast('Compte rendu enregistré');REP=null;render();},
+  repRate:b=>{if(!REP)return;const k=b.dataset.rt,v=+b.dataset.v;REP.themes=REP.themes||{};const cur=REP.themes[k]||{};REP.themes[k]=Object.assign({},cur,{note:(cur.note===v)?0:v});render();},
+  reportExport:async b=>{let r;if(REP){if(!REP.playerName||!REP.playerName.trim()){toast('Indique le nom du/de la '+PL.one);return;}REP.updatedAt=new Date().toISOString();await put('reports',REP.id,JSON.parse(JSON.stringify(REP)));r=REP;}else{r=DATA.reports[b.dataset.id];}if(r)reportPrint(r);},
   sendReminders:async b=>{b.disabled=true;const prev=b.textContent;b.textContent='Envoi…';
     try{const r=await fetch('/api/push?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:DB_PREFIX})});const j=await r.json();
       toast(j&&j.ok?('Rappel envoyé à '+j.sent+' personne'+(j.sent>1?'s':'')+(j.subscribed?' · '+j.subscribed+' abonné'+(j.subscribed>1?'s':''):'')):'Envoi impossible');}
@@ -2098,6 +2228,7 @@ const CHG={
   max:async t=>{const m=JSON.parse(JSON.stringify(DATA.maxes[t.dataset.id]||{id:t.dataset.id,values:{},skills:{}}));m.values=m.values||{};const v=num(t.value);if(v==null)delete m.values[t.dataset.k];else m.values[t.dataset.k]=v;await put('maxes',t.dataset.id,m,true);},
   skill:async t=>{const m=JSON.parse(JSON.stringify(DATA.maxes[t.dataset.id]||{id:t.dataset.id,values:{},skills:{}}));m.skills=m.skills||{};m.skills[t.dataset.k]=+t.value;await put('maxes',t.dataset.id,m,true);},
   tabOn:async t=>{const tabs=Object.assign({},S().tabs,{[t.dataset.id]:t.checked});await saveSettings({tabs});},
+  reportType:t=>{if(REP){REP.type=t.value;render();}},
   loadSess:t=>{const v=t.value;if(!v){UI.sessionPrefill=null;UI.edit=null;render();return;}const [k,id]=v.split(':');const src=k==='tpl'?(DATA.templates||{})[id]:DATA.sessions[id];if(!src){UI.sessionPrefill=null;render();return;}UI.sessionPrefill={_tplId:k==='tpl'?id:null,cat:src.cat,type:src.type,objective:src.objective,title:src.title,duration:src.duration,content:src.content,procedes:(src.procedes||[]).slice(),staffNotes:Object.assign({},src.staffNotes||{})};UI.edit=null;render();},
   import:t=>{const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.players)throw 0;PENDING_IMPORT=o;const n=COLS.reduce((a,c)=>a+Object.keys(o[c]||{}).length,0);
     $('#expOut').innerHTML=`<div class="banner"><p>${n} éléments trouvés dans « ${esc(f.name)} ». Ils seront ajoutés aux données actuelles (les éléments de même identifiant sont remplacés).</p><span id="bulkProg" class="small muted"></span><button class="btn pri" data-act="importGo">Importer</button></div>`;}catch(e){toast('Fichier non reconnu');}};r.readAsText(f);},
