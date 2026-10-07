@@ -475,6 +475,7 @@ function firstLoad(){
     else{DATA=makeDemo();Store.demo=true;}
   }
   render();
+  seedLiaReport();
 }
 async function seedCindy(){
   // Coaching individuel vierge : on crée Cindy et son programme 12 semaines automatiquement.
@@ -488,6 +489,27 @@ async function seedCindy(){
   await put('seanceplans',cid,plan,true);
   UI.tab='programme';UI.progClient=cid;
   render();
+}
+async function seedLiaReport(){
+  // Crée une seule fois le compte rendu d'exemple de Lia Gomes Fernandes (modifiable/supprimable ensuite).
+  if(INDIV||Store.mode!=='db'||Store.demo)return;
+  if(S().liaSeeded||(DATA.reports&&DATA.reports['lia-demo']))return;
+  const today=new Date().toISOString().slice(0,10);
+  const r={id:'lia-demo',type:'Entraînement',date:today,playerName:'Lia Gomes Fernandes',pid:null,cat:'',position:'',opponent:'',competition:'',score:'',minutes:'',sessionTheme:'Évaluation individuelle',intensity:'',
+    themes:{
+      technique:{note:3,crit:{passe:'ameliorer',conduite:'acquis',dribble:'ameliorer',pied:'encours',centre:'encours'},comment:''},
+      tactique:{note:3,crit:{place:'ameliorer',lecture:'ameliorer',decision:'encours',appels:'ameliorer',press:'ameliorer'},comment:''},
+      physique:{note:3,crit:{vitesse:'acquis',puissance:'encours',vivacite:'ameliorer',volume:'encours'},comment:''},
+      mental:{note:4,crit:{concentration:'acquis',combat:'ameliorer',communication:'encours',discipline:'acquis',leader:'encours',implication:'acquis'},comment:''},
+      poste:{note:3,crit:{role:'ameliorer',impact:'encours',defposte:'ameliorer',offposte:'encours',influence:'encours'},comment:''}
+    },
+    strengths:"• Conduite de balle de qualité, à l'aise ballon au pied\n• Vitesse et explosivité : un vrai atout dans son jeu\n• Grande concentration et discipline sur le terrain\n• Implication et sérieux constants à l'entraînement",
+    improvements:"• Qualité de passe et aisance du pied faible à fiabiliser\n• Prise de décision et lecture du jeu à accélérer\n• Puissance et présence dans les duels à renforcer\n• Communication et prise de leadership à développer",
+    objectives:"• Travailler la passe sous pression et le pied faible sur les ateliers techniques\n• Renforcement physique pour gagner en impact dans les duels\n• Oser davantage diriger et communiquer dans son secteur de jeu",
+    general:'',author:'',createdAt:new Date().toISOString()};
+  DATA.reports=DATA.reports||{};DATA.reports['lia-demo']=r;
+  try{await put('reports','lia-demo',r,true);await put('config','settings',Object.assign({},DATA.config.settings||{},{liaSeeded:true}),true);}catch(e){}
+  if(UI.tab==='report')render();
 }
 async function writeAll(src){
   if(Store.mode==='db'){
