@@ -2038,6 +2038,8 @@ function reportPrint(r){
     return `<div class="theme"><div class="theme-head"><div><div class="tname">${esc(t[1])}</div><div class="tdesc">${esc(t[2])}</div></div><div class="tnote">${n?n+'<small>/5</small>':'<span class="na">n/é</span>'}</div></div>${n?`<div class="bar"><span style="width:${n/5*100}%"></span></div>`:''}${critTags(k,c)}${c.comment?`<div class="tcom">${esc(c.comment)}</div>`:''}</div>`;}).join('');
   const anyCrit=REP_THEMES.some(t=>{const c=r.themes[t[0]]||{};return c.crit&&Object.keys(c.crit).length;});
   const legendHtml=anyCrit?`<div class="legend">${REP_STATUS.map(s=>`<span><i style="background:${s[2]}"></i>${esc(s[1])}</span>`).join('')}</div>`:'';
+  const notedThemes=REP_THEMES.filter(t=>(r.themes[t[0]]||{}).note>0);
+  const notesRecap=notedThemes.length?`<div class="recap">${notedThemes.map(t=>{const n=r.themes[t[0]].note;return `<div class="rc"><div class="rcn">${n}<small>/5</small></div><div class="rcl">${esc(t[1])}</div></div>`;}).join('')}${g!=null?`<div class="rc rcg"><div class="rcn">${g}<small>/5</small></div><div class="rcl">Note globale</div></div>`:''}</div>`:'';
   const sec=(title,txt)=>(txt&&txt.trim())?`<div class="sec"><h3>${esc(title)}</h3><p>${esc(txt).replace(/\n/g,'<br>')}</p></div>`:'';
   const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Compte rendu — ${esc(r.playerName||'')}</title><style>
     *{box-sizing:border-box}html,body{margin:0;padding:0;background:#eef2f6;color:#14202e;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -2056,6 +2058,11 @@ function reportPrint(r){
     .tname{font-weight:700;font-size:14px}.tdesc{font-size:11.5px;color:#8595a6}.tnote{font-weight:800;font-size:17px;color:#0D1B2A;white-space:nowrap}.tnote small{font-size:11px;color:#8aa}.tnote .na{font-size:12px;color:#aab;font-weight:600}
     .bar{height:7px;background:#e9eef4;border-radius:5px;margin-top:6px;overflow:hidden}.bar span{display:block;height:100%;background:linear-gradient(90deg,#2A7DE1,#3DA9FC)}
     .tcom{font-size:12.5px;color:#45566a;margin-top:5px;font-style:italic}
+    .recap{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+    .rc{flex:1;min-width:92px;background:#f7f9fc;border:1px solid #e6ebf1;border-radius:8px;padding:9px 8px;text-align:center}
+    .rc .rcn{font-size:21px;font-weight:800;color:#0D1B2A;line-height:1}.rc .rcn small{font-size:11px;color:#8aa;font-weight:700}
+    .rc .rcl{font-size:10.5px;color:#5b6b7d;margin-top:3px;text-transform:uppercase;letter-spacing:.03em}
+    .rc.rcg{background:#0D1B2A;border-color:#0D1B2A}.rc.rcg .rcn{color:#fff}.rc.rcg .rcn small{color:#9fb6d6}.rc.rcg .rcl{color:#9fb6d6}
     .ctags{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
     .ctag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid}
     .ctag i{width:8px;height:8px;border-radius:50%;display:inline-block}
@@ -2072,7 +2079,7 @@ function reportPrint(r){
     <div class="ident"><div><div class="pname">${esc(r.playerName||'—')}</div><div class="pmeta">${[r.position,r.cat,fmtD(r.date)].filter(Boolean).map(esc).join(' · ')}</div></div>${g!=null?`<div class="global"><div class="gnum">${g}<small>/5</small></div><div class="glab">Note globale</div></div>`:''}</div>
     ${ctxHtml?`<div class="metas">${ctxHtml}</div>`:''}
     <div class="body">
-      ${themeRows?`<h2 class="sct">Évaluation par thème</h2>${legendHtml}${themeRows}`:''}
+      ${themeRows?`<h2 class="sct">Évaluation par thème</h2>${notesRecap}${legendHtml}${themeRows}`:''}
       ${(r.strengths||r.improvements)?`<h2 class="sct" style="margin-top:20px">Bilan</h2><div class="grid2">${sec('Points forts',r.strengths)}${sec('Axes de progression',r.improvements)}</div>`:''}
       ${(r.objectives||r.general)?`<h2 class="sct" style="margin-top:6px">Suite &amp; synthèse</h2>${sec('Objectifs / consignes',r.objectives)}${sec('Appréciation générale',r.general)}`:''}
     </div>
