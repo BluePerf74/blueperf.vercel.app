@@ -2128,17 +2128,26 @@ function ensureHtml2pdf(){
 }
 async function reportToPdf(css,pageHtml,fname){
   toast('Génération du PDF…');
+  let holder=null;const sx=window.pageXOffset||0,sy=window.pageYOffset||0;
   try{
     const h2p=await ensureHtml2pdf();
-    const holder=document.createElement('div');
-    holder.style.cssText='position:fixed;left:0;top:0;width:800px;background:#fff;z-index:-1;pointer-events:none';
+    holder=document.createElement('div');
+    holder.setAttribute('aria-hidden','true');
+    // Largeur fixe 800px, positionné en haut à gauche du document et masqué derrière.
+    holder.style.cssText='position:absolute;left:0;top:0;width:800px;background:#fff;z-index:-1;pointer-events:none';
     holder.innerHTML='<style>'+css+'</style>'+pageHtml;
     document.body.appendChild(holder);
     const el=holder.querySelector('.page');
-    await h2p().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:800,scrollX:0,scrollY:0,width:800},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy']}}).from(el).save();
-    holder.remove();
+    const h=el.scrollHeight;
+    // On se replace en haut à gauche pour que la capture parte de (0,0) : jamais coupé
+    // quel que soit le défilement de la page sur mobile.
+    window.scrollTo(0,0);
+    await new Promise(r=>setTimeout(r,20));
+    await h2p().set({margin:[8,8,8,8],filename:fname,image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',width:800,height:h,windowWidth:800,windowHeight:h,x:0,y:0,scrollX:0,scrollY:0},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy']}}).from(el).save();
+    holder.remove();holder=null;
+    window.scrollTo(sx,sy);
     toast('PDF enregistré');
-  }catch(e){ reportPrintWindow(css,pageHtml); }
+  }catch(e){ if(holder)try{holder.remove();}catch(_){ } try{window.scrollTo(sx,sy);}catch(_){ } reportPrintWindow(css,pageHtml); }
 }
 function reportPrintWindow(css,pageHtml){
   // Repli si la génération directe échoue (hors-ligne, etc.) : fenêtre d'impression.
