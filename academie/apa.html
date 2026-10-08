@@ -1,0 +1,706 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>APA Blueperf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Thème repris de l'application Blueperf (relevé sur capture) : fond marine très sombre, cartes #111925,
+   titres condensés gras, libellés en capitales espacées, accent bleu clair, boutons lavande, badges ton sur ton.
+   Tous les codes sont centralisés ici pour être remplacés par les variables réelles lors de l'intégration. */
+:root{
+  --bg:#090e16;--deep:#060a10;--bar:#0e1a2c;--card:#111925;--card2:#0d141e;--line:#213046;
+  --fg:#e6ecf4;--muted:#8390a3;--nav:#b9c4d4;
+  --accent:#3da9fc;--on-accent:#04121f;--lav:#7b9bff;--on-lav:#08101e;--tab:#15213a;--tabline:#6e8fff;--chip:#16314e;
+  --ok:#8fe0b0;--ok-bg:#133136;--ok-line:#1d644b;--ok-dot:#2fbf71;
+  --warn:#e3aa3e;--warn-bg:#33260c;--bad:#f16b5e;--bad-bg:#3a1714;
+  --g1:#3da9fc;--g2:#7b9bff;--g3:#e3aa3e;--g4:#2fbf71;--g5:#f16b5e;--g6:#43c6c6;--g7:#b48cff;--g8:#8390a3;
+  --f-display:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;--f-body:'Inter',system-ui,sans-serif;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--f-body);padding:0}
+h1,h2,h3,h4{font-family:var(--f-display);font-weight:700;letter-spacing:-.01em;line-height:1.1;margin:0;text-wrap:balance}
+button{font-family:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,.lk input:focus-visible+span,.chk input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+/* barre du module */
+.topbar{background:var(--bar);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font:700 24px var(--f-display);letter-spacing:.02em}
+.brand span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tbr{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.nav{background:var(--deep);display:flex;gap:4px;padding:8px 12px 0;overflow-x:auto;position:sticky;top:0;z-index:5}
+.nav button{flex:0 0 auto;background:none;border:0;color:var(--nav);font:500 14px var(--f-body);padding:11px 14px;border-radius:8px 8px 0 0;cursor:pointer;border-bottom:2px solid transparent}
+.nav button:hover{color:#fff}
+.nav button[aria-selected="true"]{background:var(--tab);color:#fff;border-bottom-color:var(--tabline)}
+.shell{max-width:1200px;margin:0 auto;padding:22px 16px 56px;display:flex;flex-direction:column;gap:16px}
+.pagehead{display:flex;gap:14px;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.pagehead h1{font-size:34px}
+.pagehead p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#view{display:flex;flex-direction:column;gap:14px;min-width:0}
+/* boutons et badges */
+.btn{font:600 13px var(--f-body);border:1px solid var(--line);background:var(--bar);color:var(--fg);padding:9px 14px;border-radius:8px;cursor:pointer}
+.btn:hover{border-color:var(--tabline)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.lav{background:var(--lav);border-color:var(--lav);color:var(--on-lav);padding:6px 14px}
+.btn.del{color:var(--bad);border-color:transparent;background:none;padding:6px 10px}
+.btn.del:hover{background:var(--bad-bg)}
+.btn.dng{background:var(--bad);border-color:var(--bad);color:var(--on-accent)}
+select.sel{font:500 14px var(--f-body);color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-width:200px}
+.pill{display:inline-flex;align-items:center;gap:6px;font:600 12px var(--f-body);padding:3px 10px;border-radius:99px;background:var(--chip);color:var(--nav);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pill.full,.pill.ok{background:var(--ok-bg);color:var(--ok);box-shadow:inset 0 0 0 1px var(--ok-line)}
+.pill.ok::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok-dot)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.gb{display:inline-flex;align-items:center;gap:7px;font:600 12px var(--f-body);padding:3px 10px;border-radius:99px;background:color-mix(in srgb,var(--gc) 16%,var(--card));color:var(--gc)}
+.gb i{width:8px;height:8px;border-radius:50%;background:var(--gc)}
+.lab{font:600 11px var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px}
+.lead{margin:0;color:var(--muted);max-width:70ch}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+.empty{color:var(--muted);margin:0}
+.err{color:var(--bad);font-size:13px;margin:0}
+.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+/* indicateurs et groupes */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.kpi{padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.kpi .n{font:700 40px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.kpi .n small{font-size:20px;color:var(--muted)}
+.kpi p{margin:0;color:var(--muted);font-size:12.5px}
+.sect{padding:18px}
+.sect>h2{font-size:24px;margin-bottom:12px}
+.sect .hd{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:12px}
+.sect .hd h2{font-size:24px}
+.tbl{border:1px solid var(--line);border-radius:10px;overflow:hidden;overflow-x:auto}
+.tbl table{width:100%;border-collapse:collapse;min-width:520px}
+.tbl th{background:var(--card2);text-align:left;font:600 11px var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:10px 12px}
+.tbl td{padding:10px 12px;border-top:1px solid var(--line);vertical-align:middle}
+.tbl td.r{text-align:right}
+.tbl .tags{display:flex;gap:6px;flex-wrap:wrap}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.gcard{padding:16px 18px;display:flex;flex-direction:column;gap:10px;border-top:3px solid var(--gc)}
+.gcard .gh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.gcard h3{font-size:22px}
+.gcard .cnt{font:700 34px/1 var(--f-display);color:var(--gc);font-variant-numeric:tabular-nums}
+.gcard .desc{margin:0;color:var(--muted);font-size:12.5px}
+.crow{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.crow b{font-weight:600}
+/* fiche client */
+.chead{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:16px 18px}
+.chead h2{font-size:26px}
+.codebox{display:inline-flex;font:600 14px ui-monospace,Menlo,monospace;background:var(--card2);border:1px solid var(--line);color:var(--accent);padding:7px 12px;border-radius:8px;letter-spacing:.1em}
+.sub{display:flex;gap:6px;flex-wrap:wrap}
+.sub button{background:var(--card);border:1px solid var(--line);color:var(--nav);font:600 13px var(--f-body);padding:8px 14px;border-radius:99px;cursor:pointer}
+.sub button[aria-selected="true"]{background:var(--tab);border-color:var(--tabline);color:#fff}
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-weight:600;font-size:13px}
+/* cartes repliables des questionnaires et tests */
+details.mod>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer}
+details.mod>summary::-webkit-details-marker{display:none}
+.sumtxt{flex:1;min-width:0}
+.sumtxt h3{font-size:21px}
+.sumtxt p{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+.chev{width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s}
+details[open]>summary .chev{transform:rotate(45deg)}
+.mbody{padding:4px 18px 18px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+.mbody .intro{font-size:13px;color:var(--muted);margin:12px 0 0;max-width:70ch}
+.mfoot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center;border-top:1px dashed var(--line);padding-top:12px}
+.mfoot .why{margin-right:auto;font-size:13px;color:var(--bad)}
+.sec{font:600 11px var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:10px 0 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.f{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:12px;color:var(--muted);font-weight:500}
+.f.wide{grid-column:1/-1}
+.inp{display:flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding-inline:10px}
+.inp input,.f select,.f textarea,.f>input{font:500 14px var(--f-body);color:var(--fg);background:transparent;border:0;width:100%;min-width:0;padding-block:9px}
+.f select,.f textarea,.f>input{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding-inline:10px}
+.f textarea{resize:vertical;min-height:72px}
+.f input:disabled,.inp input:disabled{opacity:.7}
+.inp em{font-style:normal;font-size:12px;white-space:nowrap}
+input[type=number]{font-variant-numeric:tabular-nums}
+.q{display:flex;flex-direction:column;gap:8px;padding-block:10px;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:0}
+.q p{margin:0;max-width:70ch}
+.q p b{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:4px}
+.lk{display:flex;gap:6px;flex-wrap:wrap}
+.lk label,.chk{cursor:pointer}
+.lk input,.chk input{position:absolute;opacity:0;pointer-events:none}
+.lk span,.chk span{display:grid;place-items:center;min-width:40px;min-height:38px;padding-inline:12px;border:1px solid var(--line);border-radius:8px;background:var(--card2);font-weight:600;font-variant-numeric:tabular-nums;color:var(--nav)}
+.lk input:checked+span,.chk input:checked+span{background:var(--lav);color:var(--on-lav);border-color:var(--lav)}
+.lk.opt{flex-direction:column}
+.lk.opt span{font-weight:500;text-align:left;justify-content:start;height:auto;padding-block:9px;place-items:center start}
+.chks{display:flex;gap:6px;flex-wrap:wrap}
+.chk span{font-weight:500}
+.legend{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--muted)}
+.res{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.res h4{font:600 11px var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.res .row{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.res .big{font:700 30px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.res .big small{font:500 13px var(--f-body);color:var(--muted)}
+.res .hint{margin:0;font-size:12.5px;color:var(--muted)}
+.res table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.res td{padding:5px 0;border-bottom:1px solid var(--line)}.res td:last-child{text-align:right;font-weight:600}
+.bars{display:flex;flex-direction:column;gap:8px}
+.br{display:grid;grid-template-columns:minmax(96px,34%) 1fr 40px;gap:8px;align-items:center;font-size:12.5px}
+.br i{display:block;height:8px;border-radius:4px;background:var(--line);position:relative;overflow:hidden}
+.br i b{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:4px}
+.br.c i b{background:var(--warn)}.br.x i b{background:var(--muted)}
+.br span:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.removed{border-style:dashed;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.removed h3{font-size:19px}
+.rrow{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.syn{display:grid;gap:14px}
+.syn h3{font-size:20px;margin-bottom:6px}
+.syn ul{margin:0;padding-left:18px}
+.login{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.login .card{padding:20px;display:flex;flex-direction:column;gap:12px}
+.login h2{font-size:26px}
+.codein{text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--lav);color:var(--on-lav);padding:9px 16px;border-radius:99px;font-weight:600;font-size:13px;z-index:9}
+.nav:empty,.pagehead:empty{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<div class="topbar">
+  <div class="brand"><b>APA</b><span>Activité physique adaptée</span></div>
+  <div class="tbr"><span id="saved" class="pill ok" hidden></span><span id="role" class="tbr"></span></div>
+</div>
+<nav class="nav" role="tablist" id="tabs"></nav>
+<div class="shell">
+  <div class="pagehead" id="head"></div>
+  <main id="view"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEY='dossier-apa-v1';
+let S={p:{},a:{},rm:[],ui:{tab:'profil',open:[]}};
+const A=k=>S.a[k];
+const has=k=>S.a[k]!==undefined&&S.a[k]!=='';
+const N=k=>has(k)?parseFloat(String(S.a[k]).replace(',','.')):NaN;
+const ok=Number.isFinite;
+const fmt=(v,d=0)=>ok(v)?v.toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d}):'–';
+const mean=a=>{a=a.filter(ok);return a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN};
+const age=()=>parseFloat(S.p.age);
+const sex=()=>S.p.sexe||'';
+
+/* composants de formulaire */
+const num=(k,label,unit='',o={})=>`<label class="f"><span>${label}</span><span class="inp"><input id="i-${k}" data-k="${k}" type="number" inputmode="decimal" min="${o.min??0}" ${o.max!=null?`max="${o.max}"`:''} step="${o.step||1}" value="${esc(A(k))}">${unit?`<em>${unit}</em>`:''}</span></label>`;
+const lik=(k,min,max)=>{let h='<div class="lk" role="radiogroup">';for(let v=min;v<=max;v++)h+=`<label><input type="radio" name="${k}" data-k="${k}" value="${v}" ${String(A(k))===String(v)?'checked':''}><span>${v}</span></label>`;return h+'</div>'};
+const opt=(k,list,cls='lk opt')=>`<div class="${cls}" role="radiogroup">`+list.map(([v,t])=>`<label><input type="radio" name="${k}" data-k="${k}" value="${v}" ${String(A(k))===String(v)?'checked':''}><span>${t}</span></label>`).join('')+'</div>';
+const yn=k=>opt(k,[['1','Oui'],['0','Non']],'lk');
+const txt=(k,label,ph='')=>`<label class="f wide"><span>${label}</span><input id="i-${k}" data-k="${k}" type="text" placeholder="${esc(ph)}" value="${esc(A(k))}"></label>`;
+const sec=t=>`<p class="sec">${t}</p>`;
+const bar=(label,v,max,cls='')=>`<div class="br ${cls}"><span>${label}</span><i><b style="width:${ok(v)?Math.max(0,Math.min(100,v/max*100)):0}%"></b></i><span>${fmt(v,1)}</span></div>`;
+const badge=(t,c)=>`<span class="pill ${c}">${t}</span>`;
+const noData='<p class="empty">Les résultats apparaîtront dès les premières réponses.</p>';
+
+/* registre des modules */
+const MODS=[];
+const add=m=>MODS.push(m);
+/* questionnaire à échelle de Likert */
+function likertMod(o){
+  const keys=o.items.map((_,i)=>`${o.id}.${i+1}`);
+  return {id:o.id,kind:'q',title:o.title,sub:o.sub,intro:o.intro,
+    prog:()=>[keys.filter(has).length,keys.length],
+    body:()=>(o.pre?o.pre():'')+`<div class="legend"><span>${o.lo}</span><span>${o.hi}</span></div>`+o.items.map((t,i)=>`<div class="q"><p><b>${i+1}.</b> ${t}</p>${lik(keys[i],o.min,o.max)}</div>`).join(''),
+    calc:()=>o.calc(keys.map(N))};
+}
+</script>
+<script>
+/* ---------- GPAQ ---------- */
+(()=>{
+const D=[
+ [1,2,3,8,'Travail · activité intense','Votre travail comporte-t-il une activité intense, qui accélère fortement la respiration et le rythme cardiaque (porter ou soulever des charges lourdes, bêcher, travaux de force), pendant au moins 10 minutes d’affilée ?'],
+ [4,5,6,4,'Travail · activité modérée','Votre travail comporte-t-il une activité modérée, qui accélère légèrement la respiration et le rythme cardiaque (marche rapide, port de petites charges), pendant au moins 10 minutes d’affilée ?'],
+ [7,8,9,4,'Déplacements · marche ou vélo','Marchez-vous ou faites-vous du vélo pendant au moins 10 minutes d’affilée pour vous rendre d’un endroit à un autre ?'],
+ [10,11,12,8,'Loisirs · activité intense','Pratiquez-vous un sport, du fitness ou des loisirs intenses (course, football, natation rapide…) pendant au moins 10 minutes d’affilée ?'],
+ [13,14,15,4,'Loisirs · activité modérée','Pratiquez-vous un sport, du fitness ou des loisirs modérés (marche rapide, vélo tranquille, natation, volley-ball…) pendant au moins 10 minutes d’affilée ?']];
+const P='gpaq.';
+add({id:'gpaq',kind:'q',title:'GPAQ',sub:'Niveau d’activité physique déclaré · OMS · 16 questions',
+ intro:'Pensez à une semaine habituelle. Le questionnaire distingue le travail, les déplacements et les loisirs. Les durées se saisissent en minutes par jour.',
+ prog(){let d=has(P+16)?1:0,t=1;D.forEach(x=>{t++;if(has(P+x[0]))d++;if(A(P+x[0])==='1'){t+=2;d+=has(P+x[1])+has(P+x[2])}});return[d,t]},
+ body(){return D.map(x=>`${sec(x[4])}<div class="q"><p><b>${x[0]}.</b> ${x[5]}</p>${yn(P+x[0])}<div class="grid">${num(P+x[1],'Jours par semaine','j',{max:7})}${num(P+x[2],'Durée par jour','min',{max:1000})}</div></div>`).join('')+`${sec('Sédentarité')}<div class="q"><p><b>16.</b> Combien de temps passez-vous assis ou allongé un jour habituel, hors sommeil (travail, trajets, domicile, lecture, télévision) ?</p><div class="grid">${num(P+16,'Temps assis par jour','min',{max:1440})}</div></div>`},
+ calc(){let tot=0,rows='',any=false;
+  D.forEach(x=>{if(!has(P+x[0]))return;any=true;const v=A(P+x[0])==='1'?(N(P+x[1])||0)*(N(P+x[2])||0)*x[3]:0;tot+=v;rows+=`<tr><td>${x[4]}</td><td>${fmt(v)}</td></tr>`});
+  if(!any&&!has(P+16))return{h:noData,t:[]};
+  const g=tot>=600,sed=N(P+16);
+  const lines=[`Total : ${fmt(tot)} MET-min/semaine (${g?'recommandations OMS atteintes':'sous le repère OMS de 600 MET-min/semaine'})`];
+  if(ok(sed))lines.push(`Temps assis : ${fmt(sed/60,1)} h/jour`);
+  return{t:lines,h:`<h4>Résultat</h4><table>${rows}</table><div class="row"><span class="big">${fmt(tot)} <small>MET-min/sem</small></span>${badge(g?'Recommandations atteintes':'Sous le repère OMS',g?'ok':'warn')}</div>${ok(sed)?`<div class="row"><span>Temps assis par jour</span>${badge(fmt(sed/60,1)+' h',sed>=480?'bad':'ok')}</div>`:''}<p class="hint">MET : intense = 8, modéré et déplacements = 4. Repère OMS : au moins 150 min d’activité modérée ou 75 min d’intense par semaine, soit environ 600 MET-min.</p>`}}});
+})();
+
+/* ---------- IPAQ version courte ---------- */
+(()=>{
+const P='ipaq.',T=[['v','Activités physiques intenses','Au cours des 7 derniers jours, combien de jours avez-vous fait des activités physiques intenses (soulever des charges lourdes, bêcher, aérobic, vélo rapide), au moins 10 minutes d’affilée ?',8],['m','Activités physiques modérées','Combien de jours avez-vous fait des activités modérées (porter une charge légère, vélo à allure régulière, double au tennis), sans compter la marche ?',4],['w','Marche','Combien de jours avez-vous marché au moins 10 minutes d’affilée (travail, domicile, trajets, loisirs) ?',3.3]];
+const calc=()=>{const o={};T.forEach(([c,,,met])=>{const d=N(P+c+'d'),m=Math.min(180,N(P+c+'m')||0);o[c]={d:d||0,m,met:(d||0)*m*met,set:has(P+c+'d')}});return o};
+add({id:'ipaq',kind:'q',title:'IPAQ (version courte)',sub:'Niveau d’activité physique déclaré · 7 derniers jours · 7 questions',
+ intro:'Ne comptez que les activités d’au moins 10 minutes d’affilée sur les 7 derniers jours. Une durée supérieure à 180 min/jour est plafonnée à 180 pour le calcul.',
+ prog(){let d=has(P+'sit')?1:0,t=1;T.forEach(([c])=>{t++;if(has(P+c+'d'))d++;if(N(P+c+'d')>0){t++;if(has(P+c+'m'))d++}});return[d,t]},
+ body(){return T.map(([c,l,q],i)=>`${sec(l)}<div class="q"><p><b>${i+1}.</b> ${q}</p><div class="grid">${num(P+c+'d','Jours par semaine','j',{max:7})}${num(P+c+'m','Durée par jour','min',{max:1000})}</div></div>`).join('')+`${sec('Sédentarité')}<div class="q"><p><b>7.</b> Au cours des 7 derniers jours, combien de temps avez-vous passé assis un jour de semaine ?</p><div class="grid">${num(P+'sit','Temps assis par jour','min',{max:1440})}</div></div>`},
+ calc(){const o=calc();if(!T.some(([c])=>o[c].set))return{h:noData,t:[]};
+  const tot=o.v.met+o.m.met+o.w.met,days=o.v.d+o.m.d+o.w.d;
+  const hi=(o.v.d>=3&&o.v.met>=1500)||(days>=7&&tot>=3000);
+  const mo=(o.v.d>=3&&o.v.m>=20)||(o.m.d>=5&&o.m.m>=30)||(o.w.d>=5&&o.w.m>=30)||(days>=5&&tot>=600);
+  const cat=hi?['Élevé','ok']:mo?['Modéré','ok']:['Faible','bad'],sit=N(P+'sit');
+  const lines=[`Niveau IPAQ : ${cat[0]} (${fmt(tot)} MET-min/semaine)`];if(ok(sit))lines.push(`Temps assis : ${fmt(sit/60,1)} h/jour`);
+  return{t:lines,h:`<h4>Résultat</h4><table>${T.map(([c,l])=>`<tr><td>${l}</td><td>${fmt(o[c].met)}</td></tr>`).join('')}</table><div class="row"><span class="big">${fmt(tot)} <small>MET-min/sem</small></span>${badge('Niveau '+cat[0].toLowerCase(),cat[1])}</div>${ok(sit)?`<div class="row"><span>Temps assis par jour</span>${badge(fmt(sit/60,1)+' h',sit>=480?'bad':'ok')}</div>`:''}<p class="hint">MET : intense = 8, modéré = 4, marche = 3,3. Catégories selon le protocole de calcul IPAQ (faible, modéré, élevé).</p>`}}});
+})();
+
+/* ---------- WSQ ---------- */
+(()=>{
+const C=[['trajet','Transport pour aller au travail ou en revenir'],['travail','Au travail, en cours ou pendant les études'],['tv','Devant la télévision'],['ordi','Sur ordinateur, tablette ou smartphone à la maison (hors travail)'],['loisirs','Autres loisirs : lecture, repas, jeux, activités sociales (hors TV et écrans)']];
+const P='wsq.';
+add({id:'wsq',kind:'q',title:'Workforce Sitting Questionnaire',sub:'Temps assis par contexte · jour de travail et jour de repos',
+ intro:'Indiquez le temps passé assis dans chaque situation, en minutes, pour un jour de travail habituel puis pour un jour de repos habituel. Laissez vide ou mettez 0 si la situation ne s’applique pas.',
+ prog(){const k=[];C.forEach(([c])=>{k.push(P+c+'w');if(c!=='travail')k.push(P+c+'n')});return[k.filter(has).length,k.length]},
+ body(){return `<div class="grid">${num(P+'jt','Jours travaillés par semaine','j',{max:7})}</div>`+C.map(([c,l])=>`<div class="q"><p>${l}</p><div class="grid">${num(P+c+'w','Jour de travail','min',{max:1440})}${num(P+c+'n','Jour de repos','min',{max:1440})}</div></div>`).join('')},
+ calc(){const any=C.some(([c])=>has(P+c+'w')||has(P+c+'n'));if(!any)return{h:noData,t:[]};
+  const jt=has(P+'jt')?Math.min(7,N(P+'jt')):5,W=C.reduce((s,[c])=>s+(N(P+c+'w')||0),0),R=C.reduce((s,[c])=>s+(N(P+c+'n')||0),0);
+  const avg=(W*jt+R*(7-jt))/7,h=avg/60,cls=h>=8?'bad':h>=6?'warn':'ok';
+  const bars=C.map(([c,l])=>bar(l.split(' ').slice(0,3).join(' '),((N(P+c+'w')||0)*jt+(N(P+c+'n')||0)*(7-jt))/7/60,8)).join('');
+  return{t:[`Temps assis moyen : ${fmt(h,1)} h/jour (jour de travail ${fmt(W/60,1)} h, jour de repos ${fmt(R/60,1)} h)`],h:`<h4>Résultat</h4><div class="row"><span class="big">${fmt(h,1)} <small>h/jour en moyenne</small></span>${badge(h>=8?'Élevé':h>=6?'À surveiller':'Modéré',cls)}</div><table><tr><td>Jour de travail</td><td>${fmt(W/60,1)} h</td></tr><tr><td>Jour de repos</td><td>${fmt(R/60,1)} h</td></tr></table><div class="bars">${bars}</div><p class="hint">Moyenne pondérée sur ${jt} jour(s) de travail et ${7-jt} jour(s) de repos. Les barres montrent la part de chaque contexte en heures par jour (échelle 0 à 8 h). Repères indicatifs : 8 h ou plus par jour est associé à un risque accru.</p>`}}});
+})();
+
+/* ---------- BREQ-3 ---------- */
+(()=>{
+const I=[['ext','Je fais de l’exercice parce que les autres disent que je devrais en faire'],['int','Je me sens coupable quand je ne fais pas d’exercice'],['idt','J’accorde de la valeur aux bénéfices de l’exercice'],['itr','Je fais de l’exercice parce que c’est amusant'],['amo','Je ne vois pas pourquoi je devrais faire de l’exercice'],['ext','Je fais de l’exercice parce que mes amis, ma famille ou mon/ma partenaire me disent que je devrais'],['int','J’ai honte quand je manque une séance d’exercice'],['idt','C’est important pour moi de faire de l’exercice régulièrement'],['amo','Je ne comprends pas pourquoi je devrais me donner cette peine'],['itr','Je prends du plaisir pendant mes séances d’exercice'],['ext','Je fais de l’exercice parce que les autres ne seraient pas contents de moi sinon'],['amo','Je ne vois pas l’intérêt de faire de l’exercice'],['igr','Je considère l’exercice comme une partie de mon identité'],['int','Je deviens agité(e) quand je ne fais pas d’exercice régulièrement'],['igr','Je considère l’exercice comme une part fondamentale de qui je suis'],['ext','Je ressens la pression de mon entourage pour que je fasse de l’exercice'],['idt','Je pense qu’il est important de faire l’effort de m’entraîner régulièrement'],['igr','Je considère que l’exercice est en accord avec ma façon de vivre'],['amo','Je pense que faire de l’exercice est une perte de temps'],['int','Je me sens mal dans ma peau quand je saute une séance'],['itr','Je trouve l’exercice agréable'],['igr','Je considère que l’exercice est cohérent avec mes valeurs'],['idt','Je fais de l’exercice parce que cela correspond à mes objectifs personnels'],['itr','Je ressens du plaisir et de la satisfaction à faire de l’exercice']];
+const S6=[['amo','Amotivation',-3,'x'],['ext','Régulation externe',-2,'c'],['int','Régulation introjectée',-1,'c'],['idt','Régulation identifiée',1,''],['igr','Régulation intégrée',2,''],['itr','Motivation intrinsèque',3,'']];
+add(likertMod({id:'breq',title:'BREQ-3',sub:'Motivation et autonomie face à l’exercice · 24 items',min:0,max:4,lo:'0 = pas du tout vrai pour moi',hi:'4 = tout à fait vrai pour moi',
+ intro:'Pour chaque affirmation, indiquez dans quelle mesure elle correspond à vos raisons de faire de l’exercice. Libellés à confronter à la version française validée que vous utilisez en pratique.',
+ items:I.map(x=>x[1]),
+ calc(v){if(!v.some(ok))return{h:noData,t:[]};
+  const m={};S6.forEach(([c])=>m[c]=mean(v.filter((_,i)=>I[i][0]===c)));
+  const rai=S6.reduce((s,[c,,w])=>s+(ok(m[c])?w*m[c]:0),0);
+  const bars=S6.map(([c,l,,cl])=>bar(l,m[c],4,cl)).join('');
+  return{t:S6.map(([c,l])=>`${l} : ${fmt(m[c],2)}/4`).concat([`Index d’autonomie relative (RAI) : ${fmt(rai,1)}`]),h:`<h4>Profil motivationnel (moyennes de 0 à 4)</h4><div class="bars">${bars}</div><div class="row"><span>Index d’autonomie relative</span><span class="big">${fmt(rai,1)}</span></div><div class="row"><span></span>${badge(rai>0?'Profil plutôt autodéterminé':'Profil plutôt contrôlé',rai>0?'ok':'warn')}</div><p class="hint">RAI = −3 × amotivation − 2 × externe − 1 × introjectée + 1 × identifiée + 2 × intégrée + 3 × intrinsèque. Plus il est élevé, plus la motivation est autonome.</p>`}}}));
+})();
+
+/* ---------- SRBAI et SRHI ---------- */
+(()=>{
+const beh=id=>()=>txt(id+'.beh','Comportement évalué','ex. marcher 30 minutes par jour');
+const res=(id,name)=>v=>{if(!v.some(ok))return{h:noData,t:[]};const m=mean(v),c=m>=5?['Habitude bien ancrée','ok']:m>=3?['Habitude en construction','warn']:['Peu automatisé','bad'];
+ return{t:[`${name} : ${fmt(m,2)}/7 (${c[0].toLowerCase()})`],h:`<h4>Résultat</h4><div class="row"><span class="big">${fmt(m,2)} <small>/ 7</small></span>${badge(c[0],c[1])}</div><div class="bars">${bar('Automatisme',m,7)}</div><p class="hint">Moyenne des items, de 1 à 7. Repères indicatifs : moins de 3 peu automatisé, de 3 à 5 en construction, 5 ou plus ancré.</p>`}};
+add(likertMod({id:'srbai',title:'SRBAI',sub:'Automatisme du comportement · 4 items',min:1,max:7,lo:'1 = pas du tout d’accord',hi:'7 = tout à fait d’accord',pre:beh('srbai'),
+ intro:'Précisez le comportement visé, puis indiquez votre degré d’accord. Chaque affirmation commence par « Ce comportement est quelque chose que… ».',
+ items:['Je fais automatiquement','Je fais sans avoir à m’en souvenir consciemment','Je fais sans y penser','Je commence à faire avant même de me rendre compte que je le fais'],calc:res('srbai','SRBAI')}));
+add(likertMod({id:'srhi',title:'SRHI',sub:'Force de l’habitude · 12 items',min:1,max:7,lo:'1 = pas du tout d’accord',hi:'7 = tout à fait d’accord',pre:beh('srhi'),
+ intro:'Précisez le comportement visé, puis indiquez votre degré d’accord. Chaque affirmation commence par « Ce comportement est quelque chose que… ».',
+ items:['Je fais fréquemment','Je fais automatiquement','Je fais sans avoir à m’en souvenir','Je trouverais étrange de ne pas faire','Je fais sans y penser','Je devrais me forcer pour ne pas faire','Je fais dans le cadre de ma routine','Je commence à faire avant de me rendre compte que je le fais','Je trouverais difficile de ne pas faire','Je n’ai pas besoin de réfléchir pour faire','Je considère comme typiquement « moi »','Je fais depuis longtemps'],calc:res('srhi','SRHI')}));
+})();
+
+/* ---------- Questionnaire de stade ---------- */
+(()=>{
+const L=[['1','Précontemplation','Je ne pratique pas d’activité physique et je n’ai pas l’intention de commencer dans les 6 prochains mois.','Informer sans pousser : bénéfices, risques de l’inactivité, écoute des freins.'],['2','Contemplation','Je ne pratique pas d’activité physique, mais j’envisage de commencer dans les 6 prochains mois.','Explorer l’ambivalence : avantages et inconvénients perçus, valeurs, premières idées.'],['3','Préparation','Je pratique un peu d’activité physique, mais pas régulièrement.','Fixer un plan réaliste : objectifs précis, créneaux, premières séances adaptées.'],['4','Action','Je pratique régulièrement, mais seulement depuis moins de 6 mois.','Renforcer : suivi rapproché, gestion des obstacles, prévention de la rechute.'],['5','Maintien','Je pratique régulièrement depuis plus de 6 mois.','Consolider : varier, autonomiser, prévoir les situations à risque de rechute.']];
+const P='stade.';
+add({id:'stade',kind:'q',title:'Stades de changement',sub:'Questionnaire de stade · modèle transthéorique',
+ intro:'Choisissez l’affirmation qui décrit le mieux votre situation actuelle. « Régulièrement » signifie au moins 3 fois par semaine, 20 minutes ou plus par séance.',
+ prog:()=>[['s','imp','conf'].filter(k=>has(P+k)).length,3],
+ body:()=>`<div class="q">${opt(P+'s',L.map(x=>[x[0],x[2]]))}</div>${sec('Importance et confiance (facultatif)')}<div class="grid">${num(P+'imp','Importance de bouger, de 0 à 10','/10',{max:10})}${num(P+'conf','Confiance dans sa capacité à y arriver, de 0 à 10','/10',{max:10})}</div>`,
+ calc(){const s=L.find(x=>x[0]===A(P+'s')),i=N(P+'imp'),c=N(P+'conf');if(!s&&!ok(i)&&!ok(c))return{h:noData,t:[]};
+  const t=[];if(s)t.push(`Stade : ${s[1]}`);if(ok(i))t.push(`Importance : ${fmt(i)}/10`);if(ok(c))t.push(`Confiance : ${fmt(c)}/10`);
+  return{t,h:`<h4>Résultat</h4>${s?`<div class="row"><span class="big">${s[1]}</span>${badge('Stade '+s[0]+' sur 5',s[0]>=4?'ok':s[0]==='3'?'warn':'bad')}</div><p class="hint">${s[3]}</p>`:''}${ok(i)||ok(c)?`<div class="bars">${bar('Importance',i,10)}${bar('Confiance',c,10)}</div>`:''}`}}});
+})();
+</script>
+<script>
+const kp=keys=>()=>[keys.filter(has).length,keys.length];
+const lvl=(t,c)=>({t,c});
+
+/* ---------- Pas par jour ---------- */
+(()=>{
+const K=[1,2,3,4,5,6,7].map(i=>'pas.'+i);
+add({id:'pas',kind:'t',title:'Nombre de pas par jour',sub:'Podomètre, montre ou téléphone · 7 jours',
+ intro:'Saisissez le total de chaque journée sur 7 jours consécutifs. Une journée où l’appareil n’a pas été porté toute la journée se laisse vide.',
+ prog:kp(K),
+ body:()=>`<div class="grid">${K.map((k,i)=>num(k,'Jour '+(i+1),'pas',{max:100000,step:100})).join('')}</div>${txt('pas.src','Appareil ou application utilisé','ex. montre connectée, téléphone')}`,
+ calc(){const v=K.map(N),m=mean(v),n=v.filter(ok).length;if(!n)return{h:noData,t:[]};
+  const c=m<5000?['Mode de vie sédentaire','bad']:m<7500?['Peu actif','warn']:m<10000?['Modérément actif','ok']:m<12500?['Actif','ok']:['Très actif','ok'];
+  return{t:[`Pas par jour : moyenne ${fmt(m)} sur ${n} jour(s), ${c[0].toLowerCase()}`],h:`<h4>Résultat</h4><div class="row"><span class="big">${fmt(m)} <small>pas/jour en moyenne</small></span>${badge(c[0],c[1])}</div><div class="bars">${v.map((x,i)=>ok(x)?bar('Jour '+(i+1),x/1000,12):'').join('')}</div><p class="hint">${n} jour(s) renseigné(s). Barres en milliers de pas, échelle 0 à 12. Classes de Tudor-Locke : moins de 5 000 sédentaire, 5 000 à 7 499 peu actif, 7 500 à 9 999 modérément actif, 10 000 à 12 499 actif, 12 500 ou plus très actif.</p>`}}});
+})();
+
+/* ---------- Anthropométrie ---------- */
+(()=>{
+const K=['anthro.poids','anthro.taille','anthro.tour'];
+add({id:'anthro',kind:'t',title:'Anthropométrie',sub:'Poids, taille, tour de taille · IMC et rapport taille/hauteur',
+ intro:'Mesures prises sans chaussures, en tenue légère. Tour de taille mesuré à mi-distance entre la dernière côte et la crête iliaque, en fin d’expiration.',
+ prog:kp(K),
+ body:()=>`<div class="grid">${num(K[0],'Poids','kg',{max:300,step:.1})}${num(K[1],'Taille','cm',{max:250,step:.5})}${num(K[2],'Tour de taille','cm',{max:250,step:.5})}</div>`,
+ calc(){const w=N(K[0]),h=N(K[1]),t=N(K[2]);if(!ok(w)&&!ok(h)&&!ok(t))return{h:noData,t:[]};
+  let html='<h4>Résultat</h4>',lines=[];
+  if(ok(w)&&ok(h)){const b=w/((h/100)**2),c=b<18.5?['Insuffisance pondérale','warn']:b<25?['Corpulence normale','ok']:b<30?['Surpoids','warn']:b<35?['Obésité de classe I','bad']:b<40?['Obésité de classe II','bad']:['Obésité de classe III','bad'];
+   html+=`<div class="row"><span class="big">${fmt(b,1)} <small>kg/m²</small></span>${badge(c[0],c[1])}</div>`;lines.push(`IMC : ${fmt(b,1)} kg/m² (${c[0].toLowerCase()})`)}
+  if(ok(t)){const s=sex();let c=null;
+   if(s==='F')c=t>=88?['Risque élevé','bad']:t>=80?['Risque accru','warn']:['Pas de risque','ok'];
+   if(s==='H')c=t>=102?['Risque élevé','bad']:t>=94?['Risque accru','warn']:['Pas de risque','ok'];
+   html+=`<div class="row"><span>Tour de taille ${fmt(t,1)} cm</span>${c?badge(c[0],c[1]):'<span class="hint">Sexe à renseigner dans l’onglet Profil pour situer le risque.</span>'}</div>`;lines.push(`Tour de taille : ${fmt(t,1)} cm${c?` (${c[0].toLowerCase()})`:''}`);
+   if(ok(h)){const r=t/h;html+=`<div class="row"><span>Rapport tour de taille / taille : ${fmt(r,2)}</span>${badge(r>=.5?'Au-dessus de 0,5':'Sous 0,5',r>=.5?'warn':'ok')}</div>`;lines.push(`Rapport taille/hauteur : ${fmt(r,2)}`)}}
+  return{t:lines,h:html+'<p class="hint">IMC : classes OMS. Tour de taille : risque accru à partir de 80 cm (femme) ou 94 cm (homme), élevé à partir de 88 ou 102 cm. Rapport taille/hauteur : 0,5 est le repère courant.</p>'}}});
+})();
+
+/* ---------- FC repos et tension ---------- */
+(()=>{
+const K=['cardio.fc','cardio.s','cardio.d'];
+add({id:'cardio',kind:'t',title:'Fréquence cardiaque et tension au repos',sub:'Mesures de base avant les tests d’effort',
+ intro:'Mesures après 5 minutes de repos assis, sans café ni effort préalable. Toute valeur anormale ou symptôme appelle un avis médical avant les tests d’effort.',
+ prog:kp(K),
+ body:()=>`<div class="grid">${num(K[0],'FC de repos','bpm',{max:250})}${num(K[1],'Tension systolique','mmHg',{max:300})}${num(K[2],'Tension diastolique','mmHg',{max:200})}</div>`,
+ calc(){const f=N(K[0]),s=N(K[1]),d=N(K[2]);if(!ok(f)&&!ok(s)&&!ok(d))return{h:noData,t:[]};let h='<h4>Résultat</h4>',t=[];
+  if(ok(f)){const c=f<60?['Basse (sous 60)','warn']:f<=100?['Dans la norme','ok']:['Élevée (au-dessus de 100)','bad'];h+=`<div class="row"><span class="big">${fmt(f)} <small>bpm</small></span>${badge(c[0],c[1])}</div>`;t.push(`FC repos : ${fmt(f)} bpm (${c[0].toLowerCase()})`)}
+  if(ok(s)&&ok(d)){const c=s>=140||d>=90?['Élevée, à signaler au médecin','bad']:s>=130||d>=85?['Normale haute','warn']:['Dans la norme','ok'];h+=`<div class="row"><span class="big">${fmt(s)}/${fmt(d)} <small>mmHg</small></span>${badge(c[0],c[1])}</div>`;t.push(`Tension : ${fmt(s)}/${fmt(d)} mmHg (${c[0].toLowerCase()})`)}
+  return{t,h:h+'<p class="hint">Repères indicatifs, à interpréter avec le dossier médical de la personne.</p>'}}});
+})();
+
+/* ---------- Test de marche de 6 minutes ---------- */
+(()=>{
+const K=['m6.dist','m6.fc0','m6.fc1','m6.borg'];
+add({id:'m6',kind:'t',title:'Test de marche de 6 minutes',sub:'Capacité fonctionnelle à l’effort · distance parcourue',
+ intro:'Parcours plat de 30 m, aller-retour, à marcher le plus loin possible en 6 minutes. Notez la FC avant et juste après, et la perception de l’effort (Borg 6 à 20). Le calcul de la distance théorique utilise l’âge, le sexe, la taille et le poids.',
+ prog:kp(K),
+ body:()=>`<div class="grid">${num(K[0],'Distance parcourue','m',{max:1000})}${num(K[1],'FC avant','bpm',{max:250})}${num(K[2],'FC après','bpm',{max:250})}${num(K[3],'Effort perçu (Borg)','/20',{min:6,max:20})}</div>`,
+ calc(){const d=N(K[0]);if(!ok(d))return{h:noData,t:[]};const a=age(),s=sex(),H=N('anthro.taille'),W=N('anthro.poids');
+  let th=NaN,lln=NaN;
+  if(ok(a)&&ok(H)&&ok(W)){if(s==='H'){th=7.57*H-5.02*a-1.76*W-309;lln=th-153}else if(s==='F'){th=2.11*H-2.29*W-5.78*a+667;lln=th-139}}
+  const dfc=N(K[2])-N(K[1]);let h=`<h4>Résultat</h4><div class="row"><span class="big">${fmt(d)} <small>m</small></span>${ok(th)?badge(d>=lln?'Dans la norme':'Sous la limite inférieure',d>=lln?'ok':'bad'):''}</div>`,t=[`Marche 6 min : ${fmt(d)} m`];
+  if(ok(th)){h+=`<div class="row"><span>Distance théorique ${fmt(th)} m · limite inférieure ${fmt(lln)} m</span><span>${fmt(d/th*100)} % du théorique</span></div>`;t[0]+=` (${fmt(d/th*100)} % du théorique)`}
+  else h+='<p class="hint">Pour obtenir la distance théorique, renseignez âge et sexe dans Profil, puis poids et taille dans Anthropométrie.</p>';
+  if(ok(dfc)){h+=`<div class="row"><span>Variation de FC pendant le test</span><span>${dfc>0?'+':''}${fmt(dfc)} bpm</span></div>`}
+  if(has(K[3]))h+=`<div class="row"><span>Effort perçu</span><span>${fmt(N(K[3]))}/20</span></div>`;
+  return{t,h:h+'<p class="hint">Équations de référence d’Enright et Sherrill (adultes). Limite inférieure de la norme : théorique − 153 m (homme) ou − 139 m (femme).</p>'}}});
+})();
+
+/* ---------- Lever de chaise 30 s ---------- */
+(()=>{
+const NM={F:[[12,17],[11,16],[10,15],[10,15],[9,14],[8,13],[4,11]],H:[[14,19],[12,18],[12,17],[11,17],[10,15],[8,14],[7,12]]};
+add({id:'chaise',kind:'t',title:'Lever de chaise en 30 secondes',sub:'Force des membres inférieurs · 60 ans et plus',
+ intro:'Chaise de 43 cm, bras croisés sur la poitrine. Nombre de levers complets (position assise vers debout) en 30 secondes.',
+ prog:kp(['chaise.n']),
+ body:()=>`<div class="grid">${num('chaise.n','Nombre de levers','',{max:60})}</div>`,
+ calc(){const n=N('chaise.n');if(!ok(n))return{h:noData,t:[]};const a=age(),s=sex();
+  let c=null,ref='';
+  if(ok(a)&&a>=60&&NM[s]){const r=NM[s][Math.min(6,Math.floor((a-60)/5))];ref=`Zone normale pour l’âge : ${r[0]} à ${r[1]} levers.`;c=n<r[0]?['Sous la moyenne','bad']:n>r[1]?['Au-dessus de la moyenne','ok']:['Dans la moyenne','ok']}
+  else ref='Normes disponibles à partir de 60 ans, avec âge et sexe renseignés dans Profil.';
+  return{t:[`Lever de chaise 30 s : ${fmt(n)}${c?` (${c[0].toLowerCase()})`:''}`],h:`<h4>Résultat</h4><div class="row"><span class="big">${fmt(n)} <small>levers</small></span>${c?badge(c[0],c[1]):''}</div><p class="hint">${ref} Normes de Rikli et Jones (Senior Fitness Test).</p>`}}});
+})();
+
+/* ---------- Timed Up and Go ---------- */
+(()=>{
+add({id:'tug',kind:'t',title:'Timed Up and Go',sub:'Mobilité et risque de chute · temps en secondes',
+ intro:'Se lever d’une chaise avec accoudoirs, marcher 3 m à vitesse confortable, faire demi-tour, revenir et se rasseoir. Chronométrage du « go » à la position assise.',
+ prog:kp(['tug.s']),
+ body:()=>`<div class="grid">${num('tug.s','Temps','s',{max:120,step:.1})}</div>`,
+ calc(){const v=N('tug.s');if(!ok(v))return{h:noData,t:[]};const c=v<10?['Mobilité normale','ok']:v<12?['Limite','warn']:['Risque de chute accru','bad'];
+  return{t:[`Timed Up and Go : ${fmt(v,1)} s (${c[0].toLowerCase()})`],h:`<h4>Résultat</h4><div class="row"><span class="big">${fmt(v,1)} <small>s</small></span>${badge(c[0],c[1])}</div><p class="hint">Repères indicatifs : moins de 10 s mobilité normale, 12 s ou plus risque de chute chez la personne âgée (repère STEADI).</p>`}}});
+})();
+
+/* ---------- Équilibre unipodal ---------- */
+(()=>{
+const K=['uni.d','uni.g'];
+add({id:'uni',kind:'t',title:'Équilibre unipodal',sub:'Appui sur une jambe, yeux ouverts · temps tenu',
+ intro:'Bras le long du corps, appui sur une jambe, l’autre pied décollé du sol. Chronométrage jusqu’à la pose du pied, au plus 60 secondes. Meilleur de 2 essais par jambe.',
+ prog:kp(K),
+ body:()=>`<div class="grid">${num(K[0],'Jambe droite','s',{max:60,step:.1})}${num(K[1],'Jambe gauche','s',{max:60,step:.1})}</div>`,
+ calc(){const d=N(K[0]),g=N(K[1]);if(!ok(d)&&!ok(g))return{h:noData,t:[]};const w=Math.min(...[d,g].filter(ok));
+  const c=w<5?['Risque de chute accru','bad']:w<30?['À travailler','warn']:['Bon','ok'];
+  return{t:[`Équilibre unipodal : droite ${fmt(d,1)} s, gauche ${fmt(g,1)} s (${c[0].toLowerCase()})`],h:`<h4>Résultat</h4><div class="bars">${bar('Jambe droite',d,60)}${bar('Jambe gauche',g,60)}</div><div class="row"><span>Jambe la plus faible</span>${badge(c[0],c[1])}</div><p class="hint">Barres en secondes, échelle 0 à 60. Repères indicatifs : moins de 5 s est associé à un risque de chute accru.</p>`}}});
+})();
+
+/* ---------- Force de préhension ---------- */
+(()=>{
+const K=['grip.d','grip.g'];
+add({id:'grip',kind:'t',title:'Force de préhension',sub:'Dynamomètre manuel · meilleure valeur par main',
+ intro:'Assis, coude fléchi à 90°, avant-bras en position neutre. Meilleure valeur sur 2 ou 3 essais par main, avec repos entre les essais.',
+ prog:kp(K),
+ body:()=>`<div class="grid">${num(K[0],'Main droite','kg',{max:100,step:.5})}${num(K[1],'Main gauche','kg',{max:100,step:.5})}</div>`,
+ calc(){const d=N(K[0]),g=N(K[1]);if(!ok(d)&&!ok(g))return{h:noData,t:[]};const mx=Math.max(...[d,g].filter(ok));let h=`<h4>Résultat</h4><div class="bars">${bar('Main droite',d,60)}${bar('Main gauche',g,60)}</div><div class="row"><span>Meilleure valeur</span><span class="big">${fmt(mx,1)} <small>kg</small></span></div>`,t=[`Préhension : droite ${fmt(d,1)} kg, gauche ${fmt(g,1)} kg`];
+  if(ok(d)&&ok(g)){const as=Math.abs(d-g)/mx*100;h+=`<div class="row"><span>Asymétrie entre les mains</span>${badge(fmt(as)+' %',as>=10?'warn':'ok')}</div>`;t.push(`Asymétrie : ${fmt(as)} %`)}
+  return{t,h:h+'<p class="hint">Barres en kilos, échelle 0 à 60. À partir de 10 % d’écart, à noter dans le dossier ; la main dominante en explique souvent une partie. Comparez à la table de référence que vous utilisez (âge et sexe).</p>'}}});
+})();
+</script>
+<script>
+/* ---------- Groupes, pathologies et anamnèse ---------- */
+const G=[['cardio','Cardio-métabolique','HTA, diabète de type 2, obésité, dyslipidémie, maladie coronarienne',1],['onco','Oncologie','Pendant et après un traitement du cancer',7],['msk','Locomoteur et douleur chronique','Lombalgie, arthrose, ostéoporose, fibromyalgie',3],['resp','Respiratoire','BPCO, asthme',6],['neuro','Neurologique','Parkinson, sclérose en plaques, séquelles d’AVC',2],['psy','Santé mentale et fatigue','Dépression, anxiété, fatigue chronique',4],['senior','Vieillissement et chutes','Sarcopénie, fragilité, risque de chute',5],['autre','Autre ou à définir','Situation à préciser avec un professionnel de santé',8]];
+const PATHOS=[['hta','Hypertension artérielle','cardio'],['dt2','Diabète de type 2','cardio'],['obe','Obésité ou surpoids avec comorbidité','cardio'],['dyslip','Dyslipidémie','cardio'],['coro','Maladie coronarienne, post-infarctus','cardio'],['cancer','Cancer, en traitement ou en rémission','onco'],['lomb','Lombalgie chronique','msk'],['arthr','Arthrose','msk'],['osteo','Ostéoporose','msk'],['fibro','Fibromyalgie','msk'],['bpco','BPCO','resp'],['asthme','Asthme','resp'],['park','Maladie de Parkinson','neuro'],['sep','Sclérose en plaques','neuro'],['avc','Séquelles d’AVC','neuro'],['depr','Dépression ou anxiété','psy'],['fatig','Fatigue chronique','psy'],['sarco','Sarcopénie, fragilité','senior'],['chute','Chute récente ou risque de chute','senior'],['autre','Autre pathologie','autre']];
+const gget=id=>G.find(g=>g[0]===id);
+const gbadge=id=>{const g=gget(id);return g?`<span class="gb" style="--gc:var(--g${g[3]})"><i></i>${g[1]}</span>`:'<span class="pill">Sans groupe</span>'};
+const PAR=['Ressentez-vous une douleur dans la poitrine, au repos ou à l’effort ?','Avez-vous des vertiges ou des pertes de connaissance ?','Êtes-vous essoufflé(e) de façon inhabituelle pour un effort léger ?','Avez-vous un problème osseux ou articulaire qui s’aggrave à l’effort ?','Prenez-vous un traitement pour le cœur, la tension ou la respiration ?','Êtes-vous tombé(e) au cours des 12 derniers mois ?','Existe-t-il une autre raison pour laquelle vous ne devriez pas faire d’activité physique ?'];
+const FREINS=[['temps','Manque de temps'],['douleur','Douleur'],['peur','Peur de se blesser ou de l’effort'],['motiv','Manque de motivation'],['fatigue','Fatigue'],['cout','Coût'],['lieu','Accès aux lieux ou au matériel']];
+const chk=(k,l)=>`<label class="chk"><input type="checkbox" id="i-${k}" data-k="${k}" ${A(k)==='1'?'checked':''}><span>${l}</span></label>`;
+const ta=(k,l,ph='')=>`<label class="f wide"><span>${l}</span><textarea id="i-${k}" data-k="${k}" placeholder="${esc(ph)}">${esc(A(k))}</textarea></label>`;
+const selF=(k,l,opts,first)=>`<label class="f ${opts.wide?'wide':''}"><span>${l}</span><select id="i-${k}" data-k="${k}"><option value="">${first}</option>${opts.html}</select></label>`;
+/* placement d'un client dans un groupe, à partir de ses valeurs (clés « an.* ») */
+function grpInfo(a){const g=k=>a[k]===undefined?'':a[k];const p=PATHOS.find(x=>x[0]===g('an.main')),auto=p?p[2]:null,ov=g('an.grp')||null,fin=ov||auto;
+ const sec=[...new Set(PATHOS.filter(x=>g('an.as.'+x[0])==='1'&&x[2]!==fin).map(x=>x[2]))];
+ const al=PAR.filter((_,i)=>g('an.par'+(i+1))==='1').length;
+ return{auto,ov,fin,sec,al,avis:g('an.avis'),med:al>0&&g('an.avis')!=='obtenu'}}
+add({id:'an',kind:'a',title:'Anamnèse',sub:'Entretien avec le client',
+ prog(){const k=['an.motif','an.main','an.avis','an.sommeil','an.douleur','an.f_esc','an.obj'].concat(PAR.map((_,i)=>'an.par'+(i+1)));return[k.filter(has).length,k.length]},
+ body(){const sel=A('an.main');
+  return sec('Demande')+`<div class="grid">${ta('an.motif','Motif de la demande','ce que la personne attend de l’accompagnement')}${selF('an.orig','Origine de la demande',{html:[['med','Prescription ou avis médical'],['soin','Orientation par un soignant'],['perso','Démarche personnelle']].map(([v,t])=>`<option value="${v}" ${A('an.orig')===v?'selected':''}>${t}</option>`).join('')},'Choisir…')}${txt('an.presc','Prescripteur ou médecin référent')}</div>`
+  +sec('Pathologie')+`<div class="grid">${selF('an.main','Pathologie principale (détermine le groupe)',{wide:true,html:G.map(g=>`<optgroup label="${g[1]}">${PATHOS.filter(p=>p[2]===g[0]).map(p=>`<option value="${p[0]}" ${sel===p[0]?'selected':''}>${p[1]}</option>`).join('')}</optgroup>`).join('')},'Choisir…')}${txt('an.diag','Date ou ancienneté du diagnostic','ex. 2021')}</div><div class="q"><p>Autres pathologies associées</p><div class="chks">${PATHOS.map(p=>chk('an.as.'+p[0],p[1])).join('')}</div></div><div class="grid">${ta('an.trait','Traitements en cours')}${ta('an.atcd','Antécédents médicaux et chirurgicaux')}</div>`
+  +sec('Sécurité avant l’effort')+PAR.map((t,i)=>`<div class="q"><p><b>${i+1}.</b> ${t}</p>${yn('an.par'+(i+1))}</div>`).join('')+`<div class="grid">${selF('an.avis','Avis médical',{wide:true,html:[['obtenu','Avis médical obtenu'],['a_demander','Avis médical à demander'],['inutile','Non nécessaire']].map(([v,t])=>`<option value="${v}" ${A('an.avis')===v?'selected':''}>${t}</option>`).join('')},'Choisir…')}</div>`
+  +sec('Vie quotidienne')+`<div class="grid">${txt('an.prof','Profession')}${num('an.sommeil','Sommeil par nuit','h',{max:16,step:.5})}${num('an.stress','Stress perçu, de 0 à 10','/10',{max:10})}${num('an.douleur','Douleur habituelle, de 0 à 10','/10',{max:10})}${num('an.fatigue','Fatigue habituelle, de 0 à 10','/10',{max:10})}${selF('an.tabac','Tabac',{html:[['non','Non fumeur'],['ancien','Ancien fumeur'],['oui','Fumeur']].map(([v,t])=>`<option value="${v}" ${A('an.tabac')===v?'selected':''}>${t}</option>`).join('')},'Choisir…')}</div>`
+  +sec('Capacités ressenties')+[['an.f_esc','Monter un étage d’escalier'],['an.f_marche','Marcher 1 km sans s’arrêter'],['an.f_sol','Se relever du sol sans aide']].map(([k,t])=>`<div class="q"><p>${t}</p>${opt(k,[['facile','Sans difficulté'],['difficile','Avec difficulté'],['impossible','Impossible']],'lk')}</div>`).join('')
+  +sec('Pratique et projet')+`<div class="grid">${ta('an.passe','Pratique physique passée et actuelle')}${ta('an.obj','Objectifs de la personne')}</div><div class="q"><p>Freins principaux</p><div class="chks">${FREINS.map(f=>chk('an.fr.'+f[0],f[1])).join('')}</div></div><div class="grid">${num('an.dispo','Séances possibles par semaine','',{max:14})}</div>`
+  +sec('Placement')+`<div class="grid">${selF('an.grp','Groupe imposé par le coach (facultatif)',{wide:true,html:G.map(g=>`<option value="${g[0]}" ${A('an.grp')===g[0]?'selected':''}>${g[1]}</option>`).join('')},'Automatique, selon la pathologie principale')}</div>`},
+ calc(){const i=grpInfo(S.a);
+  if(!i.fin)return{h:'<h4>Placement</h4><p class="empty">Choisissez la pathologie principale pour placer le client dans un groupe.</p>',t:[]};
+  const t=[`Groupe : ${gget(i.fin)[1]}${i.ov?' (choisi par le coach)':''}`];if(i.sec.length)t.push('Groupes secondaires : '+i.sec.map(x=>gget(x)[1]).join(', '));if(i.al)t.push(`${i.al} signal(aux) d’alerte à l’entretien`);
+  return{t,h:`<h4>Placement</h4><div class="row"><span>${gbadge(i.fin)}</span><span class="note">${i.ov?'Choisi par le coach':'Déterminé par la pathologie principale'}</span></div>${i.sec.length?`<div class="row"><span class="note">Groupes secondaires à surveiller</span><span>${i.sec.map(gbadge).join(' ')}</span></div>`:''}${i.al?`<div class="row"><span>${i.al} réponse(s) positive(s) à la sécurité avant l’effort</span><span class="pill ${i.med?'bad':'warn'}">${i.med?'Avis médical requis':'Avis obtenu'}</span></div>`:'<div class="row"><span>Aucun signal d’alerte relevé</span><span class="pill ok">RAS</span></div>'}`}}});
+</script>
+<script>
+const TABS=[['groupes','Groupes'],['anamnese','Anamnèse'],['m2','Mission M2']];
+const SUBS=[['profil','Profil'],['reponses','Questionnaires'],['tests','Tests'],['synthese','Synthèse']];
+const DEMO='DEMO2026';
+S.ui.tab='groupes';S.ui.sub='profil';
+const ctx={role:null,code:null,uid:null,preview:false,db:null,canEdit:false,sel:null,selUid:null,err:'',
+  cache:{clients:{},assign:{},links:{},answers:{}},unsub:[],dirty:new Set(),pending:false,confirmDel:false};
+const act=m=>!S.rm.includes(m.id);
+const ro=h=>h.replace(/<(input|textarea|select) /g,'<$1 disabled ');
+const complete=m=>{const[d,t]=m.prog();return d>=t};
+const keyOf=(a,kind)=>{const o={};Object.keys(a).forEach(k=>{const m=MODS.find(x=>x.id===k.split('.')[0]);if(m&&m.kind===kind)o[k]=a[k]});return o};
+const testsOf=a=>keyOf(a,'t'),qsOf=a=>keyOf(a,'q'),anOf=a=>keyOf(a,'a');
+const cname=c=>[c.p&&c.p.prenom,c.p&&c.p.nom].filter(Boolean).join(' ')||'Sans nom';
+const fdate=iso=>{try{return new Date(iso).toLocaleString('fr-FR',{dateStyle:'long',timeStyle:'short'})}catch(e){return''}};
+const linkOf=code=>Object.entries(ctx.cache.links).filter(([,l])=>l.code===code).sort((x,y)=>String(y[1].at).localeCompare(String(x[1].at)))[0]||null;
+
+function statOf(code){const c=ctx.cache.clients[code]||{},rm=(ctx.cache.assign[code]||{}).rm||[],lk=linkOf(code),uid=lk?lk[0]:code===DEMO?'demo':null,an=(uid&&ctx.cache.answers[uid]||{}).a||{};
+ const flat={...an,...(c.t||{}),...(c.an||{})},sv=[S.a,S.rm,S.p];S.a=flat;S.rm=rm;S.p=c.p||{};
+ const pr=MODS.find(x=>x.id==='an').prog(),gi=grpInfo(flat),q=MODS.filter(x=>x.kind==='q'&&!rm.includes(x.id)),qd=q.filter(complete).length;
+ [S.a,S.rm,S.p]=sv;return{code,name:cname(c),gi,pr,qd,qt:q.length,linked:!!uid}}
+
+const foot=(m,o)=>S.ui.confirm===m.id
+ ?`<span class="why">Retirer « ${esc(m.title)} » du dossier de ce client ? Les réponses sont conservées si vous le rétablissez.</span><button class="btn" data-act="cancel">Annuler</button><button class="btn dng" data-act="del" data-id="${m.id}">Supprimer</button>`
+ :`${o.ro?'':`<button class="btn" data-act="reset" data-id="${m.id}">Effacer les valeurs</button>`}<button class="btn del" data-act="ask" data-id="${m.id}">Supprimer ${m.kind==='q'?'ce questionnaire':'ce test'}</button>`;
+const pillOf=m=>{const[d,t]=m.prog();return`<span class="pill ${d>=t?'full':''}" data-pill>${d>=t?'Complet':d+' / '+t}</span>`};
+const card=(m,o={})=>{const b=m.body();return`<details class="card mod" data-id="${m.id}" ${S.ui.open.includes(m.id)?'open':''}><summary><div class="sumtxt"><h3>${m.title}</h3><p>${m.sub}</p></div>${pillOf(m)}<i class="chev"></i></summary><div class="mbody">${m.intro?`<p class="intro">${m.intro}</p>`:''}${o.ro?ro(b):b}${o.client?'':`<div class="res" data-res>${m.calc().h}</div><div class="mfoot" data-foot>${foot(m,o)}</div>`}</div></details>`};
+const removedBox=kind=>{const r=MODS.filter(m=>m.kind===kind&&!act(m));if(!r.length)return'';
+ return`<div class="card removed"><h3>${kind==='q'?'Questionnaires retirés':'Tests retirés'} pour ce client</h3>${r.map(m=>`<div class="rrow"><span><b>${m.title}</b><br><span class="note">${m.sub}</span></span><button class="btn" data-act="restore" data-id="${m.id}">Rétablir</button></div>`).join('')}</div>`};
+const listView=(kind,lead,o)=>{const l=MODS.filter(m=>m.kind===kind&&act(m));
+ return`<p class="lead">${lead}</p>`+(l.length?l.map(m=>card(m,o)).join(''):`<p class="empty">Tout a été retiré. Rétablissez ce dont vous avez besoin ci-dessous.</p>`)+removedBox(kind)};
+const fld=(k,l,t='text',x='')=>`<label class="f"><span>${l}</span><input id="p-${k}" data-p="${k}" type="${t}" ${x} value="${esc(S.p[k])}"></label>`;
+const area=(k,l,ph)=>`<label class="f wide"><span>${l}</span><textarea id="p-${k}" data-p="${k}" placeholder="${esc(ph)}">${esc(S.p[k])}</textarea></label>`;
+const none=t=>`<div class="card sect"><p class="empty">${t}</p></div>`;
+
+/* ----- vues coach ----- */
+function groupesView(){const st=Object.keys(ctx.cache.clients).map(statOf),n=st.length,done=st.filter(s=>s.pr[0]>=s.pr[1]).length,med=st.filter(s=>s.gi.med).length,nog=st.filter(s=>!s.gi.fin).length;
+ const kp=(l,v,sm,s)=>`<div class="card kpi"><span class="lab">${l}</span><span class="n">${v}${sm?`<small> ${sm}</small>`:''}</span><p>${s}</p></div>`;
+ const todo=st.map(s=>{const t=[];if(s.pr[0]<s.pr[1])t.push(`<span class="pill warn">Anamnèse ${s.pr[0]}/${s.pr[1]}</span>`);if(s.gi.med)t.push('<span class="pill bad">Avis médical</span>');if(!s.linked)t.push('<span class="pill">Pas encore connecté</span>');else if(s.qd<s.qt)t.push(`<span class="pill warn">Questionnaires ${s.qd}/${s.qt}</span>`);return{s,t}}).filter(x=>x.t.length);
+ const row=(s,btn)=>`<div class="crow"><span><b>${esc(s.name)}</b> ${s.gi.med?'<span class="pill bad">Avis médical</span>':''}</span><button class="btn lav" data-open="${esc(s.code)}" data-to="${btn}">Ouvrir</button></div>`;
+ const grp=G.map(g=>{const l=st.filter(s=>s.gi.fin===g[0]);return`<div class="card gcard" style="--gc:var(--g${g[3]})"><div class="gh"><div><h3>${g[1]}</h3><p class="desc">${g[2]}</p></div><span class="cnt">${l.length}</span></div>${l.length?l.map(s=>row(s,'m2')).join(''):'<p class="note">Aucun client dans ce groupe.</p>'}</div>`}).join('');
+ const sg=st.filter(s=>!s.gi.fin);
+ return`<div class="kpis">${kp('Clients APA',n,'','dossiers ouverts')}${kp('Anamnèses complètes',done,'/'+n,n-done?`${n-done} à terminer`:'Tout est renseigné')}${kp('Avis médical à obtenir',med,'',med?'Avant tout test d’effort':'Aucune alerte')}${kp('Sans groupe',nog,'',nog?'Pathologie à préciser à l’anamnèse':'Tous les clients sont placés')}</div>`
+ +`<div class="card sect"><div class="hd"><h2>À traiter</h2><span class="note">${todo.length} client(s) avec une action en attente</span></div>${todo.length?`<div class="tbl"><table><thead><tr><th>Client</th><th>En attente</th><th></th></tr></thead><tbody>${todo.map(x=>`<tr><td><b>${esc(x.s.name)}</b></td><td><div class="tags">${x.t.join('')}</div></td><td class="r"><button class="btn lav" data-open="${esc(x.s.code)}" data-to="${x.s.pr[0]<x.s.pr[1]?'anamnese':'m2'}">${x.s.pr[0]<x.s.pr[1]?'Anamnèse':'Dossier'}</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Rien en attente.</p>'}</div>`
+ +`<div class="groups">${grp}${sg.length?`<div class="card gcard" style="--gc:var(--g8)"><div class="gh"><div><h3>Sans groupe</h3><p class="desc">Anamnèse à compléter pour placer le client.</p></div><span class="cnt">${sg.length}</span></div>${sg.map(s=>row(s,'anamnese')).join('')}</div>`:''}</div>`}
+function anamneseView(){if(!hasSel())return none('Sélectionnez un client dans la liste en haut à droite, ou créez-en un.');
+ const m=MODS.find(x=>x.id==='an');
+ return`<p class="lead">Entretien à remplir avec le client. Le groupe est déterminé par la pathologie principale et se met à jour à chaque réponse. ${pillOf(m)}</p><div class="card mod" data-id="an"><div class="mbody" style="border-top:0;padding-top:18px">${m.body()}<div class="res" data-res>${m.calc().h}</div></div></div>`}
+function clientHead(){const c=ctx.cache.clients[ctx.sel]||{};
+ return`<div class="card chead"><div><h2>${esc(cname(c))}</h2><p class="note">Code d’accès à transmettre au client</p></div><div class="ctl"><span class="codebox">${esc(ctx.sel)}</span><button class="btn" data-act="copycode">Copier</button><button class="btn pri" data-act="preview">Aperçu côté client</button></div></div>`}
+function delBox(){return ctx.confirmDel
+ ?`<div class="bar"><span class="note">Supprimer ce client et toutes ses données ?</span><span class="ctl"><button class="btn" data-act="delcancel">Annuler</button><button class="btn dng" data-act="delclient">Supprimer le client</button></span></div>`
+ :`<div class="bar"><span class="note">Le client ouvre le lien avec son compte Claude, puis saisit son code.</span><button class="btn del" data-act="delask">Supprimer ce client</button></div>`}
+const subviews={
+ profil:()=>`<p class="lead">Ces informations alimentent le calcul de certains résultats (âge et sexe pour les normes). Seul le coach les voit.</p><div class="card mbody" style="border-top:0;padding-top:18px"><div class="grid">${fld('prenom','Prénom')}${fld('nom','Nom')}${fld('age','Âge','number','min="0" max="120" inputmode="numeric"')}<label class="f"><span>Sexe</span><select id="p-sexe" data-p="sexe"><option value="">À préciser</option><option value="F" ${S.p.sexe==='F'?'selected':''}>Femme</option><option value="H" ${S.p.sexe==='H'?'selected':''}>Homme</option></select></label>${fld('date','Date du bilan','date')}${fld('eval','Évaluateur')}${area('ctx','Contexte et situation de santé déclarée','pathologies, traitements, antécédents utiles à la pratique')}${area('precau','Précautions et contre-indications','avis médical, limitations fonctionnelles')}${area('obj','Objectifs de la personne','ce qu’elle souhaite changer, et pourquoi')}</div></div>`+delBox(),
+ reponses:()=>{const an=ctx.selUid&&ctx.cache.answers[ctx.selUid];
+  const st=!ctx.selUid?'<div class="banner">Le client n’a pas encore ouvert son espace avec ce code.</div>':an&&an.updated?`<p class="note">Dernière réponse enregistrée le ${fdate(an.updated)}.</p>`:'<p class="note">Aucune réponse enregistrée pour l’instant.</p>';
+  return st+listView('q','Réponses saisies par le client, en lecture seule. Retirez un questionnaire pour qu’il ne soit plus proposé à ce client.',{ro:true})},
+ tests:()=>listView('t','Saisissez ici les mesures et tests réalisés avec le client. Les tests retirés ne figurent pas dans son dossier.',{}),
+ synthese:()=>{const l=MODS.filter(m=>m.kind!=='a'&&act(m)).map(m=>({m,t:m.calc().t})).filter(x=>x.t.length);
+  return`<p class="lead">Résumé des modules actifs et renseignés. Il se met à jour tout seul.</p>`+(l.length?`<div class="card mbody syn" style="border-top:0;padding-top:18px">${l.map(x=>`<div><h3>${x.m.title}</h3><ul>${x.t.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}</div>`:'<p class="empty">Aucun résultat pour l’instant.</p>')+`<div class="bar"><button class="btn pri" data-act="copysyn">Copier la synthèse</button></div>`}
+};
+function m2View(){if(!hasSel())return none('Sélectionnez un client dans la liste en haut à droite, ou créez-en un.');
+ return clientHead()+`<div class="sub" role="tablist">${SUBS.map(([k,l])=>`<button role="tab" data-sub="${k}" aria-selected="${S.ui.sub===k}">${l}</button>`).join('')}</div>`+subviews[S.ui.sub]()}
+const newForm=()=>`<div class="card sect"><h2>Nouveau client</h2><p class="note" style="margin:6px 0 12px">Un code d’accès est généré. Le client l’utilise pour ouvrir ses questionnaires.</p><div class="grid"><label class="f"><span>Prénom</span><input id="nc-prenom" type="text"></label><label class="f"><span>Nom</span><input id="nc-nom" type="text"></label></div><div class="bar" style="margin-top:12px"><span class="err">${esc(ctx.err)}</span><span class="ctl"><button class="btn" data-act="cancelnew">Annuler</button><button class="btn pri" data-act="createc">Créer le client</button></span></div></div>`;
+const hasSel=()=>!!(ctx.sel&&ctx.sel!=='_new'&&ctx.cache.clients[ctx.sel]);
+
+/* ----- rendu ----- */
+const setRole=h=>{$('#role').innerHTML=h};
+const today=()=>new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+function head(title,sub,ctl=''){$('#head').innerHTML=`<div><h1>${title}</h1><p>${sub}</p></div><div class="ctl">${ctl}</div>`}
+function loginRender(){$('#tabs').innerHTML='';setRole('');$('#saved').hidden=true;head('Activité physique adaptée','Choisissez votre espace pour continuer.');
+ $('#view').innerHTML=`<div class="login"><div class="card"><h2>Espace coach</h2><p class="note">Créer les fiches clients, conduire l’anamnèse, placer chaque client dans son groupe, saisir les tests et lire les réponses.</p>${ctx.canEdit?'<button class="btn pri" data-act="logcoach">Entrer en tant que coach</button>':`<button class="btn" disabled>Entrer en tant que coach</button><p class="note">Réservé au compte du coach. Un accès Éditeur sur ce dossier est nécessaire.</p>`}</div>
+ <div class="card"><h2>Espace client</h2><p class="note">Saisissez le code reçu de votre coach pour remplir vos questionnaires.</p><label class="f"><span>Code d’accès</span><span class="inp"><input class="codein" id="codein" maxlength="12" autocomplete="off" placeholder="ex. K7M2QX9A"></span></label><p class="err" id="loginerr">${esc(ctx.err)}</p><button class="btn pri" data-act="logclient">Accéder à mes questionnaires</button><p class="note">Pour un aperçu, saisissez le code <b>${DEMO}</b> : rien n’est enregistré.</p></div></div>`+(ctx.db?'':'<div class="banner">Connexion au stockage impossible : seul l’aperçu avec le code '+DEMO+' est disponible.</div>')}
+function coachRender(){setRole(`<span class="pill">Espace coach</span>`);$('#saved').hidden=false;
+ $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.ui.tab===k}">${l}</button>`).join('');
+ const cl=Object.entries(ctx.cache.clients).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
+ const ctl=`<select class="sel" id="clientsel" aria-label="Client"><option value="">Choisir un client</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select><button class="btn pri" data-act="newc">+ Nouveau client</button>`;
+ const nm=hasSel()?cname(ctx.cache.clients[ctx.sel]):'';
+ const sub={groupes:today()+' · clients par pathologie',anamnese:nm||'Aucun client sélectionné',m2:nm||'Aucun client sélectionné'}[S.ui.tab];
+ head({groupes:'Groupes',anamnese:'Anamnèse',m2:'Mission M2'}[S.ui.tab],sub,ctl);
+ $('#view').innerHTML=ctx.sel==='_new'?newForm():({groupes:groupesView,anamnese:anamneseView,m2:m2View}[S.ui.tab])()}
+function clientRender(){$('#tabs').innerHTML='';$('#saved').hidden=ctx.preview;
+ setRole(`<span class="pill">Espace client</span>`);
+ head('Mes questionnaires','Vos réponses sont enregistrées automatiquement et visibles par votre coach.');
+ const l=MODS.filter(m=>m.kind==='q'&&act(m)),d=l.filter(complete).length;
+ $('#view').innerHTML=(ctx.preview?`<div class="banner"><span>Aperçu côté client : rien n’est enregistré.</span><button class="btn" data-act="back">Quitter l’aperçu</button></div>`:'')
+  +`<p class="lead">${d===l.length&&l.length?'Merci, tout est rempli. Votre coach consultera vos réponses.':'Répondez à votre rythme.'} <b>${d}/${l.length}</b> questionnaire(s) complété(s).</p>`
+  +(l.length?l.map(m=>card(m,{client:true})).join(''):'<p class="empty">Aucun questionnaire à remplir pour le moment.</p>')}
+function render(){if(ctx.booting){$('#view').innerHTML='<p class="empty">Chargement…</p>';return}(ctx.role==='coach'?coachRender:ctx.role==='client'?clientRender:loginRender)()}
+</script>
+<script>
+ctx.booting=true;
+const V=$('#view');
+const editing=()=>{const e=document.activeElement;return !!(e&&V.contains(e)&&/INPUT|TEXTAREA|SELECT/.test(e.tagName)&&e.type!=='radio')};
+const optsOf=m=>({ro:ctx.role==='coach'&&m.kind==='q'});
+function loadSel(){const c=ctx.cache.clients[ctx.sel];if(!c){S.p={};S.a={};S.rm=[];ctx.selUid=null;return}
+ const as=ctx.cache.assign[ctx.sel]||{};
+ const lk=Object.entries(ctx.cache.links).filter(([,l])=>l.code===ctx.sel).sort((x,y)=>String(y[1].at).localeCompare(String(x[1].at)))[0];
+ ctx.selUid=lk?lk[0]:ctx.sel===DEMO?'demo':null;
+ const an=(ctx.selUid&&ctx.cache.answers[ctx.selUid])||{};
+ S.p=JSON.parse(JSON.stringify(c.p||{}));S.rm=[...(as.rm||[])];S.a={...(an.a||{}),...(c.t||{}),...(c.an||{})}}
+function softApply(){if(editing()||ctx.dirty.size){ctx.pending=true;return}ctx.pending=false;if(ctx.role==='coach')loadSel();render()}
+
+/* enregistrement */
+let wt;const setSaved=(t,bad)=>{const e=$('#saved');if(!e)return;e.textContent=t;e.className='pill '+(bad?'bad':t==='Enregistrement…'?'':'ok')};
+function queueSave(w){ctx.dirty.add(w);setSaved('Enregistrement…');clearTimeout(wt);wt=setTimeout(flush,500)}
+async function flush(){clearTimeout(wt);const d=[...ctx.dirty];ctx.dirty.clear();if(ctx.preview||!ctx.db||!d.length)return;
+ try{
+  if(ctx.role==='coach'&&ctx.sel){const c=ctx.cache.clients[ctx.sel]||{};
+   if(d.includes('c'))await ctx.db.doc('clients/'+ctx.sel).set({...c,p:S.p,t:testsOf(S.a),an:anOf(S.a)});
+   if(d.includes('rm'))await ctx.db.doc('assign/'+ctx.sel).set({rm:S.rm})}
+  if(ctx.role==='client'&&d.includes('a'))await ctx.db.doc('answers/'+ctx.uid).set({a:S.a,updated:new Date().toISOString()});
+  setSaved('Données enregistrées')}catch(e){setSaved('Échec de l’enregistrement',true)}
+ if(ctx.pending)setTimeout(()=>{if(!editing()&&!ctx.dirty.size)softApply()},60)}
+
+/* connexion */
+const sub=(k)=>ctx.unsub.push(ctx.db.collection(k).onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());ctx.cache[k]=o;onData()},()=>{}));
+function onData(){if(ctx.role!=='coach')return;softApply()}
+function coachEnter(){ctx.role='coach';ctx.preview=false;ctx.sel=null;ctx.err='';['clients','assign','links','answers'].forEach(sub);render()}
+async function clientEnter(code){code=(code||'').trim().toUpperCase();ctx.err='';
+ if(!code){ctx.err='Saisissez votre code.';return render()}
+ if(code===DEMO){let rm=[];try{if(ctx.db){const s=await ctx.db.doc('assign/'+DEMO).get();if(s.exists)rm=s.data().rm||[]}}catch(e){}
+  ctx.role='client';ctx.preview=true;ctx.prevCoach=false;ctx.code=code;S.a={};S.p={};S.rm=rm;return render()}
+ if(!ctx.db||!ctx.uid){ctx.err='Connexion impossible. Ouvrez le lien avec votre compte Claude.';return render()}
+ try{const s=await ctx.db.doc('assign/'+code).get();
+  if(!s.exists){ctx.err='Code inconnu. Vérifiez-le auprès de votre coach.';return render()}
+  const lk=await ctx.db.doc('links/'+ctx.uid).get();let a={};
+  if(lk.exists&&lk.data().code===code){const an=await ctx.db.doc('answers/'+ctx.uid).get();a=(an.exists&&an.data().a)||{}}
+  else await ctx.db.doc('links/'+ctx.uid).set({code,at:new Date().toISOString()});
+  ctx.role='client';ctx.preview=false;ctx.code=code;S.a=a;S.p={};S.rm=s.data().rm||[];
+  ctx.unsub.push(ctx.db.doc('assign/'+code).onSnapshot(sn=>{if(sn.exists){S.rm=sn.data().rm||[];softApply()}},()=>{}));
+  render()}catch(e){ctx.err='Connexion impossible pour le moment. Réessayez dans un instant.';render()}}
+function logout(){ctx.unsub.forEach(u=>{try{u()}catch(e){}});ctx.unsub=[];ctx.role=null;ctx.sel=null;ctx.preview=false;ctx.cache={clients:{},assign:{},links:{},answers:{}};ctx.dirty.clear();ctx.err='';S.p={};S.a={};S.rm=[];render()}
+const genCode=()=>{const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789',b=new Uint8Array(8);crypto.getRandomValues(b);return[...b].map(x=>A[x%A.length]).join('')};
+async function selectClient(code){await flush();ctx.sel=code||null;ctx.confirmDel=false;loadSel();render()}
+async function createClient(){const pr=$('#nc-prenom').value.trim(),nm=$('#nc-nom').value.trim();if(!pr&&!nm){ctx.err='Saisissez au moins un prénom ou un nom.';return render()}
+ const code=genCode(),created=new Date().toISOString();ctx.err='';
+ try{await ctx.db.doc('clients/'+code).set({p:{prenom:pr,nom:nm},t:{},created});await ctx.db.doc('assign/'+code).set({rm:[]});
+  ctx.cache.clients[code]={p:{prenom:pr,nom:nm},t:{},created};ctx.cache.assign[code]={rm:[]};ctx.sel=code;S.ui.tab='anamnese';loadSel();render();toast('Client créé')}
+ catch(e){ctx.err='Création impossible : '+(e&&e.message||'erreur');render()}}
+async function deleteClient(){const code=ctx.sel,uids=Object.entries(ctx.cache.links).filter(([,l])=>l.code===code).map(x=>x[0]);
+ try{await ctx.db.doc('clients/'+code).delete();await ctx.db.doc('assign/'+code).delete();for(const u of uids){await ctx.db.doc('links/'+u).delete();await ctx.db.doc('answers/'+u).delete()}
+  delete ctx.cache.clients[code];ctx.sel=null;ctx.confirmDel=false;onData();toast('Client supprimé')}catch(e){toast('Suppression impossible')}}
+
+/* utilitaires */
+let tm;function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(tm);tm=setTimeout(()=>e.hidden=true,2200)}
+function copy(text,msg){const fb=()=>{const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast(msg)}catch(e){toast('Copie impossible, sélectionnez le texte à la main')}ta.remove()};
+ try{navigator.clipboard.writeText(text).then(()=>toast(msg),fb)}catch(e){fb()}}
+function synText(){const c=ctx.cache.clients[ctx.sel]||{};let o=`Bilan APA · ${cname(c)}${S.p.age?`, ${S.p.age} ans`:''}${S.p.date?` · ${S.p.date}`:''}\n`;
+ MODS.filter(act).forEach(m=>{const t=m.calc().t;if(t.length)o+=`\n${m.title}\n`+t.map(x=>'- '+x).join('\n')+'\n'});return o}
+
+/* évènements */
+V.addEventListener('input',e=>{const t=e.target;
+ if(t.dataset.p){S.p[t.dataset.p]=t.value;queueSave('c');return}
+ const k=t.dataset.k;if(!k||(t.type==='radio'&&!t.checked))return;S.a[k]=t.type==='checkbox'?(t.checked?'1':''):t.value;queueSave(ctx.role==='client'?'a':'c');
+ const m=MODS.find(x=>x.id===k.split('.')[0]),el=m&&V.querySelector(`.mod[data-id="${m.id}"]`);if(!el)return;
+ const r=$('[data-res]',el);if(r)r.innerHTML=m.calc().h;const pl=$('[data-pill]',el);if(pl)pl.outerHTML=pillOf(m);
+ if(ctx.role==='client'){const l=MODS.filter(x=>x.kind==='q'&&act(x)),b=$('.lead b');if(b)b.textContent=l.filter(complete).length+'/'+l.length}});
+V.addEventListener('toggle',e=>{const d=e.target;if(!d.dataset||!d.dataset.id)return;const i=S.ui.open.indexOf(d.dataset.id);
+ if(d.open&&i<0)S.ui.open.push(d.dataset.id);if(!d.open&&i>=0)S.ui.open.splice(i,1)},true);
+V.addEventListener('focusout',()=>setTimeout(()=>{if(ctx.pending&&!editing()&&!ctx.dirty.size)softApply()},120));
+document.addEventListener('change',e=>{if(e.target.id==='clientsel')selectClient(e.target.value)});
+V.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='codein')clientEnter(e.target.value)});
+document.addEventListener('click',async e=>{
+ const tb=e.target.closest('[data-tab]');if(tb){S.ui.tab=tb.dataset.tab;S.ui.confirm=null;ctx.confirmDel=false;if(ctx.sel==='_new')ctx.sel=null;render();window.scrollTo(0,0);return}
+ const sbt=e.target.closest('[data-sub]');if(sbt){S.ui.sub=sbt.dataset.sub;S.ui.confirm=null;ctx.confirmDel=false;render();return}
+ const op=e.target.closest('[data-open]');if(op){await selectClient(op.dataset.open);S.ui.tab=op.dataset.to;render();window.scrollTo(0,0);return}
+  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id,m=MODS.find(x=>x.id===id);
+ if(a==='ask'||a==='cancel'){const el=b.closest('.mod'),mm=MODS.find(x=>x.id===el.dataset.id);S.ui.confirm=a==='ask'?id:null;$('[data-foot]',el).innerHTML=foot(mm,optsOf(mm));return}
+ if(a==='del'){S.rm.push(id);S.ui.confirm=null;queueSave('rm');render();toast(m.title+' retiré')}
+ else if(a==='restore'){S.rm=S.rm.filter(x=>x!==id);S.ui.open.push(id);queueSave('rm');render();toast(m.title+' rétabli')}
+ else if(a==='reset'){Object.keys(S.a).filter(k=>k.startsWith(id+'.')).forEach(k=>delete S.a[k]);queueSave('c');render();toast('Valeurs effacées')}
+ else if(a==='logcoach'){if(ctx.db&&ctx.canEdit)coachEnter()}
+ else if(a==='logclient')clientEnter($('#codein').value);
+ else if(a==='logout')logout();
+ else if(a==='newc'){await flush();ctx.sel='_new';ctx.err='';render()}
+ else if(a==='createc')createClient();
+ else if(a==='cancelnew'){ctx.sel=null;ctx.err='';render()}
+ else if(a==='copycode')copy(ctx.sel,'Code copié');
+ else if(a==='copysyn')copy(synText(),'Synthèse copiée');
+ else if(a==='preview'){await flush();ctx.role='client';ctx.preview=true;ctx.prevCoach=true;S.a=qsOf(S.a);render();window.scrollTo(0,0)}
+ else if(a==='back'){if(ctx.prevCoach){ctx.role='coach';ctx.preview=false;ctx.prevCoach=false;loadSel();render()}else logout()}
+ else if(a==='delask'){ctx.confirmDel=true;render()}
+ else if(a==='delcancel'){ctx.confirmDel=false;render()}
+ else if(a==='delclient')deleteClient();
+});
+
+/* ===== Backend Blueperf : /api/storage (comme le reste de l'app), remplace window.claude =====
+   Chaque collection est un objet {id:données} stocké sous la clé "<space>:<collection>". */
+function makeApaDb(prefix){
+  const cache={},listeners={},timers={};
+  async function fetchCol(col){try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(prefix+':'+col)+'&_='+Date.now(),{cache:'no-store'});if(!r.ok)return{};const j=await r.json();return j&&j.value?JSON.parse(j.value):{};}catch(e){return{};}}
+  async function saveCol(col){try{await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key:prefix+':'+col,value:JSON.stringify(cache[col]||{})})});}catch(e){}}
+  function emit(col){const map=cache[col]||{};const docs=Object.keys(map).map(id=>({id,data:()=>map[id]}));(listeners[col]||[]).forEach(cb=>{try{cb({docs});}catch(e){}});}
+  function ensureTimer(col){if(timers[col])return;timers[col]=setInterval(async()=>{const m=await fetchCol(col);cache[col]=m;emit(col);},8000);}
+  const addL=(col,cb)=>{(listeners[col]=listeners[col]||[]).push(cb);return()=>{const a=listeners[col]||[];const i=a.indexOf(cb);if(i>=0)a.splice(i,1);};};
+  const split=p=>{const i=p.indexOf('/');return[p.slice(0,i),p.slice(i+1)];};
+  return {
+    collection(col){return{onSnapshot(cb,err){const off=addL(col,cb);fetchCol(col).then(m=>{cache[col]=m;emit(col);}).catch(e=>{if(err)err(e);});ensureTimer(col);return off;}};},
+    doc(path){const[col,id]=split(path);return{
+      async set(obj){if(cache[col]===undefined)cache[col]=await fetchCol(col);cache[col][id]=obj;emit(col);await saveCol(col);},
+      async get(){if(cache[col]===undefined)cache[col]=await fetchCol(col);const d=cache[col][id];return{exists:d!==undefined,data:()=>d};},
+      async delete(){if(cache[col]===undefined)cache[col]=await fetchCol(col);delete cache[col][id];emit(col);await saveCol(col);},
+      onSnapshot(cb,err){const wrap=()=>{const d=(cache[col]||{})[id];cb({exists:d!==undefined,data:()=>d});};const off=addL(col,wrap);fetchCol(col).then(m=>{cache[col]=m;wrap();}).catch(e=>{if(err)err(e);});ensureTimer(col);return off;}
+    };}
+  };
+}
+/* Crée le dossier d'un client venu de l'espace de connexion partagé (clé = son identifiant). */
+async function ensureClient(code,name){
+  try{const c=await ctx.db.doc('clients/'+code).get();
+    if(!c.exists){const parts=(name||'').trim().split(/\s+/);await ctx.db.doc('clients/'+code).set({p:{prenom:parts[0]||name||'',nom:parts.slice(1).join(' ')},t:{},created:new Date().toISOString()});}
+    const a=await ctx.db.doc('assign/'+code).get();if(!a.exists)await ctx.db.doc('assign/'+code).set({rm:[]});
+    const l=await ctx.db.doc('links/'+code).get();if(!l.exists)await ctx.db.doc('links/'+code).set({code,at:new Date().toISOString()});
+  }catch(e){}
+}
+/* Clients de démonstration (pour l'aperçu) — créés une seule fois. */
+async function seedDemo(){
+  try{const m=await ctx.db.doc('meta/flags').get();if(m.exists&&m.data().seeded)return;}catch(e){}
+  const now=new Date().toISOString();
+  const DEMOS=[
+    {code:'DEMO-MARIE',p:{prenom:'Marie',nom:'Lambert (démo)',age:'68',sexe:'F',date:now.slice(0,10),eval:'Coach APA'},
+     an:{'an.motif':'Retrouver de l’équilibre et de la force après deux chutes.','an.orig':'med','an.main':'chute','an.avis':'obtenu','an.par6':'1','an.sommeil':'6','an.douleur':'3','an.f_esc':'difficile','an.f_marche':'facile','an.f_sol':'difficile','an.obj':'Marcher sans peur de tomber.','an.dispo':'2'},
+     t:{'chaise.n':'11','tug.s':'11.8','uni.d':'7','uni.g':'5','grip.d':'20','grip.g':'18'},
+     a:{'gpaq.1':'0','gpaq.4':'1','gpaq.5':'3','gpaq.6':'30','gpaq.7':'1','gpaq.8':'4','gpaq.9':'15','gpaq.16':'420','stade.s':'3','stade.imp':'8','stade.conf':'5'}},
+    {code:'DEMO-PAUL',p:{prenom:'Paul',nom:'Benali (démo)',age:'56',sexe:'H',date:now.slice(0,10),eval:'Coach APA'},
+     an:{'an.motif':'Réduire le tour de taille et la tension.','an.orig':'soin','an.main':'hta','an.as.dt2':'1','an.avis':'a_demander','an.par5':'1','an.sommeil':'7','an.obj':'Perdre du poids et bouger plus.','an.dispo':'3'},
+     t:{'anthro.poids':'96','anthro.taille':'178','anthro.tour':'108','cardio.fc':'78','cardio.s':'142','cardio.d':'90','pas.1':'4200','pas.2':'5100','pas.3':'3800','pas.4':'6000','pas.5':'4500','pas.6':'7000','pas.7':'5200'},
+     a:{'ipaq.wd':'5','ipaq.wm':'30','ipaq.md':'2','ipaq.mm':'30','ipaq.sit':'540','breq.3':'3','breq.8':'3','breq.10':'2','breq.21':'3'}},
+    {code:'DEMO-AMINA',p:{prenom:'Amina',nom:'Rossi (démo)',age:'43',sexe:'F',date:now.slice(0,10),eval:'Coach APA'},
+     an:{'an.motif':'Gérer la lombalgie chronique et reprendre une activité.','an.orig':'perso','an.main':'lomb','an.avis':'inutile','an.sommeil':'7','an.douleur':'5','an.f_esc':'facile','an.obj':'Avoir moins mal au dos au quotidien.','an.dispo':'2'},
+     t:{'anthro.poids':'70','anthro.taille':'165','anthro.tour':'84'},
+     a:{'breq.3':'4','breq.4':'3','breq.10':'4','breq.21':'4','breq.24':'4','srbai.beh':'Marcher 30 minutes par jour','srbai.1':'5','srbai.2':'4','srbai.3':'5','srbai.4':'4','stade.s':'4','stade.imp':'9','stade.conf':'7'}}
+  ];
+  try{
+    for(const d of DEMOS){
+      await ctx.db.doc('clients/'+d.code).set({p:d.p,an:d.an,t:d.t,created:now});
+      await ctx.db.doc('assign/'+d.code).set({rm:[]});
+      await ctx.db.doc('links/'+d.code).set({code:d.code,at:now});
+      await ctx.db.doc('answers/'+d.code).set({a:d.a,updated:now});
+    }
+    await ctx.db.doc('meta/flags').set({seeded:true,at:now});
+  }catch(e){}
+}
+/* démarrage Blueperf : pas d'écran de connexion — le contexte vient des paramètres d'URL. */
+const PARAMS=new URLSearchParams(location.search);
+const SPACE=PARAMS.get('space')||'apa';
+ctx.db=makeApaDb(SPACE);
+render();
+(async()=>{
+  ctx.booting=false;
+  const isCoach=PARAMS.get('coach')==='1';
+  const pid=PARAMS.get('pid');
+  try{
+    if(isCoach){ctx.canEdit=true;await seedDemo();coachEnter();return;}
+    if(pid){ctx.canEdit=false;ctx.uid=pid;await ensureClient(pid,PARAMS.get('name')||'');await clientEnter(pid);return;}
+    ctx.canEdit=false;await seedDemo();await clientEnter('DEMO-MARIE');
+  }catch(e){ render(); }
+})();
+</script>
+
+</body></html>

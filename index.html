@@ -1769,7 +1769,7 @@ const PROGRAMME_TABS_CLIENT = [
 // Onglet "Football" = l'app Blueperf Académie complète, affichée en iframe (page /academie/).
 const FOOTBALL_TABS = [{id:'football', label:'Académie'}];
 function tabsFor(section, isCoachView){
-  if(section === 'football' || section === 'individuel') return FOOTBALL_TABS;
+  if(section === 'football' || section === 'individuel' || section === 'apa') return FOOTBALL_TABS;
   if(section === 'nutrition') return isCoachView ? NUTRI_TABS_COACH : NUTRI_TABS_CLIENT;
   return isCoachView ? PROGRAMME_TABS_COACH : PROGRAMME_TABS_CLIENT;
 }
@@ -1788,6 +1788,7 @@ const COACH_NAV_GROUPS = [
   {id:'nutrition', label:'Nutrition', icon:'🥗', section:'nutrition', children: NUTRI_TABS_COACH},
   {id:'football', label:'Football', icon:'⚽', section:'football'},
   {id:'individuel', label:'Coaching individuel', icon:'🧍', section:'individuel'},
+  {id:'apa', label:'APA', icon:'🤸', section:'apa'},
   {id:'clients', label:'Mes clients', icon:'👥'},
   {id:'parametres', label:'Paramètres', icon:'⚙️'}
 ];
@@ -1886,7 +1887,7 @@ function bindCoachNavbar(stats){
       state.navOpenGroup = null;
       state.section = item.section || 'programme';
       state.tab = id;
-      if(state.section === 'football' || state.section === 'individuel'){ render(); return; }
+      if(state.section === 'football' || state.section === 'individuel' || state.section === 'apa'){ render(); return; }
       drawCoachNavbar(stats);
       document.getElementById('dash-page-title').textContent = coachTabLabel();
       renderScreen();
@@ -1941,8 +1942,9 @@ function renderFullApp(section){
   }
   const src = section === 'individuel' ? '/academie/?mode=individuel'
     : section === 'nutrition' ? '/academie/nutrition.html'
+    : section === 'apa' ? '/academie/apa.html?coach=1'
     : '/academie/' + footQ;
-  const label = section === 'individuel' ? t('COACHING INDIVIDUEL','INDIVIDUAL') : section === 'nutrition' ? 'NUTRITION' : 'FOOTBALL';
+  const label = section === 'individuel' ? t('COACHING INDIVIDUEL','INDIVIDUAL') : section === 'nutrition' ? 'NUTRITION' : section === 'apa' ? 'APA' : 'FOOTBALL';
   const swBtn = (sec, txt) => {
     const active = section === sec;
     return `<button data-fbsec="${sec}" style="appearance:none;cursor:pointer;border:1px solid ${active?'#3DA9FC':'rgba(255,255,255,.25)'};background:${active?'#3DA9FC':'transparent'};color:${active?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${txt}</button>`;
@@ -1958,6 +1960,7 @@ function renderFullApp(section){
           ${mgr?'':swBtn('football','Football')}
           ${mgr?'':swBtn('individuel',t('Coaching individuel','Individual coaching'))}
           ${mgr?'':swBtn('nutrition','Nutrition')}
+          ${mgr?'':swBtn('apa','APA')}
           ${(state.access==='coach'&&!mgr)?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
           ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
@@ -2195,6 +2198,7 @@ async function render(){
   if(state.manager){ state.section = 'football'; renderFullApp('football'); return; } // gérant·e : Football uniquement
   if(state.section === 'football'){ renderFullApp('football'); return; }
   if(state.section === 'individuel'){ renderFullApp('individuel'); return; }
+  if(state.section === 'apa' && state.access === 'coach'){ renderFullApp('apa'); return; }
   if(state.section === 'nutrition' && state.access === 'coach'){ renderFullApp('nutrition'); return; }
   const isCoachView = state.viewAs === 'coach';
   const isNutrition = state.section === 'nutrition';
