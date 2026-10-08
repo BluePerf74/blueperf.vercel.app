@@ -1506,6 +1506,8 @@ async function init(){
     await bootstrapCoach();
     const mgrId = await sGet('managerId', false);
     if(mgrId){ const mgrs = await loadManagers(); const m = mgrs[mgrId]; if(m && m.active!==false){ state.manager = m; state.section = 'football'; } }
+    const scId = await sGet('spaceCoachId', false);
+    if(scId){ const cs = await loadCoaches(); const c = cs[scId]; if(c && c.active!==false){ state.spaceCoach = c; state.section = c.space || 'apa'; } }
     render();
     return;
   }
@@ -1592,7 +1594,10 @@ async function logout(){
   await sSet('clientId', '', false);
   await sDelete('managerId', false);
   await sSet('managerId', '', false);
+  await sDelete('spaceCoachId', false);
+  await sSet('spaceCoachId', '', false);
   state.manager = null;
+  state.spaceCoach = null;
   state.access = 'client';
   state.myClientId = 'cindy';
   state.coachClientId = null;
@@ -1649,55 +1654,75 @@ async function attemptLogin(userRaw, passRaw){
     renderLoginScreen();
     return;
   }
-  const creds = await loadCoachCredentials();
-  // Le compte coach accepte les identifiants personnalisés OU les identifiants par défaut
-  // (clé de secours pour ne jamais rester bloqué·e hors de l'espace de gestion).
-  const coachOk = (u, p) => user === normalizeCode(u) && pass === normalizeCode(p);
-  if(coachOk(creds.username, creds.password) || coachOk(COACH_USERNAME, COACH_CODE)){
-    await sSet('access', 'coach', false);
-    await sSet('accessStamp', AUTH_VERSION, false);
-    await bootstrapCoach();
-    render();
+  const roles = await collectRoles(userRaw, passRaw, user, pass);
+  if(!roles.length){
+    state.loginError = 'Identifiant ou mot de passe incorrect.';
+    renderLoginScreen();
     return;
   }
-  // Gérant·e d'équipe : accès coach restreint (Football + son équipe + onglets autorisés).
+  if(roles.length === 1){ await roles[0].enter(); return; }
+  // Plusieurs rôles pour ce compte (ex. coach APA + cliente ailleurs) : on laisse choisir.
+  state.roleChoices = roles; state.loginError = '';
+  renderRoleChooser();
+}
+/* Rassemble tous les rôles accessibles avec un identifiant/mot de passe donné. */
+async function collectRoles(userRaw, passRaw, user, pass){
+  const roles = [];
+  const creds = await loadCoachCredentials();
+  const coachOk = (u, p) => user === normalizeCode(u) && pass === normalizeCode(p);
+  if(coachOk(creds.username, creds.password) || coachOk(COACH_USERNAME, COACH_CODE)){
+    roles.push({label:t('Coach — tous les espaces','Coach — all spaces'), sub:'STAFF', icon:'🛡️', enter:async()=>{
+      await sSet('access','coach',false); await sSet('accessStamp',AUTH_VERSION,false); await sSet('managerId','',false); await sSet('spaceCoachId','',false);
+      state.manager=null; state.spaceCoach=null; await bootstrapCoach(); if(state.section==='settings')state.section='football'; render();
+    }});
+  }
   const mgr = await findManager(userRaw, passRaw);
-  if(mgr){
-    await sSet('access', 'coach', false);
-    await sSet('accessStamp', AUTH_VERSION, false);
-    await sSet('managerId', mgr.id, false);
-    await bootstrapCoach();
-    state.manager = mgr;
-    state.section = 'football';
-    render();
-    return;
+  if(mgr) roles.push({label:t('Coach Football','Football coach'), sub:(mgr.label||mgr.username)+(mgr.team?' · '+mgr.team:''), icon:'⚽', enter:async()=>{
+    await sSet('access','coach',false); await sSet('accessStamp',AUTH_VERSION,false); await sSet('managerId',mgr.id,false); await sSet('spaceCoachId','',false);
+    await bootstrapCoach(); state.manager=mgr; state.spaceCoach=null; state.section='football'; render();
+  }});
+  const sc = await findCoachAccount(userRaw, passRaw);
+  if(sc){ const sl = SPACE_LABELS[sc.space] || sc.space;
+    roles.push({label:t('Coach ','Coach ')+sl, sub:sc.name||sc.username, icon:'🧑‍🏫', enter:async()=>{
+      await sSet('access','coach',false); await sSet('accessStamp',AUTH_VERSION,false); await sSet('spaceCoachId',sc.id,false); await sSet('managerId','',false);
+      await bootstrapCoach(); state.manager=null; state.spaceCoach=sc; state.section=sc.space||'apa'; render();
+    }});
   }
   await ensureClientsLoaded();
   const match = state.clients.find(c => normalizeCode(c.id) === user && c.code && normalizeCode(c.code) === pass);
-  if(match){
-    await sSet('access', 'client', false);
-    await sSet('clientId', match.id, false);
-    await sSet('accessStamp', AUTH_VERSION, false);
-    state.access = 'client';
-    state.myClientId = match.id;
-    state.viewAs = 'client';
-    state.tab = 'programme';
-    render();
-    return;
-  }
-  // Client·e de l'espace Académie (Football / Coaching individuel) : identifiant + mot de passe.
-  // On les redirige vers leur espace perso (/academie/espace.html), même origine → session partagée.
-  const espaceClient = await findAcademieClient(userRaw, passRaw);
-  if(espaceClient){
-    try{
-      sessionStorage.setItem('espace_pid', espaceClient.id);
-      sessionStorage.setItem('espace_space', espaceClient.space);
-    }catch(e){}
+  if(match) roles.push({label:t('Cliente — Coaching individuel','Client — Individual coaching'), sub:match.name||match.id, icon:'🧍', enter:async()=>{
+    await sSet('access','client',false); await sSet('clientId',match.id,false); await sSet('accessStamp',AUTH_VERSION,false);
+    state.access='client'; state.myClientId=match.id; state.viewAs='client'; state.tab='programme'; state.manager=null; state.spaceCoach=null; render();
+  }});
+  const ec = await findAcademieClient(userRaw, passRaw);
+  if(ec) roles.push({label:ec.space==='ci'?t('Client·e — Coaching individuel','Client — Individual coaching'):t('Joueur·se — Football','Player — Football'), sub:ec.name||'', icon:ec.space==='ci'?'🧍':'⚽', enter:async()=>{
+    try{ sessionStorage.setItem('espace_pid', ec.id); sessionStorage.setItem('espace_space', ec.space); }catch(e){}
     location.href = '/academie/espace.html';
-    return;
-  }
-  state.loginError = 'Identifiant ou mot de passe incorrect.';
-  renderLoginScreen();
+  }});
+  return roles;
+}
+function renderRoleChooser(){
+  app.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b1522;font-family:system-ui,-apple-system,sans-serif">
+    <div style="width:100%;max-width:420px;background:#152439;border:1px solid #33465f;border-radius:14px;padding:22px;color:#EAF1FB;box-shadow:0 20px 50px rgba(0,0,0,.5)">
+      <h2 style="margin:0 0 4px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:20px">${t('Choisis ton espace','Choose your space')}</h2>
+      <p style="color:#7E90A8;font-size:13px;margin:0 0 16px">${t('Ton compte donne accès à plusieurs espaces.','Your account has access to several spaces.')}</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${(state.roleChoices||[]).map((r,i)=>`<button data-role="${i}" style="appearance:none;cursor:pointer;text-align:left;border:1px solid #33465f;background:#0f1d30;color:#EAF1FB;border-radius:10px;padding:12px 14px;font:inherit"><div style="font-weight:700;font-size:15px">${r.icon||''} ${admEsc(r.label)}</div>${r.sub?`<div style="color:#8FCBFF;font-size:12px;margin-top:2px">${admEsc(r.sub)}</div>`:''}</button>`).join('')}
+      </div>
+      <button id="rc-back" style="appearance:none;cursor:pointer;margin-top:14px;border:0;background:transparent;color:#7E90A8;font-size:13px">← ${t('Changer de compte','Use another account')}</button>
+    </div></div>`;
+  app.querySelectorAll('[data-role]').forEach(b=>b.onclick=()=>{const r=(state.roleChoices||[])[+b.getAttribute('data-role')];state.roleChoices=null;if(r)r.enter();});
+  const bk=document.getElementById('rc-back'); if(bk)bk.onclick=()=>{state.roleChoices=null;renderLoginScreen();};
+}
+const SPACE_LABELS = {football:'Football', individuel:'Coaching individuel', apa:'APA', nutrition:'Nutrition'};
+/* ----- Comptes coach par espace (coachs délégués) ----- */
+async function loadCoaches(){const raw=await sGet('coaches',true);try{return raw?JSON.parse(raw):{};}catch(e){return {};}}
+async function saveCoaches(obj){await sSet('coaches',JSON.stringify(obj),true);}
+async function findCoachAccount(userRaw, passRaw){
+  const L=(userRaw||'').trim().toLowerCase(), Ls=L.replace(/[^a-z0-9]/g,''), P=(passRaw||'').trim();
+  if(!L||!P) return null;
+  const cs=await loadCoaches();
+  return Object.values(cs).find(c=>c&&c.active!==false&&(c.password||'').trim()===P&&(((c.username||'').trim().toLowerCase()===L)||((c.username||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'')===Ls)))||null;
 }
 function acaSlugName(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
 function acaFirstName(n){return (n||'').trim().split(/\s+/)[0]||'';}
@@ -1947,6 +1972,8 @@ function sectionDropdown(current){
 }
 function renderFullApp(section){
   const mgr = state.manager; // gérant·e d'équipe : accès restreint
+  const sc = state.spaceCoach; // coach délégué d'un espace : accès restreint à cet espace
+  const restricted = mgr || sc;
   let footQ = '';
   if(mgr){
     const parts = [];
@@ -1971,9 +1998,9 @@ function renderFullApp(section){
           <span title="${t('Toutes les saisies sont enregistrées en ligne automatiquement','All entries are saved online automatically')}" style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8fe0b0;background:rgba(47,191,113,.14);border:1px solid rgba(47,191,113,.4);border-radius:20px;padding:5px 11px"><span style="width:7px;height:7px;border-radius:50%;background:#2FBF71;display:inline-block"></span>${t('Données enregistrées','Data saved')}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          ${mgr?'':sectionDropdown(section)}
-          ${(state.access==='coach'&&!mgr)?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
-          ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
+          ${restricted?'':sectionDropdown(section)}
+          ${(state.access==='coach'&&!restricted)?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
+          ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:sc?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(sc.name||sc.username)} · <b style="color:#fff">Coach ${admEsc(SPACE_LABELS[sc.space]||sc.space||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
         </div>
@@ -2012,6 +2039,11 @@ function settingsBodyHtml(){
       <b style="font-size:15px">👥 ${admEsc(t('Comptes & accès — tous les espaces','Accounts & access — all spaces'))}</b>
       <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Tous les clients, regroupés par espace. Renomme, change le mot de passe, désactive ou supprime.','All clients, grouped by space. Rename, change password, deactivate or delete.'))}</p>
       <div id="bp-allclients-body">${admEsc(t('Chargement…','Loading…'))}</div>
+    </div>
+    <div id="bp-coaches" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
+      <b style="font-size:15px">🧑‍🏫 ${admEsc(t('Coachs par espace','Coaches by space'))}</b>
+      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Ajoute un coach pour un espace (ex. APA). Il se connecte avec son identifiant et accède uniquement à cet espace. La personne peut aussi être cliente ou joueuse ailleurs : utilise les mêmes identifiants et un choix du rôle apparaîtra à la connexion.','Add a coach for a space (e.g. APA). They log in and only access that space. The person can also be a client/player elsewhere: reuse the same login and a role picker appears at sign-in.'))}</p>
+      <div id="bp-coaches-body">${admEsc(t('Chargement…','Loading…'))}</div>
     </div>
     <div style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
       <b style="font-size:15px">➕ ${admEsc(t('Équipe U18F (Football)','U18F team (Football)'))}</b>
@@ -2066,8 +2098,57 @@ function renderSettingsPage(){
   if(imp) imp.onclick = () => importU18F(imp, app.querySelector('#bp-import-status'));
   renderSectionsCfg();
   renderAllClients();
+  renderCoaches();
   renderManagers();
   renderAdminBody();
+}
+let COACH_EDIT_ID = null;
+async function renderCoaches(){
+  const el = document.getElementById('bp-coaches-body'); if(!el) return;
+  const cs = await loadCoaches();
+  const arr = Object.values(cs);
+  const editing = COACH_EDIT_ID && cs[COACH_EDIT_ID] ? cs[COACH_EDIT_ID] : null;
+  if(COACH_EDIT_ID && !editing) COACH_EDIT_ID = null;
+  const INP = 'width:100%;background:#0E1A2C;border:1px solid #25344b;color:#EAF1FB;border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
+  const btn = 'appearance:none;cursor:pointer;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600';
+  const spaces = [['apa','APA'],['individuel',t('Coaching individuel','Individual coaching')],['football','Football'],['nutrition','Nutrition']];
+  const list = arr.length ? arr.map(c=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid ${c.id===COACH_EDIT_ID?'#3DA9FC':'#25344b'};border-radius:8px;margin-bottom:6px;${c.active===false?'opacity:.6':''}">
+      <div style="flex:1;min-width:150px"><b>${admEsc(c.name||c.username)}</b> <span style="display:inline-block;font-size:10.5px;font-weight:700;color:#8fe0b0;background:rgba(47,191,113,.16);border-radius:20px;padding:2px 8px">${admEsc(SPACE_LABELS[c.space]||c.space)}</span><div style="font-size:11px;color:#7E90A8;margin-top:2px">🔑 ${admEsc(c.username)}${c.active===false?' · '+admEsc(t('inactif','inactive')):''}</div></div>
+      <button data-coach-edit="${admEsc(c.id)}" style="${btn};border:1px solid #3DA9FC;background:transparent;color:#8FCBFF">${admEsc(t('Modifier','Edit'))}</button>
+      <button data-coach-del="${admEsc(c.id)}" style="${btn};border:1px solid #6b3a3a;background:transparent;color:#ffb4a8">${admEsc(t('Supprimer','Delete'))}</button>
+    </div>`).join('') : `<p style="color:#7E90A8;font-size:12.5px;margin:0 0 8px">${admEsc(t('Aucun coach pour l’instant.','No coach yet.'))}</p>`;
+  el.innerHTML = list + `<div style="border-top:1px dashed #25344b;margin-top:8px;padding-top:10px">
+      ${editing?`<div style="font-size:12.5px;color:#8FCBFF;margin-bottom:8px">${admEsc(t('Modification de','Editing'))} « ${admEsc(editing.name||editing.username)} »</div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input id="coach-name" placeholder="${admEsc(t('Nom affiché','Display name'))}" value="${editing?admEsc(editing.name||''):''}" style="${INP}">
+        <select id="coach-space" style="${INP}">${spaces.map(([v,l])=>`<option value="${v}" ${editing&&editing.space===v?'selected':(!editing&&v==='apa'?'selected':'')}>${admEsc(l)}</option>`).join('')}</select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <input id="coach-user" placeholder="${admEsc(t('Identifiant','Username'))}" value="${editing?admEsc(editing.username||''):''}" style="${INP}">
+        <input id="coach-pass" placeholder="${admEsc(t('Mot de passe','Password'))}" value="${editing?admEsc(editing.password||''):''}" style="${INP}">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button id="coach-save" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer','Save')):admEsc(t('Ajouter le coach','Add coach'))}</button>
+        ${editing?`<button id="coach-cancel" style="appearance:none;cursor:pointer;border:1px solid #33465f;background:transparent;color:#EAF1FB;border-radius:9px;padding:9px 14px;font-size:13.5px">${admEsc(t('Annuler','Cancel'))}</button>`:''}
+        <span id="coach-status" style="font-size:12.5px;color:#ffb4a8"></span>
+      </div>
+    </div>`;
+  el.querySelectorAll('[data-coach-edit]').forEach(b=>b.onclick=()=>{COACH_EDIT_ID=b.getAttribute('data-coach-edit');renderCoaches();});
+  el.querySelectorAll('[data-coach-del]').forEach(b=>b.onclick=async()=>{const id=b.getAttribute('data-coach-del');if(!confirm(t('Supprimer ce coach ?','Delete this coach?')))return;const m=await loadCoaches();delete m[id];await saveCoaches(m);if(COACH_EDIT_ID===id)COACH_EDIT_ID=null;renderCoaches();});
+  const cc=document.getElementById('coach-cancel'); if(cc)cc.onclick=()=>{COACH_EDIT_ID=null;renderCoaches();};
+  const sv=document.getElementById('coach-save');
+  if(sv)sv.onclick=async()=>{
+    const name=(document.getElementById('coach-name').value||'').trim();
+    const space=document.getElementById('coach-space').value;
+    const user=(document.getElementById('coach-user').value||'').trim();
+    const pass=(document.getElementById('coach-pass').value||'').trim();
+    const st=document.getElementById('coach-status');
+    if(!user||!pass){st.textContent=t('Identifiant et mot de passe obligatoires.','Username and password required.');return;}
+    const m=await loadCoaches();
+    const id=COACH_EDIT_ID||('co'+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
+    m[id]=Object.assign({},m[id],{id,name:name||user,space,username:user,password:pass,active:true,createdAt:(m[id]&&m[id].createdAt)||new Date().toISOString()});
+    await saveCoaches(m);COACH_EDIT_ID=null;renderCoaches();
+  };
 }
 
 /* =========================================================
@@ -2355,6 +2436,7 @@ async function toggleIndivAccess(pid, grant, aca){
 
 async function render(){
   if(state.manager){ state.section = 'football'; renderFullApp('football'); return; } // gérant·e : Football uniquement
+  if(state.spaceCoach){ const s = state.spaceCoach.space || 'apa'; state.section = s; renderFullApp(s); return; } // coach délégué : un seul espace
   if(state.section === 'settings' && state.access === 'coach'){ renderSettingsPage(); return; }
   if(state.section === 'football'){ renderFullApp('football'); return; }
   if(state.section === 'individuel'){ renderFullApp('individuel'); return; }
