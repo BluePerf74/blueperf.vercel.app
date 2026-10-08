@@ -2105,7 +2105,11 @@ function renderSettingsPage(){
 let COACH_EDIT_ID = null;
 async function renderCoaches(){
   const el = document.getElementById('bp-coaches-body'); if(!el) return;
-  const cs = await loadCoaches();
+  const [cs, aca, ci] = await Promise.all([loadCoaches(), admReadMap('aca:players'), admReadMap('ci:players')]);
+  const clients = [];
+  Object.values(aca).forEach(p=>{ if(p&&p.login&&p.pass) clients.push({lbl:'Football', name:p.name||p.id, login:p.login, pass:p.pass}); });
+  Object.values(ci).forEach(p=>{ if(p&&p.login&&p.pass) clients.push({lbl:t('Coaching indiv.','Individual'), name:p.name||p.id, login:p.login, pass:p.pass}); });
+  clients.sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
   const arr = Object.values(cs);
   const editing = COACH_EDIT_ID && cs[COACH_EDIT_ID] ? cs[COACH_EDIT_ID] : null;
   if(COACH_EDIT_ID && !editing) COACH_EDIT_ID = null;
@@ -2118,7 +2122,11 @@ async function renderCoaches(){
       <button data-coach-del="${admEsc(c.id)}" style="${btn};border:1px solid #6b3a3a;background:transparent;color:#ffb4a8">${admEsc(t('Supprimer','Delete'))}</button>
     </div>`).join('') : `<p style="color:#7E90A8;font-size:12.5px;margin:0 0 8px">${admEsc(t('Aucun coach pour l’instant.','No coach yet.'))}</p>`;
   el.innerHTML = list + `<div style="border-top:1px dashed #25344b;margin-top:8px;padding-top:10px">
-      ${editing?`<div style="font-size:12.5px;color:#8FCBFF;margin-bottom:8px">${admEsc(t('Modification de','Editing'))} « ${admEsc(editing.name||editing.username)} »</div>`:''}
+      ${editing?`<div style="font-size:12.5px;color:#8FCBFF;margin-bottom:8px">${admEsc(t('Modification de','Editing'))} « ${admEsc(editing.name||editing.username)} »</div>`:(clients.length?`<div style="margin-bottom:8px">
+        <div style="font-size:12px;color:#7E90A8;margin-bottom:3px">${admEsc(t('Ce coach existe déjà parmi vos clients ?','Is this coach already one of your clients?'))}</div>
+        <select id="coach-link" style="${INP}"><option value="">${admEsc(t('— Non, nouveau coach (saisie manuelle) —','— No, new coach (manual entry) —'))}</option>${clients.map((c,i)=>`<option value="${i}">${admEsc(c.name)} · ${admEsc(c.lbl)}</option>`).join('')}</select>
+        <div style="font-size:11px;color:#7E90A8;margin-top:3px">${admEsc(t('Sélectionne la personne : ses identifiants sont repris, elle pourra choisir son rôle à la connexion.','Pick the person: their login is reused, they can choose their role at sign-in.'))}</div>
+      </div>`:'')}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <input id="coach-name" placeholder="${admEsc(t('Nom affiché','Display name'))}" value="${editing?admEsc(editing.name||''):''}" style="${INP}">
         <select id="coach-space" style="${INP}">${spaces.map(([v,l])=>`<option value="${v}" ${editing&&editing.space===v?'selected':(!editing&&v==='apa'?'selected':'')}>${admEsc(l)}</option>`).join('')}</select>
@@ -2136,6 +2144,10 @@ async function renderCoaches(){
   el.querySelectorAll('[data-coach-edit]').forEach(b=>b.onclick=()=>{COACH_EDIT_ID=b.getAttribute('data-coach-edit');renderCoaches();});
   el.querySelectorAll('[data-coach-del]').forEach(b=>b.onclick=async()=>{const id=b.getAttribute('data-coach-del');if(!confirm(t('Supprimer ce coach ?','Delete this coach?')))return;const m=await loadCoaches();delete m[id];await saveCoaches(m);if(COACH_EDIT_ID===id)COACH_EDIT_ID=null;renderCoaches();});
   const cc=document.getElementById('coach-cancel'); if(cc)cc.onclick=()=>{COACH_EDIT_ID=null;renderCoaches();};
+  const lk=document.getElementById('coach-link');
+  if(lk)lk.onchange=()=>{ if(lk.value==='')return; const c=clients[+lk.value]; if(!c)return;
+    const nm=document.getElementById('coach-name'),us=document.getElementById('coach-user'),pw=document.getElementById('coach-pass');
+    if(nm)nm.value=c.name; if(us)us.value=c.login; if(pw)pw.value=c.pass; };
   const sv=document.getElementById('coach-save');
   if(sv)sv.onclick=async()=>{
     const name=(document.getElementById('coach-name').value||'').trim();
