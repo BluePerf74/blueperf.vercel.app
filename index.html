@@ -1826,7 +1826,7 @@ function coachNavbarHtml(stats){
     <nav class="cdb-navbar">
       <div class="cdb-navbar-inner">
         <div class="cdb-brand">${shieldSvg()}<span class="cdb-brand-text">BLUE<span>PERF</span></span></div>
-        <div class="cdb-menu">${COACH_NAV_GROUPS.map(coachNavItemHtml).join('')}</div>
+        <div class="cdb-menu">${COACH_NAV_GROUPS.filter(g=>!g.section||sectionVisible(g.section)).map(coachNavItemHtml).join('')}</div>
         <div class="cdb-right">
           <select class="cdb-client-select" id="coach-client-select">
             ${state.clients.map(c => `<option value="${c.id}" ${c.id===state.coachClientId?'selected':''}>${c.name}</option>`).join('')}
@@ -1931,6 +1931,13 @@ async function renderCoachDashboard(){
 let LANG = (function(){try{return localStorage.getItem('bp_lang')||'fr';}catch(e){return 'fr';}})();
 function setLang(l){LANG=l;try{localStorage.setItem('bp_lang',l);}catch(e){}render();}
 const t=(fr,en)=>LANG==='en'?en:fr;
+/* ----- Config générale : quels onglets (sections) sont affichés ----- */
+let APP_CFG=null;
+function sectionDefs(){return [['football','Football'],['individuel',t('Coaching individuel','Individual coaching')],['apa','APA'],['nutrition','Nutrition']];}
+function sectionVisible(sec){return !(APP_CFG&&APP_CFG.sections&&APP_CFG.sections[sec]===false);}
+async function loadAppCfg(){try{const raw=await sGet('appConfig',true);APP_CFG=raw?JSON.parse(raw):{};}catch(e){APP_CFG={};}if(!APP_CFG.sections)APP_CFG.sections={};return APP_CFG;}
+async function saveAppCfg(){try{await sSet('appConfig',JSON.stringify(APP_CFG||{sections:{}}),true);}catch(e){}}
+loadAppCfg();
 function renderFullApp(section){
   const mgr = state.manager; // gérant·e d'équipe : accès restreint
   let footQ = '';
@@ -1957,10 +1964,7 @@ function renderFullApp(section){
           <span title="${t('Toutes les saisies sont enregistrées en ligne automatiquement','All entries are saved online automatically')}" style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8fe0b0;background:rgba(47,191,113,.14);border:1px solid rgba(47,191,113,.4);border-radius:20px;padding:5px 11px"><span style="width:7px;height:7px;border-radius:50%;background:#2FBF71;display:inline-block"></span>${t('Données enregistrées','Data saved')}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          ${mgr?'':swBtn('football','Football')}
-          ${mgr?'':swBtn('individuel',t('Coaching individuel','Individual coaching'))}
-          ${mgr?'':swBtn('nutrition','Nutrition')}
-          ${mgr?'':swBtn('apa','APA')}
+          ${mgr?'':`<select data-fbsecsel aria-label="${t('Choisir un espace','Choose a space')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.3);background:#0E1A2C url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23ffffff%22 stroke-width=%223%22><path d=%22M6 9l6 6 6-6%22/></svg>') no-repeat right 10px center;color:#fff;border-radius:8px;padding:8px 30px 8px 12px;font-size:13px;font-weight:600">${sectionDefs().filter(([id])=>sectionVisible(id)).map(([id,lbl])=>`<option value="${id}" ${section===id?'selected':''} style="background:#0E1A2C;color:#fff">${lbl}</option>`).join('')}</select>`}
           ${(state.access==='coach'&&!mgr)?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
           ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
@@ -1975,6 +1979,13 @@ function renderFullApp(section){
     state.tab = nt[0].id;
     render();
   }));
+  const secSel = app.querySelector('[data-fbsecsel]');
+  if(secSel) secSel.addEventListener('change', () => {
+    state.section = secSel.value;
+    const nt = tabsFor(state.section, state.viewAs === 'coach');
+    state.tab = nt[0].id;
+    render();
+  });
   const lg = app.querySelector('[data-fblang]');
   if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
   const lo = app.querySelector('[data-fblogout]');
@@ -2002,6 +2013,16 @@ async function openAdminPanel(){
         <h2 style="margin:0;font-size:18px;font-family:'Space Grotesk',system-ui,sans-serif">⚙️ ${admEsc(t('Paramètres administrateur','Admin settings'))}</h2>
         <button id="bp-admin-x" style="appearance:none;cursor:pointer;background:transparent;border:0;color:#B7C4D6;font-size:20px;line-height:1;padding:4px">✕</button>
       </div>
+      <div id="bp-sections" style="border:1px solid #25344b;border-radius:9px;padding:12px;margin-bottom:14px;background:#0f1d30">
+        <b style="font-size:14px">🧭 ${admEsc(t('Onglets affichés','Visible tabs'))}</b>
+        <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Affiche ou masque chaque espace dans le menu déroulant en haut.','Show or hide each space in the top dropdown.'))}</p>
+        <div id="bp-sections-body"></div>
+      </div>
+      <div id="bp-allclients" style="border:1px solid #25344b;border-radius:9px;padding:12px;margin-bottom:14px;background:#0f1d30">
+        <b style="font-size:14px">👥 ${admEsc(t('Comptes & accès — tous les espaces','Accounts & access — all spaces'))}</b>
+        <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Tous les clients de tous les onglets. Renomme, change le mot de passe, désactive ou supprime.','All clients across tabs. Rename, change password, deactivate or delete.'))}</p>
+        <div id="bp-allclients-body">${admEsc(t('Chargement…','Loading…'))}</div>
+      </div>
       <div style="border:1px solid #25344b;border-radius:9px;padding:12px;margin-bottom:14px;background:#0f1d30">
         <b style="font-size:14px">➕ ${admEsc(t('Équipe U18F (Football)','U18F team (Football)'))}</b>
         <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t("Crée l'équipe U18F et ajoute les 31 joueuses avec leurs identifiants (prénom@aca.com / 3 premières lettres du prénom + 123).","Creates the U18F team and adds the 31 players with their logins (firstname@aca.com / first 3 letters + 123)."))}</p>
@@ -2026,8 +2047,59 @@ async function openAdminPanel(){
   ov.querySelector('#bp-admin-close').onclick = () => ov.remove();
   const imp = ov.querySelector('#bp-import-u18f');
   if(imp) imp.onclick = () => importU18F(imp, ov.querySelector('#bp-import-status'));
+  await renderSectionsCfg();
+  await renderAllClients();
   await renderManagers();
   await renderAdminBody();
+}
+/* ----- Paramètres généraux : onglets affichés ----- */
+async function renderSectionsCfg(){
+  const el=document.getElementById('bp-sections-body'); if(!el)return;
+  if(!APP_CFG)await loadAppCfg();
+  el.innerHTML=sectionDefs().map(([id,lbl])=>`<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:#EAF1FB;padding:4px 0"><input type="checkbox" data-sec-cfg="${id}" ${sectionVisible(id)?'checked':''} style="accent-color:#3DA9FC;width:16px;height:16px"> ${admEsc(lbl)}</label>`).join('');
+  el.querySelectorAll('[data-sec-cfg]').forEach(c=>c.onchange=async()=>{
+    APP_CFG.sections=APP_CFG.sections||{};APP_CFG.sections[c.getAttribute('data-sec-cfg')]=c.checked;
+    await saveAppCfg();try{render();}catch(e){}
+  });
+}
+/* ----- Paramètres généraux : tous les comptes clients, tous les espaces ----- */
+async function admReadMap(key){const raw=await sGet(key,true);try{return raw?JSON.parse(raw):{};}catch(e){return {};}}
+async function admWriteMap(key,obj){await sSet(key,JSON.stringify(obj),true);}
+async function admDeleteClient(sp,id){
+  if(sp==='apa'){for(const k of ['clients','assign','answers','links']){const m=await admReadMap('apa:'+k);if(m[id]!==undefined){delete m[id];await admWriteMap('apa:'+k,m);}}}
+  else{const key=sp+':players';const m=await admReadMap(key);delete m[id];await admWriteMap(key,m);}
+}
+async function admRenameClient(sp,id,name){
+  if(sp==='apa'){const m=await admReadMap('apa:clients');if(!m[id])return;const parts=(name||'').trim().split(/\s+/);m[id].p=Object.assign({},m[id].p,{prenom:parts[0]||name||'',nom:parts.slice(1).join(' ')});await admWriteMap('apa:clients',m);}
+  else{const key=sp+':players';const m=await admReadMap(key);if(!m[id])return;m[id].name=name;await admWriteMap(key,m);}
+}
+async function admSetPw(sp,id,pw){const key=sp+':players';const m=await admReadMap(key);if(!m[id])return;m[id].pass=pw;await admWriteMap(key,m);}
+async function admToggleActive(sp,id){
+  if(sp==='apa'){const m=await admReadMap('apa:clients');if(!m[id])return;m[id].active=(m[id].active===false);await admWriteMap('apa:clients',m);}
+  else{const key=sp+':players';const m=await admReadMap(key);if(!m[id])return;m[id].active=(m[id].active===false);await admWriteMap(key,m);}
+}
+async function renderAllClients(){
+  const el=document.getElementById('bp-allclients-body'); if(!el)return;
+  const [aca,ci,apa]=await Promise.all([admReadMap('aca:players'),admReadMap('ci:players'),admReadMap('apa:clients')]);
+  const rows=[];
+  Object.values(aca).forEach(p=>{if(p&&p.id)rows.push({sp:'aca',lbl:'Football',cc:'#3DA9FC',id:p.id,name:p.name||'Sans nom',login:p.login||'',active:p.active!==false});});
+  Object.values(ci).forEach(p=>{if(p&&p.id)rows.push({sp:'ci',lbl:'Coaching indiv.',cc:'#7b9bff',id:p.id,name:p.name||'Sans nom',login:p.login||'',active:p.active!==false});});
+  Object.entries(apa).forEach(([code,c])=>rows.push({sp:'apa',lbl:'APA',cc:'#2fbf71',id:code,name:[c.p&&c.p.prenom,c.p&&c.p.nom].filter(Boolean).join(' ')||'Sans nom',login:'',active:c.active!==false}));
+  rows.sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
+  if(!rows.length){el.innerHTML=`<p style="color:#7E90A8;font-size:12.5px;margin:0">${admEsc(t('Aucun compte pour le moment.','No account yet.'))}</p>`;return;}
+  const btn='appearance:none;cursor:pointer;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600';
+  el.innerHTML=`<div style="font-size:11.5px;color:#7E90A8;margin-bottom:6px">${rows.length} ${admEsc(t('compte(s)','account(s)'))}</div>`+rows.map(r=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid #25344b;border-radius:8px;margin-bottom:6px;${r.active?'':'opacity:.6'}">
+      <div style="flex:1;min-width:150px"><b>${admEsc(r.name)}</b> <span style="display:inline-block;font-size:10.5px;font-weight:700;color:${r.cc};background:${r.cc}22;border-radius:20px;padding:2px 8px;vertical-align:middle">${r.lbl}</span><div style="font-size:11px;color:#7E90A8;margin-top:2px">${r.login?('🔑 '+admEsc(r.login)):(r.sp==='apa'?admEsc(t('Connexion partagée','Shared login')):'—')}${r.active?'':' · '+admEsc(t('inactif','inactive'))}</div></div>
+      <button data-cl-ren="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #3DA9FC;background:transparent;color:#8FCBFF">${admEsc(t('Renommer','Rename'))}</button>
+      ${r.sp!=='apa'?`<button data-cl-pw="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #33465f;background:transparent;color:#EAF1FB">${admEsc(t('Mot de passe','Password'))}</button>`:''}
+      <button data-cl-act="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #33465f;background:transparent;color:#EAF1FB">${r.active?admEsc(t('Désactiver','Disable')):admEsc(t('Activer','Enable'))}</button>
+      <button data-cl-del="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #6b3a3a;background:transparent;color:#ffb4a8">${admEsc(t('Supprimer','Delete'))}</button>
+    </div>`).join('');
+  const sp2=v=>{const i=v.indexOf(':');return [v.slice(0,i),v.slice(i+1)];};
+  el.querySelectorAll('[data-cl-ren]').forEach(b=>b.onclick=async()=>{const[sp,id]=sp2(b.getAttribute('data-cl-ren'));const n=prompt(t('Nouveau nom :','New name:'));if(n==null||!n.trim())return;await admRenameClient(sp,id,n.trim());renderAllClients();});
+  el.querySelectorAll('[data-cl-pw]').forEach(b=>b.onclick=async()=>{const[sp,id]=sp2(b.getAttribute('data-cl-pw'));const p=prompt(t('Nouveau mot de passe :','New password:'));if(p==null||!p.trim())return;await admSetPw(sp,id,p.trim());renderAllClients();});
+  el.querySelectorAll('[data-cl-act]').forEach(b=>b.onclick=async()=>{const[sp,id]=sp2(b.getAttribute('data-cl-act'));await admToggleActive(sp,id);renderAllClients();});
+  el.querySelectorAll('[data-cl-del]').forEach(b=>b.onclick=async()=>{const[sp,id]=sp2(b.getAttribute('data-cl-del'));if(!confirm(t('Supprimer ce compte et ses données ? Cette action est définitive.','Delete this account and its data? This cannot be undone.')))return;await admDeleteClient(sp,id);renderAllClients();});
 }
 const MGR_INPUT_STYLE='width:100%;background:#0E1A2C;border:1px solid #25344b;color:#EAF1FB;border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
 let MGR_EDIT_ID=null; // gérant·e en cours de modification
