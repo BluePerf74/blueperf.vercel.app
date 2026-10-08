@@ -1938,6 +1938,13 @@ function sectionVisible(sec){return !(APP_CFG&&APP_CFG.sections&&APP_CFG.section
 async function loadAppCfg(){try{const raw=await sGet('appConfig',true);APP_CFG=raw?JSON.parse(raw):{};}catch(e){APP_CFG={};}if(!APP_CFG.sections)APP_CFG.sections={};return APP_CFG;}
 async function saveAppCfg(){try{await sSet('appConfig',JSON.stringify(APP_CFG||{sections:{}}),true);}catch(e){}}
 loadAppCfg();
+function sectionDropdown(current){
+  const list=sectionDefs().filter(([id])=>sectionVisible(id));
+  const inList=list.some(([id])=>id===current);
+  const chevron="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23ffffff%22 stroke-width=%223%22><path d=%22M6 9l6 6 6-6%22/></svg>";
+  const style=`appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.3);background:#0E1A2C url('${chevron}') no-repeat right 10px center;color:#fff;border-radius:8px;padding:8px 30px 8px 12px;font-size:13px;font-weight:600`;
+  return `<select data-fbsecsel aria-label="${t('Choisir un espace','Choose a space')}" style="${style}">${inList?'':`<option value="" selected disabled style="background:#0E1A2C;color:#fff">${t('Paramètres','Settings')}</option>`}${list.map(([id,lbl])=>`<option value="${id}" ${current===id?'selected':''} style="background:#0E1A2C;color:#fff">${lbl}</option>`).join('')}</select>`;
+}
 function renderFullApp(section){
   const mgr = state.manager; // gérant·e d'équipe : accès restreint
   let footQ = '';
@@ -1964,7 +1971,7 @@ function renderFullApp(section){
           <span title="${t('Toutes les saisies sont enregistrées en ligne automatiquement','All entries are saved online automatically')}" style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8fe0b0;background:rgba(47,191,113,.14);border:1px solid rgba(47,191,113,.4);border-radius:20px;padding:5px 11px"><span style="width:7px;height:7px;border-radius:50%;background:#2FBF71;display:inline-block"></span>${t('Données enregistrées','Data saved')}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          ${mgr?'':`<select data-fbsecsel aria-label="${t('Choisir un espace','Choose a space')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.3);background:#0E1A2C url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23ffffff%22 stroke-width=%223%22><path d=%22M6 9l6 6 6-6%22/></svg>') no-repeat right 10px center;color:#fff;border-radius:8px;padding:8px 30px 8px 12px;font-size:13px;font-weight:600">${sectionDefs().filter(([id])=>sectionVisible(id)).map(([id,lbl])=>`<option value="${id}" ${section===id?'selected':''} style="background:#0E1A2C;color:#fff">${lbl}</option>`).join('')}</select>`}
+          ${mgr?'':sectionDropdown(section)}
           ${(state.access==='coach'&&!mgr)?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
           ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
@@ -1991,7 +1998,76 @@ function renderFullApp(section){
   const lo = app.querySelector('[data-fblogout]');
   if(lo) lo.addEventListener('click', logout);
   const ad = app.querySelector('[data-fbadmin]');
-  if(ad) ad.addEventListener('click', openAdminPanel);
+  if(ad) ad.addEventListener('click', () => { state.prevSection = state.section; state.section = 'settings'; render(); });
+}
+/* ----- Page Paramètres (plein écran, hors menu déroulant) ----- */
+function settingsBodyHtml(){
+  return `
+    <div id="bp-sections" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
+      <b style="font-size:15px">🧭 ${admEsc(t('Onglets affichés','Visible tabs'))}</b>
+      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Affiche ou masque chaque espace dans le menu déroulant en haut.','Show or hide each space in the top dropdown.'))}</p>
+      <div id="bp-sections-body"></div>
+    </div>
+    <div id="bp-allclients" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
+      <b style="font-size:15px">👥 ${admEsc(t('Comptes & accès — tous les espaces','Accounts & access — all spaces'))}</b>
+      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Tous les clients, regroupés par espace. Renomme, change le mot de passe, désactive ou supprime.','All clients, grouped by space. Rename, change password, deactivate or delete.'))}</p>
+      <div id="bp-allclients-body">${admEsc(t('Chargement…','Loading…'))}</div>
+    </div>
+    <div style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
+      <b style="font-size:15px">➕ ${admEsc(t('Équipe U18F (Football)','U18F team (Football)'))}</b>
+      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t("Crée l'équipe U18F et ajoute les 31 joueuses avec leurs identifiants (prénom@aca.com / 3 premières lettres du prénom + 123).","Creates the U18F team and adds the 31 players with their logins (firstname@aca.com / first 3 letters + 123)."))}</p>
+      <button id="bp-import-u18f" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${admEsc(t('Importer l’équipe U18F (31 joueuses)','Import U18F team (31 players)'))}</button>
+      <div id="bp-import-status" style="font-size:12.5px;color:#8fe0b0;margin-top:8px;line-height:1.5"></div>
+    </div>
+    <div id="bp-mgr" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
+      <b style="font-size:15px">🧑‍🏫 ${admEsc(t("Gérant·es d'équipe","Team managers"))}</b>
+      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 10px;line-height:1.5">${admEsc(t("Accès coach restreint (Football uniquement) : choisis l'équipe et les onglets accessibles.","Restricted coach access (Football only): pick the team and which tabs the person can open."))}</p>
+      <div id="bp-mgr-list"></div>
+      <div id="bp-mgr-form"></div>
+    </div>
+    <div style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
+      <b style="font-size:15px">🔗 ${admEsc(t('Accès inter-espaces','Cross-space access'))}</b>
+      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 10px;line-height:1.5">${admEsc(t("Autorise un·e joueur·se Football à accéder aussi au Coaching individuel, avec les mêmes identifiants.","Allow a Football player to also access Individual coaching, with the same login."))}</p>
+      <div id="bp-admin-body" style="font-size:14px">${admEsc(t('Chargement…','Loading…'))}</div>
+    </div>`;
+}
+function renderSettingsPage(){
+  const chevronBtn='appearance:none;cursor:pointer;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600';
+  app.innerHTML = `
+    <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:#0b1522">
+      <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3DA9FC">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${t('PARAMÈTRES','SETTINGS')}</span></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${sectionDropdown('settings')}
+          <button data-fbadmin title="${t('Paramètres','Settings')}" style="${chevronBtn};border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f">⚙️ ${t('Paramètres','Settings')}</button>
+          <button data-fblang style="${chevronBtn};border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;font-weight:700">🌐 ${LANG==='en'?'EN':'FR'}</button>
+          <button data-fblogout style="${chevronBtn};border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8">${t('Déconnexion','Log out')}</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow:auto">
+        <div style="max-width:660px;margin:0 auto;padding:20px 16px 70px;color:#EAF1FB;font-family:system-ui,-apple-system,sans-serif">
+          <h1 style="font-family:'Space Grotesk',system-ui,sans-serif;font-size:24px;margin:0 0 4px">⚙️ ${t('Paramètres','Settings')}</h1>
+          <p style="color:#7E90A8;font-size:13px;margin:0 0 18px">${t('Gère les accès, les comptes de tous les espaces et les onglets affichés.','Manage access, accounts across all spaces and visible tabs.')}</p>
+          ${settingsBodyHtml()}
+        </div>
+      </div>
+    </div>`;
+  const secSel = app.querySelector('[data-fbsecsel]');
+  if(secSel) secSel.addEventListener('change', () => { if(!secSel.value) return; state.section = secSel.value; const nt = tabsFor(state.section, state.viewAs === 'coach'); state.tab = nt[0].id; render(); });
+  const gear = app.querySelector('[data-fbadmin]');
+  if(gear) gear.addEventListener('click', () => { state.section = state.prevSection || 'football'; render(); });
+  const lg = app.querySelector('[data-fblang]');
+  if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
+  const lo = app.querySelector('[data-fblogout]');
+  if(lo) lo.addEventListener('click', logout);
+  const imp = app.querySelector('#bp-import-u18f');
+  if(imp) imp.onclick = () => importU18F(imp, app.querySelector('#bp-import-status'));
+  renderSectionsCfg();
+  renderAllClients();
+  renderManagers();
+  renderAdminBody();
 }
 
 /* =========================================================
@@ -2088,13 +2164,24 @@ async function renderAllClients(){
   rows.sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
   if(!rows.length){el.innerHTML=`<p style="color:#7E90A8;font-size:12.5px;margin:0">${admEsc(t('Aucun compte pour le moment.','No account yet.'))}</p>`;return;}
   const btn='appearance:none;cursor:pointer;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600';
-  el.innerHTML=`<div style="font-size:11.5px;color:#7E90A8;margin-bottom:6px">${rows.length} ${admEsc(t('compte(s)','account(s)'))}</div>`+rows.map(r=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid #25344b;border-radius:8px;margin-bottom:6px;${r.active?'':'opacity:.6'}">
-      <div style="flex:1;min-width:150px"><b>${admEsc(r.name)}</b> <span style="display:inline-block;font-size:10.5px;font-weight:700;color:${r.cc};background:${r.cc}22;border-radius:20px;padding:2px 8px;vertical-align:middle">${r.lbl}</span><div style="font-size:11px;color:#7E90A8;margin-top:2px">${r.login?('🔑 '+admEsc(r.login)):(r.sp==='apa'?admEsc(t('Connexion partagée','Shared login')):'—')}${r.active?'':' · '+admEsc(t('inactif','inactive'))}</div></div>
+  const rowHtml=r=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid #25344b;border-radius:8px;margin-bottom:6px;${r.active?'':'opacity:.6'}">
+      <div style="flex:1;min-width:150px"><b>${admEsc(r.name)}</b><div style="font-size:11px;color:#7E90A8;margin-top:2px">${r.login?('🔑 '+admEsc(r.login)):(r.sp==='apa'?admEsc(t('Connexion partagée','Shared login')):'—')}${r.active?'':' · '+admEsc(t('inactif','inactive'))}</div></div>
       <button data-cl-ren="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #3DA9FC;background:transparent;color:#8FCBFF">${admEsc(t('Renommer','Rename'))}</button>
       ${r.sp!=='apa'?`<button data-cl-pw="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #33465f;background:transparent;color:#EAF1FB">${admEsc(t('Mot de passe','Password'))}</button>`:''}
       <button data-cl-act="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #33465f;background:transparent;color:#EAF1FB">${r.active?admEsc(t('Désactiver','Disable')):admEsc(t('Activer','Enable'))}</button>
       <button data-cl-del="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #6b3a3a;background:transparent;color:#ffb4a8">${admEsc(t('Supprimer','Delete'))}</button>
-    </div>`).join('');
+    </div>`;
+  const groups=[['aca','Football','#3DA9FC','⚽'],['ci',t('Coaching individuel','Individual coaching'),'#7b9bff','🧍'],['apa','APA','#2fbf71','🤸']];
+  el.innerHTML=groups.map(([sp,lbl,cc,ic])=>{
+    const g=rows.filter(r=>r.sp===sp);
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 7px;padding-bottom:5px;border-bottom:2px solid ${cc}">
+        <span style="font-size:14px;font-weight:700;color:${cc}">${ic} ${admEsc(lbl)}</span>
+        <span style="font-size:11px;font-weight:700;color:${cc};background:${cc}22;border-radius:20px;padding:1px 9px">${g.length}</span>
+      </div>
+      ${g.length?g.map(rowHtml).join(''):`<p style="color:#7E90A8;font-size:12px;margin:0 0 4px">${admEsc(t('Aucun compte dans cet espace.','No account in this space.'))}</p>`}
+    </div>`;
+  }).join('');
   const sp2=v=>{const i=v.indexOf(':');return [v.slice(0,i),v.slice(i+1)];};
   el.querySelectorAll('[data-cl-ren]').forEach(b=>b.onclick=async()=>{const[sp,id]=sp2(b.getAttribute('data-cl-ren'));const n=prompt(t('Nouveau nom :','New name:'));if(n==null||!n.trim())return;await admRenameClient(sp,id,n.trim());renderAllClients();});
   el.querySelectorAll('[data-cl-pw]').forEach(b=>b.onclick=async()=>{const[sp,id]=sp2(b.getAttribute('data-cl-pw'));const p=prompt(t('Nouveau mot de passe :','New password:'));if(p==null||!p.trim())return;await admSetPw(sp,id,p.trim());renderAllClients();});
@@ -2268,6 +2355,7 @@ async function toggleIndivAccess(pid, grant, aca){
 
 async function render(){
   if(state.manager){ state.section = 'football'; renderFullApp('football'); return; } // gérant·e : Football uniquement
+  if(state.section === 'settings' && state.access === 'coach'){ renderSettingsPage(); return; }
   if(state.section === 'football'){ renderFullApp('football'); return; }
   if(state.section === 'individuel'){ renderFullApp('individuel'); return; }
   if(state.section === 'apa' && state.access === 'coach'){ renderFullApp('apa'); return; }
