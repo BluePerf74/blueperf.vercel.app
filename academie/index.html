@@ -1986,7 +1986,9 @@ const REP_ST_ORDER=['','acquis','ameliorer','encours','travailler'];
 function repThemeSuggest(r,k){const cr=(r.themes[k]||{}).crit||{};const vals=Object.values(cr).map(st=>REP_ST_MAP[st]&&REP_ST_MAP[st][3]).filter(v=>v>0);if(!vals.length)return null;return Math.round(mean(vals)*10)/10;}
 let REP=null; // compte rendu en cours d'édition (brouillon)
 function repBlank(){return {id:uid(),type:'Match',date:UI.ref,playerName:'',pid:null,cat:(!INDIV&&UI.cat!=='Tous')?UI.cat:'',opponent:'',competition:'',score:'',minutes:'',position:'',sessionTheme:'',intensity:'',themes:{},strengths:'',improvements:'',objectives:'',general:'',author:'',createdAt:new Date().toISOString()};}
-function repGlobal(r){const vals=REP_THEMES.map(t=>(r.themes[t[0]]||{}).note).filter(v=>v>0);if(!vals.length)return null;return Math.round(mean(vals)*10)/10;}
+// note effective d'un thème : note manuelle si définie, sinon suggestion issue des critères colorés
+function repThemeNote(r,k){const c=r.themes[k]||{};if(c.note>0)return c.note;const s=repThemeSuggest(r,k);return s||0;}
+function repGlobal(r){const vals=REP_THEMES.map(t=>repThemeNote(r,t[0])).filter(v=>v>0);if(!vals.length)return null;return Math.round(mean(vals)*10)/10;}
 function repSet(path,val){if(!REP||!path)return;const parts=path.split('.');let o=REP;for(let i=0;i<parts.length-1;i++){o[parts[i]]=o[parts[i]]||{};o=o[parts[i]];}o[parts[parts.length-1]]=val;}
 VIEWS.report=()=>{
   if(REP)return reportForm();
@@ -2129,10 +2131,10 @@ async function reportPrint(r){
   function sectionHead(txt){ ensure(34); y+=9; F('bold',10); setText(C.blue); doc.text(txt.toUpperCase(),M,y,{charSpace:0.5}); y+=2; setDraw(C.line); doc.setLineWidth(0.5); doc.line(M,y,PW-M,y); y+=6; }
 
   // ---------- RÉCAP NOTES ----------
-  const noted=REP_THEMES.filter(t=>(r.themes[t[0]]||{}).note>0);
+  const noted=REP_THEMES.filter(t=>repThemeNote(r,t[0])>0);
   if(noted.length){
     sectionHead('Évaluation par thème');
-    const cells=noted.map(t=>[t[1],r.themes[t[0]].note,false]); if(g!=null) cells.push(['Note globale',g,true]);
+    const cells=noted.map(t=>[t[1],repThemeNote(r,t[0]),false]); if(g!=null) cells.push(['Note globale',g,true]);
     const n=cells.length,gap=3,cw=(CW-(n-1)*gap)/n,ch=15; ensure(ch+2);
     cells.forEach((c,i)=>{ const x=M+i*(cw+gap);
       if(c[2]){ setFill(C.navy); doc.roundedRect(x,y,cw,ch,2,2,'F'); } else { setFill(C.boxbg); setDraw(C.boxln); doc.setLineWidth(0.3); doc.roundedRect(x,y,cw,ch,2,2,'FD'); }
@@ -2148,14 +2150,14 @@ async function reportPrint(r){
 
   // ---------- THÈMES ----------
   REP_THEMES.forEach(t=>{
-    const k=t[0],c=r.themes[k]||{}; const hasCrit=c.crit&&Object.keys(c.crit).length;
-    if(!c.note&&!c.comment&&!hasCrit) return;
+    const k=t[0],c=r.themes[k]||{}; const hasCrit=c.crit&&Object.keys(c.crit).length; const nn=repThemeNote(r,k);
+    if(!nn&&!c.comment&&!hasCrit) return;
     ensure(20);
     F('bold',12); setText(C.ink); doc.text(t[1],M,y);
-    if(c.note){ F('bold',11); setText(C.navy); doc.text(String(c.note),PW-M-5,y,{align:'right'}); F('normal',8); setText(C.lmuted); doc.text('/5',PW-M,y,{align:'right'}); }
+    if(nn){ F('bold',11); setText(C.navy); doc.text(String(nn),PW-M-5,y,{align:'right'}); F('normal',8); setText(C.lmuted); doc.text('/5',PW-M,y,{align:'right'}); }
     y+=4; F('normal',8.5); setText(C.lmuted); doc.text(t[2],M,y);
     y+=2.6;
-    if(c.note){ const bh=3; setFill(C.barbg); doc.rect(M,y,CW,bh,'F'); setFill(C.blue); doc.rect(M,y,CW*(c.note/5),bh,'F'); y+=7.5; }
+    if(nn){ const bh=3; setFill(C.barbg); doc.rect(M,y,CW,bh,'F'); setFill(C.blue); doc.rect(M,y,CW*(nn/5),bh,'F'); y+=7.5; }
     else { y+=2; }
     const cr=c.crit||{};
     ORDER.forEach(stk=>{
