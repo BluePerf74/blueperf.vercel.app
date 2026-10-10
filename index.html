@@ -51,7 +51,7 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:var(--chalk);
+    background:var(--navy);
     color:var(--ink);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -329,6 +329,15 @@
   }
   .login-submit:hover{background:#2478C4;}
   .login-error{color:#ffb4a8;font-size:12.5px;margin-top:14px;text-align:center;}
+  .login-pass-wrap{position:relative;}
+  .login-pass-wrap input{padding-right:52px;}
+  .login-pass-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:#9FB0C6;font-size:11px;font-weight:700;letter-spacing:.04em;cursor:pointer;padding:6px 8px;}
+  .login-pass-toggle:hover{color:#fff;}
+  .login-forgot{margin:10px 0 0;font-size:12px;color:#9FB0C6;text-align:center;}
+  .login-forgot button{background:none;border:0;color:#3DA9FC;font:inherit;cursor:pointer;text-decoration:underline;padding:0;}
+  .login-legal{margin:18px 0 0;font-size:11px;line-height:1.55;color:#7E90A8;text-align:center;border-top:1px solid #223A56;padding-top:14px;}
+  .login-legal a{color:#9FB0C6;}
+  .login-hint{margin-top:12px;font-size:12px;color:#9FB0C6;background:#0F1D30;border:1px solid #223A56;border-radius:9px;padding:10px 12px;text-align:left;line-height:1.5;}
 
   /* ---------- Dashboard coach (en-tête façon StatField) ---------- */
   .dash-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
@@ -490,7 +499,7 @@
 
   /* ---------- Adaptation écran large (ordinateur) : pleine page ---------- */
   @media (min-width: 860px){
-    body{background:var(--chalk);}
+    body{background:var(--navy);}
     #app{max-width:100%;margin:0;border-radius:0;min-height:100vh;box-shadow:none;}
     .topbar{padding:22px 44px 0;}
     .topbar-row, .dash-row, .client-switch, .tabs, .section-switch{max-width:1280px;margin-left:auto;margin-right:auto;}
@@ -1629,13 +1638,22 @@ function renderLoginScreen(){
         <h1 class="login-brand">Blue<span>Perf</span></h1>
         <p class="login-sub">Connecte-toi / Log in</p>
         <form id="login-form" class="login-form">
-          <label>IDENTIFIANT / USERNAME</label>
-          <input type="text" id="login-user" placeholder="Identifiant" autocomplete="username">
-          <label>MOT DE PASSE / PASSWORD</label>
-          <input type="password" id="login-pass" placeholder="•••" autocomplete="current-password">
+          <label for="login-user">IDENTIFIANT / USERNAME</label>
+          <input type="text" id="login-user" name="username" placeholder="Identifiant" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <label for="login-pass">MOT DE PASSE / PASSWORD</label>
+          <div class="login-pass-wrap">
+            <input type="password" id="login-pass" name="password" placeholder="•••" autocomplete="current-password">
+            <button type="button" class="login-pass-toggle" id="login-pass-toggle" aria-label="Afficher le mot de passe / Show password" aria-pressed="false">AFFICHER</button>
+          </div>
           <button type="submit" class="login-submit">Se connecter / Log in</button>
         </form>
-        ${state.loginError ? `<div class="login-error">${state.loginError}</div>` : ''}
+        ${state.loginError ? `<div class="login-error" role="alert">${state.loginError}</div>` : ''}
+        <p class="login-forgot">Mot de passe oublié ? <button type="button" id="login-forgot">Voir ici</button></p>
+        <div class="login-hint" id="login-hint" hidden>Ton identifiant et ton mot de passe te sont fournis par ton coach. En cas d'oubli, contacte-le/la directement : il/elle peut les retrouver ou les réinitialiser depuis son espace.</div>
+        <p class="login-legal">
+          Données de santé et de performance traitées pour le suivi sportif. Pour les moins de 15 ans, l'inscription requiert l'accord d'un parent ou tuteur.
+          <br><a href="/confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité &amp; RGPD</a>
+        </p>
       </div>
     </div>`;
   document.getElementById('login-form').addEventListener('submit', (ev) => {
@@ -1644,6 +1662,16 @@ function renderLoginScreen(){
     const pass = document.getElementById('login-pass').value;
     attemptLogin(user, pass);
   });
+  const tog = document.getElementById('login-pass-toggle');
+  if(tog) tog.addEventListener('click', () => {
+    const inp = document.getElementById('login-pass');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    tog.textContent = show ? 'MASQUER' : 'AFFICHER';
+    tog.setAttribute('aria-pressed', show ? 'true' : 'false');
+  });
+  const fg = document.getElementById('login-forgot');
+  if(fg) fg.addEventListener('click', () => { const h = document.getElementById('login-hint'); if(h) h.hidden = !h.hidden; });
 }
 
 async function attemptLogin(userRaw, passRaw){
