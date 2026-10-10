@@ -1,4 +1,29 @@
 const { Redis } = require('@upstash/redis');
+const crypto = require('crypto');
+
+// Authentification : quand AUTH_SECRET est défini, chaque requête doit présenter un cookie de
+// session valide (posé par /api/auth après vérification serveur des identifiants). Sans ce secret,
+// comportement historique (ouvert) pour ne rien casser avant activation.
+const SECRET = process.env.AUTH_SECRET || '';
+function b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function verifySession(token) {
+  if (!token || !SECRET) return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const expected = b64url(crypto.createHmac('sha256', SECRET).update(parts[0]).digest());
+  const a = Buffer.from(parts[1]); const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const o = JSON.parse(Buffer.from(parts[0].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+    if (o.exp && Date.now() > o.exp) return null;
+    return o;
+  } catch (e) { return null; }
+}
+function sessionCookie(req) {
+  const h = req.headers.cookie || '';
+  for (const p of h.split(';')) { const i = p.indexOf('='); if (i > 0 && p.slice(0, i).trim() === 'bp_sess') return decodeURIComponent(p.slice(i + 1).trim()); }
+  return null;
+}
 
 let redis;
 function getRedis() {
@@ -14,6 +39,12 @@ function getRedis() {
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+
+  // Barrière d'authentification (active uniquement si AUTH_SECRET est configuré).
+  if (SECRET) {
+    const session = verifySession(sessionCookie(req));
+    if (!session) return res.status(401).json({ error: 'unauthorized' });
+  }
 
   try {
     const db = getRedis();

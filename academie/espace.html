@@ -382,6 +382,8 @@ function renderLogin(msg){
     const u=$('#lg-user').value,p=$('#lg-pass').value;
     if(!u||!p){$('#lg-err').textContent='Renseigne identifiant et mot de passe.';return;}
     $('#lg-btn').disabled=true;$('#lg-err').textContent='Connexion…';
+    // Vérification serveur des identifiants (si activée) : pose le cookie de session.
+    try{ const ar=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({username:u,password:p})}); if(ar&&ar.status===401){$('#lg-btn').disabled=false;$('#lg-err').textContent='Identifiant ou mot de passe incorrect.';return;} }catch(e){}
     // Connexion intelligente : identifiants coach → tableau de bord ; sinon espace client·e.
     if(await isCoach(u,p)){try{localStorage.setItem('bp_access','coach');localStorage.setItem('bp_accessStamp','v2');}catch(e){}location.href='/';return;}
     const pl=await tryLogin(u,p);

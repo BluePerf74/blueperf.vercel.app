@@ -1506,6 +1506,12 @@ async function init(){
     return;
   }
   await migrateIfNeeded();
+  // Session serveur : si l'authentification est activée (AUTH_SECRET) et qu'aucune session valide
+  // n'existe, on force l'écran de connexion — même si une ancienne session locale subsiste.
+  try{
+    const ar = await fetch('/api/auth', {credentials:'same-origin'});
+    if(ar && ar.ok){ const aj = await ar.json(); if(!aj.legacy && !aj.authed){ state.loginStep='choice'; state.loginError=''; renderLoginScreen(); return; } }
+  }catch(e){}
   const storedAccess = await sGet('access', false);
   const stamp = await sGet('accessStamp', false);
   // Session valable uniquement si elle a été ouverte via l'écran de connexion de cette version.
@@ -1594,6 +1600,7 @@ async function computeGlobalStats(){
 }
 
 async function logout(){
+  try{ await fetch('/api/auth?action=logout', {method:'POST', credentials:'same-origin'}); }catch(e){}
   // on tente une suppression, puis on écrase avec une valeur vide en secours : certains
   // environnements ne supportent pas bien la suppression, mais un set vide bloque quand même
   // toute reconnexion automatique au prochain chargement.
@@ -1682,6 +1689,12 @@ async function attemptLogin(userRaw, passRaw){
     renderLoginScreen();
     return;
   }
+  // Vérification serveur des identifiants (si l'authentification est activée) : pose le cookie de
+  // session avant tout accès au stockage. En mode hérité, l'appel réussit sans rien contraindre.
+  try{
+    const ar = await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify({username:userRaw, password:passRaw})});
+    if(ar && ar.status === 401){ state.loginError = 'Identifiant ou mot de passe incorrect.'; renderLoginScreen(); return; }
+  }catch(e){}
   const roles = await collectRoles(userRaw, passRaw, user, pass);
   if(!roles.length){
     state.loginError = 'Identifiant ou mot de passe incorrect.';
