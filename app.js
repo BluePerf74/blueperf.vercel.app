@@ -1383,6 +1383,11 @@ function settingsBodyHtml(){
       <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Tous les clients, regroupés par espace. Renomme, change le mot de passe, désactive ou supprime.','All clients, grouped by space. Rename, change password, deactivate or delete.'))}</p>
       <div id="bp-allclients-body">${admEsc(t('Chargement…','Loading…'))}</div>
     </div>
+    <div id="bp-store" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
+      <b style="font-size:15px">📦 ${admEsc(t('Programmes achetés — suivi','Purchased programs — tracking'))}</b>
+      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Programmes de la boutique débloqués par tes client·es de Coaching individuel, avec leur avancement. Après un paiement, clique « Débloquer » pour activer un programme.','Store programs unlocked by your Individual-coaching clients, with progress. After a payment, click “Unlock” to activate a program.'))}</p>
+      <div id="bp-store-body">${admEsc(t('Chargement…','Loading…'))}</div>
+    </div>
     <div id="bp-coaches" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
       <b style="font-size:15px">🧑‍🏫 ${admEsc(t('Coachs par espace','Coaches by space'))}</b>
       <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Ajoute un coach pour un espace (ex. APA). Il se connecte avec son identifiant et accède uniquement à cet espace. La personne peut aussi être cliente ou joueuse ailleurs : utilise les mêmes identifiants et un choix du rôle apparaîtra à la connexion.','Add a coach for a space (e.g. APA). They log in and only access that space. The person can also be a client/player elsewhere: reuse the same login and a role picker appears at sign-in.'))}</p>
@@ -1441,6 +1446,7 @@ function renderSettingsPage(){
   if(imp) imp.onclick = () => importU18F(imp, app.querySelector('#bp-import-status'));
   renderSectionsCfg();
   renderAllClients();
+  renderStoreTracking();
   renderCoaches();
   renderManagers();
   renderAdminBody();
@@ -2156,6 +2162,48 @@ async function renderBoughtProgram(screen, clientId, programId){
   const list = document.getElementById('bsession-list');
   list.innerHTML = dayGroupedSessionsHtml(week.n, defs, statuses);
   bindSessionCards(list, nsId, week.n, defs, statuses, () => renderBoughtProgram(screen, clientId, programId));
+}
+
+/* Suivi côté coach (dans ⚙️ Paramètres) : programmes achetés par chaque client·e + avancement,
+   avec déblocage manuel (à utiliser après un paiement tant que l'encaissement auto n'est pas branché). */
+async function renderStoreTracking(){
+  const el = document.getElementById('bp-store-body'); if(!el) return;
+  const catalog = catalogList();
+  if(!catalog.length){ el.innerHTML = `<p style="color:#7E90A8;font-size:12.5px;margin:0">${admEsc(t('Boutique indisponible.','Store unavailable.'))}</p>`; return; }
+  let clients = [];
+  try{ clients = await loadClients(); }catch(e){ clients = state.clients || []; }
+  if(!clients.length){ el.innerHTML = `<p style="color:#7E90A8;font-size:12.5px;margin:0">${admEsc(t('Aucun·e client·e de Coaching individuel pour le moment.','No Individual-coaching client yet.'))}</p>`; return; }
+  const rows = await Promise.all(clients.map(async c => {
+    const u = await loadUnlocks(c.id);
+    const owned = catalog.filter(p => u[p.id]);
+    const progs = await Promise.all(owned.map(async p => ({ p, pr: await programProgress(c.id, p) })));
+    return { c, u, progs };
+  }));
+  const btn = 'appearance:none;cursor:pointer;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:600';
+  el.innerHTML = rows.map(({c, u, progs}) => {
+    const ownedHtml = progs.length ? progs.map(({p, pr}) => {
+      const pct = pr.total ? Math.round(pr.done / pr.total * 100) : 0;
+      return `<div style="display:flex;align-items:center;gap:8px;margin:5px 0">
+        <span style="width:18px;text-align:center">${p.emoji}</span>
+        <span style="flex:1;min-width:90px;font-size:13px">${admEsc(p.title)}${u[p.id]&&u[p.id].paid?'':` <span style="font-size:10px;color:#C98A2C">${admEsc(t('(accès offert)','(free access)'))}</span>`}</span>
+        <div style="flex:1;max-width:150px;height:7px;background:#20314a;border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:${p.color}"></i></div>
+        <span style="font-size:11.5px;color:#9fb0c6;white-space:nowrap">${pr.done}/${pr.total}</span></div>`;
+    }).join('') : `<p style="color:#7E90A8;font-size:12px;margin:4px 0 0">${admEsc(t('Aucun programme débloqué.','No program unlocked.'))}</p>`;
+    const locked = catalog.filter(p => !u[p.id]);
+    const unlockBtns = locked.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">${locked.map(p => `<button data-store-unlock="${admEsc(c.id)}::${p.id}" style="${btn};border:1px solid #33465f;background:transparent;color:#EAF1FB">🔓 ${admEsc(p.title)}</button>`).join('')}</div>` : '';
+    return `<div style="border:1px solid #25344b;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <b>${admEsc(c.name || c.id)}</b>
+      ${ownedHtml}${unlockBtns}</div>`;
+  }).join('');
+  el.querySelectorAll('[data-store-unlock]').forEach(b => b.onclick = async () => {
+    const [cid, pid] = b.getAttribute('data-store-unlock').split('::');
+    const p = catalogFind(pid);
+    if(!confirm(t('Débloquer « ','Unlock “') + (p ? p.title : pid) + t(' » pour ce·tte client·e ?',"” for this client?"))) return;
+    b.disabled = true;
+    const u = await loadUnlocks(cid); u[pid] = { at: todayStr(), paid: true };
+    await saveUnlocks(cid, u);
+    renderStoreTracking();
+  });
 }
 
 /*
