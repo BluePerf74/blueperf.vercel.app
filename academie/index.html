@@ -343,12 +343,19 @@ const DEF={
  th:{hsr:19.8,sprint:25,acwrHi:1.3,acwrLo:0.8,well:60,wz:-1,weekChg:15,vmaxPct:90,vmaxDays:6,cmjDrop:5,monotony:2},
  tests:[
   {id:'cmj',name:'CMJ',unit:'cm',better:'high'},
+  {id:'vma',name:'VMA',unit:'km/h',better:'high'},
   {id:'s10',name:'Sprint 10 m',unit:'s',better:'low'},
   {id:'s30',name:'Sprint 30 m',unit:'s',better:'low'},
   {id:'ift',name:'30-15 IFT (VIFT)',unit:'km/h',better:'high'},
   {id:'cod',name:'505 COD',unit:'s',better:'low'},
+  {id:'sidehopd',name:'Side hop D',unit:'cm',better:'high'},
+  {id:'sidehopg',name:'Side hop G',unit:'cm',better:'high'},
+  {id:'triplehopd',name:'Triple hop D',unit:'cm',better:'high'},
+  {id:'triplehopg',name:'Triple hop G',unit:'cm',better:'high'},
   {id:'nordic',name:'Nordic (force ischios)',unit:'N',better:'high'},
   {id:'squeeze',name:'Squeeze adducteurs',unit:'N',better:'high'}],
+ // Paires gauche/droite : % de symétrie = min/max × 100 (ex. 48/47 → 98 %).
+ asym:[{label:'Side hop',d:'sidehopd',g:'sidehopg'},{label:'Triple hop',d:'triplehopd',g:'triplehopg'}],
  rtp:[
   {name:'Soins & protection',criteria:['Douleur au repos 0/10','Marche sans boiterie','Amplitude ≥ 80 % du côté sain']},
   {name:'Force & mobilité',criteria:['Amplitude complète sans douleur','Force isométrique ≥ 80 % du côté sain','Gainage et appuis unipodaux sans douleur']},
@@ -358,7 +365,9 @@ const DEF={
  muscuExos:['Squat arrière','Soulevé de terre roumain','Hip thrust','Développé couché','Tractions lestées','Épaulé debout'],
  skills:['Squat','Charnière hanche','Fente','Tirage','Poussée','Réception de saut']
 };
-function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assign({},DEF,s,{th:Object.assign({},DEF.th,s.th||{}),tabs:Object.assign({},DEF.tabs,s.tabs||{})});}
+// Fusionne les tests par défaut manquants dans la config perso (ajoute sans retirer/réordonner).
+function mergeTests(def,cust){if(!Array.isArray(cust)||!cust.length)return def.slice();const ids=new Set(cust.map(t=>t&&t.id));return cust.concat(def.filter(t=>!ids.has(t.id)));}
+function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assign({},DEF,s,{th:Object.assign({},DEF.th,s.th||{}),tabs:Object.assign({},DEF.tabs,s.tabs||{}),tests:mergeTests(DEF.tests,s.tests),asym:DEF.asym});}
 const tabOn=id=>{ if(RESTRICT.tabs){ if(id!=='overview'&&!RESTRICT.tabs.includes(id))return false; } return S().tabs[id]!==false; };
 
 /* ===================== STORE ===================== */
@@ -617,8 +626,12 @@ function makeDemo(){
   [['U18',T1,'Batterie de rentrée'],['U15',T1,'Batterie de rentrée'],['U18',T2,'Batterie septembre']].forEach(([cat,date,label],bi)=>{
     const res={};const ps=Object.values(D.players).filter(p=>p.cat===cat);const u=cat==='U18';const prog=bi===2?1:0;
     DEF.tests.forEach(t=>{res[t.id]={};ps.forEach(p=>{const s=(p.vmax-28)/6;let v;
-      switch(t.id){case 'cmj':v=(u?36:30)+s*8+J(-3,3)+prog*1.2;break;case 's10':v=(u?1.78:1.9)-s*.1+J(-.04,.04)-prog*.02;break;case 's30':v=(u?4.25:4.6)-s*.3+J(-.06,.06)-prog*.04;break;
-        case 'ift':v=(u?19:17.8)+J(-1.2,1.2)+prog*.6;break;case 'cod':v=(u?2.35:2.5)+J(-.08,.08)-prog*.02;break;case 'nordic':v=(u?330:250)+J(-50,50)+prog*15;break;case 'squeeze':v=(u?300:230)+J(-40,40)+prog*10;break;}
+      switch(t.id){case 'cmj':v=(u?36:30)+s*8+J(-3,3)+prog*1.2;break;case 'vma':v=(u?17.5:16.2)+s*1.4+J(-.5,.5)+prog*.3;break;case 's10':v=(u?1.78:1.9)-s*.1+J(-.04,.04)-prog*.02;break;case 's30':v=(u?4.25:4.6)-s*.3+J(-.06,.06)-prog*.04;break;
+        case 'ift':v=(u?19:17.8)+J(-1.2,1.2)+prog*.6;break;case 'cod':v=(u?2.35:2.5)+J(-.08,.08)-prog*.02;break;
+        case 'sidehopd':v=(u?50:44)+s*3+J(-4,4)+prog*2;break;case 'sidehopg':v=(u?49:43)+s*3+J(-5,5)+prog*2;break;
+        case 'triplehopd':v=(u?480:420)+s*20+J(-25,25)+prog*8;break;case 'triplehopg':v=(u?470:412)+s*20+J(-35,35)+prog*8;break;
+        case 'nordic':v=(u?330:250)+J(-50,50)+prog*15;break;case 'squeeze':v=(u?300:230)+J(-40,40)+prog*10;break;}
+      if(v==null)return;
       if(p.id==='u18-5'&&bi===2)return;
       res[t.id][p.id]=+v.toFixed(t.unit==='s'?2:1);});});
     const id='t'+bi;D.tests[id]={id,date,cat,label,results:res};
@@ -2330,8 +2343,11 @@ function renderDrawer(){
     (p.mass?`<div ${tileStyle}><div ${tvStyle}>${r1(p.mass)}<span class="small muted"> kg</span></div><div class="small muted">Poids</div></div>`:''),
     ...tests.map(x=>{const d=x.prev?x.last.v-x.prev.v:null;const flat=d===0;const up=d!=null&&!flat&&((x.t.better==='high'&&d>0)||(x.t.better==='low'&&d<0));const col=(d==null||flat)?'var(--muted)':(up?'var(--good)':'var(--crit)');const arrow=d==null?'':(flat?'→':(d>0?'▲':'▼'));return `<div ${tileStyle}><div ${tvStyle}>${fr(x.last.v,2)}<span class="small muted"> ${esc(x.t.unit)}</span></div><div class="small muted">${esc(x.t.name)}</div>${d!=null?`<div class="small" style="color:${col}">${arrow} ${fr(Math.abs(d),2)}</div>`:''}</div>`;})
   ].filter(Boolean).join('');
+  // Tuiles d'asymétrie gauche/droite : % de symétrie = min/max × 100.
+  const asymTiles=(S().asym||[]).map(pr=>{const sd=testSeries(p.id,pr.d),sg=testSeries(p.id,pr.g);const d=sd.length?sd[sd.length-1].v:null,gv=sg.length?sg[sg.length-1].v:null;if(d==null||gv==null||!d||!gv)return '';const sym=Math.round(Math.min(d,gv)/Math.max(d,gv)*100);const col=sym>=90?'var(--good)':sym>=80?'var(--warn)':'var(--crit)';return `<div ${tileStyle}><div style="font-size:19px;font-weight:700;font-family:var(--fd);color:${col}">${sym}<span class="small muted"> %</span></div><div class="small muted">Asym. ${esc(pr.label)}</div><div class="small muted">D ${fr(d,0)} · G ${fr(gv,0)}</div></div>`;}).filter(Boolean).join('');
+  const allTiles=testTiles+asymTiles;
   const panelTests=`<div class="card"><h3>Tests physiques — dernières valeurs</h3>
-    ${testTiles?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">${testTiles}</div>`:'<p class="muted small">Aucune donnée de test.</p>'}
+    ${allTiles?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">${allTiles}</div>`:'<p class="muted small">Aucune donnée de test.</p>'}
     ${tests.length?`<div class="tw" style="margin-top:12px"><table><thead><tr><th>Test</th><th class="n">Dernier</th><th class="n">Précédent</th><th>Date</th></tr></thead><tbody>${tests.map(x=>`<tr><td>${esc(x.t.name)}</td><td class="n"><b>${fr(x.last.v,2)}</b> ${esc(x.t.unit)}</td><td class="n">${x.prev?fr(x.prev.v,2):'–'}</td><td>${fmtShort(x.last.date)}</td></tr>`).join('')}</tbody></table></div>`:''}
     <p class="note" style="margin-top:10px">Ajoute ou modifie des tests (VMA, side hop, triple hop, 30-15…) dans « Saisie → Tests » et configure la liste dans « Paramètres → Tests ».</p></div>`;
 
