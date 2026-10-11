@@ -1358,7 +1358,6 @@ function bindBoutique(){
 function tabbar(){
   const tabs=[['apercu',"Vue d'ensemble"]];
   if(MY_PLAN)tabs.push(['programme','Mon programme']);
-  if(selfLog())tabs.push(['boutique','🛒 Boutique']);
   tabs.push(['sante','Santé & forme'],['rpe','RPE & charge']);
   if(NUTRI_CID)tabs.push(['nutrition','🥗 Nutrition']);
   return `<div class="tabbar">${tabs.map(([k,l])=>`<button class="tabbtn ${ESPACE_TAB===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
@@ -1382,6 +1381,7 @@ async function renderSpace(skipLoad){
     <div class="topbar">
       <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">${COACH_MODE?'✍️ Saisie coach — <b>'+esc(PLAYER.name)+'</b>'+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):''):'Bonjour '+esc(PLAYER.name)+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):'')}</div></div>
       ${COACH_MODE?'':`<div class="row" style="gap:8px;flex-wrap:nowrap">
+        ${selfLog()?'<button class="iconbtn" id="boutiquebtn" title="Boutique de programmes" aria-label="Boutique de programmes">🛒</button>':''}
         <button class="iconbtn" id="settingsbtn" title="Paramètres" aria-label="Paramètres">⚙️</button>
         <button class="btn sec" id="logout">Déconnexion</button>
       </div>`}
@@ -1390,6 +1390,7 @@ async function renderSpace(skipLoad){
     <div id="tabc"></div>`;
   const lo=$('#logout');if(lo)lo.onclick=()=>{clearSession();PLAYER=null;renderLogin();};
   const tb=$('#settingsbtn');if(tb)tb.onclick=openSettings;
+  const bq=$('#boutiquebtn');if(bq)bq.onclick=()=>{ESPACE_TAB='boutique';BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;renderTab();};
   document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-tab');renderTab();});
   await renderTab();
   hideBoot();
