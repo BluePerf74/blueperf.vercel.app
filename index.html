@@ -1500,18 +1500,25 @@ function renderStorageError(){
 }
 
 async function init(){
+  // 1) Statut de session serveur EN PREMIER. Quand l'authentification est activée (AUTH_SECRET),
+  //    /api/storage exige un cookie de session : sans connexion il répond 401. Il est donc inutile
+  //    — et impossible — de tester le stockage avant d'être connecté. Si l'auth est active et qu'on
+  //    n'a pas de session valide, on affiche directement l'écran de connexion.
+  let authLegacy = true, authOk = true;
+  try{
+    const ar = await fetch('/api/auth', {credentials:'same-origin'});
+    if(ar && ar.ok){ const aj = await ar.json(); authLegacy = !!aj.legacy; authOk = !!aj.authed; }
+  }catch(e){}
+  if(!authLegacy && !authOk){
+    state.loginStep='choice'; state.loginError=''; renderLoginScreen(); return;
+  }
+  // 2) Mode hérité, ou session valide → le stockage doit répondre (le cookie, s'il en faut un, est posé).
   const storageOk = await checkStorageWorks();
   if(!storageOk){
     renderStorageError();
     return;
   }
   await migrateIfNeeded();
-  // Session serveur : si l'authentification est activée (AUTH_SECRET) et qu'aucune session valide
-  // n'existe, on force l'écran de connexion — même si une ancienne session locale subsiste.
-  try{
-    const ar = await fetch('/api/auth', {credentials:'same-origin'});
-    if(ar && ar.ok){ const aj = await ar.json(); if(!aj.legacy && !aj.authed){ state.loginStep='choice'; state.loginError=''; renderLoginScreen(); return; } }
-  }catch(e){}
   const storedAccess = await sGet('access', false);
   const stamp = await sGet('accessStamp', false);
   // Session valable uniquement si elle a été ouverte via l'écran de connexion de cette version.
