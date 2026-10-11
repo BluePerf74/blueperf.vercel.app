@@ -833,6 +833,7 @@ async function init(){
       state.access = 'client';
       state.myClientId = storedClientId;
       state.viewAs = 'client';
+      state.section = 'programme';
       state.tab = 'programme';
       render();
       return;
@@ -1034,7 +1035,7 @@ async function collectRoles(userRaw, passRaw, user, pass){
   const match = state.clients.find(c => normalizeCode(c.id) === user && c.code && normalizeCode(c.code) === pass);
   if(match) roles.push({label:t('Cliente — Coaching individuel','Client — Individual coaching'), sub:match.name||match.id, icon:'🧍', enter:async()=>{
     await sSet('access','client',false); await sSet('clientId',match.id,false); await sSet('accessStamp',AUTH_VERSION,false);
-    state.access='client'; state.myClientId=match.id; state.viewAs='client'; state.tab='programme'; state.manager=null; state.spaceCoach=null; render();
+    state.access='client'; state.myClientId=match.id; state.viewAs='client'; state.section='programme'; state.tab='programme'; state.manager=null; state.spaceCoach=null; render();
   }});
   const ec = await findAcademieClient(userRaw, passRaw);
   if(ec) roles.push({label:ec.space==='ci'?t('Client·e — Coaching individuel','Client — Individual coaching'):t('Joueur·se — Football','Player — Football'), sub:ec.name||'', icon:ec.space==='ci'?'🧍':'⚽', enter:async()=>{
@@ -1131,7 +1132,7 @@ const PROGRAMME_TABS_COACH = [
   {id:'entrainement', label:'Suivi entraînement'}, {id:'clients', label:'Mes clients'}, {id:'parametres', label:'Paramètres'}
 ];
 const PROGRAMME_TABS_CLIENT = [
-  {id:'programme', label:'Programme'}, {id:'ressenti', label:'Ressenti du jour'}, {id:'entrainement', label:'Suivi entraînement'}
+  {id:'programme', label:'Programme'}, {id:'boutique', label:'Boutique'}, {id:'ressenti', label:'Ressenti du jour'}, {id:'entrainement', label:'Suivi entraînement'}
 ];
 // Onglet "Football" = l'app Blueperf Académie complète, affichée en iframe (page /academie/).
 const FOOTBALL_TABS = [{id:'football', label:'Académie'}];
@@ -1946,6 +1947,7 @@ function renderScreen(){
   }
   if(isCoachView && state.tab === 'clients' && state.builderClientId) return renderBuilder(screen, state.builderClientId);
   if(state.tab === 'programme') return renderProgramme(screen);
+  if(state.tab === 'boutique') return renderBoutique(screen);
   if(state.tab === 'ressenti' && !isCoachView) return renderHooperForm(screen);
   if(state.tab === 'apercu') return renderApercu(screen);
   if(state.tab === 'seances') return renderCoachOverview(screen);
@@ -2031,6 +2033,129 @@ async function renderProgramme(screen){
   const list = document.getElementById('session-list');
   list.innerHTML = dayGroupedSessionsHtml(week.n, defs, statuses);
   bindSessionCards(list, clientId, week.n, defs, statuses);
+}
+
+/* =========================================================
+   CLIENT — BOUTIQUE DE PROGRAMMES (programmes 30 jours à débloquer)
+   Disponible pour TOUS les client·es de Coaching individuel. Chaque programme
+   acheté est suivi séance par séance ; le suivi est partagé (visible côté coach).
+   ========================================================= */
+const PROGRAM_PRICE = 5;
+function unlocksKey(clientId){ return 'unlocks:'+clientId; }
+async function loadUnlocks(clientId){
+  const raw = await sGet(unlocksKey(clientId), true);
+  if(!raw) return {};
+  try{ const o = JSON.parse(raw); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; }catch(e){ return {}; }
+}
+async function saveUnlocks(clientId, map){ return await sSet(unlocksKey(clientId), JSON.stringify(map), true); }
+// Suivi des programmes achetés : namespacé par programme pour ne pas se mélanger au
+// programme assigné par le coach (clés "session:<client>#<programme>:S<n>:<id>").
+function nsClient(clientId, programId){ return clientId + '#' + programId; }
+function catalogList(){ return (window.PROGRAM_CATALOG || []); }
+function catalogFind(id){ return catalogList().find(p => p.id === id); }
+function programSessionCount(p){ return p.weeks.reduce((n,w) => n + w.sessions.length, 0); }
+async function programProgress(clientId, p){
+  const nsId = nsClient(clientId, p.id);
+  let total = 0, done = 0;
+  const checks = [];
+  p.weeks.forEach(w => w.sessions.forEach(s => { total++; checks.push(loadSession(nsId, w.n, s.id).then(st => { if(st.done) done++; })); }));
+  await Promise.all(checks);
+  return { done, total };
+}
+
+async function renderBoutique(screen){
+  const clientId = effectiveClientId();
+  const catalog = catalogList();
+  if(!catalog.length){ screen.innerHTML = `<div class="empty">La boutique n'est pas disponible pour le moment.</div>`; return; }
+  const unlocks = await loadUnlocks(clientId);
+
+  if(state.boutiqueOpen && catalogFind(state.boutiqueOpen) && unlocks[state.boutiqueOpen]){
+    return renderBoughtProgram(screen, clientId, state.boutiqueOpen);
+  }
+  state.boutiqueOpen = null;
+
+  const owned = catalog.filter(p => unlocks[p.id]);
+  const locked = catalog.filter(p => !unlocks[p.id]);
+  const prog = {};
+  await Promise.all(owned.map(async p => { prog[p.id] = await programProgress(clientId, p); }));
+
+  const ownedCard = p => {
+    const pr = prog[p.id] || {done:0,total:0};
+    const pct = pr.total ? Math.round(pr.done / pr.total * 100) : 0;
+    return `<button class="prog-card" data-open-prog="${p.id}" style="border-left-color:${p.color}">
+      <div class="pc-top"><span class="pc-emoji">${p.emoji}</span><span class="pc-badge done">Débloqué ✓</span></div>
+      <div class="pc-title">${p.title}</div>
+      <div class="pc-desc">${p.desc}</div>
+      <div class="pc-prog"><div class="pc-bar"><i style="width:${pct}%;background:${p.color}"></i></div><span>${pr.done}/${pr.total} séances</span></div>
+      <div class="pc-cta" style="color:${p.color}">${pr.done ? 'Continuer' : 'Commencer'} →</div>
+    </button>`;
+  };
+  const lockedCard = p => `<div class="prog-card" style="border-left-color:${p.color}">
+      <div class="pc-top"><span class="pc-emoji">${p.emoji}</span><span class="pc-badge price">${PROGRAM_PRICE} €</span></div>
+      <div class="pc-title">${p.title}</div>
+      <div class="pc-desc">${p.desc}</div>
+      <div class="pc-meta">${p.durationDays} jours · ${p.weeks.length} semaines · ${programSessionCount(p)} séances · ${p.level}</div>
+      <button class="btn-unlock" data-unlock="${p.id}">🔓 Débloquer — ${PROGRAM_PRICE} €</button>
+    </div>`;
+
+  screen.innerHTML = `<div class="boutique">
+      ${owned.length ? `<h2 class="sec-h">Mes programmes</h2>${owned.map(ownedCard).join('')}` : ''}
+      <h2 class="sec-h">Boutique de programmes</h2>
+      <p class="muted" style="margin:2px 0 14px;font-size:13px">Des programmes de 30 jours prêts à suivre. Débloque-les pour ${PROGRAM_PRICE} € et réalise-les directement dans l'app, avec le suivi de tes séances.</p>
+      ${locked.map(lockedCard).join('') || '<div class="empty">Tu as débloqué tous les programmes 🎉</div>'}
+    </div>`;
+
+  screen.querySelectorAll('[data-open-prog]').forEach(b => b.addEventListener('click', () => {
+    state.boutiqueOpen = b.getAttribute('data-open-prog'); state.boutiqueWeek = null;
+    state.openSession = null; state.pendingRpeFor = null; renderBoutique(screen);
+  }));
+  screen.querySelectorAll('[data-unlock]').forEach(b => b.addEventListener('click', async () => {
+    const pid = b.getAttribute('data-unlock'); const p = catalogFind(pid); if(!p) return;
+    if(!confirm('Débloquer « ' + p.title + ' » ?\n\nLe paiement de ' + PROGRAM_PRICE + ' € sera bientôt disponible. Pour l\'instant, l\'accès est activé directement pour que tu puisses tester.')) return;
+    b.disabled = true; b.textContent = 'Déblocage…';
+    const u = await loadUnlocks(clientId); u[pid] = { at: todayStr(), paid: false };
+    const ok = await saveUnlocks(clientId, u);
+    if(!ok){ b.disabled = false; b.textContent = '🔓 Débloquer — ' + PROGRAM_PRICE + ' €'; if(typeof showSaveError === 'function') showSaveError(); return; }
+    state.boutiqueOpen = pid; state.boutiqueWeek = null; state.openSession = null; state.pendingRpeFor = null;
+    renderBoutique(screen);
+  }));
+}
+
+async function renderBoughtProgram(screen, clientId, programId){
+  const p = catalogFind(programId);
+  if(!p){ state.boutiqueOpen = null; return renderBoutique(screen); }
+  const nsId = nsClient(clientId, programId);
+  const weeks = p.weeks;
+  if(!state.boutiqueWeek || !weeks.find(w => w.n === state.boutiqueWeek)) state.boutiqueWeek = weeks[0].n;
+  const week = weeks.find(w => w.n === state.boutiqueWeek);
+  const defs = week.sessions;
+  const statuses = {};
+  await Promise.all(defs.map(async d => { statuses[d.id] = await loadSession(nsId, week.n, d.id); }));
+  const doneCount = Object.values(statuses).filter(s => s.done).length;
+
+  screen.innerHTML = `<div class="boutique-player">
+      <button class="btn-back" data-boutique-back>← Boutique</button>
+      <div class="bp-head" style="border-left-color:${p.color}"><span class="pc-emoji">${p.emoji}</span><div><div style="font-weight:800;font-size:18px">${p.title}</div><div class="muted" style="font-size:12.5px">${p.goal}</div></div></div>
+      <div class="week-scroll" id="bweek-scroll">
+        ${weeks.map(w => `<div class="week-chip ${w.n===week.n?'active':''}" data-bweek="${w.n}"><span class="wk-n">S${w.n}</span></div>`).join('')}
+      </div>
+      <div class="week-head"><h2>Semaine ${week.n}</h2>
+        ${week.meso ? `<div class="week-meta">${week.meso}</div>` : ''}
+        <div class="week-progress"><b>${doneCount}/${defs.length}</b> séances réalisées cette semaine</div></div>
+      <div id="bsession-list"></div>
+    </div>`;
+
+  screen.querySelector('[data-boutique-back]').addEventListener('click', () => {
+    state.boutiqueOpen = null; state.openSession = null; state.pendingRpeFor = null; renderBoutique(screen);
+  });
+  screen.querySelectorAll('[data-bweek]').forEach(c => c.addEventListener('click', () => {
+    state.boutiqueWeek = parseInt(c.getAttribute('data-bweek'),10);
+    state.openSession = null; state.pendingRpeFor = null; renderBoughtProgram(screen, clientId, programId);
+  }));
+
+  const list = document.getElementById('bsession-list');
+  list.innerHTML = dayGroupedSessionsHtml(week.n, defs, statuses);
+  bindSessionCards(list, nsId, week.n, defs, statuses, () => renderBoughtProgram(screen, clientId, programId));
 }
 
 /*

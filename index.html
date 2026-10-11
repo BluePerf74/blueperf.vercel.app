@@ -696,6 +696,26 @@
 @media (max-width:640px){#splash .sp-row{grid-template-columns:repeat(2,1fr)}}
 #updbar{position:fixed;top:0;left:0;right:0;z-index:100000;background:#3DA9FC;color:#04121f;font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
 #updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
+/* Boutique de programmes (Coaching individuel) */
+.boutique .sec-h{font-size:17px;margin:20px 0 10px;color:var(--ink)}
+.prog-card{display:block;width:100%;text-align:left;background:var(--paper);border:1px solid var(--line);border-left-width:5px;border-radius:var(--radius);padding:15px 16px;margin-bottom:12px;box-shadow:var(--shadow);cursor:default}
+button.prog-card{cursor:pointer;font-family:inherit}
+.prog-card .pc-top{display:flex;justify-content:space-between;align-items:center}
+.prog-card .pc-emoji{font-size:26px;line-height:1}
+.prog-card .pc-badge{font-size:12px;font-weight:800}
+.prog-card .pc-badge.price{background:var(--navy);color:var(--chalk);padding:3px 10px;border-radius:20px}
+.prog-card .pc-badge.done{color:var(--grass)}
+.prog-card .pc-title{font-weight:800;font-size:18px;margin:8px 0 3px;color:var(--ink)}
+.prog-card .pc-desc{font-size:13px;color:var(--ink-soft);line-height:1.45}
+.prog-card .pc-meta{font-size:12px;color:var(--ink-soft);margin-top:8px}
+.prog-card .pc-prog{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);margin-top:11px}
+.prog-card .pc-bar{flex:1;height:8px;background:rgba(18,32,54,.1);border-radius:6px;overflow:hidden}
+.prog-card .pc-bar i{display:block;height:100%;border-radius:6px}
+.prog-card .pc-cta{margin-top:10px;font-weight:800}
+.btn-unlock{margin-top:13px;width:100%;background:var(--navy);color:var(--chalk);border:0;border-radius:11px;padding:12px;font-weight:800;font-size:14.5px;cursor:pointer;font-family:inherit}
+.btn-unlock:disabled{opacity:.6}
+.btn-back{background:none;border:0;color:var(--ink-soft);font-weight:700;font-size:14px;cursor:pointer;padding:6px 0;font-family:inherit}
+.bp-head{display:flex;align-items:center;gap:12px;background:var(--paper);border:1px solid var(--line);border-left-width:5px;border-radius:var(--radius);padding:13px 15px;margin:6px 0 4px}
 </style>
 </head>
 <body>
@@ -704,6 +724,6 @@
 <div id="app"></div>
 
 <script src="/programs-catalog.js"></script>
-<script src="/app.min.js?v=ec2f907e"></script>
+<script src="/app.min.js?v=b26a5e89"></script>
 </body>
 </html>
