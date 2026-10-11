@@ -1132,7 +1132,7 @@ const PROGRAMME_TABS_COACH = [
   {id:'entrainement', label:'Suivi entraînement'}, {id:'clients', label:'Mes clients'}, {id:'parametres', label:'Paramètres'}
 ];
 const PROGRAMME_TABS_CLIENT = [
-  {id:'programme', label:'Programme'}, {id:'boutique', label:'Boutique'}, {id:'ressenti', label:'Ressenti du jour'}, {id:'entrainement', label:'Suivi entraînement'}
+  {id:'programme', label:'Programme'}, {id:'ressenti', label:'Ressenti du jour'}, {id:'entrainement', label:'Suivi entraînement'}
 ];
 // Onglet "Football" = l'app Blueperf Académie complète, affichée en iframe (page /academie/).
 const FOOTBALL_TABS = [{id:'football', label:'Académie'}];
@@ -2166,30 +2166,32 @@ async function renderBoughtProgram(screen, clientId, programId){
 
 /* Suivi côté coach (dans ⚙️ Paramètres) : programmes achetés par chaque client·e + avancement,
    avec déblocage manuel (à utiliser après un paiement tant que l'encaissement auto n'est pas branché). */
+// Lit les données RÉELLES de la boutique (espace client Coaching individuel = académie ci) :
+// clients dans 'ci:players', achats + avancement dans 'ci:store'.
+async function readSharedJSON(key){ try{ const raw = await sGet(key, true); return raw ? JSON.parse(raw) : {}; }catch(e){ return {}; } }
+function storeProgCount(p){ return p.weeks.reduce((n,w) => n + w.sessions.length, 0); }
 async function renderStoreTracking(){
   const el = document.getElementById('bp-store-body'); if(!el) return;
   const catalog = catalogList();
   if(!catalog.length){ el.innerHTML = `<p style="color:#7E90A8;font-size:12.5px;margin:0">${admEsc(t('Boutique indisponible.','Store unavailable.'))}</p>`; return; }
-  let clients = [];
-  try{ clients = await loadClients(); }catch(e){ clients = state.clients || []; }
+  const players = await readSharedJSON('ci:players');
+  const storeMap = await readSharedJSON('ci:store');
+  const clients = Object.values(players).filter(p => p && p.id).sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
   if(!clients.length){ el.innerHTML = `<p style="color:#7E90A8;font-size:12.5px;margin:0">${admEsc(t('Aucun·e client·e de Coaching individuel pour le moment.','No Individual-coaching client yet.'))}</p>`; return; }
-  const rows = await Promise.all(clients.map(async c => {
-    const u = await loadUnlocks(c.id);
-    const owned = catalog.filter(p => u[p.id]);
-    const progs = await Promise.all(owned.map(async p => ({ p, pr: await programProgress(c.id, p) })));
-    return { c, u, progs };
-  }));
   const btn = 'appearance:none;cursor:pointer;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:600';
-  el.innerHTML = rows.map(({c, u, progs}) => {
-    const ownedHtml = progs.length ? progs.map(({p, pr}) => {
-      const pct = pr.total ? Math.round(pr.done / pr.total * 100) : 0;
+  el.innerHTML = clients.map(c => {
+    const rec = storeMap[c.id] || {}; const unlocks = rec.unlocks || {}; const done = rec.done || {};
+    const owned = catalog.filter(p => unlocks[p.id]);
+    const ownedHtml = owned.length ? owned.map(p => {
+      const tc = storeProgCount(p); const dc = Object.keys(done[p.id] || {}).length; const pct = tc ? Math.round(dc / tc * 100) : 0;
+      const free = !(unlocks[p.id] && unlocks[p.id].paid);
       return `<div style="display:flex;align-items:center;gap:8px;margin:5px 0">
         <span style="width:18px;text-align:center">${p.emoji}</span>
-        <span style="flex:1;min-width:90px;font-size:13px">${admEsc(p.title)}${u[p.id]&&u[p.id].paid?'':` <span style="font-size:10px;color:#C98A2C">${admEsc(t('(accès offert)','(free access)'))}</span>`}</span>
+        <span style="flex:1;min-width:90px;font-size:13px">${admEsc(p.title)}${free?` <span style="font-size:10px;color:#C98A2C">${admEsc(t('(accès offert)','(free access)'))}</span>`:''}</span>
         <div style="flex:1;max-width:150px;height:7px;background:#20314a;border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:${p.color}"></i></div>
-        <span style="font-size:11.5px;color:#9fb0c6;white-space:nowrap">${pr.done}/${pr.total}</span></div>`;
+        <span style="font-size:11.5px;color:#9fb0c6;white-space:nowrap">${dc}/${tc}</span></div>`;
     }).join('') : `<p style="color:#7E90A8;font-size:12px;margin:4px 0 0">${admEsc(t('Aucun programme débloqué.','No program unlocked.'))}</p>`;
-    const locked = catalog.filter(p => !u[p.id]);
+    const locked = catalog.filter(p => !unlocks[p.id]);
     const unlockBtns = locked.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">${locked.map(p => `<button data-store-unlock="${admEsc(c.id)}::${p.id}" style="${btn};border:1px solid #33465f;background:transparent;color:#EAF1FB">🔓 ${admEsc(p.title)}</button>`).join('')}</div>` : '';
     return `<div style="border:1px solid #25344b;border-radius:8px;padding:10px 12px;margin-bottom:8px">
       <b>${admEsc(c.name || c.id)}</b>
@@ -2200,8 +2202,11 @@ async function renderStoreTracking(){
     const p = catalogFind(pid);
     if(!confirm(t('Débloquer « ','Unlock “') + (p ? p.title : pid) + t(' » pour ce·tte client·e ?',"” for this client?"))) return;
     b.disabled = true;
-    const u = await loadUnlocks(cid); u[pid] = { at: todayStr(), paid: true };
-    await saveUnlocks(cid, u);
+    const sm = await readSharedJSON('ci:store');
+    sm[cid] = sm[cid] || { unlocks:{}, done:{} };
+    sm[cid].unlocks = sm[cid].unlocks || {};
+    sm[cid].unlocks[pid] = { at: todayStr(), paid: true };
+    await sSet('ci:store', JSON.stringify(sm), true);
     renderStoreTracking();
   });
 }

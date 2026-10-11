@@ -137,6 +137,7 @@ input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px
 <div class="boot" id="boot"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
 <div class="wrap" id="app"></div>
 <script src="program-data.js"></script>
+<script src="/programs-catalog.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1289,9 +1290,75 @@ function programmeHtml(){
     <div class="tabbar" style="flex-wrap:wrap">${chips}</div>
     ${days||'<div class="card"><p class="muted">Aucune séance cette semaine.</p></div>'}`;
 }
+/* ---------- Boutique de programmes (30 jours à débloquer — Coaching individuel) ---------- */
+let STORE={unlocks:{},done:{}}, BOUTIQUE_OPEN=null, BOUTIQUE_WEEK=null, BOUTIQUE_SOPEN=null;
+const PROG_PRICE=5;
+const CATALOG=()=>window.PROGRAM_CATALOG||[];
+async function loadStore(){const all=await kvGet(SPACE+':store');const rec=(all&&all[PLAYER.id])||{};STORE={unlocks:rec.unlocks||{},done:rec.done||{}};}
+async function saveStore(){const all=(await kvGet(SPACE+':store'))||{};all[PLAYER.id]=Object.assign({},all[PLAYER.id]||{},{unlocks:STORE.unlocks,done:STORE.done,name:PLAYER.name,updatedAt:new Date().toISOString()});await kvSet(SPACE+':store',all);}
+async function boutiqueUnlock(pid){STORE.unlocks[pid]={at:TODAY,paid:false};await saveStore();}
+async function boutiqueDone(pid,ref,val){STORE.done[pid]=STORE.done[pid]||{};if(val==null)delete STORE.done[pid][ref];else STORE.done[pid][ref]=Object.assign({},STORE.done[pid][ref]||{},val);await saveStore();}
+function progCount(p){return p.weeks.reduce((n,w)=>n+w.sessions.length,0);}
+function progDoneCount(pid){return Object.keys(STORE.done[pid]||{}).length;}
+function boutiqueHtml(){
+  const cat=CATALOG();
+  if(!cat.length)return '<div class="card"><p class="muted" style="margin:0">La boutique n\'est pas disponible pour le moment.</p></div>';
+  if(BOUTIQUE_OPEN){const p=cat.find(x=>x.id===BOUTIQUE_OPEN);if(p&&STORE.unlocks[p.id])return boutiquePlayerHtml(p);BOUTIQUE_OPEN=null;}
+  const owned=cat.filter(p=>STORE.unlocks[p.id]);const locked=cat.filter(p=>!STORE.unlocks[p.id]);
+  const ownedCard=p=>{const dc=progDoneCount(p.id),tc=progCount(p);const pct=tc?Math.round(dc/tc*100):0;return `<button class="card" data-bopen="${p.id}" style="display:block;width:100%;text-align:left;cursor:pointer;border-left:4px solid ${p.color};font-family:inherit">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:24px">${p.emoji}</span><span class="pill good">Débloqué ✓</span></div>
+    <div style="font-weight:800;font-size:16px;margin:6px 0 2px">${esc(p.title)}</div><div class="muted" style="font-size:12.5px">${esc(p.desc)}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:9px"><div style="flex:1;height:7px;background:var(--surface-2);border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:${p.color}"></i></div><span class="muted" style="font-size:12px;white-space:nowrap">${dc}/${tc}</span></div>
+    <div style="margin-top:8px;font-weight:700;color:${p.color}">${dc?'Continuer':'Commencer'} →</div></button>`;};
+  const lockedCard=p=>`<div class="card" style="border-left:4px solid ${p.color}">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:24px">${p.emoji}</span><span class="pill" style="background:var(--navy,#0D1B2A);color:#fff">${PROG_PRICE} €</span></div>
+    <div style="font-weight:800;font-size:16px;margin:6px 0 2px">${esc(p.title)}</div><div class="muted" style="font-size:12.5px">${esc(p.desc)}</div>
+    <div class="muted" style="font-size:11.5px;margin-top:7px">${p.durationDays} jours · ${p.weeks.length} semaines · ${progCount(p)} séances</div>
+    <button class="btn" data-bunlock="${p.id}" style="width:100%;margin-top:11px">🔓 Débloquer — ${PROG_PRICE} €</button></div>`;
+  return `${owned.length?`<h2 style="margin:4px 0 8px">Mes programmes</h2>${owned.map(ownedCard).join('')}`:''}
+    <h2 style="margin:${owned.length?'18px':'4px'} 0 4px">Boutique de programmes</h2>
+    <p class="muted" style="font-size:12.5px;margin:0 0 10px">Des programmes de 30 jours à suivre directement dans l'app. Débloque-les pour ${PROG_PRICE} €.</p>
+    ${locked.map(lockedCard).join('')||'<div class="card"><p class="muted" style="margin:0">Tous les programmes sont débloqués 🎉</p></div>'}`;
+}
+function boutiquePlayerHtml(p){
+  const done=STORE.done[p.id]||{};const weeks=p.weeks.slice().sort((a,b)=>a.n-b.n);
+  const wk=(BOUTIQUE_WEEK&&weeks.find(w=>w.n===BOUTIQUE_WEEK))||weeks[0];
+  const dose=window.PROG12?window.PROG12.dose:(e=>e.fixed||((e.series||e.sets||'')+' x '+(e.reps||'')));
+  const chips=weeks.map(w=>{const dc=w.sessions.filter(d=>done['S'+w.n+':'+d.id]).length;const full=dc===w.sessions.length&&w.sessions.length;return `<button class="tabbtn ${w.n===wk.n?'on':''}" style="flex:none;min-width:46px;padding:7px 10px" data-bweek="${w.n}">S${w.n}${full?' ✓':''}</button>`;}).join('');
+  const doneCount=wk.sessions.filter(d=>done['S'+wk.n+':'+d.id]).length;
+  const days=PDAYS.map(([key,lab])=>{const list=wk.sessions.filter(s=>s.day===key);if(!list.length)return '';
+    return `<div style="margin-bottom:6px"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">${lab}</div>${list.map(def=>{
+      const ref='S'+wk.n+':'+def.id;const rec=done[ref];const open=BOUTIQUE_SOPEN===ref;const exos=def.exercises||[];
+      return `<div class="session"><div class="t" data-bstoggle="${ref}" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center">
+        <span>${esc(def.label)}</span><span>${rec?'<span class="pill good">✓ '+(rec.rpe!=null?'RPE '+rec.rpe:'faite')+'</span>':'<span class="pill">à faire</span>'} <span class="muted">${open?'▲':'▼'}</span></span></div>
+        ${def.note?`<div class="m">${esc(def.note)}</div>`:''}
+        ${open?`<div style="margin-top:6px">${exos.map(e=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b style="font-size:13.5px">${esc(e.name)}</b>${dose(e)?`<span class="pill">${esc(dose(e))}</span>`:''}</div>
+          ${e.how?`<details style="margin-top:4px"><summary style="color:var(--accent);cursor:pointer;font-size:12.5px">Comment faire ?</summary><div class="muted" style="font-size:12.5px;margin-top:4px;line-height:1.6">${esc(e.how)}${e.note?'<br><i>'+esc(e.note)+'</i>':''}</div></details>`:''}
+        </div>`).join('')}
+        <div class="row" style="margin-top:10px;align-items:center">${rec
+          ?`<label style="margin:0">RPE ressenti</label><input type="number" min="0" max="10" value="${rec.rpe!=null?rec.rpe:''}" data-bprpe="${ref}" placeholder="0-10" style="width:80px"><button class="btn sec" data-bunvalidate="${ref}" style="padding:8px 12px">Annuler</button>`
+          :`<button class="btn" data-bvalidate="${ref}" style="padding:10px 14px">✓ J'ai fait cette séance</button>`}
+        </div></div>`:''}</div>`;}).join('')}</div>`;}).join('');
+  return `<button class="btn sec" data-bback style="margin-bottom:8px">← Boutique</button>
+    <div class="card" style="border-left:4px solid ${p.color}"><b>${p.emoji} ${esc(p.title)}</b><div class="muted" style="font-size:12.5px;margin-top:2px">Semaine ${wk.n}${wk.meso?' — '+esc(wk.meso):''} · ${doneCount}/${wk.sessions.length} séance(s) faite(s)</div></div>
+    <div class="tabbar" style="flex-wrap:wrap">${chips}</div>
+    ${days||'<div class="card"><p class="muted">Aucune séance cette semaine.</p></div>'}`;
+}
+function bindBoutique(){
+  document.querySelectorAll('[data-bopen]').forEach(b=>b.onclick=()=>{BOUTIQUE_OPEN=b.getAttribute('data-bopen');BOUTIQUE_WEEK=null;BOUTIQUE_SOPEN=null;renderTab();});
+  document.querySelectorAll('[data-bunlock]').forEach(b=>b.onclick=async()=>{const pid=b.getAttribute('data-bunlock');const p=CATALOG().find(x=>x.id===pid);if(!p)return;if(!confirm('Débloquer « '+p.title+' » ?\n\nLe paiement de '+PROG_PRICE+' € sera bientôt disponible. Pour l\'instant, l\'accès est activé directement.'))return;b.disabled=true;b.textContent='Déblocage…';await boutiqueUnlock(pid);BOUTIQUE_OPEN=pid;BOUTIQUE_WEEK=null;BOUTIQUE_SOPEN=null;renderTab();});
+  document.querySelectorAll('[data-bback]').forEach(b=>b.onclick=()=>{BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;renderTab();});
+  document.querySelectorAll('[data-bweek]').forEach(b=>b.onclick=()=>{BOUTIQUE_WEEK=+b.getAttribute('data-bweek');BOUTIQUE_SOPEN=null;renderTab();});
+  document.querySelectorAll('[data-bstoggle]').forEach(b=>b.onclick=()=>{const r=b.getAttribute('data-bstoggle');BOUTIQUE_SOPEN=BOUTIQUE_SOPEN===r?null:r;renderTab();});
+  document.querySelectorAll('[data-bvalidate]').forEach(b=>b.onclick=async()=>{b.disabled=true;await boutiqueDone(BOUTIQUE_OPEN,b.getAttribute('data-bvalidate'),{date:TODAY,rpe:null});renderTab();});
+  document.querySelectorAll('[data-bunvalidate]').forEach(b=>b.onclick=async()=>{b.disabled=true;await boutiqueDone(BOUTIQUE_OPEN,b.getAttribute('data-bunvalidate'),null);renderTab();});
+  document.querySelectorAll('[data-bprpe]').forEach(inp=>inp.onchange=async()=>{const v=inp.value===''?null:Math.max(0,Math.min(10,+inp.value));await boutiqueDone(BOUTIQUE_OPEN,inp.getAttribute('data-bprpe'),{rpe:v});});
+}
 function tabbar(){
   const tabs=[['apercu',"Vue d'ensemble"]];
   if(MY_PLAN)tabs.push(['programme','Mon programme']);
+  if(selfLog())tabs.push(['boutique','🛒 Boutique']);
   tabs.push(['sante','Santé & forme'],['rpe','RPE & charge']);
   if(NUTRI_CID)tabs.push(['nutrition','🥗 Nutrition']);
   return `<div class="tabbar">${tabs.map(([k,l])=>`<button class="tabbtn ${ESPACE_TAB===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
@@ -1304,8 +1371,10 @@ async function renderSpace(skipLoad){
     loadMySessions(),
     loadMyPlan(),
     loadNutriLink(),
+    selfLog()?loadStore():Promise.resolve(),
     menstruAllowed(PLAYER)?loadMenstru():Promise.resolve()
   ]);
+  if(ESPACE_TAB==='boutique'&&!selfLog())ESPACE_TAB='apercu';
   if(ESPACE_TAB==='nutrition'&&!NUTRI_CID)ESPACE_TAB='apercu';
   if(ESPACE_TAB==='menstruation')ESPACE_TAB='sante'; // le cycle est désormais intégré dans Santé & forme
   if(ESPACE_TAB==='programme'&&!MY_PLAN)ESPACE_TAB='apercu';
@@ -1349,6 +1418,9 @@ async function renderTab(){
     document.querySelectorAll('[data-pvalidate]').forEach(b=>b.onclick=async()=>{b.disabled=true;await saveProgDone(b.getAttribute('data-pvalidate'),{date:TODAY,rpe:null});renderTab();});
     document.querySelectorAll('[data-punvalidate]').forEach(b=>b.onclick=async()=>{b.disabled=true;await saveProgDone(b.getAttribute('data-punvalidate'),null);renderTab();});
     document.querySelectorAll('[data-prpe]').forEach(inp=>inp.onchange=async()=>{const v=inp.value===''?null:Math.max(0,Math.min(10,+inp.value));await saveProgDone(inp.getAttribute('data-prpe'),{rpe:v});});
+  }else if(ESPACE_TAB==='boutique'){
+    c.innerHTML=boutiqueHtml();
+    bindBoutique();
   }else{
     c.innerHTML=await overviewHtml();
     document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
