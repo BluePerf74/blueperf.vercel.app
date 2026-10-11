@@ -1051,9 +1051,14 @@ function menstruAllowed(p){if(!p)return false;const n=(p.name||'').trim().toLowe
 function mParse(d){return Date.parse(d+'T12:00:00');}
 function mDaysBetween(a,b){return Math.round((mParse(b)-mParse(a))/86400000);}
 function menstruStarts(pid){const r=DATA.menstru&&DATA.menstru[pid];const s=(r&&Array.isArray(r.starts))?r.starts.slice().sort():[];return s;}
+function menstruEnds(pid){const r=DATA.menstru&&DATA.menstru[pid];const s=(r&&Array.isArray(r.ends))?r.ends.slice().sort():[];return s;}
+// Fin des règles rattachée à un début : première fin ≥ ce début et avant le début suivant.
+function menstruEndFor(starts,ends,start){if(!start||!ends||!ends.length)return null;const si=starts.indexOf(start);const nextStart=(si>=0&&si<starts.length-1)?starts[si+1]:null;for(const e of ends.slice().sort()){if(mDaysBetween(start,e)>=0&&(!nextStart||mDaysBetween(e,nextStart)>0))return e;}return null;}
+// Durée réelle des règles (début→fin inclus) si connue, sinon 5 j par défaut.
+function menstruReglesLen(start,end,L){if(!start||!end)return Math.min(5,L);return Math.min(L,Math.max(1,mDaysBetween(start,end)+1));}
 function menstruCycleLen(starts){if(!starts||starts.length<2)return 28;const g=[];for(let i=1;i<starts.length;i++){const d=mDaysBetween(starts[i-1],starts[i]);if(d>=18&&d<=40)g.push(d);}if(!g.length)return 28;return Math.min(35,Math.max(21,Math.round(g.reduce((a,b)=>a+b,0)/g.length)));}
-function menstruZones(L){const ovul=Math.max(11,L-14);const z=[];
-  z.push({key:'regles',name:'Règles',from:1,to:Math.min(5,L),level:'watch',color:'#C0392B',advice:"Énergie parfois plus basse, pertes de fer : garder le mouvement mais ajuster l'intensité au ressenti."});
+function menstruZones(L,reglesLen){const ovul=Math.max(11,L-14);const z=[];
+  z.push({key:'regles',name:'Règles',from:1,to:Math.min(Math.max(1,reglesLen||5),L),level:'watch',color:'#C0392B',advice:"Énergie parfois plus basse, pertes de fer : garder le mouvement mais ajuster l'intensité au ressenti."});
   const folFrom=Math.min(6,L),folTo=Math.max(folFrom,ovul-2);
   z.push({key:'folliculaire',name:'Folliculaire',from:folFrom,to:folTo,level:'ok',color:'#1E9E6A',advice:"Phase souvent la plus favorable : bon moment pour les séances intenses, la force et le travail de qualité."});
   z.push({key:'ovulation',name:'Ovulation',from:Math.max(1,ovul-1),to:Math.min(L,ovul+1),level:'care',color:'#E08A0B',advice:"Laxité ligamentaire accrue : vigilance sur l'impact, les pivots, la pliométrie et les changements de direction (risque de blessure au genou)."});
@@ -1076,15 +1081,27 @@ function menstruCard(){
   if(!UI.menstruPid||!mps.some(p=>p.id===UI.menstruPid))UI.menstruPid=mps[0].id;
   const pid=UI.menstruPid;const p=DATA.players[pid];
   const starts=menstruStarts(pid);const last=starts.length?starts[starts.length-1]:null;
-  const L=menstruCycleLen(starts);const zones=menstruZones(L);const day=menstruDayOf(last,UI.ref,L);const zone=menstruZoneForDay(zones,day);
+  const ends=menstruEnds(pid);const lastEnd=menstruEndFor(starts,ends,last);
+  const reglesLen=menstruReglesLen(last,lastEnd,menstruCycleLen(starts));
+  const L=menstruCycleLen(starts);const zones=menstruZones(L,reglesLen);const day=menstruDayOf(last,UI.ref,L);const zone=menstruZoneForDay(zones,day);
   const next=last?addDays(last,L):null;
   const sel=`<select data-chg="menstruPid" aria-label="${PL.One}" style="width:auto">${mps.map(x=>{const s=menstruStarts(x.id);const lst=s.length?s[s.length-1]:null;const recent=lst&&mDaysBetween(lst,UI.ref)>=0&&mDaysBetween(lst,UI.ref)<=10;return `<option value="${esc(x.id)}" ${x.id===pid?'selected':''}>${esc(x.name)}${recent?' 🩸':''}</option>`;}).join('')}</select>`;
   let vigil='';
   if(zone&&zone.level==='care')vigil=`<div class="banner" style="border-left:4px solid ${zone.color};background:${zone.color}14"><p><b style="color:${zone.color}">⚠️ Vigilance — ${zone.name} (J${day})</b><br>${zone.advice}<br><b>Entraînement physique :</b> privilégier technique/volume maîtrisé, limiter l'impact et la pliométrie à haute intensité.</p></div>`;
   else if(zone&&zone.level==='watch')vigil=`<div class="banner" style="border-left:4px solid ${zone.color};background:${zone.color}10"><p><b style="color:${zone.color}">ℹ️ À écouter — ${zone.name} (J${day})</b><br>${zone.advice}</p></div>`;
+  const endBlock=lastEnd
+    ? `<p style="margin:6px 0 0">Fin des règles : <b>${fmtD(lastEnd,{day:'numeric',month:'long'})}</b> · durée réelle <b>${mDaysBetween(last,lastEnd)+1} j</b> <button class="btn sm" data-act="menstruEndDel" style="margin-left:6px">Corriger</button></p>`
+    : `<div style="margin:8px 0 0;padding:9px 11px;border:1px dashed var(--line);border-radius:10px">
+        <p class="small muted" style="margin:0 0 7px">Règles en cours (durée par défaut de 5 j). Saisis la date de <b>fin des règles</b> pour des phases exactes :</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input type="date" data-chg="menstruEndDate" value="${UI.menstruEndDate||last}" min="${last}" style="width:auto">
+          <button class="btn sm pri" data-act="menstruEndSave">Enregistrer la fin des règles</button>
+        </div>
+      </div>`;
   const body=last?`
     <p style="margin:0 0 2px">Dernier début des règles : <b>${fmtD(last,{day:'numeric',month:'long'})}</b>${day!=null?` · au ${fmtD(UI.ref,{day:'numeric',month:'long'})} : <b>J${day}</b> — <b style="color:${zone?zone.color:'inherit'}">${zone?zone.name:''}</b>`:''}</p>
-    <p class="small muted" style="margin:2px 0 0">Cycle estimé : ${L} jours${next?` · prochaines règles estimées vers le ${fmtD(next,{day:'numeric',month:'long'})}`:''}${starts.length<2?" (valeur par défaut tant qu'il n'y a qu'un seul début enregistré)":''}.</p>
+    ${endBlock}
+    <p class="small muted" style="margin:6px 0 0">Cycle estimé : ${L} jours${next?` · prochaines règles estimées vers le ${fmtD(next,{day:'numeric',month:'long'})}`:''}${starts.length<2?" (valeur par défaut tant qu'il n'y a qu'un seul début enregistré)":''}.</p>
     ${menstruBar(zones,L,day)}
     ${vigil}
     <div class="tw" style="margin-top:8px"><table><thead><tr><th>Phase</th><th>Jours</th><th>Repère entraînement</th></tr></thead><tbody>
@@ -2314,6 +2331,19 @@ const ACT={
   delWell:async b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
     const pid=b.dataset.pid,date=b.dataset.date;const doc=DATA.wellness[date];
     if(doc&&doc.entries&&doc.entries[pid]){const nd=JSON.parse(JSON.stringify(doc));delete nd.entries[pid];if(Object.keys(nd.entries).length)await put('wellness',date,nd);else await del('wellness',date);toast('Wellness supprimé');}else{render();}},
+  menstruEndSave:async b=>{const pid=UI.menstruPid;if(!pid)return;const starts=menstruStarts(pid);const last=starts.length?starts[starts.length-1]:null;
+    if(!last){toast('Aucun début de règles enregistré');return;}
+    const d=UI.menstruEndDate||last;if(mDaysBetween(last,d)<0){toast('La fin doit être le jour du début ou après');return;}
+    const base=DATA.menstru&&DATA.menstru[pid]?JSON.parse(JSON.stringify(DATA.menstru[pid])):{pid,starts:starts.slice()};
+    base.ends=Array.isArray(base.ends)?base.ends:[];
+    base.ends=base.ends.filter(e=>mDaysBetween(last,e)<0); // retire une fin déjà posée pour ce cycle
+    base.ends.push(d);base.ends=[...new Set(base.ends)].sort();
+    base.updatedAt=new Date().toISOString();base.name=(DATA.players[pid]||{}).name||base.name;
+    UI.menstruEndDate=null;await put('menstru',pid,base);toast('Fin des règles enregistrée');},
+  menstruEndDel:async b=>{const pid=UI.menstruPid;if(!pid)return;const starts=menstruStarts(pid);const last=starts.length?starts[starts.length-1]:null;
+    const rec=DATA.menstru&&DATA.menstru[pid];if(!rec||!Array.isArray(rec.ends)||!last)return;
+    const nrec=JSON.parse(JSON.stringify(rec));nrec.ends=nrec.ends.filter(e=>mDaysBetween(last,e)<0);
+    nrec.updatedAt=new Date().toISOString();UI.menstruEndDate=null;await put('menstru',pid,nrec);toast('Fin des règles retirée');},
   keepDemo:async b=>{b.disabled=true;await keepDemo();},
   startEmpty:async b=>{b.disabled=true;await startEmpty();},
   loadMore:()=>{UI.loadMore=true;render();},
@@ -2401,7 +2431,8 @@ const CHG={
   progClient:t=>{UI.progClient=t.value;UI.progWeek=null;UI.progOpen=null;UI.progEdit=false;UI.progDraft=null;render();},
   progRpe:async t=>{const v=num(t.value);await progSet(t.dataset.cid,t.dataset.ref,{rpe:v==null?null:clamp(v,0,10)});},
   entryPick:t=>{UI.edit=null;UI.entryTab=t.value;formDirty=false;render();},
-  menstruPid:t=>{UI.menstruPid=t.value;render();},
+  menstruPid:t=>{UI.menstruPid=t.value;UI.menstruEndDate=null;render();},
+  menstruEndDate:t=>{UI.menstruEndDate=t.value;},
   assignCat:t=>{UI.assignCat=t.value;render();},
   assignDate:t=>{UI.assignDate=t.value;render();},
   spText:t=>{const cat=spKey();const plan=spGet(cat);const i=+t.dataset.wk,key=t.dataset.key;const w=plan.weeks[i]=plan.weeks[i]||{};w[key]=t.value;spSave(cat,plan,true);},

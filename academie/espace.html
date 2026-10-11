@@ -633,8 +633,8 @@ function menstruAllowed(p){if(!p)return false;const n=(p.name||'').trim().toLowe
 function mParse(d){return Date.parse(d+'T12:00:00');}
 function mDaysBetween(a,b){return Math.round((mParse(b)-mParse(a))/86400000);}
 function menstruCycleLen(starts){if(!starts||starts.length<2)return 28;const g=[];for(let i=1;i<starts.length;i++){const d=mDaysBetween(starts[i-1],starts[i]);if(d>=18&&d<=40)g.push(d);}if(!g.length)return 28;return Math.min(35,Math.max(21,Math.round(g.reduce((a,b)=>a+b,0)/g.length)));}
-function menstruZones(L){const ovul=Math.max(11,L-14);const z=[];
-  z.push({key:'regles',name:'Règles',from:1,to:Math.min(5,L),level:'watch',color:'#C0392B',advice:"Énergie parfois plus basse, pertes de fer : garde le mouvement mais ajuste l'intensité à ton ressenti, bien t'hydrater.",msg:"Une énergie un peu plus basse pendant les règles est normale. Adapte l'intensité à ton ressenti et veille à ton hydratation et à ton apport en fer."});
+function menstruZones(L,reglesLen){const ovul=Math.max(11,L-14);const z=[];
+  z.push({key:'regles',name:'Règles',from:1,to:Math.min(Math.max(1,reglesLen||5),L),level:'watch',color:'#C0392B',advice:"Énergie parfois plus basse, pertes de fer : garde le mouvement mais ajuste l'intensité à ton ressenti, bien t'hydrater.",msg:"Une énergie un peu plus basse pendant les règles est normale. Adapte l'intensité à ton ressenti et veille à ton hydratation et à ton apport en fer."});
   const folFrom=Math.min(6,L),folTo=Math.max(folFrom,ovul-2);
   z.push({key:'folliculaire',name:'Folliculaire',from:folFrom,to:folTo,level:'ok',color:'#1E9E6A',advice:"Phase souvent la plus en forme : bon moment pour les séances intenses et le travail de force.",msg:"Période souvent propice à la performance : bon moment pour les séances intenses et le travail de force."});
   z.push({key:'ovulation',name:'Ovulation',from:Math.max(1,ovul-1),to:Math.min(L,ovul+1),level:'care',color:'#E08A0B',advice:"Laxité ligamentaire accrue : prudence sur les sauts, pivots et changements de direction (risque de blessure au genou).",msg:"En milieu de cycle, soigne ton échauffement et tes appuis. C'est une phase normale du cycle."});
@@ -644,7 +644,9 @@ function menstruZones(L){const ovul=Math.max(11,L-14);const z=[];
   return z;}
 function menstruPlayerMessage(){
   const starts=(MY_MENSTRU&&MY_MENSTRU.starts)||[];if(!starts.length)return null;
-  const last=starts[starts.length-1];const L=menstruCycleLen(starts);const zones=menstruZones(L);const day=menstruDayOf(last,TODAY,L);const zone=menstruZoneForDay(zones,day);
+  const ends=(MY_MENSTRU&&MY_MENSTRU.ends)||[];const last=starts[starts.length-1];const lastEnd=menstruEndFor(starts,ends,last);
+  const L=menstruCycleLen(starts);const reglesLen=lastEnd?Math.min(L,Math.max(1,mDaysBetween(last,lastEnd)+1)):Math.min(5,L);
+  const zones=menstruZones(L,reglesLen);const day=menstruDayOf(last,TODAY,L);const zone=menstruZoneForDay(zones,day);
   if(!zone)return null;return {zone,day};
 }
 function menstruOverviewCard(){
@@ -665,19 +667,32 @@ function menstruBar(zones,L,day){
   const marker=pos!=null?`<div style="position:absolute;top:-5px;bottom:-5px;left:${pos}%;width:2px;background:var(--ink);box-shadow:0 0 0 2px var(--surface)"><div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:11px">▼</div></div>`:'';
   return `<div style="position:relative;margin:20px 0 6px"><div style="display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--line)">${segs}</div>${marker}</div>`;
 }
-let MY_MENSTRU=null, MENSTRU_DATE=null;
-async function loadMenstru(){const all=await kvGet(SPACE+':menstru');const rec=(all&&all[PLAYER.id])||{pid:PLAYER.id,starts:[]};if(!Array.isArray(rec.starts))rec.starts=[];MY_MENSTRU=rec;}
+let MY_MENSTRU=null, MENSTRU_DATE=null, MENSTRU_END=null;
+async function loadMenstru(){const all=await kvGet(SPACE+':menstru');const rec=(all&&all[PLAYER.id])||{pid:PLAYER.id,starts:[]};if(!Array.isArray(rec.starts))rec.starts=[];if(!Array.isArray(rec.ends))rec.ends=[];MY_MENSTRU=rec;}
 async function saveMenstruStart(date){const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id]||{pid:PLAYER.id,starts:[]};rec.starts=Array.isArray(rec.starts)?rec.starts:[];if(!rec.starts.includes(date))rec.starts.push(date);rec.starts.sort();rec.updatedAt=new Date().toISOString();rec.name=PLAYER.name;all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}
 async function deleteMenstruStart(date){const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id];if(!rec||!Array.isArray(rec.starts))return;rec.starts=rec.starts.filter(d=>d!==date);rec.updatedAt=new Date().toISOString();all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}
+// Fin des règles rattachée au dernier début : on remplace une éventuelle fin déjà posée pour ce cycle.
+async function saveMenstruEnd(date){const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id]||{pid:PLAYER.id,starts:[]};rec.ends=Array.isArray(rec.ends)?rec.ends:[];const starts=(rec.starts||[]).slice().sort();const last=starts.length?starts[starts.length-1]:null;if(!last)return;rec.ends=rec.ends.filter(e=>mDaysBetween(last,e)<0);rec.ends.push(date);rec.ends=[...new Set(rec.ends)].sort();rec.updatedAt=new Date().toISOString();rec.name=PLAYER.name;all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}
+function menstruEndFor(starts,ends,start){if(!start||!ends||!ends.length)return null;const si=starts.indexOf(start);const nextStart=(si>=0&&si<starts.length-1)?starts[si+1]:null;for(const e of ends.slice().sort()){if(mDaysBetween(start,e)>=0&&(!nextStart||mDaysBetween(e,nextStart)>0))return e;}return null;}
 // Section « Mon cycle » dans Santé & forme — interface complète : bouton « Débuter », où j'en suis, historique.
 // Le bouton ne se saisit qu'une fois par cycle : il se réactive quand les prochaines règles approchent.
 function menstruSectionHtml(){
   const starts=(MY_MENSTRU&&MY_MENSTRU.starts)||[];const last=starts.length?starts[starts.length-1]:null;
-  const L=menstruCycleLen(starts);const zones=menstruZones(L);const day=menstruDayOf(last,TODAY,L);const zone=menstruZoneForDay(zones,day);
+  const ends=(MY_MENSTRU&&MY_MENSTRU.ends)||[];const lastEnd=menstruEndFor(starts,ends,last);
+  const L=menstruCycleLen(starts);const reglesLen=lastEnd?Math.min(L,Math.max(1,mDaysBetween(last,lastEnd)+1)):Math.min(5,L);
+  const zones=menstruZones(L,reglesLen);const day=menstruDayOf(last,TODAY,L);const zone=menstruZoneForDay(zones,day);
   const next=last?addDaysISO(last,L):null;
   const dSince=last!=null?mDaysBetween(last,TODAY):null;
   const canStart=(last==null)||(dSince>=Math.max(10,L-3)); // une seule saisie par cycle
   if(!MENSTRU_DATE)MENSTRU_DATE=TODAY;
+  if(!MENSTRU_END)MENSTRU_END=TODAY;
+  // Saisie de la fin des règles : proposée quand un début récent est posé et que la fin n'est pas encore connue.
+  const endInput=(last&&!lastEnd&&!canStart)
+    ? `<div class="field" style="margin-top:12px"><label>Mes règles sont terminées le</label><input type="date" id="mn-end-date" value="${MENSTRU_END}" min="${last}" max="${TODAY}" style="max-width:210px"></div>
+       <button class="btn sec block" id="mn-end">✓ Mes règles sont terminées</button>
+       <div class="ok" id="mn-end-ok" style="margin-top:8px"></div>`
+    : '';
+  const endDone=lastEnd?`<p class="muted" style="font-size:12.5px;margin:10px 0 0">Fin des règles enregistrée le <b>${isoLong(lastEnd)}</b> · durée <b>${mDaysBetween(last,lastEnd)+1} j</b>. <button class="btn sec" id="mn-end-del" style="padding:3px 9px;margin-left:4px">Corriger</button></p>`:'';
   const startCard=`<div class="card"><h2>🌸 Mon cycle <span class="muted" style="font-size:12px;font-weight:400">· facultatif &amp; privé</span></h2>
     <p class="muted" style="font-size:12.5px;margin:0 0 12px">Quand tes règles commencent, appuie une fois sur le bouton. C'est privé ; seul ton coach le voit, pour adapter les séances.</p>
     ${canStart
@@ -688,6 +703,7 @@ function menstruSectionHtml(){
            <b>✓ Règles enregistrées le ${isoLong(last)}</b>
            <p class="muted" style="font-size:12.5px;margin:6px 0 0">Rien à saisir pour le moment.${next?` Le bouton se réactivera vers le ${isoLong(next)} (prochaines règles estimées).`:''}</p>
          </div>`}
+    ${endInput}${endDone}
   </div>`;
   const whereCard=last?`<div class="card"><h2>Où j'en suis</h2>
     <p style="margin:0 0 2px;font-size:14px">Dernier début : <b>${isoLong(last)}</b>${day!=null?` · aujourd'hui <b>J${day}</b> — <b style="color:${zone?zone.color:'inherit'}">${zone?zone.name:''}</b>`:''}</p>
@@ -701,6 +717,9 @@ function menstruSectionHtml(){
 function bindMenstruSection(){
   const dt=$('#mn-date');if(dt)dt.addEventListener('change',e=>{MENSTRU_DATE=e.target.value||TODAY;});
   const st=$('#mn-start');if(st)st.onclick=async()=>{const d=$('#mn-date').value||TODAY;st.disabled=true;const ok=$('#mn-ok');if(ok)ok.textContent='Enregistrement…';try{await saveMenstruStart(d);MENSTRU_DATE=TODAY;await renderTab();}catch(e){if(ok)ok.textContent='échec, réessaie';st.disabled=false;}};
+  const ed=$('#mn-end-date');if(ed)ed.addEventListener('change',e=>{MENSTRU_END=e.target.value||TODAY;});
+  const eb=$('#mn-end');if(eb)eb.onclick=async()=>{const d=$('#mn-end-date').value||TODAY;eb.disabled=true;const ok=$('#mn-end-ok');if(ok)ok.textContent='Enregistrement…';try{await saveMenstruEnd(d);MENSTRU_END=TODAY;await renderTab();}catch(e){if(ok)ok.textContent='échec, réessaie';eb.disabled=false;}};
+  const edel=$('#mn-end-del');if(edel)edel.onclick=async()=>{const starts=(MY_MENSTRU&&MY_MENSTRU.starts)||[];const last=starts.length?starts[starts.length-1]:null;if(!last)return;const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id];if(rec&&Array.isArray(rec.ends)){rec.ends=rec.ends.filter(e=>mDaysBetween(last,e)<0);rec.updatedAt=new Date().toISOString();all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}await renderTab();};
   document.querySelectorAll('[data-mndel]').forEach(b=>b.onclick=async()=>{if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent='Supprimer';}},3000);return;}await deleteMenstruStart(b.getAttribute('data-mndel'));await renderTab();});
 }
 
