@@ -197,8 +197,9 @@ textarea{min-height:70px;resize:vertical}
 .bar{height:8px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--accent)}
 /* DRAWER */
-.scrim{position:fixed;inset:0;background:rgba(5,10,20,.45);z-index:20}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100%);background:var(--bg);z-index:21;overflow-y:auto;padding-block:calc(env(safe-area-inset-top,0px) + 18px) 40px;padding-inline:20px;box-shadow:-10px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:14px}
+.scrim{position:fixed;inset:0;background:rgba(5,10,20,.45);z-index:44}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100%);background:var(--bg);z-index:45;overflow-y:auto;padding-block:calc(env(safe-area-inset-top,0px) + 18px) 40px;padding-inline:20px;box-shadow:-10px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:14px}
+.drawer .subtabs.drawertabs{position:sticky;top:-18px;z-index:2;background:var(--bg);padding-top:10px;margin-inline:-20px;padding-inline:20px}
 .drawer.fillfull{overflow:hidden;z-index:60;padding-block:0}
 .rep-scale{display:flex;gap:6px;flex-wrap:wrap}
 .rep-scale button{flex:1;min-width:40px;padding:9px 0;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:9px;font-weight:700;font-size:14px;cursor:pointer}
@@ -2285,18 +2286,78 @@ function renderDrawer(){
   const inj=Object.values(DATA.injuries).filter(i=>i.pid===p.id).sort((a,b)=>b.date.localeCompare(a.date));
   const ms=Object.values(DATA.matches).filter(m=>m.cat===p.cat&&m.date<=ref);let mn=0,mm=0,g=0,a=0;ms.forEach(m=>{const e=(m.players||{})[p.id];if(e&&num(e.min)){mn++;mm+=num(e.min);g+=num(e.goals)||0;a+=num(e.assists)||0;}});
   const mx=DATA.maxes[p.id]||{};
+  // Fiche en onglets (Profil · Stats match · Tests physiques · Éval technique · Blessures · Progression).
+  const seasonLabel=d=>{if(!d)return '—';const y=+d.slice(0,4),mo=+d.slice(5,7);return mo>=7?y+'–'+(y+1):(y-1)+'–'+y;};
+  const pMatches=Object.values(DATA.matches).filter(x=>x.players&&x.players[p.id]&&num(x.players[p.id].min)!=null).sort((x,y)=>(y.date||'').localeCompare(x.date||''));
+  const pReports=Object.values(DATA.reports||{}).filter(r=>(r.pid&&r.pid===p.id)||(r.playerName&&r.playerName===p.name)).sort((x,y)=>(y.date||'').localeCompare(x.date||''));
+  const DTAB=UI.drawerTab||'profil';
+  const dtabs=[['profil','Profil'],['match','Stats match'],['tests','Tests physiques'],['eval','Éval technique'],['inj','Blessures'],['prog','Progression']];
+
+  const panelProfil=`
+    <div class="card"><div class="row">${lvPill(s.lv)}${s.reasons.map(r=>`<span class="pill ${r.l>=3?'crit':r.l===2?'warn':'neutral'}">${esc(r.t)}</span>`).join('')||'<span class="small muted">Aucun signal particulier</span>'}</div></div>
+    <div class="grid g4">${kpi('Wellness',s.w.today!=null?r0(s.w.today):'–','%',s.w.mean!=null?'Habitude '+r0(s.w.mean)+' %':'')}${kpi('Charge 7 j',r0(w.sum),'UA',w.chg!=null?(w.chg>0?'+':'')+r0(w.chg)+' % vs 3 sem.':'')}${kpi('ACWR',s.e.acwr!=null?r2(s.e.acwr):'–','','EWMA 7/28 j')}${kpi('Matchs',mn,'',r0(mm)+' min · '+g+' B · '+a+' PD')}</div>
+    <div class="grid g2">
+      <div class="card"><h3>Infos</h3><div class="stack small">
+        <div class="row sb"><span>Catégorie</span><b>${esc(p.cat)}</b></div>
+        <div class="row sb"><span>Poste</span><b>${esc(p.pos||'—')}</b></div>
+        ${p.number?`<div class="row sb"><span>Numéro</span><b>${esc(p.number)}</b></div>`:''}
+        ${p.birth?`<div class="row sb"><span>Âge</span><b>${r1(age(p.birth,ref))} ans</b></div>`:''}
+        ${p.height?`<div class="row sb"><span>Taille</span><b>${r0(p.height)} cm</b></div>`:''}
+        ${p.mass?`<div class="row sb"><span>Poids</span><b>${r1(p.mass)} kg</b></div>`:''}
+        <div class="row sb"><span>Vmax réf.</span><b>${r1(vref(p))} km/h</b></div>
+      </div></div>
+      <div class="card"><h3>Musculation</h3>${Object.keys(mx.values||{}).length?`<div class="stack small">${Object.entries(mx.values).filter(([k,v])=>num(v)).map(([k,v])=>`<div class="row sb"><span>${esc(k)}</span><b>${fr(num(v),1)} kg${p.mass?' · '+r2(num(v)/p.mass)+' × PDC':''}</b></div>`).join('')}</div>`:'<p class="muted small">Pas de 1RM saisi</p>'}</div>
+    </div>`;
+
+  let panelMatch;
+  if(pMatches.length){
+    const bySeason={};pMatches.forEach(x=>{const sl=seasonLabel(x.date);(bySeason[sl]=bySeason[sl]||[]).push(x);});
+    panelMatch=Object.keys(bySeason).sort().reverse().map(sl=>{
+      const list=bySeason[sl];let M=0,Tit=0,min=0,gg=0,aa=0,yy=0,rr=0;const rt=[];
+      list.forEach(x=>{const e=x.players[p.id];M++;if(e.starter)Tit++;min+=num(e.min)||0;gg+=num(e.goals)||0;aa+=num(e.assists)||0;yy+=num(e.yellow)||0;rr+=num(e.red)||0;if(num(e.rating)!=null)rt.push(num(e.rating));});
+      return `<div class="card"><div class="hrow"><h3>Saison ${sl}</h3><span class="small muted">${M} match${M>1?'s':''} · ${yy} 🟨 · ${rr} 🟥</span></div>
+        <div class="grid g6" style="margin-bottom:10px">${kpi('Matchs',M,'')}${kpi('Titul.',Tit,'')}${kpi('Minutes',r0(min),'')}${kpi('Buts',gg,'')}${kpi('Passes déc.',aa,'')}${kpi('Note moy.',rt.length?r1(mean(rt)):'–','/10')}</div>
+        <div class="tw"><table><thead><tr><th>Date</th><th>Adversaire</th><th>Compét.</th><th class="n">Min</th><th>Statut</th><th class="n">B</th><th class="n">PD</th><th class="n">Cart.</th><th class="n">Note</th></tr></thead><tbody>
+        ${list.map(x=>{const e=x.players[p.id];return `<tr><td>${fmtShort(x.date)}</td><td>${esc(x.opponent||'')}</td><td class="small">${esc(x.competition||x.cat||'')}</td><td class="n">${r0(num(e.min))}</td><td>${e.starter?'Titulaire':'Remplaçant'}</td><td class="n">${num(e.goals)||''}</td><td class="n">${num(e.assists)||''}</td><td class="n">${num(e.yellow)?'<span class="pill warn">J</span>':''}${num(e.red)?'<span class="pill crit">R</span>':''}</td><td class="n">${num(e.rating)!=null?r1(num(e.rating)):'–'}</td></tr>`;}).join('')}
+        </tbody></table></div></div>`;
+    }).join('');
+  } else panelMatch='<div class="card"><p class="muted" style="margin:0">Aucun match enregistré pour ce/cette '+PL.one+'. Saisis un match dans l’onglet « Compétition ».</p></div>';
+
+  const tileStyle='class="card flat" style="text-align:center;padding:10px 8px"';
+  const tvStyle='style="font-size:19px;font-weight:700;font-family:var(--fd)"';
+  const testTiles=[
+    (p.height?`<div ${tileStyle}><div ${tvStyle}>${r0(p.height)}<span class="small muted"> cm</span></div><div class="small muted">Taille</div></div>`:''),
+    (p.mass?`<div ${tileStyle}><div ${tvStyle}>${r1(p.mass)}<span class="small muted"> kg</span></div><div class="small muted">Poids</div></div>`:''),
+    ...tests.map(x=>{const d=x.prev?x.last.v-x.prev.v:null;const flat=d===0;const up=d!=null&&!flat&&((x.t.better==='high'&&d>0)||(x.t.better==='low'&&d<0));const col=(d==null||flat)?'var(--muted)':(up?'var(--good)':'var(--crit)');const arrow=d==null?'':(flat?'→':(d>0?'▲':'▼'));return `<div ${tileStyle}><div ${tvStyle}>${fr(x.last.v,2)}<span class="small muted"> ${esc(x.t.unit)}</span></div><div class="small muted">${esc(x.t.name)}</div>${d!=null?`<div class="small" style="color:${col}">${arrow} ${fr(Math.abs(d),2)}</div>`:''}</div>`;})
+  ].filter(Boolean).join('');
+  const panelTests=`<div class="card"><h3>Tests physiques — dernières valeurs</h3>
+    ${testTiles?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">${testTiles}</div>`:'<p class="muted small">Aucune donnée de test.</p>'}
+    ${tests.length?`<div class="tw" style="margin-top:12px"><table><thead><tr><th>Test</th><th class="n">Dernier</th><th class="n">Précédent</th><th>Date</th></tr></thead><tbody>${tests.map(x=>`<tr><td>${esc(x.t.name)}</td><td class="n"><b>${fr(x.last.v,2)}</b> ${esc(x.t.unit)}</td><td class="n">${x.prev?fr(x.prev.v,2):'–'}</td><td>${fmtShort(x.last.date)}</td></tr>`).join('')}</tbody></table></div>`:''}
+    <p class="note" style="margin-top:10px">Ajoute ou modifie des tests (VMA, side hop, triple hop, 30-15…) dans « Saisie → Tests » et configure la liste dans « Paramètres → Tests ».</p></div>`;
+
+  const panelEval=pReports.length?pReports.map(r=>{const gg=repGlobal(r);const th=r.themes||{};const chips=REP_THEMES.map(t=>{const c=th[t[0]];return (c&&c.note)?`<span class="pill neutral">${esc(t[1])} : ${c.note}/5</span>`:'';}).filter(Boolean).join(' ');
+    return `<div class="card"><div class="hrow"><h3>${fmtD(r.date)} · <span class="pill ${r.type==='Match'?'crit':'neutral'}">${esc(r.type)}</span></h3>${gg!=null?`<span><b>${gg}</b><span class="muted">/5</span></span>`:''}</div>
+      <p class="small muted" style="margin:0 0 6px">${esc(r.type==='Match'?('vs '+(r.opponent||'?')):(r.sessionTheme||'Entraînement'))}</p>
+      <div class="row" style="flex-wrap:wrap;gap:6px">${chips||'<span class="small muted">Pas de note par thème</span>'}</div>
+      ${r.strengths?`<p class="small" style="margin:8px 0 0"><b>Points forts :</b> ${esc(r.strengths)}</p>`:''}${r.axes?`<p class="small" style="margin:4px 0 0"><b>Axes de progrès :</b> ${esc(r.axes)}</p>`:''}</div>`;
+  }).join(''):`<div class="card"><p class="muted" style="margin:0">Aucune évaluation pour ce/cette ${PL.one}. Crée un compte rendu dans l’onglet « Compte rendu ».</p></div>`;
+
+  const panelInj=`<div class="card"><div class="hrow"><h3>Blessures</h3><button class="btn sm" data-act="injFor" data-id="${esc(p.id)}">Déclarer une blessure</button></div>
+    ${inj.length?`<div class="stack">${inj.map(i=>`<div class="row sb"><span><b>${esc(i.zone)}</b> · ${esc(i.type||'')} · ${fmtD(i.date)}</span><span class="row"><span class="pill ${i.status==='apte'?'good':i.status==='soins'?'crit':'info'}">${STATUS_LABEL[i.status]}</span><button class="btn sm" data-act="medOpen" data-id="${esc(i.id)}">Fiche</button></span></div>`).join('')}</div>`:'<p class="muted small">Aucune blessure enregistrée</p>'}</div>`;
+
+  const panelProg=`
+    <div class="card"><h3>Wellness, 28 jours</h3>${lineChart({labels:days,series:[{name:'Wellness',values:wv,color:COL_TR,dots:true}],yMin:30,yMax:100,refs:[{v:S().th.well,label:'Seuil'}],h:150})}</div>
+    <div class="card"><h3>Charge quotidienne (sRPE)</h3>${barChart({labels:days,values:lv,colors:isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',h:150,legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
+    <div class="card"><h3>ACWR</h3>${lineChart({labels:days,series:[{name:'ACWR',values:ac,color:COL_TR}],band:[S().th.acwrLo,S().th.acwrHi],h:140,fmt:v=>r2(v),yMin:0})}<p class="note">Zone verte : ${r1(S().th.acwrLo)} à ${r1(S().th.acwrHi)}.</p></div>`;
+
+  const panels={profil:panelProfil,match:panelMatch,tests:panelTests,eval:panelEval,inj:panelInj,prog:panelProg};
+
   host.innerHTML=`<div class="scrim" data-act="closeDrawer"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="Fiche de ${esc(p.name)}">
     <div class="row sb"><div><div class="eyebrow">${esc(p.cat)} · ${esc(p.pos||'')}${p.number?' · n° '+esc(p.number):''}</div><h2 style="margin:2px 0 0;font-family:var(--fd);font-size:32px">${esc(p.name)}</h2>
       <div class="small muted">${p.birth?r1(age(p.birth,ref))+' ans · ':''}${p.height?r0(p.height)+' cm · ':''}${p.mass?r1(p.mass)+' kg · ':''}Vmax réf. ${r1(vref(p))} km/h</div></div>
-      <div class="row"><button class="btn sm" data-act="edit" data-col="players" data-id="${esc(p.id)}">Modifier</button><button class="btn sm" data-act="injFor" data-id="${esc(p.id)}">Déclarer une blessure</button><button class="btn sm" data-act="closeDrawer" aria-label="Fermer">✕</button></div></div>
-    <div class="card"><div class="row">${lvPill(s.lv)}${s.reasons.map(r=>`<span class="pill ${r.l>=3?'crit':r.l===2?'warn':'neutral'}">${esc(r.t)}</span>`).join('')||'<span class="small muted">Aucun signal particulier</span>'}</div></div>
-    <div class="grid g4">${kpi('Wellness',s.w.today!=null?r0(s.w.today):'–','%',s.w.mean!=null?'Habitude '+r0(s.w.mean)+' %':'')}${kpi('Charge 7 j',r0(w.sum),'UA',w.chg!=null?(w.chg>0?'+':'')+r0(w.chg)+' % vs 3 sem.':'')}${kpi('ACWR',s.e.acwr!=null?r2(s.e.acwr):'–','','EWMA 7/28 j')}${kpi('Matchs',mn,'',r0(mm)+' min · '+g+' B · '+a+' PD')}</div>
-    <div class="card"><h3>Wellness, 28 jours</h3>${lineChart({labels:days,series:[{name:'Wellness',values:wv,color:COL_TR,dots:true}],yMin:30,yMax:100,refs:[{v:S().th.well,label:'Seuil'}],h:150})}</div>
-    <div class="card"><h3>Charge quotidienne (sRPE)</h3>${barChart({labels:days,values:lv,colors:isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',h:150,legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
-    <div class="card"><h3>ACWR</h3>${lineChart({labels:days,series:[{name:'ACWR',values:ac,color:COL_TR}],band:[S().th.acwrLo,S().th.acwrHi],h:140,fmt:v=>r2(v),yMin:0})}<p class="note">Zone verte : ${r1(S().th.acwrLo)} à ${r1(S().th.acwrHi)}.</p></div>
-    <div class="grid g2"><div class="card"><h3>Derniers tests</h3>${tests.length?`<div class="tw"><table><thead><tr><th>Test</th><th class="n">Valeur</th><th class="n">Préc.</th><th>Date</th></tr></thead><tbody>${tests.map(x=>`<tr><td>${esc(x.t.name)}</td><td class="n"><b>${fr(x.last.v,2)}</b> ${esc(x.t.unit)}</td><td class="n">${x.prev?fr(x.prev.v,2):'–'}</td><td>${fmtShort(x.last.date)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted small">Aucun test</p>'}</div>
-      <div class="card"><h3>Musculation</h3>${Object.keys(mx.values||{}).length?`<div class="stack small">${Object.entries(mx.values).filter(([k,v])=>num(v)).map(([k,v])=>`<div class="row sb"><span>${esc(k)}</span><b>${fr(num(v),1)} kg${p.mass?' · '+r2(num(v)/p.mass)+' × PDC':''}</b></div>`).join('')}</div>`:'<p class="muted small">Pas de 1RM saisi</p>'}</div></div>
-    <div class="card"><h3>Blessures</h3>${inj.length?`<div class="stack">${inj.map(i=>`<div class="row sb"><span><b>${esc(i.zone)}</b> · ${esc(i.type||'')} · ${fmtD(i.date)}</span><span class="row"><span class="pill ${i.status==='apte'?'good':i.status==='soins'?'crit':'info'}">${STATUS_LABEL[i.status]}</span><button class="btn sm" data-act="medOpen" data-id="${esc(i.id)}">Fiche</button></span></div>`).join('')}</div>`:'<p class="muted small">Aucune blessure enregistrée</p>'}</div>
+      <div class="row"><button class="btn sm" data-act="edit" data-col="players" data-id="${esc(p.id)}">Modifier</button><button class="btn sm" data-act="closeDrawer" aria-label="Fermer">✕</button></div></div>
+    <div class="subtabs drawertabs">${dtabs.map(([k,l])=>`<button class="${DTAB===k?'on':''}" data-act="drawerTab" data-id="${k}">${l}</button>`).join('')}</div>
+    ${panels[DTAB]||panelProfil}
   </aside>`;
   document.body.style.overflow='hidden';
 }
@@ -2312,7 +2373,8 @@ const ACT={
     toast('Séance type enregistrée');render();},
   cat:b=>{UI.cat=b.dataset.id;saveUI();render();},
   today:()=>{UI.ref=TODAY;render();},
-  player:b=>{UI.drawer=b.dataset.id;renderDrawer();},
+  player:b=>{UI.drawer=b.dataset.id;UI.drawerTab='profil';renderDrawer();},
+  drawerTab:b=>{UI.drawerTab=b.dataset.id;renderDrawer();},
   closeDrawer:()=>{UI.drawer=null;renderDrawer();},
   perfToggle:()=>{UI.perfOpen=!UI.perfOpen;renderNav();},
   entryToggle:()=>{UI.entryOpen=!UI.entryOpen;renderNav();},
