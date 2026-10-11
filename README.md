@@ -14,8 +14,10 @@ Application déployée sur **blueperf.vercel.app**.
 
 ## Modifier le JavaScript de l'app de base
 1. Éditer **`app.js`** (jamais `app.min.js`).
-2. Lancer `npm install` (une seule fois, pour installer `terser`) puis `npm run build`.
+2. Lancer `npm install` (une seule fois, pour installer `terser`) puis `node build.js`.
 3. `build.js` régénère `app.min.js` et met à jour `?v=…` dans `index.html`. Committer `app.js`, `app.min.js` et `index.html`.
+
+> ⚠️ `app.min.js` est **pré-généré et committé** : Vercel ne fait aucune étape de build, il sert les fichiers tels quels. On ne met donc volontairement **pas** de script `build` dans `package.json` (sinon Vercel tenterait de le lancer au déploiement).
 
 ## Variables d'environnement (Vercel → Settings → Environment Variables)
 - `KV_REST_API_URL` / `KV_REST_API_TOKEN` (ou `UPSTASH_REDIS_REST_URL` / `_TOKEN`) — déjà configurées.
