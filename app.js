@@ -700,7 +700,7 @@ const state = {
   trainingData: null,        // {clientId, buckets:[{weekKey,label,km}]} — côté coach
   myTrainingData: null,      // {clientId, buckets:[...]} — côté client (son propre suivi)
 
-  section: 'football',      // 'football' (Académie, plein écran par défaut) | 'programme' | 'nutrition'
+  section: 'apa',      // espace ouvert par défaut à la connexion (APA en plein écran) | 'football' | 'programme' | 'nutrition'
   nutriAnamDraft: null,      // copie de travail de l'anamnèse nutrition du client actuellement affiché
   nutriAnamLoadedClientId: null,
   nutriAnamSaved: false,
