@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Blueperf</title>
+<style>
+  html,body{height:100%;margin:0;background:#0D1B2A;color:#E6ECF4;font:16px/1.5 system-ui,-apple-system,sans-serif}
+  .c{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+  .b{font-weight:800;font-size:26px;letter-spacing:.02em}
+  .b span{color:#3DA9FC}
+  .s{width:28px;height:28px;border:3px solid #27405f;border-top-color:#3DA9FC;border-radius:50%;animation:r 1s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+  .m{color:#9fb0c6;font-size:13px}
+</style>
+</head>
+<body>
+  <!-- Écran affiché le temps que l'app charge https://blueperf.vercel.app (défini dans capacitor.config.json → server.url). -->
+  <div class="c">
+    <div class="b">BLUE<span>PERF</span></div>
+    <div class="s"></div>
+    <div class="m">Chargement…</div>
+  </div>
+  <script>setTimeout(function(){location.href='https://blueperf.vercel.app';},2500);</script>
+</body>
+</html>

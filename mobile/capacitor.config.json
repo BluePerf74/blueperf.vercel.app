@@ -1,0 +1,15 @@
+{
+  "appId": "com.blueperf.app",
+  "appName": "Blueperf",
+  "webDir": "www",
+  "server": {
+    "url": "https://blueperf.vercel.app",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "always"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

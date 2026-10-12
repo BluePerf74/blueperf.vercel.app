@@ -1,0 +1,10 @@
+# Projets natifs générés localement par `npx cap add ...` (volumineux, propres à ta machine)
+/ios/
+/android/
+# Dépendances
+node_modules/
+package-lock.json
+# Icônes/splash générés
+/www/icons/
+/www/splash/
+.DS_Store
