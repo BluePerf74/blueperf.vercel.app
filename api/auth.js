@@ -77,6 +77,15 @@ async function matchRole(db, user, pass) {
     const cu = (c.username || '').trim().toLowerCase();
     if ((c.password || '').trim() === P && (cu === L || cu.replace(/[^a-z0-9]/g, '') === Ls)) return { r: 'coach', s: c.space || 'apa' };
   }
+  // 3b. Enseignants APA (plateforme multi-comptes) : chacun son espace cloisonné (tenant t).
+  //     On renvoie même un compte inactif (avec active:false) pour distinguer « mauvais mot de
+  //     passe » (401) de « compte en attente/suspendu » (403), géré côté POST.
+  const teachers = (await getJSON(db, 'apaTeachers')) || {};
+  for (const x of Object.values(teachers)) {
+    if (!x || !x.id) continue;
+    const tu = (x.login || '').trim().toLowerCase(), tus = tu.replace(/[^a-z0-9]/g, '');
+    if ((x.pass || '').trim() === P && (tu === L || tus === Ls)) return { r: 'apa', s: 'apa', t: x.id, active: x.active !== false };
+  }
   // 4. Clients programme (base app)
   const clients = await getJSON(db, 'clients');
   if (Array.isArray(clients)) { const m = clients.find(c => c && norm(c.id) === U && c.code && norm(c.code) === PN); if (m) return { r: 'client', s: 'ci' }; }
@@ -107,7 +116,7 @@ module.exports = async (req, res) => {
   // Statut de session (le client sait s'il doit afficher la connexion).
   if (req.method === 'GET') {
     const v = verify(parseCookies(req)['bp_sess']);
-    return res.status(200).json({ legacy: !SECRET, authed: !!v, role: v ? v.r : null, space: v ? v.s : null });
+    return res.status(200).json({ legacy: !SECRET, authed: !!v, role: v ? v.r : null, space: v ? v.s : null, tenant: v ? (v.t || null) : null, imp: v ? !!v.imp : false });
   }
 
   if (req.method === 'POST') {
@@ -119,13 +128,28 @@ module.exports = async (req, res) => {
     // Mode hérité : AUTH_SECRET non configuré → on ne bloque rien (compatibilité).
     if (!SECRET) return res.status(200).json({ ok: true, legacy: true });
 
+    // Support : le propriétaire (coach principal) « se connecte à la place » d'un enseignant pour
+    // le dépanner. Réservé au propriétaire ; pose une session cloisonnée sur le tenant visé.
+    if (action === 'impersonate') {
+      const cur = verify(parseCookies(req)['bp_sess']);
+      if (!cur || cur.r !== 'coach' || cur.s !== 'all') return res.status(403).json({ ok: false });
+      const t = (body.tenant || '').toString().trim();
+      if (!t) return res.status(400).json({ ok: false, error: 'missing tenant' });
+      const token = sign({ r: 'apa', s: 'apa', t: t, imp: true, exp: Date.now() + SESSION_HOURS * 3600 * 1000 });
+      setCookie(res, token, SESSION_HOURS * 3600);
+      return res.status(200).json({ ok: true, role: 'apa', space: 'apa', tenant: t, imp: true });
+    }
+
     try {
       const db = getRedis();
       const role = await matchRole(db, body.username, body.password);
       if (!role) return res.status(401).json({ ok: false });
-      const token = sign({ r: role.r, s: role.s, exp: Date.now() + SESSION_HOURS * 3600 * 1000 });
+      if (role.r === 'apa' && role.active === false) return res.status(403).json({ ok: false, suspended: true });
+      const payload = { r: role.r, s: role.s, exp: Date.now() + SESSION_HOURS * 3600 * 1000 };
+      if (role.t) payload.t = role.t;
+      const token = sign(payload);
       setCookie(res, token, SESSION_HOURS * 3600);
-      return res.status(200).json({ ok: true, role: role.r, space: role.s });
+      return res.status(200).json({ ok: true, role: role.r, space: role.s, tenant: role.t || null });
     } catch (e) {
       return res.status(500).json({ ok: false, error: String((e && e.message) || e) });
     }

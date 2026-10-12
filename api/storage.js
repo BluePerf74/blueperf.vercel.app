@@ -37,14 +37,24 @@ function getRedis() {
   return redis;
 }
 
+// Cloisonnement multi-locataire (enseignants APA) : quand la session porte un tenant (t), TOUTES
+// les clés sont automatiquement préfixées par "T:<tenant>:". L'enseignant ne peut donc PHYSIQUEMENT
+// pas lire/écrire les données d'un autre tenant ni celles du propriétaire. Le propriétaire (sans t)
+// garde l'accès complet (comportement historique).
+function tenantPrefix(session) {
+  return (session && session.t) ? ('T:' + session.t + ':') : '';
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 
+  let session = null;
   // Barrière d'authentification (active uniquement si AUTH_SECRET est configuré).
   if (SECRET) {
-    const session = verifySession(sessionCookie(req));
+    session = verifySession(sessionCookie(req));
     if (!session) return res.status(401).json({ error: 'unauthorized' });
   }
+  const PFX = tenantPrefix(session);
 
   try {
     const db = getRedis();
@@ -54,12 +64,12 @@ module.exports = async (req, res) => {
 
       if (action === 'get') {
         if (!key) return res.status(400).json({ error: 'missing key' });
-        const value = await db.get(key);
+        const value = await db.get(PFX + key);
         return res.status(200).json({ value: value == null ? null : String(value) });
       }
 
       if (action === 'list') {
-        const match = (prefix || '') + '*';
+        const match = PFX + (prefix || '') + '*';
         const keys = [];
         let cursor = '0';
         do {
@@ -67,7 +77,9 @@ module.exports = async (req, res) => {
           keys.push(...batch);
           cursor = nextCursor;
         } while (cursor !== '0');
-        return res.status(200).json({ keys });
+        // On renvoie les clés SANS le préfixe de tenant (le client ne connaît que son espace).
+        const out = PFX ? keys.map(k => (k.startsWith(PFX) ? k.slice(PFX.length) : k)) : keys;
+        return res.status(200).json({ keys: out });
       }
 
       return res.status(400).json({ error: 'unknown action' });
@@ -77,7 +89,7 @@ module.exports = async (req, res) => {
       const { action, key, value } = req.body || {};
       if (action === 'set') {
         if (!key) return res.status(400).json({ error: 'missing key' });
-        await db.set(key, value);
+        await db.set(PFX + key, value);
         return res.status(200).json({ ok: true });
       }
       return res.status(400).json({ error: 'unknown action' });
@@ -86,7 +98,7 @@ module.exports = async (req, res) => {
     if (req.method === 'DELETE') {
       const { key } = req.query;
       if (!key) return res.status(400).json({ error: 'missing key' });
-      await db.del(key);
+      await db.del(PFX + key);
       return res.status(200).json({ ok: true });
     }
 
