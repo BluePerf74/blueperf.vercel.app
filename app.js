@@ -798,10 +798,10 @@ async function init(){
   //    /api/storage exige un cookie de session : sans connexion il répond 401. Il est donc inutile
   //    — et impossible — de tester le stockage avant d'être connecté. Si l'auth est active et qu'on
   //    n'a pas de session valide, on affiche directement l'écran de connexion.
-  let authLegacy = true, authOk = true;
+  let authLegacy = true, authOk = true, authRole = null, authTenant = null, authImp = false;
   try{
     const ar = await fetch('/api/auth', {credentials:'same-origin'});
-    if(ar && ar.ok){ const aj = await ar.json(); authLegacy = !!aj.legacy; authOk = !!aj.authed; }
+    if(ar && ar.ok){ const aj = await ar.json(); authLegacy = !!aj.legacy; authOk = !!aj.authed; authRole = aj.role || null; authTenant = aj.tenant || null; authImp = !!aj.imp; }
   }catch(e){}
   if(!authLegacy && !authOk){
     state.loginStep='choice'; state.loginError=''; renderLoginScreen(); return;
@@ -812,6 +812,9 @@ async function init(){
     renderStorageError();
     return;
   }
+  // 2b) Enseignant APA : session cloisonnée (tenant). On route directement sans passer par la
+  //     restauration de session basée sur le stockage (dont les clés sont elles-mêmes cloisonnées).
+  if(authRole === 'apa'){ enterTeacherSpace(authTenant, authImp); return; }
   await migrateIfNeeded();
   const storedAccess = await sGet('access', false);
   const stamp = await sGet('accessStamp', false);
@@ -993,10 +996,22 @@ async function attemptLogin(userRaw, passRaw){
   }
   // Vérification serveur des identifiants (si l'authentification est activée) : pose le cookie de
   // session avant tout accès au stockage. En mode hérité, l'appel réussit sans rien contraindre.
+  let authResp = null;
   try{
     const ar = await fetch('/api/auth', {method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify({username:userRaw, password:passRaw})});
     if(ar && ar.status === 401){ state.loginError = 'Identifiant ou mot de passe incorrect.'; renderLoginScreen(); return; }
+    if(ar && ar.status === 403){
+      let sj = {}; try{ sj = await ar.json(); }catch(e){}
+      state.loginError = (sj && sj.suspended)
+        ? 'Ton compte enseignant est en attente de validation ou suspendu. Contacte Blueperf (blueperf@ik.me) pour l’activer.'
+        : 'Accès refusé.';
+      renderLoginScreen(); return;
+    }
+    if(ar && ar.ok){ try{ authResp = await ar.json(); }catch(e){} }
   }catch(e){}
+  // Enseignant APA : le serveur a posé une session cloisonnée (tenant). Le registre des enseignants
+  // n'est PAS lisible côté client (stockage cloisonné), donc on route directement selon la réponse.
+  if(authResp && authResp.ok && authResp.role === 'apa'){ enterTeacherSpace(authResp.tenant, false); return; }
   const roles = await collectRoles(userRaw, passRaw, user, pass);
   if(!roles.length){
     state.loginError = 'Identifiant ou mot de passe incorrect.';
@@ -1007,6 +1022,23 @@ async function attemptLogin(userRaw, passRaw){
   // Plusieurs rôles pour ce compte (ex. coach APA + cliente ailleurs) : on laisse choisir.
   state.roleChoices = roles; state.loginError = '';
   renderRoleChooser();
+}
+/* Entre dans l'espace d'un enseignant APA (session cloisonnée côté serveur par le tenant). On
+   réutilise le mécanisme « coach délégué » (spaceCoach) restreint à l'espace APA : l'iframe
+   /academie/apa.html?coach=1 lit/écrit via /api/storage, qui préfixe déjà toutes les clés par le
+   tenant. imp=true → le propriétaire est en mode dépannage dans l'espace de cet enseignant. */
+function enterTeacherSpace(tenant, imp){
+  state.access = 'coach';
+  state.manager = null;
+  state.spaceCoach = {
+    space: 'apa',
+    id: tenant || '',
+    name: imp ? t('Dépannage — espace enseignant','Support — teacher space') : t('Espace enseignant APA','APA teacher space'),
+    tenant: true,
+    imp: !!imp
+  };
+  state.section = 'apa';
+  render();
 }
 /* Rassemble tous les rôles accessibles avec un identifiant/mot de passe donné. */
 async function collectRoles(userRaw, passRaw, user, pass){
@@ -1061,6 +1093,9 @@ const SPACE_LABELS = {football:'Football', individuel:'Coaching individuel', apa
 /* ----- Comptes coach par espace (coachs délégués) ----- */
 async function loadCoaches(){const raw=await sGet('coaches',true);try{return raw?JSON.parse(raw):{};}catch(e){return {};}}
 async function saveCoaches(obj){await sSet('coaches',JSON.stringify(obj),true);}
+/* Registre des enseignants APA (plateforme multi-comptes). Clé non cloisonnée (propriétaire). */
+async function loadApaTeachers(){const raw=await sGet('apaTeachers',true);try{return raw?JSON.parse(raw):{};}catch(e){return {};}}
+async function saveApaTeachers(obj){await sSet('apaTeachers',JSON.stringify(obj),true);}
 async function findCoachAccount(userRaw, passRaw){
   const L=(userRaw||'').trim().toLowerCase(), Ls=L.replace(/[^a-z0-9]/g,''), P=(passRaw||'').trim();
   if(!L||!P) return null;
@@ -1393,6 +1428,11 @@ function settingsBodyHtml(){
       <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Ajoute un coach pour un espace (ex. APA). Il se connecte avec son identifiant et accède uniquement à cet espace. La personne peut aussi être cliente ou joueuse ailleurs : utilise les mêmes identifiants et un choix du rôle apparaîtra à la connexion.','Add a coach for a space (e.g. APA). They log in and only access that space. The person can also be a client/player elsewhere: reuse the same login and a role picker appears at sign-in.'))}</p>
       <div id="bp-coaches-body">${admEsc(t('Chargement…','Loading…'))}</div>
     </div>
+    <div id="bp-apateachers" style="border:1px solid #2b4a6b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0c1b2e">
+      <b style="font-size:15px">🏫 ${admEsc(t('Enseignants APA — plateforme','APA teachers — platform'))}</b>
+      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Crée un espace cloisonné par enseignant·e : chacun·e gère ses propres patient·es, avec sa propre base de données, isolée des autres. Active ou suspends l’accès (abonnement), réinitialise le mot de passe, ou connecte-toi « à sa place » pour le·la dépanner.','Create one isolated space per teacher: each manages their own patients, with their own database, isolated from the others. Activate or suspend access (subscription), reset the password, or log in “as them” to troubleshoot.'))}</p>
+      <div id="bp-apateachers-body">${admEsc(t('Chargement…','Loading…'))}</div>
+    </div>
     <div style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
       <b style="font-size:15px">➕ ${admEsc(t('Équipe U18F (Football)','U18F team (Football)'))}</b>
       <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t("Crée l'équipe U18F et ajoute les 31 joueuses avec leurs identifiants (prénom@aca.com / 3 premières lettres du prénom + 123).","Creates the U18F team and adds the 31 players with their logins (firstname@aca.com / first 3 letters + 123)."))}</p>
@@ -1448,6 +1488,7 @@ function renderSettingsPage(){
   renderAllClients();
   renderStoreTracking();
   renderCoaches();
+  renderApaTeachers();
   renderManagers();
   renderAdminBody();
 }
@@ -1509,6 +1550,90 @@ async function renderCoaches(){
     const id=COACH_EDIT_ID||('co'+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
     m[id]=Object.assign({},m[id],{id,name:name||user,space,username:user,password:pass,active:true,createdAt:(m[id]&&m[id].createdAt)||new Date().toISOString()});
     await saveCoaches(m);COACH_EDIT_ID=null;renderCoaches();
+  };
+}
+
+/* =========================================================
+   ENSEIGNANTS APA — plateforme multi-comptes (propriétaire)
+   Chaque enseignant·e a un tenant (id) → /api/storage cloisonne toutes ses données.
+   ========================================================= */
+let APA_EDIT_ID = null;
+async function renderApaTeachers(){
+  const el = document.getElementById('bp-apateachers-body'); if(!el) return;
+  const m = await loadApaTeachers();
+  const arr = Object.values(m).sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
+  const editing = APA_EDIT_ID && m[APA_EDIT_ID] ? m[APA_EDIT_ID] : null;
+  if(APA_EDIT_ID && !editing) APA_EDIT_ID = null;
+  const INP = 'width:100%;background:#0E1A2C;border:1px solid #25344b;color:#EAF1FB;border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
+  const btn = 'appearance:none;cursor:pointer;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600';
+  const list = arr.length ? arr.map(x=>{
+    const on = x.active !== false;
+    return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid ${x.id===APA_EDIT_ID?'#3DA9FC':(on?'#2b4a6b':'#5a3030')};border-radius:8px;margin-bottom:6px;${on?'':'opacity:.7'}">
+      <div style="flex:1;min-width:160px">
+        <b>${admEsc(x.name||x.login)}</b>
+        <span style="display:inline-block;font-size:10.5px;font-weight:700;color:${on?'#8fe0b0':'#ffb4a8'};background:${on?'rgba(47,191,113,.16)':'rgba(255,120,110,.16)'};border-radius:20px;padding:2px 8px">${on?admEsc(t('actif','active')):admEsc(t('suspendu / en attente','suspended / pending'))}</span>
+        <div style="font-size:11px;color:#7E90A8;margin-top:2px">🔑 ${admEsc(x.login)}${x.email?' · '+admEsc(x.email):''}</div>
+      </div>
+      <button data-apa-imp="${admEsc(x.id)}" title="${admEsc(t('Se connecter à sa place pour le dépanner','Log in as them to troubleshoot'))}" style="${btn};border:1px solid #c79a3a;background:transparent;color:#ffd98a">${admEsc(t('Dépanner','Troubleshoot'))}</button>
+      <button data-apa-toggle="${admEsc(x.id)}" style="${btn};border:1px solid ${on?'#6b5a3a':'#3a6b4a'};background:transparent;color:${on?'#ffd98a':'#8fe0b0'}">${on?admEsc(t('Suspendre','Suspend')):admEsc(t('Activer','Activate'))}</button>
+      <button data-apa-edit="${admEsc(x.id)}" style="${btn};border:1px solid #3DA9FC;background:transparent;color:#8FCBFF">${admEsc(t('Modifier','Edit'))}</button>
+      <button data-apa-del="${admEsc(x.id)}" style="${btn};border:1px solid #6b3a3a;background:transparent;color:#ffb4a8">${admEsc(t('Supprimer','Delete'))}</button>
+    </div>`;
+  }).join('') : `<p style="color:#7E90A8;font-size:12.5px;margin:0 0 8px">${admEsc(t('Aucun enseignant pour l’instant.','No teacher yet.'))}</p>`;
+  el.innerHTML = list + `<div style="border-top:1px dashed #2b4a6b;margin-top:8px;padding-top:10px">
+      ${editing?`<div style="font-size:12.5px;color:#8FCBFF;margin-bottom:8px">${admEsc(t('Modification de','Editing'))} « ${admEsc(editing.name||editing.login)} »</div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input id="apa-name" placeholder="${admEsc(t('Nom de l’enseignant·e','Teacher name'))}" value="${editing?admEsc(editing.name||''):''}" style="${INP}">
+        <input id="apa-email" placeholder="${admEsc(t('E-mail (facultatif)','Email (optional)'))}" value="${editing?admEsc(editing.email||''):''}" style="${INP}">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <input id="apa-login" placeholder="${admEsc(t('Identifiant','Login'))}" value="${editing?admEsc(editing.login||''):''}" style="${INP}">
+        <input id="apa-pass" placeholder="${admEsc(t('Mot de passe','Password'))}" value="${editing?admEsc(editing.pass||''):''}" style="${INP}">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button id="apa-save" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer','Save')):admEsc(t('Créer l’enseignant·e','Create teacher'))}</button>
+        ${editing?`<button id="apa-cancel" style="appearance:none;cursor:pointer;border:1px solid #33465f;background:transparent;color:#EAF1FB;border-radius:9px;padding:9px 14px;font-size:13.5px">${admEsc(t('Annuler','Cancel'))}</button>`:''}
+        <span id="apa-status" style="font-size:12.5px;color:#ffb4a8"></span>
+      </div>
+      <p style="color:#7E90A8;font-size:11.5px;margin:10px 0 0;line-height:1.5">${admEsc(t('Un compte créé ici est actif immédiatement. Les inscriptions libres (auto-inscription) arrivent « en attente » : clique « Activer » après paiement de l’abonnement.','An account created here is active immediately. Self-sign-ups arrive as “pending”: click “Activate” after the subscription is paid.'))}</p>
+    </div>`;
+  el.querySelectorAll('[data-apa-edit]').forEach(b=>b.onclick=()=>{APA_EDIT_ID=b.getAttribute('data-apa-edit');renderApaTeachers();});
+  el.querySelectorAll('[data-apa-del]').forEach(b=>b.onclick=async()=>{
+    const id=b.getAttribute('data-apa-del');
+    if(!confirm(t('Supprimer cet enseignant ? Ses données restent stockées mais deviennent inaccessibles sans son compte.','Delete this teacher? Their data stays stored but becomes inaccessible without their account.')))return;
+    const mm=await loadApaTeachers();delete mm[id];await saveApaTeachers(mm);if(APA_EDIT_ID===id)APA_EDIT_ID=null;renderApaTeachers();
+  });
+  el.querySelectorAll('[data-apa-toggle]').forEach(b=>b.onclick=async()=>{
+    const id=b.getAttribute('data-apa-toggle');const mm=await loadApaTeachers();if(!mm[id])return;
+    mm[id].active = (mm[id].active===false);await saveApaTeachers(mm);renderApaTeachers();
+  });
+  el.querySelectorAll('[data-apa-imp]').forEach(b=>b.onclick=async()=>{
+    const id=b.getAttribute('data-apa-imp');
+    if(!confirm(t('Te connecter « à la place » de cet enseignant pour le dépanner ? Tu verras son espace et ses données. Déconnecte-toi pour revenir à ton compte.','Log in “as” this teacher to troubleshoot? You will see their space and data. Log out to return to your account.')))return;
+    b.disabled=true;
+    try{
+      const r=await fetch('/api/auth?action=impersonate',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({tenant:id})});
+      if(r&&r.ok){ enterTeacherSpace(id,true); return; }
+      alert(t('Échec du dépannage (accès refusé).','Troubleshoot failed (access denied).'));
+    }catch(e){ alert(t('Échec du dépannage.','Troubleshoot failed.')); }
+    b.disabled=false;
+  });
+  const ac=document.getElementById('apa-cancel'); if(ac)ac.onclick=()=>{APA_EDIT_ID=null;renderApaTeachers();};
+  const sv=document.getElementById('apa-save');
+  if(sv)sv.onclick=async()=>{
+    const name=(document.getElementById('apa-name').value||'').trim();
+    const email=(document.getElementById('apa-email').value||'').trim();
+    const login=(document.getElementById('apa-login').value||'').trim();
+    const pass=(document.getElementById('apa-pass').value||'').trim();
+    const st=document.getElementById('apa-status');
+    if(!login||!pass){st.textContent=t('Identifiant et mot de passe obligatoires.','Login and password required.');return;}
+    const mm=await loadApaTeachers();
+    // Unicité de l'identifiant (hors compte en cours d'édition).
+    const clash=Object.values(mm).find(x=>x&&x.id!==APA_EDIT_ID&&(x.login||'').trim().toLowerCase()===login.toLowerCase());
+    if(clash){st.textContent=t('Cet identifiant est déjà utilisé.','This login is already used.');return;}
+    const id=APA_EDIT_ID||('ap'+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
+    mm[id]=Object.assign({},mm[id],{id,name:name||login,email,login,pass,active:(mm[id]?mm[id].active!==false:true),createdAt:(mm[id]&&mm[id].createdAt)||new Date().toISOString()});
+    await saveApaTeachers(mm);APA_EDIT_ID=null;renderApaTeachers();
   };
 }
 
