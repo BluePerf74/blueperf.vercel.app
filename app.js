@@ -943,6 +943,7 @@ async function logout(){
    CONNEXION
    ========================================================= */
 function renderLoginScreen(){
+  if(state.loginStep === 'signup'){ renderSignupScreen(); return; }
   app.innerHTML = `
     <div class="login-screen">
       <div class="login-card">
@@ -960,7 +961,9 @@ function renderLoginScreen(){
           <button type="submit" class="login-submit">Se connecter / Log in</button>
         </form>
         ${state.loginError ? `<div class="login-error" role="alert">${state.loginError}</div>` : ''}
+        ${state.loginNotice ? `<div class="login-error" role="status" style="color:#8fe0b0;border-color:rgba(47,191,113,.5);background:rgba(47,191,113,.12)">${state.loginNotice}</div>` : ''}
         <p class="login-forgot">Mot de passe oublié ? <button type="button" id="login-forgot">Voir ici</button></p>
+        <p class="login-forgot" style="margin-top:2px">Enseignant·e APA ? <button type="button" id="login-signup">Créer un compte</button></p>
         <div class="login-hint" id="login-hint" hidden>Ton identifiant et ton mot de passe te sont fournis par ton coach. En cas d'oubli, contacte-le/la directement : il/elle peut les retrouver ou les réinitialiser depuis son espace.</div>
         <p class="login-legal">
           Données de santé et de performance traitées pour le suivi sportif. Pour les moins de 15 ans, l'inscription requiert l'accord d'un parent ou tuteur.
@@ -984,6 +987,77 @@ function renderLoginScreen(){
   });
   const fg = document.getElementById('login-forgot');
   if(fg) fg.addEventListener('click', () => { const h = document.getElementById('login-hint'); if(h) h.hidden = !h.hidden; });
+  const su = document.getElementById('login-signup');
+  if(su) su.addEventListener('click', () => { state.loginStep='signup'; state.loginError=''; state.loginNotice=''; renderLoginScreen(); });
+  state.loginNotice = '';
+}
+
+/* Écran d'auto-inscription enseignant·e APA → crée un compte « en attente » (activation manuelle
+   par le propriétaire). */
+function renderSignupScreen(){
+  app.innerHTML = `
+    <div class="login-screen">
+      <div class="login-card">
+        ${shieldSvg()}
+        <h1 class="login-brand">Blue<span>Perf</span></h1>
+        <p class="login-sub">Créer un compte enseignant·e APA</p>
+        <form id="signup-form" class="login-form">
+          <label for="su-name">NOM</label>
+          <input type="text" id="su-name" placeholder="Prénom Nom" autocapitalize="words">
+          <label for="su-email">E-MAIL</label>
+          <input type="email" id="su-email" placeholder="toi@exemple.fr" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <label for="su-login">IDENTIFIANT DE CONNEXION</label>
+          <input type="text" id="su-login" placeholder="ex. prenom@apa.fr" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <label for="su-pass">MOT DE PASSE</label>
+          <div class="login-pass-wrap">
+            <input type="password" id="su-pass" placeholder="••• (4 caractères min.)" autocomplete="new-password">
+            <button type="button" class="login-pass-toggle" id="su-pass-toggle" aria-label="Afficher le mot de passe" aria-pressed="false">AFFICHER</button>
+          </div>
+          <button type="submit" class="login-submit">Créer mon compte</button>
+        </form>
+        ${state.loginError ? `<div class="login-error" role="alert">${state.loginError}</div>` : ''}
+        <p class="login-forgot" style="margin-top:10px"><button type="button" id="su-back">← Retour à la connexion</button></p>
+        <p class="login-legal">
+          Ton compte sera créé « en attente » : l'accès est activé manuellement par Blueperf une fois
+          l'abonnement en place. Tu gères ensuite tes propres patient·es dans un espace isolé.
+          <br><a href="/confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité &amp; RGPD</a>
+        </p>
+      </div>
+    </div>`;
+  const tog = document.getElementById('su-pass-toggle');
+  if(tog) tog.addEventListener('click', () => { const inp=document.getElementById('su-pass'); const show=inp.type==='password'; inp.type=show?'text':'password'; tog.textContent=show?'MASQUER':'AFFICHER'; tog.setAttribute('aria-pressed',show?'true':'false'); });
+  const bk = document.getElementById('su-back');
+  if(bk) bk.addEventListener('click', () => { state.loginStep='choice'; state.loginError=''; renderLoginScreen(); });
+  document.getElementById('signup-form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    submitSignup({
+      name: document.getElementById('su-name').value,
+      email: document.getElementById('su-email').value,
+      login: document.getElementById('su-login').value,
+      pass: document.getElementById('su-pass').value
+    });
+  });
+}
+async function submitSignup(data){
+  const login=(data.login||'').trim(), pass=(data.pass||'').trim();
+  if(!login || !pass){ state.loginError='Identifiant et mot de passe obligatoires.'; renderSignupScreen(); return; }
+  if(login.length<3 || pass.length<4){ state.loginError='Identifiant (3+ caractères) et mot de passe (4+ caractères) trop courts.'; renderSignupScreen(); return; }
+  state.loginError='';
+  const btn = document.querySelector('#signup-form .login-submit'); if(btn){ btn.disabled=true; btn.textContent='Création…'; }
+  try{
+    const r = await fetch('/api/signup', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+    if(r && r.ok){
+      state.loginStep='choice';
+      state.loginNotice='Compte créé ✔ Il est en attente de validation par Blueperf. Tu pourras te connecter dès qu’il sera activé.';
+      renderLoginScreen();
+      return;
+    }
+    let j={}; try{ j=await r.json(); }catch(e){}
+    state.loginError = j.error==='exists' ? 'Cet identifiant est déjà utilisé, choisis-en un autre.'
+      : j.error==='full' ? 'Les inscriptions sont momentanément fermées. Contacte Blueperf (blueperf@ik.me).'
+      : 'La création a échoué. Réessaie dans un instant.';
+    renderSignupScreen();
+  }catch(e){ state.loginError='Impossible de joindre le serveur. Réessaie.'; renderSignupScreen(); }
 }
 
 async function attemptLogin(userRaw, passRaw){
