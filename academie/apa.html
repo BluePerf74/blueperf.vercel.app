@@ -1082,7 +1082,57 @@ function clientDash(code){const Ss=seancesOf(code);const pres=Ss.filter(s=>s.pre
  return `<div class="kpis">${kp('Séances réalisées',pres,abs?abs+' absence(s)':'assiduité suivie')}${kp('Taux de présence',taux!=null?taux+' %':'–','séances enregistrées')}${kp('Objectifs atteints',atteints+' / '+objs.length,objs.length?'au fil du suivi':'aucun objectif')}${kp('Bilans datés',bilansOf(code).length,'pour les courbes')}</div>`+(charts?`<div class="card sect"><h2>Ressenti au fil des séances</h2><div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${charts}</div></div>`:'');}
 
 /* ---- documents imprimables ---- */
-function pdoc(html){const el=document.getElementById('printdoc');if(el){el.innerHTML=html;window.print()}}
+/* Feuille de style autonome du rapport (fenêtre d'export) — mêmes classes que le rendu imprimable,
+   appliquées à l'écran ET à l'impression pour que l'aperçu soit identique au PDF. */
+const REPORT_CSS=`*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:#1b2430;font:13px/1.55 'Inter',Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pbar{position:sticky;top:0;z-index:9;display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;padding:11px 14px;background:#0e1a2c;color:#fff;box-shadow:0 1px 6px rgba(0,0,0,.2)}
+.pbar button{appearance:none;cursor:pointer;border:0;border-radius:8px;padding:9px 16px;font:600 13px 'Inter',sans-serif}
+.pbar .pri{background:#3da9fc;color:#04121f}.pbar .sec{background:transparent;color:#cfe0f5;border:1px solid rgba(255,255,255,.3)}
+.pbar .hint{font-size:11px;color:#9fb4d2;max-width:360px}
+.ppage{max-width:860px;margin:18px auto;background:#fff;border-radius:12px;box-shadow:0 2px 14px rgba(16,30,50,.1);padding:26px 30px}
+.pconf{display:flex;gap:7px;align-items:flex-start;background:#eef4fb;border:1px solid #cfe0f3;color:#2d4a6b;border-radius:8px;padding:9px 12px;font-size:10.5px;margin:0 0 16px;line-height:1.5}
+p,li{color:#28313f}
+.pband{background:#0e1a2c;background:linear-gradient(100deg,#0b1626,#163663);color:#fff;border-radius:12px;padding:18px 22px;margin:0 0 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;break-inside:avoid}
+.pband h1{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:27px;font-weight:700;margin:0;color:#fff;letter-spacing:.3px;line-height:1.05}
+.pband .psub{margin:7px 0 0;font-size:11.5px;color:#aec3df;line-height:1.5}
+.pchip{flex:0 0 auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);color:#fff;border-radius:9px;padding:9px 13px;font-size:10.5px;font-weight:600;text-align:right;line-height:1.5}
+.pchip b{font-size:15px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.2px}
+.pk-grid{display:grid;gap:9px;margin:0 0 14px}
+.pk{border:1px solid #e3e8ef;border-top:3px solid #2b8ff0;border-radius:10px;padding:10px 12px;background:#fbfcfe;break-inside:avoid}
+.pk .lab{display:block;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#6a7788;font-weight:700}
+.pk .n{display:block;font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:#132234;margin:2px 0 1px;font-variant-numeric:tabular-nums}
+.pk .d{display:block;font-size:10.5px;font-weight:600}
+.pk .u,.u{font-weight:400;color:#8a97a8}
+.up{color:#1f9d57}.down{color:#e0503f}.flat{color:#6a7788}
+.psect{border:1px solid #e3e8ef;border-radius:11px;padding:14px 16px;margin:0 0 13px;break-inside:avoid}
+.psect>h2{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#132234;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.psect>h2::before{content:"";width:4px;height:15px;border-radius:2px;background:#2b8ff0;display:inline-block;flex:0 0 auto}
+.pcharts{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 16px}
+.pcg{break-inside:avoid}.pcg h4{font-size:11px;font-weight:600;color:#3a4656;margin:0 0 1px}.pcg svg{width:100%;height:auto;display:block}
+table.ptbl{border-collapse:collapse;width:100%;margin:2px 0;font-size:11px}
+table.ptbl th{background:#132234;color:#fff;font-size:9px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;padding:6px 9px;text-align:left}
+table.ptbl td{border-bottom:1px solid #e9edf3;padding:6px 9px;color:#28313f}
+table.ptbl tr:nth-child(even) td{background:#f7f9fc}
+table.ptbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.pbadge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:600}
+.pbadge.ok{background:#e3f6ec;color:#1f7a47}.pbadge.warn{background:#fdf1dc;color:#9a6a12}.pbadge.bad{background:#fdeae7;color:#c23b2c}
+.palert{display:flex;gap:7px;align-items:flex-start;background:#fdf1dc;border:1px solid #f0d9a8;color:#7a5712;border-radius:8px;padding:8px 11px;font-size:11px;margin:0 0 13px;break-inside:avoid}
+.pnote{color:#6a7788;font-size:11px}
+ul.plist{margin:4px 0;padding-left:16px}ul.plist li{margin:1px 0}
+.pfoot{margin-top:6px;padding-top:9px;border-top:1px solid #e3e8ef;color:#8a97a8;font-size:9.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+@media print{body{background:#fff}.pbar{display:none!important}.pconf{margin:0 0 12px}.ppage{max-width:none;margin:0;box-shadow:none;border-radius:0;padding:0}@page{margin:12mm}}`;
+/* Export : ouvre le rapport dans une vraie fenêtre (contexte top-level fiable, hors iframe),
+   100 % en local — aucune donnée n'est envoyée à un serveur. Repli sur l'impression intégrée
+   si les pop-up sont bloquées. */
+function pdoc(html,title){title=title||'Rapport APA';
+ const conf=`<div class="pconf">🔒 <span><b>Document confidentiel — données de santé (RGPD).</b> Généré localement, sans transmission à un serveur. À conserver de façon sécurisée et à ne communiquer qu’au bénéficiaire ou aux professionnels autorisés.</span></div>`;
+ const doc=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap"><style>${REPORT_CSS}</style></head><body><div class="pbar"><button class="pri" onclick="window.print()">⬇ Enregistrer en PDF</button><button class="sec" onclick="window.close()">Fermer</button><span class="hint">Choisissez « Enregistrer en PDF » comme imprimante. Pensez à cocher « Graphiques d’arrière-plan ».</span></div><div class="ppage">${conf}${html}</div></body></html>`;
+ let w=null;try{w=window.open('','_blank');}catch(e){}
+ if(w&&w.document){w.document.open();w.document.write(doc);w.document.close();try{w.focus()}catch(e){}return}
+ /* repli : impression de la page intégrée (#printdoc + @media print) */
+ const el=document.getElementById('printdoc');if(el){el.innerHTML=html;try{toast('Autorisez les fenêtres pop-up pour un meilleur export PDF')}catch(e){}window.print()}}
 function buildBilanDoc(code){const c=ctx.cache.clients[code]||{};const gi=grpInfo(S.a);
  const consent=consentsOf(code),cons=CONSENTS.filter(([k])=>(consent[k]||{}).ok).map(([k,l])=>l+' (le '+dISO(consent[k].date)+')');
  const objs=objectifsOf(code),atteints=objs.filter(o=>o.statut==='atteint').length,docs=docsOf(code),B=bilansOf(code),progs=programmesOf(code),prog=progs[progs.length-1];
@@ -1143,7 +1193,7 @@ function buildProgDoc(code){const c=ctx.cache.clients[code]||{};const progs=prog
 /* ---- enrichit la synthèse : tableau de bord + boutons d'export ---- */
 const _syn0=subviews.synthese;
 subviews.synthese=function(){const code=ctx.sel;
- const exp=`<div class="bar" style="margin-bottom:14px"><span class="note" style="min-width:220px">Tableau de bord du bénéficiaire et export imprimable (choisissez « Enregistrer en PDF » dans la boîte d’impression).</span><span class="ctl"><button class="btn pri" data-act="pdfbilan">Exporter le bilan (PDF)</button><button class="btn" data-act="pdfprog">Programme à remettre (PDF)</button></span></div>`;
+ const exp=`<div class="bar" style="margin-bottom:14px"><span class="note" style="min-width:220px">Tableau de bord du bénéficiaire. L’export ouvre le rapport (bandeau, courbes, couleurs) dans un nouvel onglet : cliquez « Enregistrer en PDF ». Document confidentiel généré localement.</span><span class="ctl"><button class="btn pri" data-act="pdfbilan">Exporter le bilan (PDF)</button><button class="btn" data-act="pdfprog">Programme à remettre (PDF)</button></span></div>`;
  return exp+clientDash(code)+_syn0()}
 
 /* ---- enrichit le texte copiable (objectifs, programme, assiduité) ---- */
@@ -1156,8 +1206,8 @@ synText=function(){let o=_synText0();const code=ctx.sel;
 
 /* ---- actions export ---- */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;
- if(b.dataset.act==='pdfbilan')pdoc(buildBilanDoc(ctx.sel));
- else if(b.dataset.act==='pdfprog')pdoc(buildProgDoc(ctx.sel))});
+ if(b.dataset.act==='pdfbilan')pdoc(buildBilanDoc(ctx.sel),'Bilan APA — '+cname(ctx.cache.clients[ctx.sel]||{}));
+ else if(b.dataset.act==='pdfprog')pdoc(buildProgDoc(ctx.sel),'Programme APA — '+cname(ctx.cache.clients[ctx.sel]||{}))});
 </script>
 
 
