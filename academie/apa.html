@@ -155,6 +155,43 @@ input[type=number]{font-variant-numeric:tabular-nums}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--lav);color:var(--on-lav);padding:9px 16px;border-radius:99px;font-weight:600;font-size:13px;z-index:9}
 .nav:empty,.pagehead:empty{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* --- Suivi longitudinal : séances, bilans, courbes, alertes --- */
+.rng{display:flex;flex-direction:column;gap:6px}
+.rng .rr{display:flex;align-items:center;gap:10px}
+.rng input[type=range]{flex:1;accent-color:var(--lav);height:26px}
+.rng .rv{min-width:30px;text-align:right;font:700 17px var(--f-display);font-variant-numeric:tabular-nums;color:var(--fg)}
+.slist{display:flex;flex-direction:column;gap:10px}
+.scard{display:flex;flex-direction:column;padding:14px 16px;gap:8px}
+.scard .sh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.scard .sh b{font:700 18px var(--f-display)}
+.scard .meta{display:flex;gap:6px;flex-wrap:wrap}
+.scard .obs{color:var(--muted);font-size:13px;margin:0}
+.chart{width:100%;max-width:360px;height:auto;display:block}
+.chart .axis{stroke:var(--line)}
+.chart .ln{fill:none;stroke:var(--accent);stroke-width:2}
+.chart .dot{fill:var(--accent)}
+.chart text{fill:var(--muted);font:500 10px var(--f-body)}
+table.cmp{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+table.cmp th,table.cmp td{padding:7px 10px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+table.cmp th:first-child,table.cmp td:first-child{text-align:left}
+table.cmp th{background:var(--card2);font:600 11px var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.up{color:var(--ok);font-weight:600}
+.down{color:var(--bad);font-weight:600}
+.alert{display:flex;gap:6px;flex-wrap:wrap}
+/* --- Export imprimable (PDF via la boîte d'impression du navigateur) --- */
+#printdoc{display:none}
+@media print{
+ body{background:#fff}
+ body>*{display:none!important}
+ #printdoc{display:block!important;position:static;color:#111;background:#fff;font:12px/1.5 'Inter',Arial,sans-serif;padding:0}
+ #printdoc h1{font-size:22px;margin:0 0 4px;color:#111}
+ #printdoc h2{font-size:15px;margin:16px 0 6px;border-bottom:1px solid #ccc;padding-bottom:3px;color:#111}
+ #printdoc p,#printdoc li{color:#111}
+ #printdoc .muted{color:#555}
+ #printdoc table{border-collapse:collapse;width:100%;margin:6px 0}
+ #printdoc th,#printdoc td{border:1px solid #bbb;padding:4px 6px;text-align:left;font-size:11px}
+ #printdoc ul{margin:4px 0;padding-left:18px}
+}
 </style>
 <div class="topbar">
   <div class="brand"><b>APA</b><span>Activité physique adaptée</span></div>
@@ -166,6 +203,7 @@ input[type=number]{font-variant-numeric:tabular-nums}
   <main id="view"></main>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div id="printdoc" aria-hidden="true"></div>
 <script>
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -444,12 +482,12 @@ add({id:'an',kind:'a',title:'Anamnèse',sub:'Entretien avec le client',
   return{t,h:`<h4>Placement</h4><div class="row"><span>${gbadge(i.fin)}</span><span class="note">${i.ov?'Choisi par le coach':'Déterminé par la pathologie principale'}</span></div>${i.sec.length?`<div class="row"><span class="note">Groupes secondaires à surveiller</span><span>${i.sec.map(gbadge).join(' ')}</span></div>`:''}${i.al?`<div class="row"><span>${i.al} réponse(s) positive(s) à la sécurité avant l’effort</span><span class="pill ${i.med?'bad':'warn'}">${i.med?'Avis médical requis':'Avis obtenu'}</span></div>`:'<div class="row"><span>Aucun signal d’alerte relevé</span><span class="pill ok">RAS</span></div>'}`}}});
 </script>
 <script>
-const TABS=[['groupes','Groupes'],['anamnese','Anamnèse'],['m2','Mission M2']];
-const SUBS=[['profil','Profil'],['reponses','Questionnaires'],['tests','Tests'],['synthese','Synthèse']];
+const TABS=[['groupes','Groupes'],['anamnese','Anamnèse'],['m2','Dossier bénéficiaire']];
+const SUBS=[['profil','Profil'],['objectifs','Objectifs'],['documents','Documents'],['reponses','Questionnaires'],['tests','Tests'],['bilans','Bilans & suivi'],['programme','Programme'],['seances','Séances'],['synthese','Synthèse']];
 const DEMO='DEMO2026';
 S.ui.tab='groupes';S.ui.sub='profil';
 const ctx={role:null,code:null,uid:null,preview:false,db:null,canEdit:false,sel:null,selUid:null,err:'',
-  cache:{clients:{},assign:{},links:{},answers:{}},unsub:[],dirty:new Set(),pending:false,confirmDel:false};
+  cache:{clients:{},assign:{},links:{},answers:{},seances:{},bilans:{},objectifs:{},docs:{},consents:{},programmes:{}},unsub:[],dirty:new Set(),pending:false,confirmDel:false};
 const act=m=>!S.rm.includes(m.id);
 const ro=h=>h.replace(/<(input|textarea|select) /g,'<$1 disabled ');
 const complete=m=>{const[d,t]=m.prog();return d>=t};
@@ -490,8 +528,8 @@ function groupesView(){const st=Object.keys(ctx.cache.clients).map(statOf),n=st.
 function anamneseView(){if(!hasSel())return none('Sélectionnez un client dans la liste en haut à droite, ou créez-en un.');
  const m=MODS.find(x=>x.id==='an');
  return`<p class="lead">Entretien à remplir avec le client. Le groupe est déterminé par la pathologie principale et se met à jour à chaque réponse. ${pillOf(m)}</p><div class="card mod" data-id="an"><div class="mbody" style="border-top:0;padding-top:18px">${m.body()}<div class="res" data-res>${m.calc().h}</div></div></div>`}
-function clientHead(){const c=ctx.cache.clients[ctx.sel]||{};
- return`<div class="card chead"><div><h2>${esc(cname(c))}</h2><p class="note">Code d’accès à transmettre au client</p></div><div class="ctl"><span class="codebox">${esc(ctx.sel)}</span><button class="btn" data-act="copycode">Copier</button><button class="btn pri" data-act="preview">Aperçu côté client</button></div></div>`}
+function clientHead(){const c=ctx.cache.clients[ctx.sel]||{};const al=(typeof alertsOf==='function')?alertsOf(ctx.sel):[];
+ return`<div class="card chead"><div><h2>${esc(cname(c))}</h2><p class="note">Code d’accès à transmettre au client</p></div><div class="ctl"><span class="codebox">${esc(ctx.sel)}</span><button class="btn" data-act="copycode">Copier</button><button class="btn pri" data-act="preview">Aperçu côté client</button></div></div>`+(al.length?`<div class="banner"><span>Alertes · ${al.map(a=>esc(a[0])).join(' · ')}</span></div>`:'')}
 function delBox(){return ctx.confirmDel
  ?`<div class="bar"><span class="note">Supprimer ce client et toutes ses données ?</span><span class="ctl"><button class="btn" data-act="delcancel">Annuler</button><button class="btn dng" data-act="delclient">Supprimer le client</button></span></div>`
  :`<div class="bar"><span class="note">Le client ouvre le lien avec son compte Claude, puis saisit son code.</span><button class="btn del" data-act="delask">Supprimer ce client</button></div>`}
@@ -522,7 +560,7 @@ function coachRender(){setRole(`<span class="pill">Espace coach</span>`);$('#sav
  const ctl=`<select class="sel" id="clientsel" aria-label="Client"><option value="">Choisir un client</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select><button class="btn pri" data-act="newc">+ Nouveau client</button>`;
  const nm=hasSel()?cname(ctx.cache.clients[ctx.sel]):'';
  const sub={groupes:today()+' · clients par pathologie',anamnese:nm||'Aucun client sélectionné',m2:nm||'Aucun client sélectionné'}[S.ui.tab];
- head({groupes:'Groupes',anamnese:'Anamnèse',m2:'Mission M2'}[S.ui.tab],sub,ctl);
+ head({groupes:'Groupes',anamnese:'Anamnèse',m2:'Dossier bénéficiaire'}[S.ui.tab],sub,ctl);
  $('#view').innerHTML=ctx.sel==='_new'?newForm():({groupes:groupesView,anamnese:anamneseView,m2:m2View}[S.ui.tab])()}
 function clientRender(){$('#tabs').innerHTML='';$('#saved').hidden=ctx.preview;
  setRole(`<span class="pill">Espace client</span>`);
@@ -561,7 +599,7 @@ async function flush(){clearTimeout(wt);const d=[...ctx.dirty];ctx.dirty.clear()
 /* connexion */
 const sub=(k)=>ctx.unsub.push(ctx.db.collection(k).onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());ctx.cache[k]=o;onData()},()=>{}));
 function onData(){if(ctx.role!=='coach')return;softApply()}
-function coachEnter(){ctx.role='coach';ctx.preview=false;ctx.sel=null;ctx.err='';['clients','assign','links','answers'].forEach(sub);render()}
+function coachEnter(){ctx.role='coach';ctx.preview=false;ctx.sel=null;ctx.err='';['clients','assign','links','answers','seances','bilans','objectifs','docs','consents','programmes'].forEach(sub);render()}
 async function clientEnter(code){code=(code||'').trim().toUpperCase();ctx.err='';
  if(!code){ctx.err='Saisissez votre code.';return render()}
  if(code===DEMO){let rm=[];try{if(ctx.db){const s=await ctx.db.doc('assign/'+DEMO).get();if(s.exists)rm=s.data().rm||[]}}catch(e){}
@@ -575,7 +613,7 @@ async function clientEnter(code){code=(code||'').trim().toUpperCase();ctx.err=''
   ctx.role='client';ctx.preview=false;ctx.code=code;S.a=a;S.p={};S.rm=s.data().rm||[];
   ctx.unsub.push(ctx.db.doc('assign/'+code).onSnapshot(sn=>{if(sn.exists){S.rm=sn.data().rm||[];softApply()}},()=>{}));
   render()}catch(e){ctx.err='Connexion impossible pour le moment. Réessayez dans un instant.';render()}}
-function logout(){ctx.unsub.forEach(u=>{try{u()}catch(e){}});ctx.unsub=[];ctx.role=null;ctx.sel=null;ctx.preview=false;ctx.cache={clients:{},assign:{},links:{},answers:{}};ctx.dirty.clear();ctx.err='';S.p={};S.a={};S.rm=[];render()}
+function logout(){ctx.unsub.forEach(u=>{try{u()}catch(e){}});ctx.unsub=[];ctx.role=null;ctx.sel=null;ctx.preview=false;ctx.cache={clients:{},assign:{},links:{},answers:{},seances:{},bilans:{},objectifs:{},docs:{},consents:{},programmes:{}};ctx.sdraft=null;ctx.bdraft=null;ctx.odraft=null;ctx.ddraft=null;ctx.pdraft=null;ctx.dirty.clear();ctx.err='';S.p={};S.a={};S.rm=[];render()}
 const genCode=()=>{const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789',b=new Uint8Array(8);crypto.getRandomValues(b);return[...b].map(x=>A[x%A.length]).join('')};
 async function selectClient(code){await flush();ctx.sel=code||null;ctx.confirmDel=false;loadSel();render()}
 async function createClient(){const pr=$('#nc-prenom').value.trim(),nm=$('#nc-nom').value.trim();if(!pr&&!nm){ctx.err='Saisissez au moins un prénom ou un nom.';return render()}
@@ -660,7 +698,7 @@ async function ensureClient(code,name){
 }
 /* Clients de démonstration (pour l'aperçu) — créés une seule fois. */
 async function seedDemo(){
-  try{const m=await ctx.db.doc('meta/flags').get();if(m.exists&&m.data().seeded)return;}catch(e){}
+  try{const m=await ctx.db.doc('meta/flags').get();if(m.exists&&m.data().seeded>=2)return;}catch(e){}
   const now=new Date().toISOString();
   const DEMOS=[
     {code:'DEMO-MARIE',p:{prenom:'Marie',nom:'Lambert (démo)',age:'68',sexe:'F',date:now.slice(0,10),eval:'Coach APA'},
@@ -683,7 +721,21 @@ async function seedDemo(){
       await ctx.db.doc('links/'+d.code).set({code:d.code,at:now});
       await ctx.db.doc('answers/'+d.code).set({a:d.a,updated:now});
     }
-    await ctx.db.doc('meta/flags').set({seeded:true,at:now});
+    // --- données des nouveaux modules pour les clients démo ---
+    const dM='DEMO-MARIE',dP='DEMO-PAUL';
+    await ctx.db.doc('bilans/'+dM+'__b1').set({code:dM,id:'b1',date:'2026-07-01',type:'initial',note:'Bilan d’entrée',t:{'chaise.n':'9','tug.s':'13.5','uni.d':'5','uni.g':'4','grip.d':'18','grip.g':'16'}});
+    await ctx.db.doc('bilans/'+dM+'__b2').set({code:dM,id:'b2',date:'2026-10-01',type:'reeval',note:'Progrès sur l’équilibre',t:{'chaise.n':'11','tug.s':'11.8','uni.d':'7','uni.g':'5','grip.d':'20','grip.g':'18'}});
+    await ctx.db.doc('objectifs/'+dM+'__o1').set({code:dM,id:'o1',intitule:'Tenir 15 s en appui unipodal',critere:'durée',cible:'15 s',echeance:'2026-12-15',priorite:'haute',statut:'en_cours',created:now});
+    await ctx.db.doc('consents/'+dM).set({participation:{ok:true,date:now.slice(0,10)},sante:{ok:true,date:now.slice(0,10)}});
+    await ctx.db.doc('programmes/'+dM+'__p1').set({code:dM,id:'p1',version:'v1',debut:'2026-07-01',fin:'',objectifs:'Équilibre et force',adaptations:'Appui sécurisé',criteres:'Arrêt si vertige',blocs:[{cat:'equilibre',freq:'3 /sem',intensite:'Sécurisé',type:'Appui unipodal, tandem',temps:'15 min',volume:'—',progression:'réduire les appuis'},{cat:'renfo',freq:'2 /sem',intensite:'Borg 12–14',type:'Lever de chaise, montée de marche',temps:'20 min',volume:'1 à 3 séries',progression:'+répétitions'}],created:now});
+    {const ms=(id,date,pres,dou,fat,borg)=>ctx.db.doc('seances/'+dM+'__'+id).set({code:dM,id,date,type:'individuel',duree:'45',lieu:'Salle APA',presence:pres,forme:6,douleur:dou,douleur_loc:dou?'genou droit':'',fatigue:fat,borg,fc:'',tolerance:'bonne',contenu:'Équilibre + renforcement',adaptations:'',obs:'',emarge:true});
+     await ms('s1','2026-09-10','present',3,4,12);await ms('s2','2026-09-17','present',2,3,13);await ms('s3','2026-09-24','abs_j',0,0,0);await ms('s4','2026-10-01','present',2,2,13);await ms('s5','2026-10-08','present',1,2,14);}
+    await ctx.db.doc('docs/'+dP+'__d1').set({code:dP,id:'d1',type:'certificat',date:'2026-05-25',expiry:'2026-10-25',ref:'CM-démo',note:'Aptitude à l’APA, surveiller la tension.',created:now});
+    await ctx.db.doc('programmes/'+dP+'__p1').set({code:dP,id:'p1',version:'v1',debut:'2026-06-01',fin:'',objectifs:'Endurance + renforcement',adaptations:'Surveiller la TA',criteres:'Arrêt si TA > 180 ou malaise',blocs:[{cat:'endurance',freq:'4 /sem',intensite:'Borg 12–14',type:'Marche rapide, vélo',temps:'30 min',volume:'150 min/sem',progression:'+5 min/sem'},{cat:'renfo',freq:'2 /sem',intensite:'Borg 13',type:'Élastiques, grands groupes',temps:'20 min',volume:'2 séries',progression:'+charge'}],created:now});
+    await ctx.db.doc('bilans/'+dP+'__b1').set({code:dP,id:'b1',date:'2026-06-01',type:'initial',note:'',t:{'anthro.poids':'96','anthro.taille':'178','anthro.tour':'108','cardio.s':'142','cardio.fc':'78'}});
+    await ctx.db.doc('objectifs/'+dP+'__o1').set({code:dP,id:'o1',intitule:'Réduire le tour de taille',critere:'tour de taille',cible:'100 cm',echeance:'2027-01-01',priorite:'haute',statut:'en_cours',created:now});
+    await ctx.db.doc('consents/'+dP).set({participation:{ok:true,date:now.slice(0,10)},sante:{ok:true,date:now.slice(0,10)}});
+    await ctx.db.doc('meta/flags').set({seeded:2,at:now});
   }catch(e){}
 }
 /* démarrage Blueperf : pas d'écran de connexion — le contexte vient des paramètres d'URL. */
@@ -702,5 +754,332 @@ render();
   }catch(e){ render(); }
 })();
 </script>
+
+<script>
+/* ===================== SUIVI LONGITUDINAL (séances · bilans · courbes · alertes) ===================== */
+/* Module 1. Collections : seances/{code}__{id}, bilans/{code}__{id}. API db et style repris de l'existant. */
+const uid6=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const dISO=iso=>{try{return new Date((iso&&iso.length<=10?iso+'T00:00':iso)).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})}catch(e){return iso||''}};
+const numv=v=>{const n=parseFloat(String(v??'').replace(',','.'));return Number.isFinite(n)?n:NaN};
+const seancesOf=code=>Object.values(ctx.cache.seances||{}).filter(s=>s&&s.code===code).sort((a,b)=>String(a.date+a.id).localeCompare(String(b.date+b.id)));
+const bilansOf=code=>Object.values(ctx.cache.bilans||{}).filter(b=>b&&b.code===code).sort((a,b)=>String(a.date+a.id).localeCompare(String(b.date+b.id)));
+const PRES=[['present','Présent'],['abs_j','Absent justifié'],['abs_n','Absent non justifié']];
+const TOL=[['bonne','Bonne'],['moyenne','Moyenne'],['mauvaise','Mauvaise']];
+const presLabel=v=>(PRES.find(x=>x[0]===v)||[,'—'])[1];
+const tolLabel=v=>(TOL.find(x=>x[0]===v)||[,v||'—'])[1];
+const BT={initial:'Bilan initial',intermediaire:'Bilan intermédiaire',reeval:'Réévaluation',final:'Bilan final'};
+const METRICS=[
+ {k:'m6.dist',l:'Marche 6 min',u:'m',dir:1,mcid:50},
+ {k:'chaise.n',l:'Lever de chaise 30 s',u:'',dir:1,mcid:2},
+ {k:'tug.s',l:'Timed Up and Go',u:'s',dir:-1,mcid:1,dc:1},
+ {k:'uni.d',l:'Équilibre droite',u:'s',dir:1,dc:1},
+ {k:'uni.g',l:'Équilibre gauche',u:'s',dir:1,dc:1},
+ {k:'grip.d',l:'Préhension droite',u:'kg',dir:1,mcid:5,dc:1},
+ {k:'grip.g',l:'Préhension gauche',u:'kg',dir:1,mcid:5,dc:1},
+ {k:'anthro.poids',l:'Poids',u:'kg',dir:0,dc:1},
+ {k:'anthro.tour',l:'Tour de taille',u:'cm',dir:-1,mcid:4,dc:1},
+ {k:'cardio.fc',l:'FC de repos',u:'bpm',dir:-1},
+ {k:'cardio.s',l:'Tension systolique',u:'mmHg',dir:-1}];
+
+/* courbe SVG minimaliste */
+function lineChart(series){const pts=series.filter(p=>Number.isFinite(p.v));if(pts.length<2)return'';
+ const W=320,H=94,pl=8,pr=8,pt=10,pb=20;
+ const xs=i=>pl+i*(W-pl-pr)/(pts.length-1);
+ let mn=Math.min(...pts.map(p=>p.v)),mx=Math.max(...pts.map(p=>p.v));if(mn===mx){mn-=1;mx+=1}
+ const ys=v=>pt+(H-pt-pb)*(1-(v-mn)/(mx-mn));
+ const d=pts.map((p,i)=>`${i?'L':'M'}${xs(i).toFixed(1)} ${ys(p.v).toFixed(1)}`).join(' ');
+ const dots=pts.map((p,i)=>`<circle class="dot" cx="${xs(i).toFixed(1)}" cy="${ys(p.v).toFixed(1)}" r="3"/>`).join('');
+ const labs=pts.map((p,i)=>`<text x="${xs(i).toFixed(1)}" y="${H-6}" text-anchor="middle">${esc(p.lab||'')}</text>`).join('');
+ return`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution"><line class="axis" x1="${pl}" y1="${H-pb}" x2="${W-pr}" y2="${H-pb}"/><path class="ln" d="${d}"/>${dots}${labs}</svg>`}
+
+/* alertes de base à partir des séances et bilans */
+function alertsOf(code){const Ss=seancesOf(code),out=[];const withP=Ss.filter(s=>s.presence);
+ if(withP.length>=2){const l2=withP.slice(-2);if(l2.every(s=>s.presence==='abs_j'||s.presence==='abs_n'))out.push(['Absences répétées','bad'])}
+ const pr=withP.filter(s=>s.presence==='present'&&Number.isFinite(numv(s.douleur)));
+ if(pr.length>=2){const a=numv(pr[pr.length-2].douleur),b=numv(pr[pr.length-1].douleur);if(b-a>=2)out.push([`Douleur en hausse (+${b-a})`,'bad'])}
+ const B=bilansOf(code);if(B.length){const months=(Date.now()-new Date(B[B.length-1].date).getTime())/2.63e9;if(months>=3)out.push(['Réévaluation à programmer','warn'])}
+ return out.concat(typeof extraAlerts==='function'?extraAlerts(code):[])}
+
+/* ---------- Séances ---------- */
+ctx.sdraft=null;ctx.bdraft=null;
+function newSeance(code,dup){ctx.sdraft=dup?Object.assign({},dup,{id:uid6(),date:todayISO(),presence:'present'}):{code,id:uid6(),date:todayISO(),type:'individuel',duree:'',lieu:'',presence:'present',forme:5,douleur:0,douleur_loc:'',fatigue:3,borg:11,fc:'',tolerance:'bonne',contenu:'',adaptations:'',obs:'',emarge:false};S.ui.sub='seances';render();window.scrollTo(0,0)}
+async function saveSeance(){const s=ctx.sdraft;if(!s)return;const rec=JSON.parse(JSON.stringify(s));
+ if(ctx.db){try{await ctx.db.doc('seances/'+s.code+'__'+s.id).set(rec)}catch(e){toast('Enregistrement impossible');return}}
+ ctx.cache.seances=ctx.cache.seances||{};ctx.cache.seances[s.code+'__'+s.id]=rec;ctx.sdraft=null;render();window.scrollTo(0,0);toast('Séance enregistrée')}
+async function delSeance(code,id){if(ctx.db){try{await ctx.db.doc('seances/'+code+'__'+id).delete()}catch(e){}}delete (ctx.cache.seances||{})[code+'__'+id];render();toast('Séance supprimée')}
+
+const sfNum=(k,l,u,o={})=>`<label class="f"><span>${l}</span><span class="inp"><input data-sf="${k}" type="number" inputmode="decimal" min="${o.min??0}" ${o.max!=null?`max="${o.max}"`:''} step="${o.step||1}" value="${esc(ctx.sdraft[k])}">${u?`<em>${u}</em>`:''}</span></label>`;
+const sfRange=(k,l,min,max)=>`<label class="f"><span>${l}</span><div class="rng"><div class="rr"><input data-sf="${k}" type="range" min="${min}" max="${max}" step="1" value="${esc(ctx.sdraft[k]===''?min:ctx.sdraft[k])}"><span class="rv" data-rv="${k}">${esc(ctx.sdraft[k]===''?'–':ctx.sdraft[k])}</span></div></div></label>`;
+const sfTxt=(k,l,ph='')=>`<label class="f"><span>${l}</span><input data-sf="${k}" type="text" value="${esc(ctx.sdraft[k])}" placeholder="${esc(ph)}"></label>`;
+const sfTa=(k,l,ph='')=>`<label class="f wide"><span>${l}</span><textarea data-sf="${k}" placeholder="${esc(ph)}">${esc(ctx.sdraft[k])}</textarea></label>`;
+const sfSel=(k,l,opts)=>`<label class="f"><span>${l}</span><select data-sf="${k}">${opts.map(([v,t])=>`<option value="${v}" ${String(ctx.sdraft[k])===String(v)?'selected':''}>${t}</option>`).join('')}</select></label>`;
+const sfOpt=(k,opts)=>`<div class="lk" role="radiogroup">${opts.map(([v,t])=>`<label><input type="radio" name="sf-${k}" data-sf="${k}" value="${v}" ${String(ctx.sdraft[k])===String(v)?'checked':''}><span>${t}</span></label>`).join('')}</div>`;
+
+subviews.seances=function(){const code=ctx.sel;if(ctx.sdraft&&ctx.sdraft.code!==code)ctx.sdraft=null;
+ if(ctx.sdraft){const s=ctx.sdraft;return`<div class="card mbody" style="border-top:0;padding-top:18px"><div class="hd"><h2>Séance</h2><span class="note">Saisie rapide</span></div>
+  <div class="grid"><label class="f"><span>Date</span><input data-sf="date" type="date" value="${esc(s.date)}"></label>${sfSel('type','Format',[['individuel','Individuel'],['collectif','Collectif']])}${sfNum('duree','Durée','min',{max:300})}${sfTxt('lieu','Lieu')}</div>
+  <p class="sec">Présence</p>${sfOpt('presence',PRES)}
+  <p class="sec">État du jour</p><div class="grid">${sfRange('forme','Forme (0–10)',0,10)}${sfRange('douleur','Douleur (0–10)',0,10)}${sfRange('fatigue','Fatigue (0–10)',0,10)}</div>${sfTxt('douleur_loc','Localisation de la douleur','ex. genou droit')}
+  <p class="sec">Effort et tolérance</p><div class="grid">${sfRange('borg','Effort perçu (Borg 6–20)',6,20)}${sfNum('fc','FC moyenne','bpm',{max:250})}${sfSel('tolerance','Tolérance',TOL)}</div>
+  <p class="sec">Contenu réalisé</p>${sfTa('contenu','Exercices, séries, répétitions, charge, durée…')}${sfTa('adaptations','Adaptations faites en séance')}${sfTa('obs','Observations')}
+  <label class="chk" style="margin-top:6px"><input type="checkbox" data-sf="emarge" ${s.emarge?'checked':''}><span>Présence émargée par le bénéficiaire</span></label>
+  <div class="mfoot"><button class="btn" data-act="scancel">Annuler</button><button class="btn pri" data-act="ssave">Enregistrer la séance</button></div></div>`}
+ const list=seancesOf(code),al=alertsOf(code);
+ const head=`<div class="bar"><div style="min-width:220px"><p class="lead" style="margin:0">Fiches de séance de ce bénéficiaire, pensées pour la tablette en salle.</p>${al.length?`<div class="alert" style="margin-top:8px">${al.map(a=>`<span class="pill ${a[1]}">${esc(a[0])}</span>`).join('')}</div>`:''}</div><span class="ctl"><button class="btn pri" data-act="snew">+ Nouvelle séance</button>${list.length?'<button class="btn" data-act="sdup">Dupliquer la dernière</button>':''}</span></div>`;
+ if(!list.length)return head+'<p class="empty" style="margin-top:14px">Aucune séance enregistrée pour l’instant.</p>';
+ const cards=list.slice().reverse().map(s=>{const pc=s.presence==='present'?'ok':s.presence==='abs_j'?'warn':'bad';
+  return`<div class="card scard"><div class="sh"><b>${esc(dISO(s.date))}</b><div class="meta"><span class="pill ${pc}">${presLabel(s.presence)}</span><span class="pill">${s.type==='collectif'?'Collectif':'Individuel'}</span>${s.duree?`<span class="pill">${esc(s.duree)} min</span>`:''}${s.lieu?`<span class="pill">${esc(s.lieu)}</span>`:''}</div></div>${s.presence==='present'?`<div class="meta"><span class="pill">Forme ${esc(s.forme)}/10</span><span class="pill ${numv(s.douleur)>=5?'bad':''}">Douleur ${esc(s.douleur)}/10${s.douleur_loc?' · '+esc(s.douleur_loc):''}</span><span class="pill">Fatigue ${esc(s.fatigue)}/10</span>${s.borg?`<span class="pill">Borg ${esc(s.borg)}</span>`:''}${s.fc?`<span class="pill">${esc(s.fc)} bpm</span>`:''}${s.tolerance?`<span class="pill">Tolérance ${esc(tolLabel(s.tolerance)).toLowerCase()}</span>`:''}${s.emarge?'<span class="pill ok">Émargée</span>':''}</div>`:''}${s.contenu?`<p class="obs">${esc(s.contenu)}</p>`:''}${s.adaptations?`<p class="obs"><b>Adaptations.</b> ${esc(s.adaptations)}</p>`:''}${s.obs?`<p class="obs"><b>Obs.</b> ${esc(s.obs)}</p>`:''}<div class="mfoot" style="border-top:0;padding-top:0"><button class="btn del" data-act="sdel" data-sid="${esc(s.id)}">Supprimer</button></div></div>`}).join('');
+ return head+`<div class="slist" style="margin-top:14px">${cards}</div>`};
+
+/* ---------- Bilans datés + comparaison + courbes ---------- */
+function newBilan(code){ctx.bdraft={code,id:uid6(),date:todayISO(),type:bilansOf(code).length?'reeval':'initial',note:''};render();window.scrollTo(0,0)}
+async function saveBilan(){const b=ctx.bdraft;if(!b)return;const cur=ctx.cache.clients[b.code]||{};const rec={code:b.code,id:b.id,date:b.date,type:b.type,note:b.note||'',t:JSON.parse(JSON.stringify(cur.t||{}))};
+ if(ctx.db){try{await ctx.db.doc('bilans/'+b.code+'__'+b.id).set(rec)}catch(e){toast('Enregistrement impossible');return}}
+ ctx.cache.bilans=ctx.cache.bilans||{};ctx.cache.bilans[b.code+'__'+b.id]=rec;ctx.bdraft=null;render();window.scrollTo(0,0);toast('Bilan enregistré')}
+async function delBilan(code,id){if(ctx.db){try{await ctx.db.doc('bilans/'+code+'__'+id).delete()}catch(e){}}delete (ctx.cache.bilans||{})[code+'__'+id];render();toast('Bilan supprimé')}
+
+subviews.bilans=function(){const code=ctx.sel;if(ctx.bdraft&&ctx.bdraft.code!==code)ctx.bdraft=null;
+ const head=`<div class="bar"><p class="lead" style="margin:0;min-width:220px">Chaque bilan fige les valeurs de l’onglet <b>Tests</b> à une date. La comparaison et les courbes se calculent automatiquement.</p><button class="btn pri" data-act="bsnap">+ Enregistrer un bilan daté</button></div>`;
+ if(ctx.bdraft){const b=ctx.bdraft;return`<div class="card mbody" style="border-top:0;padding-top:18px"><div class="hd"><h2>Nouveau bilan</h2></div><p class="note">Les valeurs actuelles de l’onglet <b>Tests</b> seront figées dans ce bilan daté.</p><div class="grid"><label class="f"><span>Date</span><input data-bf="date" type="date" value="${esc(b.date)}"></label><label class="f"><span>Type</span><select data-bf="type">${Object.entries(BT).map(([v,t])=>`<option value="${v}" ${b.type===v?'selected':''}>${t}</option>`).join('')}</select></label></div><label class="f wide"><span>Note (facultatif)</span><textarea data-bf="note">${esc(b.note||'')}</textarea></label><div class="mfoot"><button class="btn" data-act="bcancel">Annuler</button><button class="btn pri" data-act="bsave">Enregistrer le bilan</button></div></div>`}
+ const B=bilansOf(code);
+ if(!B.length)return head+'<p class="empty" style="margin-top:14px">Aucun bilan figé. Renseignez l’onglet Tests puis enregistrez un premier bilan (initial).</p>';
+ const timeline=`<div class="card sect"><h2>Historique des bilans</h2><div class="tbl"><table><thead><tr><th>Date</th><th>Type</th><th>Note</th><th></th></tr></thead><tbody>${B.slice().reverse().map(b=>`<tr><td><b>${esc(dISO(b.date))}</b></td><td>${BT[b.type]||b.type}</td><td>${esc(b.note||'')}</td><td class="r"><button class="btn del" data-act="bdel" data-bid="${esc(b.id)}">Supprimer</button></td></tr>`).join('')}</tbody></table></div></div>`;
+ const init=B[0],last=B[B.length-1];
+ const rows=METRICS.map(mt=>{const dc=mt.dc||0,vi=numv((init.t||{})[mt.k]),vl=numv((last.t||{})[mt.k]);if(!Number.isFinite(vi)&&!Number.isFinite(vl))return'';
+  let delta='–',pct='–',cls='',flag='';
+  if(Number.isFinite(vi)&&Number.isFinite(vl)){const d=vl-vi;delta=(d>0?'+':'')+fmt(d,dc);if(vi!==0)pct=(d>0?'+':'')+fmt(d/vi*100,0)+' %';const good=mt.dir===0?null:d*mt.dir>0;if(d!==0)cls=good==null?'':good?'up':'down';if(mt.mcid&&mt.dir&&Math.abs(d)>=mt.mcid)flag=good?'<span class="pill ok">Cliniquement pertinent</span>':'<span class="pill bad">Baisse notable</span>'}
+  return`<tr><td>${mt.l}${mt.u?` <span class="note">(${mt.u})</span>`:''}</td><td>${fmt(vi,dc)}</td><td>${fmt(vl,dc)}</td><td class="${cls}">${delta}</td><td class="${cls}">${pct}</td><td>${flag}</td></tr>`}).filter(Boolean).join('');
+ const cmp=rows&&B.length>=2?`<div class="card sect"><h2>Comparaison initial → dernier bilan</h2><p class="note">${esc(dISO(init.date))} · ${BT[init.type]} → ${esc(dISO(last.date))} · ${BT[last.type]}</p><div class="tbl"><table class="cmp"><thead><tr><th>Test</th><th>Initial</th><th>Dernier</th><th>Δ</th><th>%</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`:'';
+ const charts=METRICS.map(mt=>{const series=B.map(b=>({v:numv((b.t||{})[mt.k]),lab:dISO(b.date).replace(/\s?\d{4}$/,'')})).filter(p=>Number.isFinite(p.v));if(series.length<2)return'';return`<div class="res"><h4>${mt.l}${mt.u?' ('+mt.u+')':''}</h4>${lineChart(series)}</div>`}).filter(Boolean).join('');
+ const chartWrap=charts?`<div class="card sect"><h2>Courbes d’évolution</h2><div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">${charts}</div></div>`:'';
+ return head+timeline+cmp+chartWrap};
+
+/* saisie des brouillons séance / bilan (sans autosave) */
+function sdbfInput(e){const t=e.target;
+ if(t.dataset.sf&&ctx.sdraft){const k=t.dataset.sf;if(t.type==='radio'){if(t.checked)ctx.sdraft[k]=t.value}else if(t.type==='checkbox')ctx.sdraft[k]=t.checked;else ctx.sdraft[k]=t.value;if(t.type==='range'){const rv=V.querySelector(`[data-rv="${k}"]`);if(rv)rv.textContent=t.value}}
+ if(t.dataset.bf&&ctx.bdraft)ctx.bdraft[t.dataset.bf]=t.value}
+V.addEventListener('input',sdbfInput);V.addEventListener('change',sdbfInput);
+
+/* actions séance / bilan */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+ if(a==='snew')newSeance(ctx.sel);
+ else if(a==='sdup'){const l=seancesOf(ctx.sel);newSeance(ctx.sel,l[l.length-1])}
+ else if(a==='ssave')saveSeance();
+ else if(a==='scancel'){ctx.sdraft=null;render()}
+ else if(a==='sdel')delSeance(ctx.sel,b.dataset.sid);
+ else if(a==='bsnap')newBilan(ctx.sel);
+ else if(a==='bsave')saveBilan();
+ else if(a==='bcancel'){ctx.bdraft=null;render()}
+ else if(a==='bdel')delBilan(ctx.sel,b.dataset.bid)});
+</script>
+
+<script>
+/* ===================== MODULE 2 : OBJECTIFS SMART · CONSENTEMENTS · DOCUMENTS D'ENTRÉE ===================== */
+/* Collections : objectifs/{code}__{id}, docs/{code}__{id}, consents/{code}. */
+const OBJ_STATUS=[['en_cours','En cours','warn'],['atteint','Atteint','ok'],['partiel','Partiel','warn'],['non_atteint','Non atteint','bad']];
+const OBJ_PRIO=[['haute','Haute'],['moyenne','Moyenne'],['basse','Basse']];
+const CONSENTS=[['participation','Participation à l’activité physique adaptée'],['sante','Collecte et traitement des données de santé'],['image','Droit à l’image (facultatif)'],['partage','Partage d’informations avec le médecin et les autres professionnels']];
+const DOCTYPES=[['prescription','Prescription / avis médical'],['certificat','Certificat médical'],['convention','Convention / contrat'],['autre','Autre document']];
+const dtLabel=v=>(DOCTYPES.find(x=>x[0]===v)||[,v||'—'])[1];
+const prioLabel=v=>(OBJ_PRIO.find(x=>x[0]===v)||[,v||''])[1];
+const objStatus=v=>OBJ_STATUS.find(x=>x[0]===v)||OBJ_STATUS[0];
+const objectifsOf=code=>Object.values(ctx.cache.objectifs||{}).filter(o=>o&&o.code===code).sort((a,b)=>String(a.created).localeCompare(String(b.created)));
+const docsOf=code=>Object.values(ctx.cache.docs||{}).filter(d=>d&&d.code===code).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+const consentsOf=code=>(ctx.cache.consents||{})[code]||{};
+const in30=()=>new Date(Date.now()+30*864e5).toISOString().slice(0,10);
+
+/* alertes documents + consentement, chaînées à alertsOf (module 1) */
+function extraAlerts(code){const out=[],today=todayISO(),soon=in30();
+ docsOf(code).forEach(d=>{if(d.expiry){if(d.expiry<today)out.push([`${dtLabel(d.type)} expiré`,'bad']);else if(d.expiry<=soon)out.push([`${dtLabel(d.type)} à renouveler`,'warn'])}});
+ if(!(consentsOf(code).sante||{}).ok)out.push(['Consentement données de santé manquant','warn']);
+ return out}
+
+/* ---------- Objectifs SMART ---------- */
+ctx.odraft=null;ctx.ddraft=null;
+function newObjectif(code,ex){ctx.odraft=ex?Object.assign({},ex):{code,id:uid6(),intitule:'',critere:'',cible:'',echeance:'',priorite:'moyenne',statut:'en_cours',created:new Date().toISOString()};render();window.scrollTo(0,0)}
+async function saveObjectif(){const o=ctx.odraft;if(!o)return;if(!String(o.intitule||'').trim()){toast('Intitulé requis');return}const rec=JSON.parse(JSON.stringify(o));
+ if(ctx.db){try{await ctx.db.doc('objectifs/'+o.code+'__'+o.id).set(rec)}catch(e){toast('Enregistrement impossible');return}}
+ ctx.cache.objectifs=ctx.cache.objectifs||{};ctx.cache.objectifs[o.code+'__'+o.id]=rec;ctx.odraft=null;render();toast('Objectif enregistré')}
+async function delObjectif(code,id){if(ctx.db){try{await ctx.db.doc('objectifs/'+code+'__'+id).delete()}catch(e){}}delete (ctx.cache.objectifs||{})[code+'__'+id];render();toast('Objectif supprimé')}
+
+const ofTxt=(k,l,ph='')=>`<label class="f"><span>${l}</span><input data-of="${k}" type="text" value="${esc(ctx.odraft[k])}" placeholder="${esc(ph)}"></label>`;
+const ofSel=(k,l,opts)=>`<label class="f"><span>${l}</span><select data-of="${k}">${opts.map(([v,t])=>`<option value="${v}" ${String(ctx.odraft[k])===String(v)?'selected':''}>${t}</option>`).join('')}</select></label>`;
+
+subviews.objectifs=function(){const code=ctx.sel;if(ctx.odraft&&ctx.odraft.code!==code)ctx.odraft=null;
+ if(ctx.odraft){const o=ctx.odraft;return`<div class="card mbody" style="border-top:0;padding-top:18px"><div class="hd"><h2>Objectif</h2><span class="note">Formulation SMART : spécifique, mesurable, atteignable, réaliste, temporel</span></div><div class="grid">${ofTxt('intitule','Intitulé','ex. Monter deux étages sans s’arrêter')}${ofTxt('critere','Critère de mesure','ex. nombre d’étages')}${ofTxt('cible','Valeur cible','ex. 2 étages')}<label class="f"><span>Échéance</span><input data-of="echeance" type="date" value="${esc(o.echeance)}"></label>${ofSel('priorite','Priorité',OBJ_PRIO)}${ofSel('statut','Statut',OBJ_STATUS.map(x=>[x[0],x[1]]))}</div><div class="mfoot"><button class="btn" data-act="ocancel">Annuler</button><button class="btn pri" data-act="osave">Enregistrer l’objectif</button></div></div>`}
+ const list=objectifsOf(code);
+ const head=`<div class="bar"><p class="lead" style="margin:0;min-width:220px">Objectifs partagés avec le bénéficiaire, formulés de façon SMART. Mettez à jour le statut au fil du suivi.</p><button class="btn pri" data-act="onew">+ Nouvel objectif</button></div>`;
+ if(!list.length)return head+'<p class="empty" style="margin-top:14px">Aucun objectif défini.</p>';
+ const cards=list.map(o=>{const st=objStatus(o.statut);return`<div class="card scard"><div class="sh"><b>${esc(o.intitule)}</b><div class="meta"><span class="pill ${st[2]}">${st[1]}</span>${o.priorite?`<span class="pill">Priorité ${esc(prioLabel(o.priorite).toLowerCase())}</span>`:''}${o.echeance?`<span class="pill">Échéance ${esc(dISO(o.echeance))}</span>`:''}</div></div>${(o.critere||o.cible)?`<p class="obs">${o.critere?esc(o.critere):''}${o.cible?`${o.critere?' · ':''}cible : ${esc(o.cible)}`:''}</p>`:''}<div class="mfoot" style="border-top:0;padding-top:0"><button class="btn" data-act="oedit" data-oid="${esc(o.id)}">Modifier</button><button class="btn del" data-act="odel" data-oid="${esc(o.id)}">Supprimer</button></div></div>`}).join('');
+ return head+`<div class="slist" style="margin-top:14px">${cards}</div>`};
+
+/* ---------- Consentements + Documents d'entrée ---------- */
+async function toggleConsent(code,type,checked){const cur=JSON.parse(JSON.stringify(consentsOf(code)));cur[type]=checked?{ok:true,date:todayISO()}:{ok:false};
+ if(ctx.db){try{await ctx.db.doc('consents/'+code).set(cur)}catch(e){toast('Enregistrement impossible');return}}
+ ctx.cache.consents=ctx.cache.consents||{};ctx.cache.consents[code]=cur;render()}
+function newDoc(code,ex){ctx.ddraft=ex?Object.assign({},ex):{code,id:uid6(),type:'prescription',date:todayISO(),expiry:'',ref:'',note:'',created:new Date().toISOString()};render();window.scrollTo(0,0)}
+async function saveDoc(){const d=ctx.ddraft;if(!d)return;const rec=JSON.parse(JSON.stringify(d));
+ if(ctx.db){try{await ctx.db.doc('docs/'+d.code+'__'+d.id).set(rec)}catch(e){toast('Enregistrement impossible');return}}
+ ctx.cache.docs=ctx.cache.docs||{};ctx.cache.docs[d.code+'__'+d.id]=rec;ctx.ddraft=null;render();toast('Document enregistré')}
+async function delDoc(code,id){if(ctx.db){try{await ctx.db.doc('docs/'+code+'__'+id).delete()}catch(e){}}delete (ctx.cache.docs||{})[code+'__'+id];render();toast('Document supprimé')}
+
+const dfTxt=(k,l,ph='')=>`<label class="f"><span>${l}</span><input data-df="${k}" type="text" value="${esc(ctx.ddraft[k])}" placeholder="${esc(ph)}"></label>`;
+
+subviews.documents=function(){const code=ctx.sel;if(ctx.ddraft&&ctx.ddraft.code!==code)ctx.ddraft=null;
+ const cons=consentsOf(code);
+ const consCard=`<div class="card sect"><h2>Consentements</h2><p class="note" style="margin-bottom:12px">Recueil du consentement éclairé, horodaté. Le consentement aux données de santé est requis avant toute saisie (RGPD).</p><div style="display:flex;flex-direction:column;gap:10px">${CONSENTS.map(([k,l])=>{const c=cons[k]||{};return`<label class="chk" style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card2)"><span style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-consent="${k}" ${c.ok?'checked':''}><span style="font-weight:500">${l}</span></span>${c.ok&&c.date?`<span class="pill ok">Recueilli le ${esc(dISO(c.date))}</span>`:'<span class="pill warn">Non recueilli</span>'}</label>`}).join('')}</div></div>`;
+ if(ctx.ddraft){const d=ctx.ddraft;return consCard+`<div class="card mbody" style="padding-top:18px;margin-top:14px"><div class="hd"><h2>Document d’entrée</h2></div><div class="grid"><label class="f"><span>Type</span><select data-df="type">${DOCTYPES.map(([v,t])=>`<option value="${v}" ${d.type===v?'selected':''}>${t}</option>`).join('')}</select></label><label class="f"><span>Date</span><input data-df="date" type="date" value="${esc(d.date)}"></label><label class="f"><span>Date d’expiration</span><input data-df="expiry" type="date" value="${esc(d.expiry)}"></label>${dfTxt('ref','Référence / lien','n° ou URL du document')}</div><label class="f wide"><span>Pathologies, contre-indications, précautions, signes d’alerte</span><textarea data-df="note">${esc(d.note)}</textarea></label><div class="mfoot"><button class="btn" data-act="dcancel">Annuler</button><button class="btn pri" data-act="dsave">Enregistrer le document</button></div></div>`}
+ const list=docsOf(code);
+ const docHead=`<div class="bar" style="margin-top:14px"><div style="min-width:220px"><h2 style="font-size:24px">Documents d’entrée</h2><p class="note" style="margin:4px 0 0">Prescription, certificat, convention. L’application enregistre les métadonnées et alerte avant expiration ; joignez le document papier ou PDF au dossier.</p></div><button class="btn pri" data-act="dnew">+ Ajouter un document</button></div>`;
+ const docList=list.length?`<div class="slist" style="margin-top:12px">${list.map(d=>{const today=todayISO(),exp=d.expiry&&d.expiry<today,soon=d.expiry&&!exp&&d.expiry<=in30();return`<div class="card scard"><div class="sh"><b>${esc(dtLabel(d.type))}</b><div class="meta"><span class="pill">Daté du ${esc(dISO(d.date))}</span>${d.expiry?`<span class="pill ${exp?'bad':soon?'warn':'ok'}">${exp?'Expiré le':'Valide jusqu’au'} ${esc(dISO(d.expiry))}</span>`:''}${d.ref?`<span class="pill">${esc(d.ref)}</span>`:''}</div></div>${d.note?`<p class="obs">${esc(d.note)}</p>`:''}<div class="mfoot" style="border-top:0;padding-top:0"><button class="btn" data-act="dedit" data-did="${esc(d.id)}">Modifier</button><button class="btn del" data-act="ddel" data-did="${esc(d.id)}">Supprimer</button></div></div>`}).join('')}</div>`:'<p class="empty" style="margin-top:12px">Aucun document enregistré.</p>';
+ return consCard+docHead+docList};
+
+/* saisie des brouillons objectif / document + bascule consentement */
+function odfInput(e){const t=e.target;if(t.dataset.of&&ctx.odraft)ctx.odraft[t.dataset.of]=t.value;if(t.dataset.df&&ctx.ddraft)ctx.ddraft[t.dataset.df]=t.value}
+V.addEventListener('input',odfInput);V.addEventListener('change',odfInput);
+V.addEventListener('change',e=>{if(e.target.dataset.consent)toggleConsent(ctx.sel,e.target.dataset.consent,e.target.checked)});
+
+/* actions objectifs / documents */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+ if(a==='onew')newObjectif(ctx.sel);
+ else if(a==='oedit')newObjectif(ctx.sel,(ctx.cache.objectifs||{})[ctx.sel+'__'+b.dataset.oid]);
+ else if(a==='osave')saveObjectif();
+ else if(a==='ocancel'){ctx.odraft=null;render()}
+ else if(a==='odel')delObjectif(ctx.sel,b.dataset.oid);
+ else if(a==='dnew')newDoc(ctx.sel);
+ else if(a==='dedit')newDoc(ctx.sel,(ctx.cache.docs||{})[ctx.sel+'__'+b.dataset.did]);
+ else if(a==='dsave')saveDoc();
+ else if(a==='dcancel'){ctx.ddraft=null;render()}
+ else if(a==='ddel')delDoc(ctx.sel,b.dataset.did)});
+</script>
+
+<script>
+/* ===================== MODULE 3 : PROGRAMME INDIVIDUALISÉ (FITT-VP) ===================== */
+/* Collection : programmes/{code}__{id}. Versions, blocs FITT-VP, modèles par pathologie, rappel des contre-indications. */
+const PCATS=[['endurance','Endurance'],['renfo','Renforcement'],['equilibre','Équilibre'],['mobilite','Mobilité']];
+const pcatLabel=v=>(PCATS.find(c=>c[0]===v)||[,v||''])[1];
+const programmesOf=code=>Object.values(ctx.cache.programmes||{}).filter(p=>p&&p.code===code).sort((a,b)=>String(a.created).localeCompare(String(b.created)));
+const PMODELS=[
+ {id:'cardiometab',nom:'Cardio-métabolique (HTA, DT2, obésité)',blocs:[
+   {cat:'endurance',freq:'3 à 5 /sem',intensite:'Borg 12–14 (test de la parole)',type:'Marche rapide, vélo',temps:'30–45 min',volume:'150 min/sem',progression:'+5 min par semaine'},
+   {cat:'renfo',freq:'2 à 3 /sem',intensite:'Borg 13–15, 8–12 répétitions',type:'Grands groupes musculaires, élastiques/poids',temps:'20–30 min',volume:'1 à 3 séries',progression:'+1 série puis charge'},
+   {cat:'mobilite',freq:'quotidien',intensite:'Indolore',type:'Étirements, mobilité articulaire',temps:'10 min',volume:'—',progression:'maintien'}]},
+ {id:'senior',nom:'Vieillissement, prévention des chutes',blocs:[
+   {cat:'equilibre',freq:'2 à 3 /sem',intensite:'Progressif, sécurisé',type:'Appui unipodal, tandem, transferts',temps:'15 min',volume:'—',progression:'réduire les appuis'},
+   {cat:'renfo',freq:'2 à 3 /sem',intensite:'Borg 12–14',type:'Lever de chaise, montée de marche',temps:'20 min',volume:'1 à 3 séries',progression:'+répétitions puis charge'},
+   {cat:'endurance',freq:'5 /sem',intensite:'Modéré',type:'Marche',temps:'20–30 min',volume:'—',progression:'+distance'}]},
+ {id:'onco',nom:'Oncologie (pendant / après traitement)',blocs:[
+   {cat:'endurance',freq:'3 /sem',intensite:'Borg 11–13, adapté à la fatigue',type:'Marche, vélo',temps:'20–30 min',volume:'selon tolérance',progression:'selon fatigue'},
+   {cat:'renfo',freq:'2 /sem',intensite:'Léger à modéré',type:'Renforcement global',temps:'20 min',volume:'1 à 2 séries',progression:'prudente'}]},
+ {id:'resp',nom:'Respiratoire (BPCO, asthme)',blocs:[
+   {cat:'endurance',freq:'3 à 5 /sem',intensite:'Dyspnée 3–4/10 (Borg CR10)',type:'Marche, vélo, réentraînement',temps:'20–30 min',volume:'—',progression:'par paliers'},
+   {cat:'renfo',freq:'2 à 3 /sem',intensite:'Modéré',type:'Membres inférieurs et supérieurs',temps:'20 min',volume:'1 à 3 séries',progression:'+charge'}]},
+ {id:'msk',nom:'Locomoteur / douleur chronique (lombalgie, arthrose)',blocs:[
+   {cat:'mobilite',freq:'quotidien',intensite:'Indolore',type:'Mobilité, étirements doux',temps:'10–15 min',volume:'—',progression:'amplitude'},
+   {cat:'renfo',freq:'2 à 3 /sem',intensite:'Progressif, sans douleur',type:'Gainage, renforcement ciblé',temps:'20–30 min',volume:'1 à 3 séries',progression:'+répétitions'},
+   {cat:'endurance',freq:'3 à 5 /sem',intensite:'Modéré',type:'Marche, vélo, natation',temps:'20–30 min',volume:'—',progression:'+durée'}]}];
+
+/* rappel des contre-indications en en-tête */
+function ciHeader(code){const bits=[];if(S.p&&S.p.precau)bits.push(S.p.precau);const d=docsOf(code).find(x=>x.type==='prescription')||docsOf(code).find(x=>x.type==='certificat');if(d&&d.note)bits.push(d.note);
+ return bits.length?`<div class="banner" style="background:var(--bad-bg);color:var(--bad)"><span><b>⚠ Contre-indications & précautions :</b> ${esc(bits.join(' · '))}</span></div>`:''}
+
+ctx.pdraft=null;
+function newProg(code,blocs){const n=programmesOf(code).length+1;ctx.pdraft={code,id:uid6(),version:'v'+n,debut:todayISO(),fin:'',objectifs:'',adaptations:'',criteres:'',blocs:blocs?JSON.parse(JSON.stringify(blocs)):[{cat:'endurance',freq:'',intensite:'',type:'',temps:'',volume:'',progression:''}],created:new Date().toISOString()};render();window.scrollTo(0,0)}
+async function saveProg(){const p=ctx.pdraft;if(!p)return;const rec=JSON.parse(JSON.stringify(p));
+ if(ctx.db){try{await ctx.db.doc('programmes/'+p.code+'__'+p.id).set(rec)}catch(e){toast('Enregistrement impossible');return}}
+ ctx.cache.programmes=ctx.cache.programmes||{};ctx.cache.programmes[p.code+'__'+p.id]=rec;ctx.pdraft=null;render();toast('Programme enregistré')}
+async function delProg(code,id){if(ctx.db){try{await ctx.db.doc('programmes/'+code+'__'+id).delete()}catch(e){}}delete (ctx.cache.programmes||{})[code+'__'+id];render();toast('Programme supprimé')}
+
+const pbRow=(bl,i)=>`<div class="card" style="padding:12px 14px;margin-top:10px"><div class="bar"><select class="sel" data-pb="${i}.cat" style="min-width:150px">${PCATS.map(([v,t])=>`<option value="${v}" ${bl.cat===v?'selected':''}>${t}</option>`).join('')}</select><button class="btn del" data-act="pbdel" data-i="${i}">Retirer</button></div><div class="grid" style="margin-top:10px"><label class="f"><span>Fréquence</span><input data-pb="${i}.freq" type="text" value="${esc(bl.freq)}" placeholder="ex. 3 /sem"></label><label class="f"><span>Intensité</span><input data-pb="${i}.intensite" type="text" value="${esc(bl.intensite)}" placeholder="Borg / FC / parole"></label><label class="f"><span>Type</span><input data-pb="${i}.type" type="text" value="${esc(bl.type)}" placeholder="ex. marche, renfo"></label><label class="f"><span>Temps</span><input data-pb="${i}.temps" type="text" value="${esc(bl.temps)}" placeholder="ex. 30 min"></label><label class="f"><span>Volume</span><input data-pb="${i}.volume" type="text" value="${esc(bl.volume)}" placeholder="ex. 150 min/sem"></label><label class="f"><span>Progression</span><input data-pb="${i}.progression" type="text" value="${esc(bl.progression)}" placeholder="ex. +5 min/sem"></label></div></div>`;
+const progCard=(p,active)=>`<div class="card scard"><div class="sh"><b>Programme ${esc(p.version||'')}</b><div class="meta">${active?'<span class="pill ok">Actif</span>':'<span class="pill">Ancienne version</span>'}${p.debut?`<span class="pill">Du ${esc(dISO(p.debut))}${p.fin?' au '+esc(dISO(p.fin)):''}</span>`:''}<span class="pill">${(p.blocs||[]).length} bloc(s)</span></div></div>${p.objectifs?`<p class="obs"><b>Objectifs.</b> ${esc(p.objectifs)}</p>`:''}${(p.blocs&&p.blocs.length)?`<div class="tbl"><table><thead><tr><th>Catégorie</th><th>Fréq.</th><th>Intensité</th><th>Type</th><th>Temps</th><th>Volume</th><th>Progression</th></tr></thead><tbody>${p.blocs.map(b=>`<tr><td>${pcatLabel(b.cat)}</td><td>${esc(b.freq)}</td><td>${esc(b.intensite)}</td><td>${esc(b.type)}</td><td>${esc(b.temps)}</td><td>${esc(b.volume)}</td><td>${esc(b.progression)}</td></tr>`).join('')}</tbody></table></div>`:''}${p.adaptations?`<p class="obs"><b>Adaptations.</b> ${esc(p.adaptations)}</p>`:''}${p.criteres?`<p class="obs"><b>Critères d’arrêt / seuils d’alerte.</b> ${esc(p.criteres)}</p>`:''}<div class="mfoot" style="border-top:0;padding-top:0"><button class="btn" data-act="pedit" data-pid="${esc(p.id)}">Modifier</button><button class="btn" data-act="pdup" data-pid="${esc(p.id)}">Dupliquer</button><button class="btn del" data-act="pdel" data-pid="${esc(p.id)}">Supprimer</button></div></div>`;
+
+subviews.programme=function(){const code=ctx.sel;if(ctx.pdraft&&ctx.pdraft.code!==code)ctx.pdraft=null;
+ if(ctx.pdraft){const p=ctx.pdraft;return ciHeader(code)+`<div class="card mbody" style="border-top:0;padding-top:18px"><div class="hd"><h2>Programme individualisé</h2><span class="note">Structure FITT-VP</span></div><div class="grid"><label class="f"><span>Version</span><input data-pf="version" type="text" value="${esc(p.version)}"></label><label class="f"><span>Début</span><input data-pf="debut" type="date" value="${esc(p.debut)}"></label><label class="f"><span>Fin prévue</span><input data-pf="fin" type="date" value="${esc(p.fin)}"></label></div><label class="f wide"><span>Objectifs liés</span><textarea data-pf="objectifs" placeholder="objectifs visés par ce programme">${esc(p.objectifs)}</textarea></label><p class="sec">Blocs d’entraînement (FITT-VP)</p>${p.blocs.map((b,i)=>pbRow(b,i)).join('')}<div style="margin-top:10px"><button class="btn" data-act="pbadd">+ Ajouter un bloc</button></div><label class="f wide" style="margin-top:12px"><span>Adaptations liées à la pathologie</span><textarea data-pf="adaptations">${esc(p.adaptations)}</textarea></label><label class="f wide"><span>Critères d’arrêt / seuils d’alerte</span><textarea data-pf="criteres" placeholder="ex. arrêt si douleur > 4/10, essoufflement anormal, malaise">${esc(p.criteres)}</textarea></label><div class="mfoot"><button class="btn" data-act="pcancel">Annuler</button><button class="btn pri" data-act="psave">Enregistrer le programme</button></div></div>`}
+ const list=programmesOf(code),activeId=list.length?list[list.length-1].id:null;
+ const head=`<div class="bar"><p class="lead" style="margin:0;min-width:220px">Programme individualisé FITT-VP. Chaque enregistrement crée une nouvelle version ; la plus récente est active.</p><button class="btn pri" data-act="pnew">+ Nouveau programme</button></div><details class="card" style="padding:12px 14px;margin-top:12px"><summary style="cursor:pointer;font-weight:600;color:var(--nav)">Partir d’un modèle par pathologie</summary><div class="alert" style="margin-top:10px">${PMODELS.map(m=>`<button class="btn" data-act="pmodel" data-model="${m.id}">${esc(m.nom)}</button>`).join('')}</div></details>`;
+ if(!list.length)return ciHeader(code)+head+'<p class="empty" style="margin-top:14px">Aucun programme. Créez-en un ou partez d’un modèle.</p>';
+ return ciHeader(code)+head+`<div class="slist" style="margin-top:14px">${list.slice().reverse().map(p=>progCard(p,p.id===activeId)).join('')}</div>`};
+
+/* saisie du brouillon programme (champs + blocs) */
+function pfInput(e){const t=e.target;if(t.dataset.pf&&ctx.pdraft)ctx.pdraft[t.dataset.pf]=t.value;
+ if(t.dataset.pb&&ctx.pdraft){const parts=t.dataset.pb.split('.'),i=+parts[0],f=parts[1];if(ctx.pdraft.blocs[i])ctx.pdraft.blocs[i][f]=t.value}}
+V.addEventListener('input',pfInput);V.addEventListener('change',pfInput);
+
+/* actions programme */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+ if(a==='pnew')newProg(ctx.sel);
+ else if(a==='pmodel'){const m=PMODELS.find(x=>x.id===b.dataset.model);if(m)newProg(ctx.sel,m.blocs)}
+ else if(a==='pedit'){const src=(ctx.cache.programmes||{})[ctx.sel+'__'+b.dataset.pid];if(src){ctx.pdraft=JSON.parse(JSON.stringify(src));render();window.scrollTo(0,0)}}
+ else if(a==='pdup'){const src=(ctx.cache.programmes||{})[ctx.sel+'__'+b.dataset.pid];if(src){const n=programmesOf(ctx.sel).length+1;ctx.pdraft=Object.assign(JSON.parse(JSON.stringify(src)),{id:uid6(),version:'v'+n,debut:todayISO(),created:new Date().toISOString()});render();window.scrollTo(0,0)}}
+ else if(a==='psave')saveProg();
+ else if(a==='pcancel'){ctx.pdraft=null;render()}
+ else if(a==='pdel')delProg(ctx.sel,b.dataset.pid);
+ else if(a==='pbadd'&&ctx.pdraft){ctx.pdraft.blocs.push({cat:'renfo',freq:'',intensite:'',type:'',temps:'',volume:'',progression:''});render()}
+ else if(a==='pbdel'&&ctx.pdraft){ctx.pdraft.blocs.splice(+b.dataset.i,1);render()}});
+</script>
+
+<script>
+/* ===================== MODULE 4 : TABLEAU DE BORD PAR BÉNÉFICIAIRE + EXPORT PDF ===================== */
+/* Tableau de bord (assiduité, ressenti au fil des séances) + documents imprimables (bilan, programme). */
+
+/* ---- tableau de bord par bénéficiaire ---- */
+function clientDash(code){const Ss=seancesOf(code);const pres=Ss.filter(s=>s.presence==='present').length,abs=Ss.filter(s=>s.presence&&s.presence!=='present').length;const taux=pres+abs?Math.round(pres/(pres+abs)*100):null;
+ const objs=objectifsOf(code),atteints=objs.filter(o=>o.statut==='atteint').length;
+ const presSe=Ss.filter(s=>s.presence==='present');
+ const serie=key=>presSe.map(s=>({v:numv(s[key]),lab:dISO(s.date).replace(/\s?\d{4}$/,'')})).filter(p=>Number.isFinite(p.v));
+ const kp=(l,v,s)=>`<div class="card kpi"><span class="lab">${l}</span><span class="n">${v}</span><p>${s}</p></div>`;
+ const charts=[['Douleur en séance',serie('douleur')],['Fatigue en séance',serie('fatigue')],['Effort perçu (Borg)',serie('borg')]].map(([l,se])=>se.length>=2?`<div class="res"><h4>${l}</h4>${lineChart(se)}</div>`:'').filter(Boolean).join('');
+ return `<div class="kpis">${kp('Séances réalisées',pres,abs?abs+' absence(s)':'assiduité suivie')}${kp('Taux de présence',taux!=null?taux+' %':'–','séances enregistrées')}${kp('Objectifs atteints',atteints+' / '+objs.length,objs.length?'au fil du suivi':'aucun objectif')}${kp('Bilans datés',bilansOf(code).length,'pour les courbes')}</div>`+(charts?`<div class="card sect"><h2>Ressenti au fil des séances</h2><div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${charts}</div></div>`:'');}
+
+/* ---- documents imprimables ---- */
+function pdoc(html){const el=document.getElementById('printdoc');if(el){el.innerHTML=html;window.print()}}
+function buildBilanDoc(code){const c=ctx.cache.clients[code]||{};const gi=grpInfo(S.a);
+ const consent=consentsOf(code),cons=CONSENTS.filter(([k])=>(consent[k]||{}).ok).map(([k,l])=>l+' (le '+dISO(consent[k].date)+')');
+ const objs=objectifsOf(code),docs=docsOf(code),B=bilansOf(code),progs=programmesOf(code),prog=progs[progs.length-1];
+ const Ss=seancesOf(code),pres=Ss.filter(s=>s.presence==='present').length,abs=Ss.filter(s=>s.presence&&s.presence!=='present').length,taux=pres+abs?Math.round(pres/(pres+abs)*100):null;
+ const mods=MODS.filter(m=>m.kind!=='a'&&act(m)).map(m=>({m,t:m.calc().t})).filter(x=>x.t.length);
+ let h=`<h1>Bilan APA — ${esc(cname(c))}</h1><p class="muted">${S.p.age?esc(S.p.age)+' ans · ':''}${S.p.sexe==='F'?'Femme':S.p.sexe==='H'?'Homme':''} · Édité le ${dISO(todayISO())}${S.p.eval?' · '+esc(S.p.eval):''}</p>`;
+ if(gi.fin)h+=`<p><b>Groupe :</b> ${esc(gget(gi.fin)[1])}${gi.med?' — <b>avis médical requis</b>':''}</p>`;
+ if(S.p.precau)h+=`<p><b>Contre-indications / précautions :</b> ${esc(S.p.precau)}</p>`;
+ if(cons.length)h+=`<h2>Consentements recueillis</h2><ul>${cons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+ if(docs.length)h+=`<h2>Documents</h2><table><tr><th>Type</th><th>Date</th><th>Expiration</th><th>Réf.</th></tr>${docs.map(d=>`<tr><td>${esc(dtLabel(d.type))}</td><td>${d.date?dISO(d.date):''}</td><td>${d.expiry?dISO(d.expiry):'—'}</td><td>${esc(d.ref||'')}</td></tr>`).join('')}</table>`;
+ if(objs.length)h+=`<h2>Objectifs</h2><table><tr><th>Objectif</th><th>Cible</th><th>Échéance</th><th>Statut</th></tr>${objs.map(o=>`<tr><td>${esc(o.intitule)}</td><td>${esc(o.cible||'')}</td><td>${o.echeance?dISO(o.echeance):''}</td><td>${objStatus(o.statut)[1]}</td></tr>`).join('')}</table>`;
+ if(B.length>=2){const init=B[0],last=B[B.length-1];const rows=METRICS.map(mt=>{const dc=mt.dc||0,vi=numv((init.t||{})[mt.k]),vl=numv((last.t||{})[mt.k]);if(!Number.isFinite(vi)&&!Number.isFinite(vl))return'';const d=(Number.isFinite(vi)&&Number.isFinite(vl))?vl-vi:NaN;return`<tr><td>${mt.l}${mt.u?' ('+mt.u+')':''}</td><td>${fmt(vi,dc)}</td><td>${fmt(vl,dc)}</td><td>${Number.isFinite(d)?(d>0?'+':'')+fmt(d,dc):'—'}</td></tr>`}).filter(Boolean).join('');
+  h+=`<h2>Évolution des tests (${dISO(init.date)} → ${dISO(last.date)})</h2><table><tr><th>Test</th><th>Initial</th><th>Dernier</th><th>Δ</th></tr>${rows}</table>`}
+ else if(B.length===1){const init=B[0];const rows=METRICS.map(mt=>{const vi=numv((init.t||{})[mt.k]);return Number.isFinite(vi)?`<tr><td>${mt.l}${mt.u?' ('+mt.u+')':''}</td><td>${fmt(vi,mt.dc||0)}</td></tr>`:''}).filter(Boolean).join('');if(rows)h+=`<h2>Bilan initial (${dISO(init.date)})</h2><table><tr><th>Test</th><th>Valeur</th></tr>${rows}</table>`}
+ if(taux!=null)h+=`<h2>Assiduité</h2><p>${pres} séance(s) réalisée(s), ${abs} absence(s) — taux de présence ${taux} %.</p>`;
+ if(prog&&prog.blocs&&prog.blocs.length)h+=`<h2>Programme ${esc(prog.version||'')}</h2><table><tr><th>Catégorie</th><th>Fréq.</th><th>Intensité</th><th>Type</th><th>Temps</th><th>Volume</th><th>Progression</th></tr>${prog.blocs.map(b=>`<tr><td>${pcatLabel(b.cat)}</td><td>${esc(b.freq)}</td><td>${esc(b.intensite)}</td><td>${esc(b.type)}</td><td>${esc(b.temps)}</td><td>${esc(b.volume)}</td><td>${esc(b.progression)}</td></tr>`).join('')}</table>`;
+ if(mods.length)h+=`<h2>Synthèse des mesures</h2>${mods.map(x=>`<p><b>${x.m.title}</b></p><ul>${x.t.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`).join('')}`;
+ return h}
+function buildProgDoc(code){const c=ctx.cache.clients[code]||{};const progs=programmesOf(code),prog=progs[progs.length-1];
+ if(!prog)return`<h1>Programme — ${esc(cname(c))}</h1><p>Aucun programme enregistré pour l’instant.</p>`;
+ let h=`<h1>Mon programme d’activité physique adaptée</h1><p class="muted">${esc(cname(c))} · ${dISO(todayISO())} · ${esc(prog.version||'')}</p>`;
+ if(S.p.precau)h+=`<p><b>Précautions :</b> ${esc(S.p.precau)}</p>`;
+ if(prog.objectifs)h+=`<p><b>Objectifs :</b> ${esc(prog.objectifs)}</p>`;
+ h+=`<table><tr><th>Type d’exercice</th><th>Combien de fois</th><th>À quelle intensité</th><th>Quoi</th><th>Durée</th><th>Progression</th></tr>${prog.blocs.map(b=>`<tr><td>${pcatLabel(b.cat)}</td><td>${esc(b.freq)}</td><td>${esc(b.intensite)}</td><td>${esc(b.type)}</td><td>${esc(b.temps)}</td><td>${esc(b.progression)}</td></tr>`).join('')}</table>`;
+ if(prog.criteres)h+=`<p><b>Quand s’arrêter ou consulter :</b> ${esc(prog.criteres)}</p>`;
+ return h}
+
+/* ---- enrichit la synthèse : tableau de bord + boutons d'export ---- */
+const _syn0=subviews.synthese;
+subviews.synthese=function(){const code=ctx.sel;
+ const exp=`<div class="bar" style="margin-bottom:14px"><span class="note" style="min-width:220px">Tableau de bord du bénéficiaire et export imprimable (choisissez « Enregistrer en PDF » dans la boîte d’impression).</span><span class="ctl"><button class="btn pri" data-act="pdfbilan">Exporter le bilan (PDF)</button><button class="btn" data-act="pdfprog">Programme à remettre (PDF)</button></span></div>`;
+ return exp+clientDash(code)+_syn0()}
+
+/* ---- enrichit le texte copiable (objectifs, programme, assiduité) ---- */
+const _synText0=synText;
+synText=function(){let o=_synText0();const code=ctx.sel;
+ const objs=objectifsOf(code);if(objs.length)o+='\nObjectifs\n'+objs.map(x=>'- '+x.intitule+' ['+objStatus(x.statut)[1]+']').join('\n')+'\n';
+ const progs=programmesOf(code),prog=progs[progs.length-1];if(prog&&prog.blocs&&prog.blocs.length)o+='\nProgramme '+(prog.version||'')+'\n'+prog.blocs.map(b=>'- '+pcatLabel(b.cat)+' : '+[b.freq,b.intensite,b.type,b.temps].filter(Boolean).join(', ')).join('\n')+'\n';
+ const Ss=seancesOf(code),pres=Ss.filter(s=>s.presence==='present').length,abs=Ss.filter(s=>s.presence&&s.presence!=='present').length;if(pres+abs)o+='\nAssiduité : '+pres+' séance(s), '+abs+' absence(s)\n';
+ return o}
+
+/* ---- actions export ---- */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;
+ if(b.dataset.act==='pdfbilan')pdoc(buildBilanDoc(ctx.sel));
+ else if(b.dataset.act==='pdfprog')pdoc(buildProgDoc(ctx.sel))});
+</script>
+
 
 </body></html>
