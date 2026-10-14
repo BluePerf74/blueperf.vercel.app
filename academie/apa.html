@@ -178,19 +178,54 @@ table.cmp th{background:var(--card2);font:600 11px var(--f-body);letter-spacing:
 .up{color:var(--ok);font-weight:600}
 .down{color:var(--bad);font-weight:600}
 .alert{display:flex;gap:6px;flex-wrap:wrap}
-/* --- Export imprimable (PDF via la boîte d'impression du navigateur) --- */
+/* --- Export imprimable : rapport riche et coloré (PDF via la boîte d'impression) --- */
 #printdoc{display:none}
 @media print{
- body{background:#fff}
+ @page{margin:12mm}
+ html,body{background:#fff!important}
  body>*{display:none!important}
- #printdoc{display:block!important;position:static;color:#111;background:#fff;font:12px/1.5 'Inter',Arial,sans-serif;padding:0}
- #printdoc h1{font-size:22px;margin:0 0 4px;color:#111}
- #printdoc h2{font-size:15px;margin:16px 0 6px;border-bottom:1px solid #ccc;padding-bottom:3px;color:#111}
- #printdoc p,#printdoc li{color:#111}
- #printdoc .muted{color:#555}
- #printdoc table{border-collapse:collapse;width:100%;margin:6px 0}
- #printdoc th,#printdoc td{border:1px solid #bbb;padding:4px 6px;text-align:left;font-size:11px}
- #printdoc ul{margin:4px 0;padding-left:18px}
+ #printdoc{display:block!important;position:static;color:#1b2430;background:#fff;font:12px/1.5 'Inter',Arial,sans-serif;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ #printdoc *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ #printdoc p,#printdoc li{color:#28313f}
+ /* bandeau d'en-tête */
+ #printdoc .pband{background:#0e1a2c;background:linear-gradient(100deg,#0b1626,#163663);color:#fff;border-radius:12px;padding:18px 22px;margin:0 0 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;break-inside:avoid}
+ #printdoc .pband h1{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:27px;font-weight:700;margin:0;color:#fff;letter-spacing:.3px;line-height:1.05}
+ #printdoc .pband .psub{margin:7px 0 0;font-size:11.5px;color:#aec3df;line-height:1.5}
+ #printdoc .pchip{flex:0 0 auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);color:#fff;border-radius:9px;padding:9px 13px;font-size:10.5px;font-weight:600;text-align:right;line-height:1.5}
+ #printdoc .pchip b{font-size:15px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.2px}
+ /* grille KPI */
+ #printdoc .pk-grid{display:grid;gap:9px;margin:0 0 14px}
+ #printdoc .pk{border:1px solid #e3e8ef;border-top:3px solid #2b8ff0;border-radius:10px;padding:10px 12px;background:#fbfcfe;break-inside:avoid}
+ #printdoc .pk .lab{display:block;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#6a7788;font-weight:700}
+ #printdoc .pk .n{display:block;font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:#132234;margin:2px 0 1px;font-variant-numeric:tabular-nums}
+ #printdoc .pk .d{display:block;font-size:10.5px;font-weight:600}
+ #printdoc .pk .u,#printdoc .u{font-weight:400;color:#8a97a8}
+ #printdoc .up{color:#1f9d57}#printdoc .down{color:#e0503f}#printdoc .flat{color:#6a7788}
+ /* sections */
+ #printdoc .psect{border:1px solid #e3e8ef;border-radius:11px;padding:14px 16px;margin:0 0 13px;break-inside:avoid}
+ #printdoc .psect>h2{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#132234;margin:0 0 10px;border:0;padding:0;display:flex;align-items:center;gap:8px}
+ #printdoc .psect>h2::before{content:"";width:4px;height:15px;border-radius:2px;background:#2b8ff0;display:inline-block;flex:0 0 auto}
+ /* grilles de courbes */
+ #printdoc .pcharts{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 16px}
+ #printdoc .pcg{break-inside:avoid}
+ #printdoc .pcg h4{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:#3a4656;margin:0 0 1px}
+ #printdoc .pcg svg{width:100%;height:auto;display:block}
+ /* tableaux */
+ #printdoc table.ptbl{border-collapse:collapse;width:100%;margin:2px 0;font-size:11px}
+ #printdoc table.ptbl th{background:#132234;color:#fff;font-size:9px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;padding:6px 9px;text-align:left}
+ #printdoc table.ptbl td{border-bottom:1px solid #e9edf3;padding:6px 9px;color:#28313f}
+ #printdoc table.ptbl tr:nth-child(even) td{background:#f7f9fc}
+ #printdoc table.ptbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+ /* badges */
+ #printdoc .pbadge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:600}
+ #printdoc .pbadge.ok{background:#e3f6ec;color:#1f7a47}
+ #printdoc .pbadge.warn{background:#fdf1dc;color:#9a6a12}
+ #printdoc .pbadge.bad{background:#fdeae7;color:#c23b2c}
+ /* alertes, listes, pied */
+ #printdoc .palert{display:flex;gap:7px;align-items:flex-start;background:#fdf1dc;border:1px solid #f0d9a8;color:#7a5712;border-radius:8px;padding:8px 11px;font-size:11px;margin:0 0 13px;break-inside:avoid}
+ #printdoc .pnote{color:#6a7788;font-size:11px}
+ #printdoc ul.plist{margin:4px 0;padding-left:16px}#printdoc ul.plist li{margin:1px 0}
+ #printdoc .pfoot{margin-top:6px;padding-top:9px;border-top:1px solid #e3e8ef;color:#8a97a8;font-size:9.5px;display:flex;justify-content:space-between}
 }
 </style>
 <div class="topbar">
@@ -792,6 +827,20 @@ function lineChart(series){const pts=series.filter(p=>Number.isFinite(p.v));if(p
  const dots=pts.map((p,i)=>`<circle class="dot" cx="${xs(i).toFixed(1)}" cy="${ys(p.v).toFixed(1)}" r="3"/>`).join('');
  const labs=pts.map((p,i)=>`<text x="${xs(i).toFixed(1)}" y="${H-6}" text-anchor="middle">${esc(p.lab||'')}</text>`).join('');
  return`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution"><line class="axis" x1="${pl}" y1="${H-pb}" x2="${W-pr}" y2="${H-pb}"/><path class="ln" d="${d}"/>${dots}${labs}</svg>`}
+/* courbe SVG pour l'export PDF : aire dégradée + points + valeurs (couleurs explicites pour l'impression) */
+function printChart(series,color){const pts=series.filter(p=>Number.isFinite(p.v));if(pts.length<2)return'';
+ color=color||'#2b8ff0';const fv=v=>Number.isInteger(v)?String(v):String(Math.round(v*10)/10).replace('.',',');
+ const W=300,H=118,pl=10,pr=12,pt=22,pb=22;
+ const xs=i=>pl+i*(W-pl-pr)/(pts.length-1);
+ let mn=Math.min(...pts.map(p=>p.v)),mx=Math.max(...pts.map(p=>p.v));if(mn===mx){mn-=1;mx+=1}
+ const ys=v=>pt+(H-pt-pb)*(1-(v-mn)/(mx-mn));
+ const line=pts.map((p,i)=>`${i?'L':'M'}${xs(i).toFixed(1)} ${ys(p.v).toFixed(1)}`).join(' ');
+ const area=`M${xs(0).toFixed(1)} ${(H-pb).toFixed(1)} `+pts.map((p,i)=>`L${xs(i).toFixed(1)} ${ys(p.v).toFixed(1)}`).join(' ')+` L${xs(pts.length-1).toFixed(1)} ${(H-pb).toFixed(1)} Z`;
+ const dots=pts.map((p,i)=>`<circle cx="${xs(i).toFixed(1)}" cy="${ys(p.v).toFixed(1)}" r="3" fill="#fff" stroke="${color}" stroke-width="2"/>`).join('');
+ const vals=pts.map((p,i)=>{if(pts.length>4&&i!==0&&i!==pts.length-1)return'';return`<text x="${xs(i).toFixed(1)}" y="${(ys(p.v)-7).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="${color}">${esc(fv(p.v))}</text>`}).join('');
+ const labs=pts.map((p,i)=>`<text x="${xs(i).toFixed(1)}" y="${H-7}" text-anchor="middle" font-size="8" fill="#8a97a8">${esc(p.lab||'')}</text>`).join('');
+ const gid='pg'+Math.random().toString(36).slice(2,7);
+ return`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".22"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><line x1="${pl}" y1="${H-pb}" x2="${W-pr}" y2="${H-pb}" stroke="#dfe5ee"/><path d="${area}" fill="url(#${gid})"/><path d="${line}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>${dots}${vals}${labs}</svg>`}
 
 /* alertes de base à partir des séances et bilans */
 function alertsOf(code){const Ss=seancesOf(code),out=[];const withP=Ss.filter(s=>s.presence);
@@ -1036,29 +1085,59 @@ function clientDash(code){const Ss=seancesOf(code);const pres=Ss.filter(s=>s.pre
 function pdoc(html){const el=document.getElementById('printdoc');if(el){el.innerHTML=html;window.print()}}
 function buildBilanDoc(code){const c=ctx.cache.clients[code]||{};const gi=grpInfo(S.a);
  const consent=consentsOf(code),cons=CONSENTS.filter(([k])=>(consent[k]||{}).ok).map(([k,l])=>l+' (le '+dISO(consent[k].date)+')');
- const objs=objectifsOf(code),docs=docsOf(code),B=bilansOf(code),progs=programmesOf(code),prog=progs[progs.length-1];
+ const objs=objectifsOf(code),atteints=objs.filter(o=>o.statut==='atteint').length,docs=docsOf(code),B=bilansOf(code),progs=programmesOf(code),prog=progs[progs.length-1];
  const Ss=seancesOf(code),pres=Ss.filter(s=>s.presence==='present').length,abs=Ss.filter(s=>s.presence&&s.presence!=='present').length,taux=pres+abs?Math.round(pres/(pres+abs)*100):null;
+ const presSe=Ss.filter(s=>s.presence==='present');
  const mods=MODS.filter(m=>m.kind!=='a'&&act(m)).map(m=>({m,t:m.calc().t})).filter(x=>x.t.length);
- let h=`<h1>Bilan APA — ${esc(cname(c))}</h1><p class="muted">${S.p.age?esc(S.p.age)+' ans · ':''}${S.p.sexe==='F'?'Femme':S.p.sexe==='H'?'Homme':''} · Édité le ${dISO(todayISO())}${S.p.eval?' · '+esc(S.p.eval):''}</p>`;
- if(gi.fin)h+=`<p><b>Groupe :</b> ${esc(gget(gi.fin)[1])}${gi.med?' — <b>avis médical requis</b>':''}</p>`;
- if(S.p.precau)h+=`<p><b>Contre-indications / précautions :</b> ${esc(S.p.precau)}</p>`;
- if(cons.length)h+=`<h2>Consentements recueillis</h2><ul>${cons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
- if(docs.length)h+=`<h2>Documents</h2><table><tr><th>Type</th><th>Date</th><th>Expiration</th><th>Réf.</th></tr>${docs.map(d=>`<tr><td>${esc(dtLabel(d.type))}</td><td>${d.date?dISO(d.date):''}</td><td>${d.expiry?dISO(d.expiry):'—'}</td><td>${esc(d.ref||'')}</td></tr>`).join('')}</table>`;
- if(objs.length)h+=`<h2>Objectifs</h2><table><tr><th>Objectif</th><th>Cible</th><th>Échéance</th><th>Statut</th></tr>${objs.map(o=>`<tr><td>${esc(o.intitule)}</td><td>${esc(o.cible||'')}</td><td>${o.echeance?dISO(o.echeance):''}</td><td>${objStatus(o.statut)[1]}</td></tr>`).join('')}</table>`;
- if(B.length>=2){const init=B[0],last=B[B.length-1];const rows=METRICS.map(mt=>{const dc=mt.dc||0,vi=numv((init.t||{})[mt.k]),vl=numv((last.t||{})[mt.k]);if(!Number.isFinite(vi)&&!Number.isFinite(vl))return'';const d=(Number.isFinite(vi)&&Number.isFinite(vl))?vl-vi:NaN;return`<tr><td>${mt.l}${mt.u?' ('+mt.u+')':''}</td><td>${fmt(vi,dc)}</td><td>${fmt(vl,dc)}</td><td>${Number.isFinite(d)?(d>0?'+':'')+fmt(d,dc):'—'}</td></tr>`}).filter(Boolean).join('');
-  h+=`<h2>Évolution des tests (${dISO(init.date)} → ${dISO(last.date)})</h2><table><tr><th>Test</th><th>Initial</th><th>Dernier</th><th>Δ</th></tr>${rows}</table>`}
- else if(B.length===1){const init=B[0];const rows=METRICS.map(mt=>{const vi=numv((init.t||{})[mt.k]);return Number.isFinite(vi)?`<tr><td>${mt.l}${mt.u?' ('+mt.u+')':''}</td><td>${fmt(vi,mt.dc||0)}</td></tr>`:''}).filter(Boolean).join('');if(rows)h+=`<h2>Bilan initial (${dISO(init.date)})</h2><table><tr><th>Test</th><th>Valeur</th></tr>${rows}</table>`}
- if(taux!=null)h+=`<h2>Assiduité</h2><p>${pres} séance(s) réalisée(s), ${abs} absence(s) — taux de présence ${taux} %.</p>`;
- if(prog&&prog.blocs&&prog.blocs.length)h+=`<h2>Programme ${esc(prog.version||'')}</h2><table><tr><th>Catégorie</th><th>Fréq.</th><th>Intensité</th><th>Type</th><th>Temps</th><th>Volume</th><th>Progression</th></tr>${prog.blocs.map(b=>`<tr><td>${pcatLabel(b.cat)}</td><td>${esc(b.freq)}</td><td>${esc(b.intensite)}</td><td>${esc(b.type)}</td><td>${esc(b.temps)}</td><td>${esc(b.volume)}</td><td>${esc(b.progression)}</td></tr>`).join('')}</table>`;
- if(mods.length)h+=`<h2>Synthèse des mesures</h2>${mods.map(x=>`<p><b>${x.m.title}</b></p><ul>${x.t.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`).join('')}`;
+ const dlab=b=>dISO(b.date).replace(/\s?\d{4}$/,'');
+ // --- bandeau d'en-tête ---
+ const sub=[S.p.age?esc(S.p.age)+' ans':'',S.p.sexe==='F'?'Femme':S.p.sexe==='H'?'Homme':'','Édité le '+dISO(todayISO()),S.p.eval?esc(S.p.eval):''].filter(Boolean).join(' · ');
+ const chip=(gi.fin?`<b>${esc(gget(gi.fin)[1])}</b>`:'<b>Suivi APA</b>')+(gi.med?'<br>avis médical requis':taux!=null?'<br>'+taux+' % de présence':'');
+ let h=`<div class="pband"><div><h1>Bilan APA — ${esc(cname(c))}</h1><p class="psub">${sub}</p></div><div class="pchip">${chip}</div></div>`;
+ if(S.p.precau)h+=`<div class="palert"><span>⚠️</span><span><b>Précautions / contre-indications :</b> ${esc(S.p.precau)}</span></div>`;
+ // --- cartes KPI (deltas colorés) ---
+ let testKpis=[];
+ if(B.length>=2){const init=B[0],last=B[B.length-1];testKpis=METRICS.map(mt=>{const vi=numv((init.t||{})[mt.k]),vl=numv((last.t||{})[mt.k]);if(!Number.isFinite(vi)||!Number.isFinite(vl)||vi===vl)return null;const d=vl-vi,imp=mt.dir>0?d>0:mt.dir<0?d<0:null,cls=(imp===null)?'flat':imp?'up':'down',arr=d>0?'▲':d<0?'▼':'→';return{lab:mt.l,n:fmt(vl,mt.dc||0)+(mt.u?' <span class="u">'+mt.u+'</span>':''),d:`<span class="${cls}">${arr} ${d>0?'+':''}${fmt(d,mt.dc||0)}</span> <span class="u">vs ${fmt(vi,mt.dc||0)}</span>`}}).filter(Boolean);}
+ const pool=[];
+ if(taux!=null)pool.push({lab:'Taux de présence',n:taux+' <span class="u">%</span>',d:`<span class="flat">${pres} séance(s)${abs?' · '+abs+' abs.':''}</span>`});
+ if(objs.length)pool.push({lab:'Objectifs atteints',n:atteints+' <span class="u">/ '+objs.length+'</span>',d:`<span class="flat">${objs.filter(o=>o.statut==='en_cours').length} en cours</span>`});
+ pool.push(...testKpis);
+ pool.push({lab:'Bilans datés',n:(B.length||'—'),d:`<span class="flat">${B.length>=2?'évolution suivie':'référence'}</span>`});
+ if(mods.length)pool.push({lab:'Modules mesurés',n:mods.length,d:'<span class="flat">test(s) / questionnaire(s)</span>'});
+ const cards=pool.slice(0,4);
+ h+=`<div class="pk-grid" style="grid-template-columns:repeat(${Math.min(cards.length,4)||1},1fr)">${cards.map(k=>`<div class="pk"><span class="lab">${k.lab}</span><span class="n">${k.n}</span><span class="d">${k.d}</span></div>`).join('')}</div>`;
+ // --- courbes d'évolution des tests ---
+ const tcharts=METRICS.map(mt=>{const se=B.map(b=>({v:numv((b.t||{})[mt.k]),lab:dlab(b)})).filter(p=>Number.isFinite(p.v));return se.length>=2?`<div class="pcg"><h4>${esc(mt.l)}${mt.u?' ('+mt.u+')':''}</h4>${printChart(se,'#2b8ff0')}</div>`:''}).filter(Boolean).join('');
+ if(tcharts)h+=`<div class="psect"><h2>Courbes d’évolution des tests</h2><div class="pcharts">${tcharts}</div></div>`;
+ // --- tableau comparatif des tests ---
+ if(B.length>=2){const init=B[0],last=B[B.length-1];const rows=METRICS.map(mt=>{const dc=mt.dc||0,vi=numv((init.t||{})[mt.k]),vl=numv((last.t||{})[mt.k]);if(!Number.isFinite(vi)&&!Number.isFinite(vl))return'';const d=(Number.isFinite(vi)&&Number.isFinite(vl))?vl-vi:NaN;const imp=Number.isFinite(d)&&d!==0?(mt.dir>0?d>0:mt.dir<0?d<0:null):null;const cls=(imp===null)?'flat':imp?'up':'down';return`<tr><td>${esc(mt.l)}${mt.u?' ('+mt.u+')':''}</td><td class="num">${fmt(vi,dc)}</td><td class="num">${fmt(vl,dc)}</td><td class="num ${cls}">${Number.isFinite(d)?(d>0?'+':'')+fmt(d,dc):'—'}</td></tr>`}).filter(Boolean).join('');
+  if(rows)h+=`<div class="psect"><h2>Évolution des tests · ${dISO(init.date)} → ${dISO(last.date)}</h2><table class="ptbl"><thead><tr><th>Test</th><th style="text-align:right">Initial</th><th style="text-align:right">Dernier</th><th style="text-align:right">Δ</th></tr></thead><tbody>${rows}</tbody></table></div>`;}
+ else if(B.length===1){const init=B[0];const rows=METRICS.map(mt=>{const vi=numv((init.t||{})[mt.k]);return Number.isFinite(vi)?`<tr><td>${esc(mt.l)}${mt.u?' ('+mt.u+')':''}</td><td class="num">${fmt(vi,mt.dc||0)}</td></tr>`:''}).filter(Boolean).join('');if(rows)h+=`<div class="psect"><h2>Bilan initial · ${dISO(init.date)}</h2><table class="ptbl"><thead><tr><th>Test</th><th style="text-align:right">Valeur</th></tr></thead><tbody>${rows}</tbody></table></div>`;}
+ // --- ressenti au fil des séances ---
+ const rcharts=[['Douleur en séance','douleur','#e0503f'],['Fatigue en séance','fatigue','#c88a1e'],['Effort perçu (Borg)','borg','#2b8ff0']].map(([l,key,col])=>{const se=presSe.map(s=>({v:numv(s[key]),lab:dISO(s.date).replace(/\s?\d{4}$/,'')})).filter(p=>Number.isFinite(p.v));return se.length>=2?`<div class="pcg"><h4>${l}</h4>${printChart(se,col)}</div>`:''}).filter(Boolean).join('');
+ if(rcharts)h+=`<div class="psect"><h2>Ressenti au fil des séances</h2><div class="pcharts">${rcharts}</div></div>`;
+ // --- objectifs ---
+ if(objs.length)h+=`<div class="psect"><h2>Objectifs</h2><table class="ptbl"><thead><tr><th>Objectif</th><th>Cible</th><th>Échéance</th><th>Statut</th></tr></thead><tbody>${objs.map(o=>{const st=objStatus(o.statut);return`<tr><td>${esc(o.intitule)}</td><td>${esc(o.cible||'—')}</td><td>${o.echeance?dISO(o.echeance):'—'}</td><td><span class="pbadge ${st[2]}">${st[1]}</span></td></tr>`}).join('')}</tbody></table></div>`;
+ // --- programme ---
+ if(prog&&prog.blocs&&prog.blocs.length)h+=`<div class="psect"><h2>Programme ${esc(prog.version||'')}</h2>${prog.objectifs?`<p class="pnote" style="margin:-4px 0 9px"><b>Objectifs.</b> ${esc(prog.objectifs)}</p>`:''}<table class="ptbl"><thead><tr><th>Catégorie</th><th>Fréq.</th><th>Intensité</th><th>Type</th><th>Temps</th><th>Progression</th></tr></thead><tbody>${prog.blocs.map(b=>`<tr><td>${pcatLabel(b.cat)}</td><td>${esc(b.freq)}</td><td>${esc(b.intensite)}</td><td>${esc(b.type)}</td><td>${esc(b.temps)}</td><td>${esc(b.progression)}</td></tr>`).join('')}</tbody></table></div>`;
+ // --- documents ---
+ if(docs.length)h+=`<div class="psect"><h2>Documents</h2><table class="ptbl"><thead><tr><th>Type</th><th>Date</th><th>Expiration</th><th>Réf.</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${esc(dtLabel(d.type))}</td><td>${d.date?dISO(d.date):'—'}</td><td>${d.expiry?dISO(d.expiry):'—'}</td><td>${esc(d.ref||'—')}</td></tr>`).join('')}</tbody></table></div>`;
+ // --- consentements ---
+ if(cons.length)h+=`<div class="psect"><h2>Consentements recueillis</h2><ul class="plist">${cons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+ // --- synthèse des mesures ---
+ if(mods.length)h+=`<div class="psect"><h2>Synthèse des mesures</h2>${mods.map(x=>`<p style="margin:4px 0 2px"><b>${esc(x.m.title)}</b></p><ul class="plist">${x.t.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`).join('')}</div>`;
+ h+=`<div class="pfoot"><span>Blueperf · Activité physique adaptée</span><span>${esc(cname(c))} · ${dISO(todayISO())}</span></div>`;
  return h}
 function buildProgDoc(code){const c=ctx.cache.clients[code]||{};const progs=programmesOf(code),prog=progs[progs.length-1];
- if(!prog)return`<h1>Programme — ${esc(cname(c))}</h1><p>Aucun programme enregistré pour l’instant.</p>`;
- let h=`<h1>Mon programme d’activité physique adaptée</h1><p class="muted">${esc(cname(c))} · ${dISO(todayISO())} · ${esc(prog.version||'')}</p>`;
- if(S.p.precau)h+=`<p><b>Précautions :</b> ${esc(S.p.precau)}</p>`;
- if(prog.objectifs)h+=`<p><b>Objectifs :</b> ${esc(prog.objectifs)}</p>`;
- h+=`<table><tr><th>Type d’exercice</th><th>Combien de fois</th><th>À quelle intensité</th><th>Quoi</th><th>Durée</th><th>Progression</th></tr>${prog.blocs.map(b=>`<tr><td>${pcatLabel(b.cat)}</td><td>${esc(b.freq)}</td><td>${esc(b.intensite)}</td><td>${esc(b.type)}</td><td>${esc(b.temps)}</td><td>${esc(b.progression)}</td></tr>`).join('')}</table>`;
- if(prog.criteres)h+=`<p><b>Quand s’arrêter ou consulter :</b> ${esc(prog.criteres)}</p>`;
+ if(!prog)return`<div class="pband"><div><h1>Mon programme — ${esc(cname(c))}</h1><p class="psub">Activité physique adaptée</p></div><div class="pchip"><b>APA</b></div></div><div class="psect"><h2>Programme</h2><p>Aucun programme enregistré pour l’instant.</p></div>`;
+ const sub=[esc(cname(c)),dISO(todayISO())].filter(Boolean).join(' · ');
+ let h=`<div class="pband"><div><h1>Mon programme d’activité physique adaptée</h1><p class="psub">${sub}</p></div><div class="pchip"><b>${esc(prog.version||'v1')}</b>${prog.debut?'<br>dès le '+dISO(prog.debut):''}</div></div>`;
+ if(prog.objectifs)h+=`<div class="psect" style="background:#f2faf5;border-color:#bfe6cf"><h2>Mes objectifs</h2><p>${esc(prog.objectifs)}</p></div>`;
+ if(S.p.precau)h+=`<div class="palert"><span>⚠️</span><span><b>Précautions :</b> ${esc(S.p.precau)}</span></div>`;
+ h+=`<div class="psect"><h2>Mon programme semaine par semaine</h2><table class="ptbl"><thead><tr><th>Type d’exercice</th><th>Combien de fois</th><th>Intensité</th><th>Quoi</th><th>Durée</th><th>Progression</th></tr></thead><tbody>${prog.blocs.map(b=>`<tr><td><b>${pcatLabel(b.cat)}</b></td><td>${esc(b.freq)}</td><td>${esc(b.intensite)}</td><td>${esc(b.type)}</td><td>${esc(b.temps)}</td><td>${esc(b.progression)}</td></tr>`).join('')}</tbody></table></div>`;
+ if(prog.adaptations)h+=`<div class="psect"><h2>Adaptations</h2><p>${esc(prog.adaptations)}</p></div>`;
+ if(prog.criteres)h+=`<div class="palert" style="background:#fdeae7;border-color:#f3c0b8;color:#9a2e22"><span>🛑</span><span><b>Quand s’arrêter ou consulter :</b> ${esc(prog.criteres)}</span></div>`;
+ h+=`<div class="pfoot"><span>Blueperf · Activité physique adaptée</span><span>${esc(cname(c))} · ${dISO(todayISO())}</span></div>`;
  return h}
 
 /* ---- enrichit la synthèse : tableau de bord + boutons d'export ---- */
