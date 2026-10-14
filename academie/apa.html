@@ -1133,6 +1133,53 @@ function pdoc(html,title){title=title||'Rapport APA';
  if(w&&w.document){w.document.open();w.document.write(doc);w.document.close();try{w.focus()}catch(e){}return}
  /* repli : impression de la page intégrée (#printdoc + @media print) */
  const el=document.getElementById('printdoc');if(el){el.innerHTML=html;try{toast('Autorisez les fenêtres pop-up pour un meilleur export PDF')}catch(e){}window.print()}}
+/* Chargement à la demande de jsPDF + html2canvas (fichiers locaux, dans /academie). */
+let _pdfLibs=null;
+function loadPdfLibs(){if(_pdfLibs)return _pdfLibs;
+ const load=src=>new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s)});
+ _pdfLibs=(async()=>{if(!(window.jspdf&&window.jspdf.jsPDF))await load('jspdf.umd.min.js');if(!window.html2canvas)await load('html2canvas.min.js');return window.jspdf&&window.jspdf.jsPDF&&window.html2canvas})();
+ return _pdfLibs}
+function slug(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'rapport'}
+let _pdfBusy=false;
+/* Vrai export PDF : rend le rapport coloré en image (html2canvas), le découpe proprement
+   en pages A4 (coupures entre blocs, jamais au milieu) et télécharge le fichier .pdf.
+   Tout est local — aucune donnée n'est envoyée à un serveur. Repli sur pdoc() si échec. */
+async function exportPdf(html,title,filename){
+ if(_pdfBusy)return;_pdfBusy=true;
+ try{try{toast('Génération du PDF…')}catch(e){}
+  let okLibs=false;try{okLibs=await loadPdfLibs()}catch(e){okLibs=false}
+  const J=window.jspdf&&window.jspdf.jsPDF,H2C=window.html2canvas;
+  if(!okLibs||!J||!H2C){return pdoc(html,title)}
+  const conf=`<div class="pconf">🔒 <span><b>Document confidentiel — données de santé (RGPD).</b> Généré localement, sans transmission à un serveur. À conserver de façon sécurisée et à ne communiquer qu’au bénéficiaire ou aux professionnels autorisés.</span></div>`;
+  const host=document.createElement('div');
+  host.style.cssText='position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1';
+  host.innerHTML=`<style>${REPORT_CSS}</style><div class="ppage" style="max-width:none;margin:0;box-shadow:none;border-radius:0;padding:26px 30px">${conf}${html}</div>`;
+  document.body.appendChild(host);
+  try{
+   if(document.fonts&&document.fonts.ready){try{await document.fonts.ready}catch(e){}}
+   await new Promise(r=>setTimeout(r,80));
+   const target=host.querySelector('.ppage');
+   const S=2;
+   const canvas=await H2C(target,{scale:S,backgroundColor:'#ffffff',logging:false,useCORS:true});
+   const doc=new J({orientation:'portrait',unit:'pt',format:'a4'});
+   const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+   const pageCanvasH=Math.floor(canvas.width*(ph/pw));
+   const bottoms=Array.from(target.children).map(b=>Math.round((b.offsetTop+b.offsetHeight)*S));
+   const total=canvas.height;let start=0,page=0;
+   while(start<total){
+    let end=start+pageCanvasH;
+    if(end>=total){end=total}else{let best=-1;for(const b of bottoms){if(b>start+40&&b<=end)best=b}if(best>start)end=best}
+    const h=end-start;const c=document.createElement('canvas');c.width=canvas.width;c.height=h;
+    const cx=c.getContext('2d');cx.fillStyle='#ffffff';cx.fillRect(0,0,c.width,h);
+    cx.drawImage(canvas,0,start,canvas.width,h,0,0,canvas.width,h);
+    if(page>0)doc.addPage();
+    doc.addImage(c.toDataURL('image/jpeg',0.92),'JPEG',0,0,pw,h*(pw/canvas.width));
+    start=end;page++;if(page>40)break}
+   doc.save(filename||'rapport.pdf');
+   try{toast('PDF téléchargé')}catch(e){}
+  }catch(e){pdoc(html,title)}
+  finally{host.remove()}
+ }finally{_pdfBusy=false}}
 function buildBilanDoc(code){const c=ctx.cache.clients[code]||{};const gi=grpInfo(S.a);
  const consent=consentsOf(code),cons=CONSENTS.filter(([k])=>(consent[k]||{}).ok).map(([k,l])=>l+' (le '+dISO(consent[k].date)+')');
  const objs=objectifsOf(code),atteints=objs.filter(o=>o.statut==='atteint').length,docs=docsOf(code),B=bilansOf(code),progs=programmesOf(code),prog=progs[progs.length-1];
@@ -1193,7 +1240,7 @@ function buildProgDoc(code){const c=ctx.cache.clients[code]||{};const progs=prog
 /* ---- enrichit la synthèse : tableau de bord + boutons d'export ---- */
 const _syn0=subviews.synthese;
 subviews.synthese=function(){const code=ctx.sel;
- const exp=`<div class="bar" style="margin-bottom:14px"><span class="note" style="min-width:220px">Tableau de bord du bénéficiaire. L’export ouvre le rapport (bandeau, courbes, couleurs) dans un nouvel onglet : cliquez « Enregistrer en PDF ». Document confidentiel généré localement.</span><span class="ctl"><button class="btn pri" data-act="pdfbilan">Exporter le bilan (PDF)</button><button class="btn" data-act="pdfprog">Programme à remettre (PDF)</button></span></div>`;
+ const exp=`<div class="bar" style="margin-bottom:14px"><span class="note" style="min-width:220px">Tableau de bord du bénéficiaire. L’export télécharge directement un fichier PDF (bandeau, courbes, couleurs), généré localement — document confidentiel (données de santé).</span><span class="ctl"><button class="btn pri" data-act="pdfbilan">Exporter le bilan (PDF)</button><button class="btn" data-act="pdfprog">Programme à remettre (PDF)</button></span></div>`;
  return exp+clientDash(code)+_syn0()}
 
 /* ---- enrichit le texte copiable (objectifs, programme, assiduité) ---- */
@@ -1206,8 +1253,8 @@ synText=function(){let o=_synText0();const code=ctx.sel;
 
 /* ---- actions export ---- */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;
- if(b.dataset.act==='pdfbilan')pdoc(buildBilanDoc(ctx.sel),'Bilan APA — '+cname(ctx.cache.clients[ctx.sel]||{}));
- else if(b.dataset.act==='pdfprog')pdoc(buildProgDoc(ctx.sel),'Programme APA — '+cname(ctx.cache.clients[ctx.sel]||{}))});
+ if(b.dataset.act==='pdfbilan'){const nm=cname(ctx.cache.clients[ctx.sel]||{});exportPdf(buildBilanDoc(ctx.sel),'Bilan APA — '+nm,'Bilan-APA-'+slug(nm)+'-'+todayISO()+'.pdf')}
+ else if(b.dataset.act==='pdfprog'){const nm=cname(ctx.cache.clients[ctx.sel]||{});exportPdf(buildProgDoc(ctx.sel),'Programme APA — '+nm,'Programme-APA-'+slug(nm)+'-'+todayISO()+'.pdf')}});
 </script>
 
 
