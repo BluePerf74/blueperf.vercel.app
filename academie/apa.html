@@ -268,6 +268,12 @@ table.cmp th{background:var(--card2);font:600 11px var(--f-body);letter-spacing:
 <script>
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* ===== Langue (partagée avec l'app principale via localStorage, même origine) =====
+   T(fr,en) renvoie la chaîne selon la langue. Un changement de langue depuis l'app
+   recharge l'iframe pour tout ré-évaluer proprement. */
+let LANG='fr';try{LANG=localStorage.getItem('bp_lang')||'fr';}catch(e){}
+const T=(fr,en)=>LANG==='en'?(en==null?fr:en):fr;
+try{window.addEventListener('storage',function(e){if(e&&(e.key==='bp_lang'||e.key===null)){var l='fr';try{l=localStorage.getItem('bp_lang')||'fr';}catch(_){}if(l!==LANG)location.reload();}});}catch(e){}
 const KEY='dossier-apa-v1';
 let S={p:{},a:{},rm:[],ui:{tab:'profil',open:[]}};
 const A=k=>S.a[k];
@@ -543,8 +549,8 @@ add({id:'an',kind:'a',title:'Anamnèse',sub:'Entretien avec le client',
   return{t,h:`<h4>Placement</h4><div class="row"><span>${gbadge(i.fin)}</span><span class="note">${i.ov?'Choisi par le coach':'Déterminé par la pathologie principale'}</span></div>${i.sec.length?`<div class="row"><span class="note">Groupes secondaires à surveiller</span><span>${i.sec.map(gbadge).join(' ')}</span></div>`:''}${i.al?`<div class="row"><span>${i.al} réponse(s) positive(s) à la sécurité avant l’effort</span><span class="pill ${i.med?'bad':'warn'}">${i.med?'Avis médical requis':'Avis obtenu'}</span></div>`:'<div class="row"><span>Aucun signal d’alerte relevé</span><span class="pill ok">RAS</span></div>'}`}}});
 </script>
 <script>
-const TABS=[['groupes','Groupes'],['anamnese','Anamnèse'],['m2','Dossier bénéficiaire']];
-const SUBS=[['profil','Profil'],['objectifs','Objectifs'],['documents','Documents'],['reponses','Questionnaires'],['tests','Tests'],['bilans','Bilans & suivi'],['programme','Programme'],['seances','Séances'],['synthese','Synthèse']];
+const TABS=[['groupes',T('Groupes','Groups')],['anamnese',T('Anamnèse','History')],['m2',T('Dossier bénéficiaire','Beneficiary file')]];
+const SUBS=[['profil',T('Profil','Profile')],['objectifs',T('Objectifs','Goals')],['documents',T('Documents','Documents')],['reponses',T('Questionnaires','Questionnaires')],['tests',T('Tests','Tests')],['bilans',T('Bilans & suivi','Assessments & follow-up')],['programme',T('Programme','Program')],['seances',T('Séances','Sessions')],['synthese',T('Synthèse','Summary')]];
 const DEMO='DEMO2026';
 S.ui.tab='groupes';S.ui.sub='profil';
 const ctx={role:null,code:null,uid:null,preview:false,db:null,canEdit:false,sel:null,selUid:null,err:'',
@@ -620,8 +626,8 @@ function coachRender(){setRole(`<span class="pill">Espace coach</span>`);$('#sav
  const cl=Object.entries(ctx.cache.clients).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
  const ctl=`<select class="sel" id="clientsel" aria-label="Client"><option value="">Choisir un client</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select><button class="btn pri" data-act="newc">+ Nouveau client</button>`;
  const nm=hasSel()?cname(ctx.cache.clients[ctx.sel]):'';
- const sub={groupes:today()+' · clients par pathologie',anamnese:nm||'Aucun client sélectionné',m2:nm||'Aucun client sélectionné'}[S.ui.tab];
- head({groupes:'Groupes',anamnese:'Anamnèse',m2:'Dossier bénéficiaire'}[S.ui.tab],sub,ctl);
+ const sub={groupes:today()+T(' · clients par pathologie',' · clients by condition'),anamnese:nm||T('Aucun client sélectionné','No client selected'),m2:nm||T('Aucun client sélectionné','No client selected')}[S.ui.tab];
+ head({groupes:T('Groupes','Groups'),anamnese:T('Anamnèse','History'),m2:T('Dossier bénéficiaire','Beneficiary file')}[S.ui.tab],sub,ctl);
  $('#view').innerHTML=ctx.sel==='_new'?newForm():({groupes:groupesView,anamnese:anamneseView,m2:m2View}[S.ui.tab])()}
 function clientRender(){$('#tabs').innerHTML='';$('#saved').hidden=ctx.preview;
  setRole(`<span class="pill">Espace client</span>`);
