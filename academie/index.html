@@ -309,6 +309,12 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
 const DAYS=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600);}
+/* Toast avec action « Annuler » (restauration d'une suppression). Fenêtre de 6 s. */
+function undoToast(msg,onUndo){const t=document.createElement('div');t.className='toast';t.style.display='flex';t.style.alignItems='center';t.style.gap='12px';
+  const s=document.createElement('span');s.textContent=msg;const b=document.createElement('button');b.type='button';b.textContent='Annuler';
+  b.style.cssText='appearance:none;cursor:pointer;border:1px solid currentColor;background:transparent;color:inherit;border-radius:7px;padding:3px 10px;font:600 12.5px inherit';
+  let done=false;b.onclick=()=>{if(done)return;done=true;try{onUndo();}catch(e){}t.remove();};
+  t.appendChild(s);t.appendChild(b);document.body.appendChild(t);setTimeout(()=>t.remove(),6000);}
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 
 /* ===================== SETTINGS ===================== */
@@ -2427,7 +2433,8 @@ const ACT={
   fillPlayer:b=>{const p=DATA.players[b.dataset.id];if(!p)return;let tab=b.dataset.tab;if(!tab)tab=!wEntry(p.id,UI.ref)?'sante':'rpe';UI.drawer=null;UI.fill={pid:p.id,tab};renderDrawer();},
   closeFill:async()=>{UI.fill=null;renderDrawer();document.body.style.overflow='';await reloadData();},
   del:b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
-    const col=b.dataset.col,id=b.dataset.id;if(col==='players'&&UI.drawer===id)UI.drawer=null;if(col==='injuries'&&UI.medSel===id)UI.medSel=null;del(col,id);toast('Supprimé');},
+    const col=b.dataset.col,id=b.dataset.id;const prev=DATA[col]&&DATA[col][id];if(col==='players'&&UI.drawer===id)UI.drawer=null;if(col==='injuries'&&UI.medSel===id)UI.medSel=null;del(col,id);
+    if(prev)undoToast('Supprimé',()=>put(col,id,prev));else toast('Supprimé');},
   delWell:async b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
     const pid=b.dataset.pid,date=b.dataset.date;const doc=DATA.wellness[date];
     if(doc&&doc.entries&&doc.entries[pid]){const nd=JSON.parse(JSON.stringify(doc));delete nd.entries[pid];if(Object.keys(nd.entries).length)await put('wellness',date,nd);else await del('wellness',date);toast('Wellness supprimé');}else{render();}},
