@@ -1179,7 +1179,8 @@ VIEWS.load=()=>{
   const l7=mean(rows.map(r=>r.w.sum).filter(v=>v>0)),pa=mean(rows.map(r=>r.w.prevAvg).filter(v=>v>0));
   const mono=mean(rows.map(r=>r.w.mono).filter(v=>v!=null));const ac=mean(rows.map(r=>r.e.acwr).filter(v=>v!=null));
   const ev=[...Object.values(DATA.sessions).map(s=>({...s,kind:'session'})),...Object.values(DATA.matches).map(m=>({...m,kind:'match',title:'Match vs '+m.opponent,type:'Match'}))].filter(inCat).filter(e=>e.date<=ref).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,UI.loadMore?80:15);
-  return `<div class="grid g4">
+  return `<div class="hrow" style="margin-bottom:10px"><h2 style="margin:0">Suivi de charge</h2><button class="btn sm pri" data-act="loadPdf">📄 Exporter le rapport (PDF)</button></div>
+  <div class="grid g4">
     ${kpi('Charge 7 jours',r0(l7),'UA',chgTxt(l7&&pa?(l7-pa)/pa*100:null),l7&&pa&&Math.abs((l7-pa)/pa*100)>th.weekChg?'warn':null)}
     ${kpi('Monotonie',mono!=null?r2(mono):'–','',`Moyenne/écart-type des 7 derniers jours · au-delà de ${th.monotony} : charges trop uniformes`,mono!=null&&mono>th.monotony?'warn':null)}
     ${kpi('Contrainte (strain)',r0(mean(rows.map(r=>r.w.strain).filter(v=>v!=null))),'','Charge × monotonie (Foster)')}
@@ -2124,6 +2125,48 @@ function ensureJsPDF(){
     };tryNext();
   });
 }
+// Export PDF du rapport de charge (vue Charges) — usage staff/coach. 100 % local.
+async function exportLoadPdf(){
+  toast('Génération du PDF…');
+  let JS;try{JS=await ensureJsPDF();}catch(e){toast('Impossible de générer le PDF (réessaie en ligne)');return;}
+  const doc=new JS({unit:'mm',format:'a4',compress:true});
+  const ps=playersOf(UI.cat),ref=UI.ref;
+  const rows=ps.map(p=>({p,w:weekStats(p.id,ref),e:ewma(p.id,ref)})).sort((a,b)=>(b.w.sum||0)-(a.w.sum||0));
+  const l7=mean(rows.map(r=>r.w.sum).filter(v=>v>0)),mono=mean(rows.map(r=>r.w.mono).filter(v=>v!=null)),strain=mean(rows.map(r=>r.w.strain).filter(v=>v!=null)),ac=mean(rows.map(r=>r.e.acwr).filter(v=>v!=null));
+  const W=210,M=14;let y;
+  doc.setFillColor(14,26,44);doc.rect(0,0,W,26,'F');
+  doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Rapport de charge',M,13);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(200,212,228);
+  const cat=UI.cat==='Tous'?'Toutes catégories':UI.cat;
+  doc.text(cat+'  ·  '+fmtD(ref)+'  ·  '+ps.length+' joueurs',M,20);
+  y=36;
+  const kpis=[['Charge 7 j',r0(l7)+' UA'],['Monotonie',mono!=null?r2(mono):'–'],['Strain',r0(strain)],['ACWR moyen',ac!=null?r2(ac):'–']];
+  const kw=(W-2*M)/4;
+  kpis.forEach((k,i)=>{const x=M+i*kw;doc.setDrawColor(222,226,234);doc.roundedRect(x,y,kw-3,18,2,2,'S');
+    doc.setFontSize(7);doc.setTextColor(110,120,135);doc.text(String(k[0]).toUpperCase(),x+3,y+6);
+    doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(20,30,45);doc.text(String(k[1]),x+3,y+14);doc.setFont('helvetica','normal');});
+  y+=27;
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,30,45);doc.text('Charge individuelle (7 derniers jours)',M,y);y+=4;
+  const head=()=>{doc.setFillColor(19,34,52);doc.rect(M,y,W-2*M,7,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+    doc.text('Joueur',M+1.5,y+4.8);[['7 j (UA)',120],['Variation',142],['Monotonie',162],['Strain',178],['ACWR',196]].forEach(c=>doc.text(c[0],c[1],y+4.8,{align:'right'}));y+=7;doc.setFont('helvetica','normal');};
+  head();
+  rows.forEach((r,i)=>{
+    if(y>285){doc.addPage();y=16;head();}
+    if(i%2){doc.setFillColor(247,249,252);doc.rect(M,y,W-2*M,6,'F');}
+    doc.setFontSize(8);doc.setTextColor(30,40,55);doc.text(String(r.p.name).slice(0,30),M+1.5,y+4.2);
+    doc.text(r0(r.w.sum),120,y+4.2,{align:'right'});
+    doc.text(r.w.chg==null?'–':((r.w.chg>0?'+':'')+r0(r.w.chg)+' %'),142,y+4.2,{align:'right'});
+    doc.text(r.w.mono!=null?r2(r.w.mono):'–',162,y+4.2,{align:'right'});
+    doc.text(r0(r.w.strain),178,y+4.2,{align:'right'});
+    doc.text(r.e.acwr!=null?r2(r.e.acwr):'–',196,y+4.2,{align:'right'});
+    y+=6;
+  });
+  y+=7;if(y>285){doc.addPage();y=16;}
+  doc.setFontSize(7);doc.setTextColor(120,130,145);
+  doc.text('Document confidentiel — usage interne staff. Charge interne (sRPE = RPE x minutes). Genere localement par Blueperf le '+fmtD(TODAY)+'.',M,y);
+  doc.save('Rapport-charge-'+cat.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-')+'-'+ref+'.pdf');
+  toast('PDF telecharge');
+}
 // Génération du PDF en vecteur (jsPDF) : texte net, jamais coupé, fidèle sur tous les appareils.
 async function reportPrint(r){
   toast('Génération du PDF…');
@@ -2423,6 +2466,7 @@ const ACT={
   closeDrawer:()=>{UI.drawer=null;renderDrawer();},
   perfToggle:()=>{UI.perfOpen=!UI.perfOpen;renderNav();},
   goPerf:b=>{UI.perfOpen=false;go(b.dataset.id);},
+  loadPdf:()=>exportLoadPdf(),
   entryToggle:()=>{UI.entryOpen=!UI.entryOpen;renderNav();},
   goSeason:()=>{UI.entryOpen=false;go('seasonplan');},
   spLevel:b=>{const cat=spKey();const plan=spGet(cat);const i=+b.dataset.wk,key=b.dataset.key;const w=plan.weeks[i]=plan.weeks[i]||{};
