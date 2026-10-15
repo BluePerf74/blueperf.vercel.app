@@ -1662,8 +1662,9 @@ async function renderApaTeachers(){
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
         <input id="apa-login" placeholder="${admEsc(t('Identifiant','Login'))}" value="${editing?admEsc(editing.login||''):''}" style="${INP}">
-        <input id="apa-pass" placeholder="${admEsc(t('Mot de passe','Password'))}" value="${editing?admEsc(editing.pass||''):''}" style="${INP}">
+        <input id="apa-pass" type="password" autocomplete="new-password" placeholder="${editing?admEsc(t('Nouveau mot de passe (vide = inchangé)','New password (blank = unchanged)')):admEsc(t('Mot de passe','Password'))}" value="" style="${INP}">
       </div>
+      <p style="color:#7E90A8;font-size:11px;margin:-4px 0 10px">🔒 ${admEsc(t('Les mots de passe sont chiffrés (hachés) côté serveur : ils ne sont jamais stockés ni réaffichés en clair. Pour en changer un, saisis-en un nouveau ; laisse vide pour le conserver.','Passwords are hashed server-side: never stored or shown in clear text. To change one, type a new password; leave blank to keep it.'))}</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button id="apa-save" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer','Save')):admEsc(t('Créer l’enseignant·e','Create teacher'))}</button>
         ${editing?`<button id="apa-cancel" style="appearance:none;cursor:pointer;border:1px solid #33465f;background:transparent;color:#EAF1FB;border-radius:9px;padding:9px 14px;font-size:13.5px">${admEsc(t('Annuler','Cancel'))}</button>`:''}
@@ -1700,14 +1701,17 @@ async function renderApaTeachers(){
     const login=(document.getElementById('apa-login').value||'').trim();
     const pass=(document.getElementById('apa-pass').value||'').trim();
     const st=document.getElementById('apa-status');
-    if(!login||!pass){st.textContent=t('Identifiant et mot de passe obligatoires.','Login and password required.');return;}
-    const mm=await loadApaTeachers();
-    // Unicité de l'identifiant (hors compte en cours d'édition).
-    const clash=Object.values(mm).find(x=>x&&x.id!==APA_EDIT_ID&&(x.login||'').trim().toLowerCase()===login.toLowerCase());
-    if(clash){st.textContent=t('Cet identifiant est déjà utilisé.','This login is already used.');return;}
-    const id=APA_EDIT_ID||('ap'+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
-    mm[id]=Object.assign({},mm[id],{id,name:name||login,email,login,pass,active:(mm[id]?mm[id].active!==false:true),createdAt:(mm[id]&&mm[id].createdAt)||new Date().toISOString()});
-    await saveApaTeachers(mm);APA_EDIT_ID=null;renderApaTeachers();
+    st.style.color='#ffb4a8';
+    if(!login){st.textContent=t('Identifiant obligatoire.','Login required.');return;}
+    if(!APA_EDIT_ID && !pass){st.textContent=t('Mot de passe obligatoire à la création.','Password required when creating.');return;}
+    sv.disabled=true;st.style.color='#8FCBFF';st.textContent=t('Enregistrement…','Saving…');
+    // Enregistrement côté serveur : le mot de passe est haché (jamais stocké en clair). Vide = inchangé.
+    try{
+      const r=await fetch('/api/auth?action=set-teacher',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:APA_EDIT_ID||'',name,email,login,pass})});
+      if(r&&r.status===409){st.style.color='#ffb4a8';st.textContent=t('Cet identifiant est déjà utilisé.','This login is already used.');sv.disabled=false;return;}
+      if(!r||!r.ok){st.style.color='#ffb4a8';st.textContent=t('Échec de l’enregistrement.','Save failed.');sv.disabled=false;return;}
+      APA_EDIT_ID=null;renderApaTeachers();
+    }catch(e){st.style.color='#ffb4a8';st.textContent=t('Échec de l’enregistrement.','Save failed.');sv.disabled=false;}
   };
 }
 

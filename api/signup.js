@@ -2,6 +2,14 @@
 // Crée un compte enseignant « en attente » (active:false) dans le registre apaTeachers.
 // Le propriétaire doit l'activer manuellement (abonnement) depuis sa console avant toute connexion.
 const { Redis } = require('@upstash/redis');
+const crypto = require('crypto');
+
+// Hachage scrypt (identique à api/auth.js) — jamais de mot de passe en clair dans la base.
+function hashPass(plain) {
+  const salt = crypto.randomBytes(16);
+  const h = crypto.scryptSync((plain || '').toString(), salt, 32);
+  return 'scrypt$' + salt.toString('hex') + '$' + h.toString('hex');
+}
 
 let redis;
 function getRedis() {
@@ -43,7 +51,7 @@ module.exports = async (req, res) => {
     if (clash) return res.status(409).json({ ok: false, error: 'exists' });
 
     const id = 'ap' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    teachers[id] = { id, name: name || login, email, login, pass, active: false, source: 'signup', createdAt: new Date().toISOString() };
+    teachers[id] = { id, name: name || login, email, login, pass: hashPass(pass), active: false, source: 'signup', createdAt: new Date().toISOString() };
     await db.set('apaTeachers', JSON.stringify(teachers));
     return res.status(200).json({ ok: true, pending: true });
   } catch (e) {

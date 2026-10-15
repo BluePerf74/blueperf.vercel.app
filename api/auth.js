@@ -27,6 +27,34 @@ const defPass = name => { const f = slug(firstName(name)); return f ? f.slice(0,
 
 async function getJSON(db, key) { try { const v = await db.get(key); return v ? JSON.parse(String(v)) : null; } catch (e) { return null; } }
 
+// --- Mots de passe : hachage scrypt (natif Node, sans dépendance). Format "scrypt$<sel>$<hash>".
+// verifyPass accepte aussi l'ancien stockage en clair pour migrer les comptes existants à la volée.
+function hashPass(plain) {
+  const salt = crypto.randomBytes(16);
+  const h = crypto.scryptSync((plain || '').toString(), salt, 32);
+  return 'scrypt$' + salt.toString('hex') + '$' + h.toString('hex');
+}
+function verifyPass(stored, plain) {
+  stored = (stored || '').toString(); const p = (plain || '').toString();
+  if (stored.indexOf('scrypt$') === 0) {
+    const parts = stored.split('$');
+    if (parts.length !== 3) return { ok: false };
+    try {
+      const want = Buffer.from(parts[2], 'hex');
+      const got = crypto.scryptSync(p, Buffer.from(parts[1], 'hex'), want.length);
+      return { ok: got.length === want.length && crypto.timingSafeEqual(got, want), legacy: false };
+    } catch (e) { return { ok: false }; }
+  }
+  // Ancien stockage en clair (comptes non encore migrés).
+  return { ok: !!stored && stored === p, legacy: true };
+}
+async function upgradeTeacherPass(db, id, plain) {
+  try {
+    const teachers = (await getJSON(db, 'apaTeachers')) || {};
+    if (teachers[id]) { teachers[id].pass = hashPass(plain); await db.set('apaTeachers', JSON.stringify(teachers)); }
+  } catch (e) {}
+}
+
 function b64url(buf) { return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function sign(obj) {
   const payload = b64url(JSON.stringify(obj));
@@ -84,7 +112,10 @@ async function matchRole(db, user, pass) {
   for (const x of Object.values(teachers)) {
     if (!x || !x.id) continue;
     const tu = (x.login || '').trim().toLowerCase(), tus = tu.replace(/[^a-z0-9]/g, '');
-    if ((x.pass || '').trim() === P && (tu === L || tus === Ls)) return { r: 'apa', s: 'apa', t: x.id, active: x.active !== false };
+    if (tu === L || tus === Ls) {
+      const vr = verifyPass(x.pass, P);
+      if (vr.ok) return { r: 'apa', s: 'apa', t: x.id, active: x.active !== false, upgrade: vr.legacy };
+    }
   }
   // 4. Clients programme (base app)
   const clients = await getJSON(db, 'clients');
@@ -140,11 +171,60 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, role: 'apa', space: 'apa', tenant: t, imp: true });
     }
 
+    // Création / modification d'un compte enseignant par le PROPRIÉTAIRE, avec hachage côté serveur :
+    // le mot de passe n'est jamais stocké en clair. Mot de passe vide à l'édition = inchangé.
+    if (action === 'set-teacher') {
+      const cur = verify(parseCookies(req)['bp_sess']);
+      if (!cur || cur.r !== 'coach' || cur.s !== 'all') return res.status(403).json({ ok: false, error: 'forbidden' });
+      try {
+        const db = getRedis();
+        const login = (body.login || '').toString().trim();
+        if (!login) return res.status(400).json({ ok: false, error: 'missing login' });
+        const id = (body.id || '').toString().trim() || ('ap' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5));
+        const teachers = (await getJSON(db, 'apaTeachers')) || {};
+        const Ll = login.toLowerCase();
+        const clash = Object.values(teachers).find(x => x && x.id !== id && (x.login || '').trim().toLowerCase() === Ll);
+        if (clash) return res.status(409).json({ ok: false, error: 'exists' });
+        const prev = teachers[id] || {};
+        const rec = Object.assign({}, prev, {
+          id,
+          name: (body.name || '').toString().trim() || login,
+          email: (body.email || '').toString().trim(),
+          login,
+          active: (body.active != null ? !!body.active : (prev.active !== false)),
+          createdAt: prev.createdAt || new Date().toISOString()
+        });
+        const np = (body.pass || '').toString();
+        if (np) rec.pass = hashPass(np);
+        else if (!prev.pass) return res.status(400).json({ ok: false, error: 'missing pass' });
+        teachers[id] = rec;
+        await db.set('apaTeachers', JSON.stringify(teachers));
+        return res.status(200).json({ ok: true, id });
+      } catch (e) {
+        return res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+      }
+    }
+
     try {
       const db = getRedis();
+      // Anti-force brute : plafond de tentatives échouées par (IP + identifiant) sur une fenêtre glissante.
+      const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'na';
+      const who = (body.username || '').toString().trim().toLowerCase().slice(0, 60);
+      const rlKey = 'rl:login:' + ip + '|' + who;
+      const MAXTRY = 8, WINDOW = 900; // 8 échecs / 15 min
+      let tries = 0;
+      try { tries = parseInt((await db.get(rlKey)) || '0', 10) || 0; } catch (e) {}
+      if (tries >= MAXTRY) return res.status(429).json({ ok: false, error: 'ratelimit' });
+
       const role = await matchRole(db, body.username, body.password);
-      if (!role) return res.status(401).json({ ok: false });
+      if (!role) {
+        try { const n = await db.incr(rlKey); if (String(n) === '1') await db.expire(rlKey, WINDOW); } catch (e) {}
+        return res.status(401).json({ ok: false });
+      }
       if (role.r === 'apa' && role.active === false) return res.status(403).json({ ok: false, suspended: true });
+      try { await db.del(rlKey); } catch (e) {} // succès → on remet le compteur à zéro
+      // Migration transparente : si le compte enseignant avait encore un mot de passe en clair, on le hache maintenant.
+      if (role.r === 'apa' && role.upgrade) await upgradeTeacherPass(db, role.t, body.password);
       const payload = { r: role.r, s: role.s, exp: Date.now() + SESSION_HOURS * 3600 * 1000 };
       if (role.t) payload.t = role.t;
       const token = sign(payload);
