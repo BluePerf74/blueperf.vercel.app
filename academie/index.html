@@ -1943,6 +1943,8 @@ FORMS.session=async f=>{const e=editing('sessions');const v=Object.fromEntries(n
   // préserver le RPE par partie déjà saisi par les joueuses lors d'une réédition coach
   if(e&&e.players)Object.keys(o.players).forEach(pid=>{if(e.players[pid]&&e.players[pid].partRpe)o.players[pid].partRpe=e.players[pid].partRpe;});
   if(!Object.keys(o.players).length){toast('Coche au moins un joueur');return;}
+  if(!e){const dup=Object.values(DATA.sessions).find(s=>s&&s.id!==id&&s.date===o.date&&s.cat===o.cat);
+    if(dup&&!confirm('Une séance existe déjà le '+fmtD(o.date)+' pour '+o.cat+' (« '+(dup.title||dup.type||'séance')+' »).\n\nEnregistrer quand même une seconde séance ce jour-là ?'))return;}
   await put('sessions',id,o);UI.edit=null;UI.prefDate=null;UI.sessionPrefill=null;toast(e?'Séance modifiée':'Séance enregistrée');render();};
 FORMS.assign=async f=>{const v=Object.fromEntries(new FormData(f));const cat=v.cat;const date=v.date;
   const players={};playersOf(cat).forEach(p=>{const on=f.elements['ap-'+p.id];if(on&&on.checked)players[p.id]={min:num(v.duration)||90};});
