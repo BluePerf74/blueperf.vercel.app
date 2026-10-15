@@ -1420,6 +1420,22 @@ function setTheme(mode){
   }
   render();
 }
+function themeIcon(){var p=themePref();return p==='light'?'☀️':p==='dark'?'🌙':'🌗';}
+function themeLabel(){var p=themePref();return p==='light'?t('Clair','Light'):p==='dark'?t('Sombre','Dark'):t('Auto','Auto');}
+/* Bascule rapide depuis la barre du haut : auto → clair → sombre → auto.
+   N'appelle pas render() → l'iframe du module ne recharge pas ; elle se met à jour
+   en direct via l'événement 'storage' (même origine). */
+function cycleTheme(){
+  var cur=themePref(), next = cur==='auto'?'light':(cur==='light'?'dark':'auto');
+  try{
+    if(next==='light'||next==='dark'){localStorage.setItem('bp_theme',next);document.documentElement.setAttribute('data-theme',next);}
+    else{localStorage.removeItem('bp_theme');document.documentElement.removeAttribute('data-theme');}
+  }catch(e){
+    if(next==='light'||next==='dark')document.documentElement.setAttribute('data-theme',next);
+    else document.documentElement.removeAttribute('data-theme');
+  }
+  try{document.querySelectorAll('[data-fbtheme]').forEach(function(b){b.textContent=themeIcon()+' '+themeLabel();});}catch(e){}
+}
 /* ----- Config générale : quels onglets (sections) sont affichés ----- */
 let APP_CFG=null;
 function sectionDefs(){return [['football','Football'],['individuel',t('Coaching individuel','Individual coaching')],['apa','APA'],['nutrition','Nutrition']];}
@@ -1465,6 +1481,7 @@ function renderFullApp(section){
           ${restricted?'':sectionDropdown(section)}
           ${(state.access==='coach'&&!restricted)?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
           ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:sc?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(sc.name||sc.username)} · <b style="color:#fff">Coach ${admEsc(SPACE_LABELS[sc.space]||sc.space||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
+          <button data-fbtheme title="${t('Thème clair / sombre','Light / dark theme')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">${themeIcon()} ${themeLabel()}</button>
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
         </div>
@@ -1486,6 +1503,8 @@ function renderFullApp(section){
   });
   const lg = app.querySelector('[data-fblang]');
   if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
+  const thb = app.querySelector('[data-fbtheme]');
+  if(thb) thb.addEventListener('click', cycleTheme);
   const lo = app.querySelector('[data-fblogout]');
   if(lo) lo.addEventListener('click', logout);
   const ad = app.querySelector('[data-fbadmin]');
