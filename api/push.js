@@ -66,6 +66,19 @@ async function latePids(db, space){
   });
   return late;
 }
+// Joueur·ses ayant une séance aujourd'hui dont le RPE n'est pas encore saisi (rappel du soir).
+async function lateRpeToday(db, space){
+  const day = todayISO();
+  const players = parse(await db.get(`${space}:players`)) || {};
+  const sessions = parse(await db.get(`${space}:sessions`)) || {};
+  const late = [];
+  Object.values(players).forEach(p => {
+    if (!p || p.active === false) return;
+    const noRpe = Object.values(sessions).some(s => s && s.date === day && s.players && s.players[p.id] && s.players[p.id].rpe == null);
+    if (noRpe) late.push(p.id);
+  });
+  return late;
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -80,6 +93,7 @@ module.exports = async (req, res) => {
 
     // Cron quotidien : rappel aux abonné·es des espaces où les rappels sont activés.
     if (action === 'cron') {
+      const slot = (req.query && req.query.slot) === 'evening' ? 'evening' : 'morning';
       const v = await getVapid(db);
       webpush.setVapidDetails('mailto:coach@blueperf.app', v.publicKey, v.privateKey);
       let sent = 0;
@@ -87,14 +101,20 @@ module.exports = async (req, res) => {
         const cfg = parse(await db.get(`${space}:config`)) || {};
         const on = cfg.settings && cfg.settings.reminders;
         if (!on) continue;
-        const late = await latePids(db, space);
         const subbed = await listSubbedPids(db, space);
-        const targets = late.filter(p => subbed.includes(p));
-        for (const pid of targets) {
-          if (await sendTo(db, space, pid, { title: 'Blueperf — bonjour 👋', body: 'Pense à remplir ton wellness du matin (et tes RPE) 💪', url: '/academie/espace.html' })) sent++;
+        let targetsRaw, payload;
+        if (slot === 'evening') {
+          // Le soir : uniquement les joueur·ses avec une séance aujourd'hui sans RPE.
+          targetsRaw = await lateRpeToday(db, space);
+          payload = { title: 'Blueperf — RPE du soir 🌙', body: 'Pense à noter ton RPE de la séance d’aujourd’hui 💪', url: '/academie/espace.html' };
+        } else {
+          targetsRaw = await latePids(db, space);
+          payload = { title: 'Blueperf — bonjour 👋', body: 'Pense à remplir ton wellness du matin (et tes RPE) 💪', url: '/academie/espace.html' };
         }
+        const targets = targetsRaw.filter(p => subbed.includes(p));
+        for (const pid of targets) { if (await sendTo(db, space, pid, payload)) sent++; }
       }
-      return res.status(200).json({ ok: true, sent });
+      return res.status(200).json({ ok: true, slot, sent });
     }
 
     if (req.method === 'POST') {
