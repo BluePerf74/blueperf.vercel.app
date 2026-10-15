@@ -1408,6 +1408,18 @@ async function renderCoachDashboard(){
 let LANG = (function(){try{return localStorage.getItem('bp_lang')||'fr';}catch(e){return 'fr';}})();
 function setLang(l){LANG=l;try{localStorage.setItem('bp_lang',l);}catch(e){}render();}
 const t=(fr,en)=>LANG==='en'?en:fr;
+/* ----- Thème interface : 'auto' (suit le système), 'light' ou 'dark'. Mémorisé par appareil. ----- */
+function themePref(){try{return localStorage.getItem('bp_theme')||'auto';}catch(e){return 'auto';}}
+function setTheme(mode){
+  try{
+    if(mode==='light'||mode==='dark'){localStorage.setItem('bp_theme',mode);document.documentElement.setAttribute('data-theme',mode);}
+    else{localStorage.removeItem('bp_theme');document.documentElement.removeAttribute('data-theme');}
+  }catch(e){
+    if(mode==='light'||mode==='dark')document.documentElement.setAttribute('data-theme',mode);
+    else document.documentElement.removeAttribute('data-theme');
+  }
+  render();
+}
 /* ----- Config générale : quels onglets (sections) sont affichés ----- */
 let APP_CFG=null;
 function sectionDefs(){return [['football','Football'],['individuel',t('Coaching individuel','Individual coaching')],['apa','APA'],['nutrition','Nutrition']];}
@@ -1481,69 +1493,101 @@ function renderFullApp(section){
 }
 /* ----- Page Paramètres (plein écran, hors menu déroulant) ----- */
 function settingsBodyHtml(){
+  const CARD='border:1px solid var(--app-border);border-radius:12px;padding:16px;margin-bottom:12px;background:var(--app-surface);box-shadow:var(--app-shadow)';
+  const CARD2='border:1px solid var(--app-border-strong);border-radius:12px;padding:16px;margin-bottom:12px;background:var(--app-surface-2);box-shadow:var(--app-shadow)';
+  const TTL='font-size:15px;font-weight:700;color:var(--app-text);margin:0';
+  const DESC='color:var(--app-muted);font-size:12.5px;margin:5px 0 10px;line-height:1.5';
+  const GRP='font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--app-muted);margin:22px 2px 10px';
+  const SEG='display:inline-flex;background:var(--app-surface-2);border:1px solid var(--app-border);border-radius:9px;padding:3px;gap:2px';
+  const th=themePref();
+  const seg=(grp,val,lbl,cur)=>`<button type="button" data-set-${grp}="${val}" style="appearance:none;cursor:pointer;border:0;border-radius:7px;padding:6px 13px;font:600 12.5px inherit;${cur===val?'background:var(--app-accent);color:var(--app-accent-ink)':'background:transparent;color:var(--app-text)'}">${lbl}</button>`;
   return `
-    <div id="bp-sections" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
-      <b style="font-size:15px">🧭 ${admEsc(t('Onglets affichés','Visible tabs'))}</b>
-      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Affiche ou masque chaque espace dans le menu déroulant en haut.','Show or hide each space in the top dropdown.'))}</p>
+    <div style="${GRP}">${admEsc(t('Préférences','Preferences'))}</div>
+    <div style="${CARD}">
+      <p style="${TTL}">🎨 ${admEsc(t('Apparence & langue','Appearance & language'))}</p>
+      <p style="${DESC}">${admEsc(t('Choix mémorisé sur cet appareil. « Auto » suit le réglage clair / sombre du système.','Saved on this device. “Auto” follows your system light / dark setting.'))}</p>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:6px">${admEsc(t('Thème','Theme'))}</div>
+          <div style="${SEG}">${seg('theme','auto',t('Auto','Auto'),th)}${seg('theme','light',t('Clair','Light'),th)}${seg('theme','dark',t('Sombre','Dark'),th)}</div>
+        </div>
+        <div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:6px">${admEsc(t('Langue','Language'))}</div>
+          <div style="${SEG}">${seg('lang','fr','Français',LANG)}${seg('lang','en','English',LANG)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="${GRP}">${admEsc(t('Affichage','Display'))}</div>
+    <div id="bp-sections" style="${CARD}">
+      <p style="${TTL}">🧭 ${admEsc(t('Onglets affichés','Visible tabs'))}</p>
+      <p style="${DESC}">${admEsc(t('Affiche ou masque chaque espace dans le menu déroulant en haut.','Show or hide each space in the top dropdown.'))}</p>
       <div id="bp-sections-body"></div>
     </div>
-    <div id="bp-allclients" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
-      <b style="font-size:15px">👥 ${admEsc(t('Comptes & accès — tous les espaces','Accounts & access — all spaces'))}</b>
-      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Tous les clients, regroupés par espace. Renomme, change le mot de passe, désactive ou supprime.','All clients, grouped by space. Rename, change password, deactivate or delete.'))}</p>
-      <div id="bp-allclients-body">${admEsc(t('Chargement…','Loading…'))}</div>
-    </div>
-    <div id="bp-store" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
-      <b style="font-size:15px">📦 ${admEsc(t('Programmes achetés — suivi','Purchased programs — tracking'))}</b>
-      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Programmes de la boutique débloqués par tes client·es de Coaching individuel, avec leur avancement. Après un paiement, clique « Débloquer » pour activer un programme.','Store programs unlocked by your Individual-coaching clients, with progress. After a payment, click “Unlock” to activate a program.'))}</p>
-      <div id="bp-store-body">${admEsc(t('Chargement…','Loading…'))}</div>
-    </div>
-    <div id="bp-coaches" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
-      <b style="font-size:15px">🧑‍🏫 ${admEsc(t('Coachs par espace','Coaches by space'))}</b>
-      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Ajoute un coach pour un espace (ex. APA). Il se connecte avec son identifiant et accède uniquement à cet espace. La personne peut aussi être cliente ou joueuse ailleurs : utilise les mêmes identifiants et un choix du rôle apparaîtra à la connexion.','Add a coach for a space (e.g. APA). They log in and only access that space. The person can also be a client/player elsewhere: reuse the same login and a role picker appears at sign-in.'))}</p>
-      <div id="bp-coaches-body">${admEsc(t('Chargement…','Loading…'))}</div>
-    </div>
-    <div id="bp-apateachers" style="border:1px solid #2b4a6b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0c1b2e">
-      <b style="font-size:15px">🏫 ${admEsc(t('Enseignants APA — plateforme','APA teachers — platform'))}</b>
-      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t('Crée un espace cloisonné par enseignant·e : chacun·e gère ses propres patient·es, avec sa propre base de données, isolée des autres. Active ou suspends l’accès (abonnement), réinitialise le mot de passe, ou connecte-toi « à sa place » pour le·la dépanner.','Create one isolated space per teacher: each manages their own patients, with their own database, isolated from the others. Activate or suspend access (subscription), reset the password, or log in “as them” to troubleshoot.'))}</p>
+
+    <div style="${GRP}">${admEsc(t('Plateforme APA','APA platform'))}</div>
+    <div id="bp-apateachers" style="${CARD2}">
+      <p style="${TTL}">🏫 ${admEsc(t('Enseignants APA','APA teachers'))}</p>
+      <p style="${DESC}">${admEsc(t('Crée un espace cloisonné par enseignant·e : chacun·e gère ses propres patient·es, avec sa propre base de données, isolée des autres. Active ou suspends l’accès (abonnement), réinitialise le mot de passe, ou connecte-toi « à sa place » pour le·la dépanner.','Create one isolated space per teacher: each manages their own patients, with their own database, isolated from the others. Activate or suspend access (subscription), reset the password, or log in “as them” to troubleshoot.'))}</p>
       <div id="bp-apateachers-body">${admEsc(t('Chargement…','Loading…'))}</div>
     </div>
-    <div style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
-      <b style="font-size:15px">➕ ${admEsc(t('Équipe U18F (Football)','U18F team (Football)'))}</b>
-      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t("Crée l'équipe U18F et ajoute les 31 joueuses avec leurs identifiants (prénom@aca.com / 3 premières lettres du prénom + 123).","Creates the U18F team and adds the 31 players with their logins (firstname@aca.com / first 3 letters + 123)."))}</p>
-      <button id="bp-import-u18f" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${admEsc(t('Importer l’équipe U18F (31 joueuses)','Import U18F team (31 players)'))}</button>
-      <div id="bp-import-status" style="font-size:12.5px;color:#8fe0b0;margin-top:8px;line-height:1.5"></div>
+
+    <div style="${GRP}">${admEsc(t('Comptes & accès','Accounts & access'))}</div>
+    <div id="bp-allclients" style="${CARD}">
+      <p style="${TTL}">👥 ${admEsc(t('Tous les comptes clients','All client accounts'))}</p>
+      <p style="${DESC}">${admEsc(t('Tous les clients, regroupés par espace. Renomme, change le mot de passe, désactive ou supprime.','All clients, grouped by space. Rename, change password, deactivate or delete.'))}</p>
+      <div id="bp-allclients-body">${admEsc(t('Chargement…','Loading…'))}</div>
     </div>
-    <div id="bp-mgr" style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
-      <b style="font-size:15px">🧑‍🏫 ${admEsc(t("Gérant·es d'équipe","Team managers"))}</b>
-      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 10px;line-height:1.5">${admEsc(t("Accès coach restreint (Football uniquement) : choisis l'équipe et les onglets accessibles.","Restricted coach access (Football only): pick the team and which tabs the person can open."))}</p>
+    <div id="bp-coaches" style="${CARD}">
+      <p style="${TTL}">🧑‍🏫 ${admEsc(t('Coachs par espace','Coaches by space'))}</p>
+      <p style="${DESC}">${admEsc(t('Ajoute un coach pour un espace (ex. APA). Il se connecte avec son identifiant et accède uniquement à cet espace. La personne peut aussi être cliente ou joueuse ailleurs : utilise les mêmes identifiants et un choix du rôle apparaîtra à la connexion.','Add a coach for a space (e.g. APA). They log in and only access that space. The person can also be a client/player elsewhere: reuse the same login and a role picker appears at sign-in.'))}</p>
+      <div id="bp-coaches-body">${admEsc(t('Chargement…','Loading…'))}</div>
+    </div>
+
+    <div style="${GRP}">Football</div>
+    <div style="${CARD}">
+      <p style="${TTL}">➕ ${admEsc(t('Équipe U18F','U18F team'))}</p>
+      <p style="${DESC}">${admEsc(t("Crée l'équipe U18F et ajoute les 31 joueuses avec leurs identifiants (prénom@aca.com / 3 premières lettres du prénom + 123).","Creates the U18F team and adds the 31 players with their logins (firstname@aca.com / first 3 letters + 123)."))}</p>
+      <button id="bp-import-u18f" style="appearance:none;cursor:pointer;border:0;background:var(--app-accent);color:var(--app-accent-ink);border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${admEsc(t('Importer l’équipe U18F (31 joueuses)','Import U18F team (31 players)'))}</button>
+      <div id="bp-import-status" style="font-size:12.5px;color:var(--app-ok);margin-top:8px;line-height:1.5"></div>
+    </div>
+    <div id="bp-mgr" style="${CARD}">
+      <p style="${TTL}">🧑‍🏫 ${admEsc(t("Gérant·es d'équipe","Team managers"))}</p>
+      <p style="${DESC}">${admEsc(t("Accès coach restreint (Football uniquement) : choisis l'équipe et les onglets accessibles.","Restricted coach access (Football only): pick the team and which tabs the person can open."))}</p>
       <div id="bp-mgr-list"></div>
       <div id="bp-mgr-form"></div>
     </div>
-    <div style="border:1px solid #25344b;border-radius:10px;padding:14px;margin-bottom:14px;background:#0f1d30">
-      <b style="font-size:15px">🔗 ${admEsc(t('Accès inter-espaces','Cross-space access'))}</b>
-      <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 10px;line-height:1.5">${admEsc(t("Autorise un·e joueur·se Football à accéder aussi au Coaching individuel, avec les mêmes identifiants.","Allow a Football player to also access Individual coaching, with the same login."))}</p>
+
+    <div style="${GRP}">${admEsc(t('Coaching individuel','Individual coaching'))}</div>
+    <div id="bp-store" style="${CARD}">
+      <p style="${TTL}">📦 ${admEsc(t('Programmes achetés — suivi','Purchased programs — tracking'))}</p>
+      <p style="${DESC}">${admEsc(t('Programmes de la boutique débloqués par tes client·es de Coaching individuel, avec leur avancement. Après un paiement, clique « Débloquer » pour activer un programme.','Store programs unlocked by your Individual-coaching clients, with progress. After a payment, click “Unlock” to activate a program.'))}</p>
+      <div id="bp-store-body">${admEsc(t('Chargement…','Loading…'))}</div>
+    </div>
+    <div style="${CARD}">
+      <p style="${TTL}">🔗 ${admEsc(t('Accès inter-espaces','Cross-space access'))}</p>
+      <p style="${DESC}">${admEsc(t("Autorise un·e joueur·se Football à accéder aussi au Coaching individuel, avec les mêmes identifiants.","Allow a Football player to also access Individual coaching, with the same login."))}</p>
       <div id="bp-admin-body" style="font-size:14px">${admEsc(t('Chargement…','Loading…'))}</div>
     </div>`;
 }
 function renderSettingsPage(){
   const chevronBtn='appearance:none;cursor:pointer;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600';
   app.innerHTML = `
-    <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:#0b1522">
-      <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
+    <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--app-bg);color:var(--app-text)">
+      <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--app-nav);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3DA9FC">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${t('PARAMÈTRES','SETTINGS')}</span></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${sectionDropdown('settings')}
-          <button data-fbadmin title="${t('Paramètres','Settings')}" style="${chevronBtn};border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f">⚙️ ${t('Paramètres','Settings')}</button>
-          <button data-fblang style="${chevronBtn};border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;font-weight:700">🌐 ${LANG==='en'?'EN':'FR'}</button>
+          <button data-fbadmin title="${t('Fermer les paramètres','Close settings')}" style="${chevronBtn};border:0;background:var(--app-accent);color:var(--app-accent-ink)">✕ ${t('Fermer','Close')}</button>
           <button data-fblogout style="${chevronBtn};border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8">${t('Déconnexion','Log out')}</button>
         </div>
       </div>
       <div style="flex:1;overflow:auto">
-        <div style="max-width:660px;margin:0 auto;padding:20px 16px 70px;color:#EAF1FB;font-family:system-ui,-apple-system,sans-serif">
-          <h1 style="font-family:'Space Grotesk',system-ui,sans-serif;font-size:24px;margin:0 0 4px">⚙️ ${t('Paramètres','Settings')}</h1>
-          <p style="color:#7E90A8;font-size:13px;margin:0 0 18px">${t('Gère les accès, les comptes de tous les espaces et les onglets affichés.','Manage access, accounts across all spaces and visible tabs.')}</p>
+        <div style="max-width:720px;margin:0 auto;padding:22px 16px 80px;color:var(--app-text);font-family:'Inter',system-ui,-apple-system,sans-serif">
+          <h1 style="font-family:'Space Grotesk',system-ui,sans-serif;font-size:25px;margin:0 0 4px;color:var(--app-text)">${t('Paramètres','Settings')}</h1>
+          <p style="color:var(--app-muted);font-size:13px;margin:0 0 6px">${t('Gère l’apparence, les accès, les comptes de tous les espaces et les onglets affichés.','Manage appearance, access, accounts across all spaces and visible tabs.')}</p>
           ${settingsBodyHtml()}
         </div>
       </div>
@@ -1556,6 +1600,8 @@ function renderSettingsPage(){
   if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
   const lo = app.querySelector('[data-fblogout]');
   if(lo) lo.addEventListener('click', logout);
+  app.querySelectorAll('[data-set-theme]').forEach(b=>b.onclick=()=>setTheme(b.getAttribute('data-set-theme')));
+  app.querySelectorAll('[data-set-lang]').forEach(b=>b.onclick=()=>setLang(b.getAttribute('data-set-lang')));
   const imp = app.querySelector('#bp-import-u18f');
   if(imp) imp.onclick = () => importU18F(imp, app.querySelector('#bp-import-status'));
   renderSectionsCfg();
@@ -1577,7 +1623,7 @@ async function renderCoaches(){
   const arr = Object.values(cs);
   const editing = COACH_EDIT_ID && cs[COACH_EDIT_ID] ? cs[COACH_EDIT_ID] : null;
   if(COACH_EDIT_ID && !editing) COACH_EDIT_ID = null;
-  const INP = 'width:100%;background:#0E1A2C;border:1px solid #25344b;color:#EAF1FB;border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
+  const INP = 'width:100%;background:var(--app-input-bg);border:1px solid var(--app-border);color:var(--app-text);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
   const btn = 'appearance:none;cursor:pointer;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600';
   const spaces = [['apa','APA'],['individuel',t('Coaching individuel','Individual coaching')],['football','Football'],['nutrition','Nutrition']];
   const list = arr.length ? arr.map(c=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid ${c.id===COACH_EDIT_ID?'#3DA9FC':'#25344b'};border-radius:8px;margin-bottom:6px;${c.active===false?'opacity:.6':''}">
@@ -1638,7 +1684,7 @@ async function renderApaTeachers(){
   const arr = Object.values(m).sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
   const editing = APA_EDIT_ID && m[APA_EDIT_ID] ? m[APA_EDIT_ID] : null;
   if(APA_EDIT_ID && !editing) APA_EDIT_ID = null;
-  const INP = 'width:100%;background:#0E1A2C;border:1px solid #25344b;color:#EAF1FB;border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
+  const INP = 'width:100%;background:var(--app-input-bg);border:1px solid var(--app-border);color:var(--app-text);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
   const btn = 'appearance:none;cursor:pointer;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600';
   const list = arr.length ? arr.map(x=>{
     const on = x.active !== false;
@@ -1833,7 +1879,7 @@ async function renderAllClients(){
   el.querySelectorAll('[data-cl-act]').forEach(b=>b.onclick=async()=>{const[sp,id]=sp2(b.getAttribute('data-cl-act'));await admToggleActive(sp,id);renderAllClients();});
   el.querySelectorAll('[data-cl-del]').forEach(b=>b.onclick=async()=>{const[sp,id]=sp2(b.getAttribute('data-cl-del'));if(!confirm(t('Supprimer ce compte et ses données ? Cette action est définitive.','Delete this account and its data? This cannot be undone.')))return;await admDeleteClient(sp,id);renderAllClients();});
 }
-const MGR_INPUT_STYLE='width:100%;background:#0E1A2C;border:1px solid #25344b;color:#EAF1FB;border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
+const MGR_INPUT_STYLE='width:100%;background:var(--app-input-bg);border:1px solid var(--app-border);color:var(--app-text);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
 let MGR_EDIT_ID=null; // gérant·e en cours de modification
 async function renderManagers(){
   const listEl=document.getElementById('bp-mgr-list'), formEl=document.getElementById('bp-mgr-form');

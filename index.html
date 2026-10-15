@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr" style="background:#0D1B2A">
 <head>
+<script>try{var _t=localStorage.getItem('bp_theme');if(_t==='light'||_t==='dark'){document.documentElement.setAttribute('data-theme',_t);}}catch(e){}</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
 <title>Blueperf - Suivi Sportif</title>
@@ -48,6 +49,45 @@
     --red-tint:#FAE4E1;
     --shadow: 0 1px 2px rgba(13,27,42,.06), 0 6px 20px rgba(13,27,42,.06);
     --radius: 14px;
+    /* ===== Thème interface (coquille coach + Paramètres). Défaut = sombre. ===== */
+    --app-bg:#0b1522; --app-surface:#0f1d30; --app-surface-2:#0c1b2e;
+    --app-border:#25344b; --app-border-strong:#2b4a6b;
+    --app-text:#EAF1FB; --app-muted:#7E90A8;
+    --app-nav:#0E1A2C; --app-accent:#3DA9FC; --app-accent-ink:#04121f;
+    --app-danger:#f16b5e; --app-ok:#8fe0b0; --app-warn:#ffd98a;
+    --app-shadow:0 1px 3px rgba(0,0,0,.35);
+    --app-input-bg:#0E1A2C;
+  }
+  /* Mode clair : automatique selon le système (sauf si l'utilisateur a forcé un thème). */
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --app-bg:#eef2f7; --app-surface:#ffffff; --app-surface-2:#f6f9fc;
+      --app-border:#e2e8f0; --app-border-strong:#cdd9e8;
+      --app-text:#16233a; --app-muted:#5f708a;
+      --app-nav:#0e1a2c; --app-accent:#1f74d0; --app-accent-ink:#ffffff;
+      --app-danger:#d64535; --app-ok:#1f7a47; --app-warn:#9a6a12;
+      --app-shadow:0 1px 2px rgba(16,30,50,.08), 0 6px 18px rgba(16,30,50,.07);
+      --app-input-bg:#ffffff;
+    }
+  }
+  /* Choix explicite de l'utilisateur (prioritaire sur le système). */
+  :root[data-theme="light"]{
+    --app-bg:#eef2f7; --app-surface:#ffffff; --app-surface-2:#f6f9fc;
+    --app-border:#e2e8f0; --app-border-strong:#cdd9e8;
+    --app-text:#16233a; --app-muted:#5f708a;
+    --app-nav:#0e1a2c; --app-accent:#1f74d0; --app-accent-ink:#ffffff;
+    --app-danger:#d64535; --app-ok:#1f7a47; --app-warn:#9a6a12;
+    --app-shadow:0 1px 2px rgba(16,30,50,.08), 0 6px 18px rgba(16,30,50,.07);
+    --app-input-bg:#ffffff;
+  }
+  :root[data-theme="dark"]{
+    --app-bg:#0b1522; --app-surface:#0f1d30; --app-surface-2:#0c1b2e;
+    --app-border:#25344b; --app-border-strong:#2b4a6b;
+    --app-text:#EAF1FB; --app-muted:#7E90A8;
+    --app-nav:#0E1A2C; --app-accent:#3DA9FC; --app-accent-ink:#04121f;
+    --app-danger:#f16b5e; --app-ok:#8fe0b0; --app-warn:#ffd98a;
+    --app-shadow:0 1px 3px rgba(0,0,0,.35);
+    --app-input-bg:#0E1A2C;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -725,7 +765,7 @@ button.prog-card{cursor:pointer;font-family:inherit}
 <div id="app"></div>
 
 <script src="/programs-catalog.js"></script>
-<script src="/app.min.js?v=52611a44"></script>
+<script src="/app.min.js?v=d053dcd7"></script>
 <script src="/version-check.js?v=1" defer></script>
 </body>
 </html>
