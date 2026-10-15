@@ -849,8 +849,8 @@ function renderNav(){
     if(t.entryGroup){ // groupe Saisie : menu déroulant dans la barre, navigation par goEntry (UI.entryTab)
       if(!tabOn('entry'))return;const inGrp=UI.tab==='entry';const open=!!UI.entryOpen; // ouvert seulement au clic sur « Saisie » ; se referme après avoir choisi une entrée
       h+=`<li class="${open?'open':''}"><button class="ni ${inGrp?'on':''}" data-act="entryToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${t.children.map(k=>`<li><button class="ni ${(inGrp&&UI.entryTab===k.id)||(k.season&&UI.tab==='seasonplan')?'on':''}" data-act="${k.season?'goSeason':'goEntry'}" data-id="${k.id}"><span>${k.icon?k.icon+' ':''}${k.label}</span></button></li>`).join('')}</ul>`:''}</li>`;return;}
-    if(t.children){const kids=t.children.filter(k=>tabOn(k.id));if(!tabOn('perf')||!kids.length)return;const open=!!UI.perfOpen||inPerf;
-      h+=`<li class="${open?'open':''}"><button class="ni ${inPerf&&!open?'on':''}" data-act="perfToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${kids.map(k=>`<li><button class="ni ${UI.tab===k.id?'on':''}" data-act="tab" data-id="${k.id}"><span>${k.label}</span>${badge[k.id]||''}</button></li>`).join('')}</ul>`:''}</li>`;return;}
+    if(t.children){const kids=t.children.filter(k=>tabOn(k.id));if(!tabOn('perf')||!kids.length)return;const open=!!UI.perfOpen; // ouvert seulement au clic sur « Performance » ; se referme après avoir choisi un sous-onglet
+      h+=`<li class="${open?'open':''}"><button class="ni ${inPerf&&!open?'on':''}" data-act="perfToggle" aria-expanded="${open}"><span>${t.label}</span><span class="chev">▶</span></button>${open?`<ul class="sub">${kids.map(k=>`<li><button class="ni ${UI.tab===k.id?'on':''}" data-act="goPerf" data-id="${k.id}"><span>${k.label}</span>${badge[k.id]||''}</button></li>`).join('')}</ul>`:''}</li>`;return;}
     if(!tabOn(t.id)&&(t.id!=='settings'||RESTRICT.tabs))return; // gérant·e : Paramètres masqué s'il n'est pas dans ses onglets
     h+=`<li><button class="ni ${UI.tab===t.id?'on':''}" data-act="tab" data-id="${t.id}"><span>${t.label}</span>${badge[t.id]||''}</button></li>`;});
   h+=`</ul><div class="navfoot" id="navfoot"></div>`;
@@ -1534,6 +1534,13 @@ VIEWS.testing=()=>{
   return `<div class="card"><div class="hrow"><div class="row"><h2>Test</h2><select id="testSel" style="width:auto">${tests.map(x=>`<option value="${esc(x.id)}" ${x.id===t.id?'selected':''}>${esc(x.name)} (${esc(x.unit)})</option>`).join('')}</select></div>
     <div class="row"><button class="btn sm pri" data-act="goEntry" data-id="tests">Nouvelle session de tests</button></div></div>
     <div class="grid g4">${kpi('Moyenne du groupe',fr(m,2),t.unit,lastVals.length+' joueurs testés')}${kpi('Écart-type',fr(sdv,2),t.unit,'Dispersion du groupe')}${kpi('Meilleur',ranked[0]?fr(ranked[0].last.v,2):'–',t.unit,ranked[0]?esc(ranked[0].p.name):'')}${kpi('Sessions',bats.length,'',bats.length?'Dernière : '+fmtD(bats[bats.length-1].date):'')}</div></div>
+  <div class="card"><div class="hrow"><h2>Mesures anthropométriques</h2><span class="small muted">Poids et taille — enregistrés sur la fiche du ${PL.one} · IMC calculé</span></div>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th><th class="n">Poids (kg)</th><th class="n">Taille (cm)</th><th class="n">IMC</th></tr></thead><tbody>
+    ${ps.map(p=>{const bmi=(num(p.mass)&&num(p.height))?num(p.mass)/Math.pow(num(p.height)/100,2):null;return `<tr><td>${esc(p.name)}</td>
+      <td class="n"><input type="number" inputmode="decimal" step="0.1" min="0" max="200" data-anthro="mass" data-id="${esc(p.id)}" value="${p.mass!=null?esc(p.mass):''}" aria-label="Poids ${esc(p.name)}" style="width:86px;text-align:right"></td>
+      <td class="n"><input type="number" inputmode="numeric" step="1" min="0" max="250" data-anthro="height" data-id="${esc(p.id)}" value="${p.height!=null?esc(p.height):''}" aria-label="Taille ${esc(p.name)}" style="width:86px;text-align:right"></td>
+      <td class="n" data-bmi>${bmi!=null?fr(bmi,1):'–'}</td></tr>`;}).join('')}
+    </tbody></table></div></div>
   <div class="grid g2">
     <div class="card"><div class="hrow"><h2>Classement</h2><span class="small muted">${hi?'Plus haut = meilleur':'Plus bas = meilleur'}</span></div>
       ${hbars(ranked.map(r=>({label:r.p.name,value:r.last.v,color:r.z!=null&&r.z<-1?'var(--warn)':'var(--accent)',tip:r.p.name+' : '+fr(r.last.v,2)+' '+t.unit+' ('+fmtD(r.last.date)+')'})),{fmt:v=>fr(v,2),max:Math.max(...lastVals,0)*1.02})}</div>
@@ -1551,7 +1558,16 @@ VIEWS.testing=()=>{
       return `<tr><td>${fmtD(b.date)}</td><td>${esc(b.cat)}</td><td>${esc(b.label||'')}</td><td class="wrap small">${ids.map(k=>esc((tests.find(x=>x.id===k)||{name:k}).name)).join(', ')}</td><td class="n">${np.size}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="tests" data-id="${esc(b.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="tests" data-id="${esc(b.id)}">×</button></div></td></tr>`;}).join('')||'<tr><td colspan="6" class="muted">Aucune session</td></tr>'}
     </tbody></table></div></div>`;
 };
-POST.testing=()=>{const a=$('#testSel');if(a)a.onchange=()=>{UI.testId=a.value;render();};const b=$('#testPl');if(b)b.onchange=()=>{UI.testPlayer=b.value;render();};};
+POST.testing=()=>{const a=$('#testSel');if(a)a.onchange=()=>{UI.testId=a.value;render();};const b=$('#testPl');if(b)b.onchange=()=>{UI.testPlayer=b.value;render();};
+  document.querySelectorAll('[data-anthro]').forEach(inp=>{inp.onchange=async()=>{
+    const id=inp.dataset.id,field=inp.dataset.anthro,p=DATA.players[id];if(!p)return;
+    const v=(inp.value||'').trim(),n=v===''?null:parseFloat(v.replace(',','.'));
+    const np=Object.assign({},p);
+    if(n==null||isNaN(n)||n<=0)delete np[field];else np[field]=field==='height'?Math.round(n):Math.round(n*10)/10;
+    await put('players',id,np,true); // silencieux : ne pas re-render pendant la saisie
+    const cur=DATA.players[id]||{},mv=num(cur.mass),hv=num(cur.height),bmi=(mv&&hv)?mv/Math.pow(hv/100,2):null;
+    const tr=inp.closest('tr'),cell=tr&&tr.querySelector('[data-bmi]');if(cell)cell.textContent=bmi!=null?fr(bmi,1):'–';
+  };});};
 
 /* ---------- PERFORMANCE : RÉATHLÉTISATION ---------- */
 function refWeeklyDist(pid,before){const w=[1,2,3,4].map(k=>{let s=0;for(let i=0;i<7;i++){const x=pday(pid,addDays(before,-(k-1)*7-i-1));if(x&&!x.reathle)s+=x.dist;}return s;}).filter(v=>v>0);return mean(w);}
@@ -2398,6 +2414,7 @@ const ACT={
   drawerTab:b=>{UI.drawerTab=b.dataset.id;renderDrawer();},
   closeDrawer:()=>{UI.drawer=null;renderDrawer();},
   perfToggle:()=>{UI.perfOpen=!UI.perfOpen;renderNav();},
+  goPerf:b=>{UI.perfOpen=false;go(b.dataset.id);},
   entryToggle:()=>{UI.entryOpen=!UI.entryOpen;renderNav();},
   goSeason:()=>{UI.entryOpen=false;go('seasonplan');},
   spLevel:b=>{const cat=spKey();const plan=spGet(cat);const i=+b.dataset.wk,key=b.dataset.key;const w=plan.weeks[i]=plan.weeks[i]||{};
