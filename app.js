@@ -1461,10 +1461,11 @@ function renderFullApp(section){
     if(mgr.tabs && mgr.tabs.length) parts.push('tabs=' + encodeURIComponent(mgr.tabs.join(',')));
     if(parts.length) footQ = '?' + parts.join('&');
   }
-  const src = section === 'individuel' ? '/academie/?mode=individuel'
+  let src = section === 'individuel' ? '/academie/?mode=individuel'
     : section === 'nutrition' ? '/academie/nutrition.html'
     : section === 'apa' ? '/academie/apa.html?coach=1'
     : '/academie/' + footQ;
+  if(section === 'football' && state.fbDemo){ src += (src.indexOf('?')>=0?'&':'?') + 'demo=1'; }
   const label = section === 'individuel' ? t('COACHING INDIVIDUEL','INDIVIDUAL') : section === 'nutrition' ? 'NUTRITION' : section === 'apa' ? 'APA' : 'FOOTBALL';
   const swBtn = (sec, txt) => {
     const active = section === sec;
@@ -1481,6 +1482,7 @@ function renderFullApp(section){
           ${restricted?'':sectionDropdown(section)}
           ${(state.access==='coach'&&!restricted)?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
           ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:sc?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(sc.name||sc.username)} · <b style="color:#fff">Coach ${admEsc(SPACE_LABELS[sc.space]||sc.space||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
+          ${section==='football'?`<button data-fbdemo title="${t('Afficher une équipe démo (lecture seule) pour voir les courbes','Show a demo team (read-only) to preview the charts')}" style="appearance:none;cursor:pointer;border:1px solid ${state.fbDemo?'#3DA9FC':'rgba(255,255,255,.25)'};background:${state.fbDemo?'#3DA9FC':'transparent'};color:${state.fbDemo?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">👁 ${state.fbDemo?t('Démo ✓','Demo ✓'):t('Démo','Demo')}</button>`:''}
           <button data-fbtheme title="${t('Thème clair / sombre','Light / dark theme')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">${themeIcon()} ${themeLabel()}</button>
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
@@ -1505,6 +1507,8 @@ function renderFullApp(section){
   if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
   const thb = app.querySelector('[data-fbtheme]');
   if(thb) thb.addEventListener('click', cycleTheme);
+  const dmb = app.querySelector('[data-fbdemo]');
+  if(dmb) dmb.addEventListener('click', () => { state.fbDemo = !state.fbDemo; render(); });
   const lo = app.querySelector('[data-fblogout]');
   if(lo) lo.addEventListener('click', logout);
   const ad = app.querySelector('[data-fbadmin]');
