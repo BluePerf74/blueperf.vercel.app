@@ -414,7 +414,11 @@ function scheduleRender(force){if(!force&&(formDirty||isEditingField())){pending
 
 /* ===== Backend Vercel (base partagée Upstash + IA) — remplace window.claude ===== */
 function makeApiDb(){
-  const cache={},listeners={},timers={},queue={},pending={};
+  const cache={},listeners={},timers={},queue={},pending={},failed={};let retryTimer=null;
+  // Résilience hors-ligne : une écriture qui échoue (réseau coupé) est ré-essayée automatiquement.
+  // save() renvoie TOUJOURS l'instantané complet de la collection → le ré-essai est idempotent (aucun risque de doublon).
+  function updateSyncUI(){try{Store.syncPending=Object.keys(failed).filter(c=>failed[c]).length;renderNavFoot();}catch(e){}}
+  function scheduleRetry(){if(retryTimer)return;retryTimer=setInterval(()=>{const cols=Object.keys(failed).filter(c=>failed[c]);if(!cols.length){clearInterval(retryTimer);retryTimer=null;return;}cols.forEach(c=>save(c));},10000);}
   async function fetchCol(col){
     try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(DB_PREFIX+':'+col)+'&_='+Date.now(),{cache:'no-store'});
       if(!r.ok)return null;const j=await r.json();return j&&j.value?JSON.parse(j.value):{};}catch(e){return null;}
@@ -423,8 +427,11 @@ function makeApiDb(){
   function save(col){
     pending[col]=(pending[col]||0)+1;
     queue[col]=(queue[col]||Promise.resolve()).then(async()=>{
-      try{await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key:DB_PREFIX+':'+col,value:JSON.stringify(cache[col]||{})})});}catch(e){}
+      let ok=false;
+      try{const r=await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key:DB_PREFIX+':'+col,value:JSON.stringify(cache[col]||{})})});ok=!!(r&&r.ok);}catch(e){ok=false;}
+      failed[col]=!ok;if(!ok)scheduleRetry();
       pending[col]=Math.max(0,(pending[col]||1)-1);
+      updateSyncUI();
     });
     return queue[col];
   }
@@ -868,7 +875,10 @@ function renderNav(){
   $('#nav').innerHTML=h;renderNavFoot();
 }
 function renderNavFoot(){const f=$('#navfoot');if(!f)return;
+  if(Store.mode==='db'&&Store.syncPending){f.innerHTML='<span class="dot" style="background:var(--warn)"></span>Hors-ligne — '+Store.syncPending+' modif. en attente, synchro auto';return;}
   f.innerHTML=Store.mode==='db'?'<span class="dot ok"></span>Données partagées, enregistrées en ligne':Store.mode==='local'?'<span class="dot loc"></span>Enregistrement dans ce navigateur uniquement':'<span class="dot"></span>Connexion à la base…';}
+// Avertit avant de fermer si des écritures ne sont pas encore synchronisées (saisie terrain hors-ligne).
+try{window.addEventListener('beforeunload',e=>{if(Store.mode==='db'&&Store.syncPending){e.preventDefault();e.returnValue='';}});}catch(e){}
 function tabLabel(id){for(const t of TABS){if(t.id===id)return t.label;if(t.children)for(const k of t.children)if(k.id===id)return (t.label+' · '+k.label);}return '';}
 function renderTop(){
   const cs=RESTRICT.team?[RESTRICT.team]:['Tous',...cats()];const ph=curPhase(UI.cat,UI.ref);const nm=nextMatch(UI.cat,UI.ref);
