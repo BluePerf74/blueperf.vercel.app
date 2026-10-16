@@ -887,6 +887,23 @@ function banner(){
   return `<div class="banner"><p><b>Données d'exemple</b> (joueurs et séances fictifs) pour découvrir l'outil. Tes saisies ne sont pas enregistrées tant que tu restes en mode exemple.</p>
   <div class="row"><span id="bulkProg" class="small muted"></span><button class="btn" data-act="keepDemo">Garder l'exemple comme base</button><button class="btn pri" data-act="startEmpty">Commencer avec mes joueurs</button></div></div>`;
 }
+// Prise en main guidée : s'affiche en mode réel tant que les 3 premières étapes ne sont pas faites.
+function quickstart(){
+  if(Store.demo||UI.qsDismiss||UI.tab==='settings')return '';
+  const hasP=Object.keys(DATA.players).length>0;
+  const hasS=Object.keys(DATA.sessions).length>0;
+  const hasRpe=Object.values(DATA.sessions).some(s=>s&&s.players&&Object.values(s.players).some(x=>x&&x.rpe!=null));
+  if(hasP&&hasS&&hasRpe)return '';
+  const steps=[
+    {ok:hasP,label:INDIV?'Ajoute tes client·es':'Ajoute ton effectif',id:'player',btn:'Ajouter'},
+    {ok:hasS,label:'Enregistre une première séance',id:'simple',btn:'Nouvelle séance'},
+    {ok:hasRpe,label:'Saisis les RPE de la séance',id:'rpe',btn:'Saisir RPE'}
+  ];
+  const done=steps.filter(s=>s.ok).length;
+  return `<div class="card" style="border-color:var(--accent)"><div class="hrow"><h2 style="margin:0">🚀 Prise en main — ${done}/${steps.length}</h2><button class="btn sm" data-act="qsHide">Masquer</button></div>
+    <p class="small muted" style="margin:4px 0 10px">Trois étapes pour que les tableaux et les courbes se remplissent.</p>
+    <div class="stack" style="gap:8px">${steps.map(s=>`<div class="row sb"><span>${s.ok?'✅':'⬜'} ${s.label}</span>${s.ok?'<span class="pill good">fait</span>':`<button class="btn sm pri" data-act="goEntry" data-id="${s.id}">${s.btn}</button>`}</div>`).join('')}</div></div>`;
+}
 function render(){
   buildIndex();
   if(!tabOn(UI.tab)&&(UI.tab!=='settings'||RESTRICT.tabs)){UI.tab=allTabIds().find(t=>tabOn(t))||'overview';}
@@ -1039,7 +1056,7 @@ VIEWS.overview=()=>{
         <td><span class="pill warn">${x.names.length}</span> <span class="small muted">${esc(x.names.slice(0,4).join(', '))}${x.names.length>4?'…':''}</span></td>
         <td><button class="btn sm pri" data-act="rpeComplete" data-col="${x.col}" data-id="${esc(x.id)}">Compléter</button></td></tr>`).join('')}
     </tbody></table></div>`:'<p class="muted" style="margin:0">Tous les RPE des 21 derniers jours sont saisis 👍</p>'}</div>`;
-  return `<div class="grid g6">
+  return `${quickstart()}<div class="grid g6">
     ${kpi('Disponibles',ps.length-unavail,'/'+ps.length,unavail?unavail+' blessé'+(unavail>1?'s':'')+' ou en réathlé':'Tout le groupe est disponible')}
     ${kpi('Alertes',red,'',`<span class="pill crit">${red} rouge${red>1?'s':''}</span> <span class="pill warn">${orange} orange</span>`,red?'crit':null)}
     ${kpi('Wellness du jour',wt.length?r0(mean(wt)):'–',wt.length?'%':'',`${wt.length}/${ps.length} questionnaires remplis`)}
@@ -2480,6 +2497,7 @@ const ACT={
   perfToggle:()=>{UI.perfOpen=!UI.perfOpen;renderNav();},
   goPerf:b=>{UI.perfOpen=false;go(b.dataset.id);},
   loadPdf:()=>exportLoadPdf(),
+  qsHide:()=>{UI.qsDismiss=true;try{saveUI();}catch(e){}render();},
   entryToggle:()=>{UI.entryOpen=!UI.entryOpen;renderNav();},
   goSeason:()=>{UI.entryOpen=false;go('seasonplan');},
   spLevel:b=>{const cat=spKey();const plan=spGet(cat);const i=+b.dataset.wk,key=b.dataset.key;const w=plan.weeks[i]=plan.weeks[i]||{};
