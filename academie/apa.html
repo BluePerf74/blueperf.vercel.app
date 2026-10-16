@@ -4,6 +4,8 @@
    et se met à jour en direct quand l'app le change (événement storage). */
 (function(){function apply(){var p=null;try{p=localStorage.getItem('bp_theme')}catch(e){}var r=document.documentElement;if(p==='light'||p==='dark')r.setAttribute('data-theme',p);else r.removeAttribute('data-theme');}apply();try{window.addEventListener('storage',function(e){if(!e||e.key==='bp_theme'||e.key===null)apply();});}catch(e){}})();
 </script>
+<script src="/i18n-dict.js?v=1" defer></script>
+<script src="/i18n-dom.js?v=1" defer></script>
 <title>APA Blueperf</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">

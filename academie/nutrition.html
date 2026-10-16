@@ -7,6 +7,8 @@
 /* Thème partagé avec l'app principale (même origine) : lit bp_theme et se met à jour en direct. */
 (function(){function a(){var p=null;try{p=localStorage.getItem('bp_theme')}catch(e){}var r=document.documentElement;if(p==='light'||p==='dark')r.setAttribute('data-theme',p);else r.removeAttribute('data-theme');}a();try{window.addEventListener('storage',function(e){if(!e||e.key==='bp_theme'||e.key===null)a();});}catch(e){}})();
 </script>
+<script src="/i18n-dict.js?v=1" defer></script>
+<script src="/i18n-dom.js?v=1" defer></script>
 <title>Blueperf · Nutrition</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
