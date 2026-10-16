@@ -767,6 +767,8 @@ function lineChart(o){
   const leg=o.series.length>1?`<div class="legend">${o.series.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>`:'';
   return leg+g;
 }
+// Marqueurs blessure pour les courbes de charge : garde les blessures dont la date figure dans l'axe.
+function injMarksIn(labels){try{return Object.values(DATA.injuries).filter(i=>i&&i.date&&DATA.players[i.pid]&&inCat(DATA.players[i.pid])&&labels.indexOf(i.date)>=0).map(i=>({date:i.date,label:(pname(i.pid)||'')+(i.zone?' ('+i.zone+')':'')}));}catch(e){return [];}}
 function barChart(o){
   const W=640,H=o.h||190,L=44,Rp=10,T=10,B=24;const n=o.labels.length;if(!n)return '<div class="empty">Pas de données</div>';
   const vals=o.values.filter(v=>v!=null);(o.refs||[]).forEach(r=>vals.push(r.v));const mx=Math.max(1,...vals);const tk=niceTicks(0,mx,4);const y1=tk[tk.length-1];
@@ -776,9 +778,12 @@ function barChart(o){
   o.values.forEach((v,i)=>{if(!v)return;const h=Math.max(1,y(0)-y(v));const bx=L+i*bw+Math.min(2,bw*.12);const w=Math.max(2,bw-Math.min(4,bw*.24));const c=(o.colors&&o.colors[i])||o.color||'var(--accent)';const r=Math.min(3,w/2);
     g+=`<path d="M${bx} ${y(0)} V${y(0)-h+r} Q${bx} ${y(0)-h} ${bx+r} ${y(0)-h} H${bx+w-r} Q${bx+w} ${y(0)-h} ${bx+w} ${y(0)-h+r} V${y(0)} Z" fill="${c}"/>`;});
   (o.refs||[]).forEach(r=>{g+=`<line x1="${L}" x2="${W-Rp}" y1="${y(r.v)}" y2="${y(r.v)}" stroke="${r.color||'var(--ink-2)'}" stroke-dasharray="4 4" stroke-width="1.2"/><text x="${W-Rp}" y="${y(r.v)-4}" text-anchor="end">${esc(r.label||'')}</text>`;});
+  // Marqueurs d'événements (ex. blessures) : trait vertical + fanion ; l'info va dans l'infobulle du jour.
+  const markMap={};(o.marks||[]).forEach(mk=>{const i=o.labels.indexOf(mk.date);if(i<0)return;(markMap[i]=markMap[i]||[]).push(mk.label||'Blessure');const x=L+i*bw+bw/2,col=mk.color||'var(--crit)';g+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${H-B}" stroke="${col}" stroke-dasharray="3 3" stroke-width="1.1" opacity=".85"/><path d="M${x-3} ${T} H${x+3} L${x} ${T+5} Z" fill="${col}"/>`;});
   const step=Math.max(1,Math.ceil(n/(o.maxLabels||10)));o.labels.forEach((l,i)=>{if(i%step===0)g+=`<text x="${L+i*bw+bw/2}" y="${H-6}" text-anchor="middle">${esc(o.xfmt?o.xfmt(l):fmtShort(l))}</text>`;});
-  o.values.forEach((v,i)=>{g+=`<rect x="${L+i*bw}" y="${T}" width="${bw}" height="${H-T-B}" fill="transparent" data-tip="${esc((o.tips&&o.tips[i])||((o.xfmt?o.xfmt(o.labels[i]):fmtD(o.labels[i]))+'\n'+fmt(v||0)+(o.unit?' '+o.unit:'')))}"/>`;});
-  return g+'</svg>'+(o.legend?`<div class="legend" style="margin-top:6px">${o.legend.map(l=>`<span><i style="background:${l[1]}"></i>${esc(l[0])}</span>`).join('')}</div>`:'');
+  o.values.forEach((v,i)=>{g+=`<rect x="${L+i*bw}" y="${T}" width="${bw}" height="${H-T-B}" fill="transparent" data-tip="${esc(((o.tips&&o.tips[i])||((o.xfmt?o.xfmt(o.labels[i]):fmtD(o.labels[i]))+'\n'+fmt(v||0)+(o.unit?' '+o.unit:'')))+(markMap[i]?'\n⚠ Blessure : '+markMap[i].join(', '):''))}"/>`;});
+  const legItems=(o.legend||[]).slice();if(Object.keys(markMap).length)legItems.push(['Blessure','var(--crit)']);
+  return g+'</svg>'+(legItems.length?`<div class="legend" style="margin-top:6px">${legItems.map(l=>`<span><i style="background:${l[1]}"></i>${esc(l[0])}</span>`).join('')}</div>`:'');
 }
 function hbars(items,o={}){ // items: {label,value,color,tip,sub}
   if(!items.length)return '<div class="empty">Pas de données</div>';
@@ -1047,7 +1052,7 @@ VIEWS.overview=()=>{
   ${relanceCard}
   <div class="grid g2">
     <div class="card"><div class="hrow"><h2>Charge d'équipe, 28 jours</h2><span class="small muted">sRPE moyen par joueur présent</span></div>
-      ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
+      ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:[['Entraînement',COL_TR],['Match',COL_MATCH]],marks:injMarksIn(td.labels)})}</div>
     <div class="card"><div class="hrow"><h2>Wellness d'équipe, 28 jours</h2><span class="small muted">Score moyen sur 100</span></div>
       ${lineChart({labels:tw.labels,series:[{name:'Wellness',values:tw.vals,color:COL_TR,area:true}],yMin:40,yMax:100,refs:[{v:th.well,label:'Seuil '+th.well+' %'}],fmt:v=>r0(v)})}</div>
   </div>
@@ -1188,7 +1193,7 @@ VIEWS.load=()=>{
   </div>
   <div class="grid g2">
     <div class="card"><div class="hrow"><h2>Charge quotidienne</h2><span class="small muted">sRPE = RPE × minutes, moyenne par joueur présent</span></div>
-      ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
+      ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:[['Entraînement',COL_TR],['Match',COL_MATCH]],marks:injMarksIn(td.labels)})}</div>
     <div class="card"><div class="hrow"><h2>Charge hebdomadaire, 10 semaines</h2><span class="small muted">Semaines glissantes se terminant le jour indiqué</span></div>
       ${barChart({labels:weeks.map(w=>w.end),values:weeks.map(w=>w.v||0),colors:weeks.map((w,i)=>i===weeks.length-1?COL_TR:'color-mix(in srgb,var(--accent) 45%,var(--surface))'),unit:'UA',refs:[{v:mean(weeks.slice(-5,-1).map(w=>w.v).filter(Boolean))||0,label:'Moy. 4 sem.'}]})}</div>
   </div>
