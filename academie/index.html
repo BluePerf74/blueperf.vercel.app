@@ -367,11 +367,11 @@ const DEF={
  // Paires gauche/droite : % de symétrie = min/max × 100 (ex. 48/47 → 98 %).
  asym:[{label:'Side hop',d:'sidehopd',g:'sidehopg'},{label:'Triple hop',d:'triplehopd',g:'triplehopg'}],
  rtp:[
-  {name:'Soins & protection',criteria:['Douleur au repos 0/10','Marche sans boiterie','Amplitude ≥ 80 % du côté sain']},
-  {name:'Force & mobilité',criteria:['Amplitude complète sans douleur','Force isométrique ≥ 80 % du côté sain','Gainage et appuis unipodaux sans douleur']},
-  {name:'Course linéaire',criteria:['Course à 70 % Vmax sans douleur','Force ≥ 90 % du côté sain','Sauts bipodaux et unipodaux sans douleur']},
-  {name:'Terrain spécifique',criteria:['Sprint ≥ 90 % Vmax','Changements de direction à intensité max','Frappes, duels et jeu réduit progressifs','Charge GPS hebdo ≥ 80 % de la référence']},
-  {name:'Retour groupe',criteria:['2 séances collectives complètes','Tests ≥ 95 % de la référence','Feu vert médical']}],
+  {name:'Soins & protection',load:0,vmax:0,criteria:['Douleur au repos 0/10','Marche sans boiterie','Amplitude ≥ 80 % du côté sain']},
+  {name:'Force & mobilité',load:20,vmax:50,criteria:['Amplitude complète sans douleur','Force isométrique ≥ 80 % du côté sain','Gainage et appuis unipodaux sans douleur']},
+  {name:'Course linéaire',load:50,vmax:70,criteria:['Course à 70 % Vmax sans douleur','Force ≥ 90 % du côté sain','Sauts bipodaux et unipodaux sans douleur']},
+  {name:'Terrain spécifique',load:80,vmax:90,criteria:['Sprint ≥ 90 % Vmax','Changements de direction à intensité max','Frappes, duels et jeu réduit progressifs','Charge GPS hebdo ≥ 80 % de la référence']},
+  {name:'Retour groupe',load:95,vmax:95,criteria:['2 séances collectives complètes','Tests ≥ 95 % de la référence','Feu vert médical']}],
  muscuExos:['Squat arrière','Soulevé de terre roumain','Hip thrust','Développé couché','Tractions lestées','Épaulé debout'],
  skills:['Squat','Charnière hanche','Fente','Tirage','Poussée','Réception de saut']
 };
@@ -1587,16 +1587,24 @@ VIEWS.reathle=()=>{
   if(sel){const ph=sel.phase||0;const cr=(sel.criteria&&sel.criteria[ph])||[];const cur=rtp[ph]||{name:'',criteria:[]};const allOk=cur.criteria.every((c,k)=>cr[k]);
     const log=(sel.log||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));const refW=refWeeklyDist(sel.pid,sel.date);
     let w7=0;log.forEach(l=>{if(dayDiff(ref,l.date)<7&&l.date<=ref)w7+=num(l.dist)||0;});const pct=refW?w7/refW*100:null;const p=DATA.players[sel.pid];const pv=vref(p);const vm=Math.max(0,...log.map(l=>num(l.vmax)||0));
+    // --- Cibles chiffrées de la phase (garde objective de progression) ---
+    const DEFLOAD=[0,20,50,80,95],DEFVMAX=[0,50,70,90,95];
+    const tgtLoad=cur.load!=null?cur.load:(DEFLOAD[ph]!=null?DEFLOAD[ph]:0);
+    const tgtVmax=cur.vmax!=null?cur.vmax:(DEFVMAX[ph]!=null?DEFVMAX[ph]:0);
+    const curVmaxPct=(pv&&vm)?vm/pv*100:null;
+    const loadOk=tgtLoad<=0||(pct!=null&&pct>=tgtLoad);
+    const vmaxOk=tgtVmax<=0||(curVmaxPct!=null&&curVmaxPct>=tgtVmax);
+    const numOk=loadOk&&vmaxOk;const readyOk=allOk&&numOk;
     detail=`<div class="row sb"><div><div class="eyebrow">${esc(sel.zone)} · ${esc(sel.type||'')} · ${esc(sel.side||'')}</div><h2 style="margin:2px 0 0;font-size:26px">${plink(sel.pid)}</h2><div class="small muted">Blessé le ${fmtD(sel.date)} · J+${dayDiff(ref,sel.date)} · retour prévu ${fmtD(sel.expectedReturn)}</div></div>
       <div class="row"><button class="btn sm" data-act="medOpen" data-id="${esc(sel.id)}">Fiche médicale</button>${sel.status==='reprise'?`<button class="btn sm pri" data-act="injStatus" data-id="${esc(sel.id)}" data-v="apte">Déclarer apte</button>`:''}</div></div>
     <div class="steps" style="margin:14px 0">${rtp.map((r,k)=>`<div class="${k<ph?'done':k===ph?'cur':''}">${k+1}. ${esc(r.name)}</div>`).join('')}</div>
     <div class="grid g2"><div class="card flat"><h3>Critères de la phase ${ph+1} : ${esc(cur.name)}</h3><div class="stack">
       ${cur.criteria.map((c,k)=>`<label class="chk"><input type="checkbox" data-chg="crit" data-id="${esc(sel.id)}" data-k="${k}" ${cr[k]?'checked':''}> ${esc(c)}</label>`).join('')}</div>
       <div class="row" style="margin-top:12px">${ph>0?`<button class="btn sm" data-act="phase" data-id="${esc(sel.id)}" data-v="-1">Phase précédente</button>`:''}
-      ${ph<rtp.length-1?`<button class="btn sm ${allOk?'pri':''}" data-act="phase" data-id="${esc(sel.id)}" data-v="1">${allOk?'Valider et passer en phase '+(ph+2):'Passer en phase '+(ph+2)+' (critères incomplets)'}</button>`:`<button class="btn sm pri" data-act="injStatus" data-id="${esc(sel.id)}" data-v="reprise">Passer en reprise collective</button>`}</div></div>
-      <div class="card flat"><h3>Progression de charge terrain</h3><div class="stack small">
-        <div><div class="row sb"><span>Distance 7 j / référence habituelle</span><b>${pct!=null?r0(pct)+' %':'–'}</b></div><div class="bar"><i style="width:${clamp(pct||0,0,100)}%;background:${pct>=80?'var(--good)':'var(--accent)'}"></i></div><span class="muted">${r0(w7)} m sur 7 j · référence ${refW?r0(refW)+' m/sem':'non disponible'}</span></div>
-        <div><div class="row sb"><span>Vmax atteinte / Vmax de référence</span><b>${pv&&vm?r0(vm/pv*100)+' %':'–'}</b></div><div class="bar"><i style="width:${pv&&vm?clamp(vm/pv*100,0,100):0}%;background:${pv&&vm/pv>=.9?'var(--good)':'var(--accent)'}"></i></div><span class="muted">${vm?r1(vm)+' km/h':'–'} sur ${r1(pv)} km/h</span></div></div></div></div>
+      ${ph<rtp.length-1?`<button class="btn sm ${readyOk?'pri':''}" data-act="phase" data-id="${esc(sel.id)}" data-v="1">${readyOk?'Valider et passer en phase '+(ph+2):'Passer en phase '+(ph+2)+' (objectifs incomplets)'}</button>`:`<button class="btn sm pri" data-act="injStatus" data-id="${esc(sel.id)}" data-v="reprise">Passer en reprise collective</button>`}</div></div>
+      <div class="card flat"><div class="hrow"><h3 style="margin:0">Progression de charge terrain</h3><span class="pill ${numOk?'good':'warn'}">${numOk?'Objectifs atteints':'Objectifs à atteindre'}</span></div><p class="small muted" style="margin:4px 0 8px">Cibles chiffrées de la phase ${ph+1} : charge ≥ ${tgtLoad} % · Vmax ≥ ${tgtVmax} %</p><div class="stack small">
+        <div><div class="row sb"><span>Distance 7 j / référence habituelle</span><b>${pct!=null?r0(pct)+' %':'–'}</b></div><div class="bar"><i style="width:${clamp(pct||0,0,100)}%;background:${loadOk?'var(--good)':'var(--accent)'}"></i></div><span class="muted">${r0(w7)} m sur 7 j · réf. ${refW?r0(refW)+' m/sem':'n.d.'} · objectif ≥ ${tgtLoad} %${tgtLoad<=0?'':(loadOk?' ✓':' ✗')}</span></div>
+        <div><div class="row sb"><span>Vmax atteinte / Vmax de référence</span><b>${curVmaxPct!=null?r0(curVmaxPct)+' %':'–'}</b></div><div class="bar"><i style="width:${curVmaxPct!=null?clamp(curVmaxPct,0,100):0}%;background:${vmaxOk?'var(--good)':'var(--accent)'}"></i></div><span class="muted">${vm?r1(vm)+' km/h':'–'} sur ${r1(pv)} km/h · objectif ≥ ${tgtVmax} %${tgtVmax<=0?'':(vmaxOk?' ✓':' ✗')}</span></div></div></div></div>
     <div class="card flat" style="margin-top:14px"><div class="hrow"><h3>Séances de réathlétisation</h3></div>
       ${log.length>1?barChart({labels:log.map(l=>l.date),values:log.map(l=>num(l.dist)||0),unit:'m',h:140}):''}
       <div class="tw" style="margin-top:8px"><table><thead><tr><th>Date</th><th>Contenu</th><th class="n">Min</th><th class="n">RPE</th><th class="n">Distance</th><th class="n">HSR</th><th class="n">Vmax</th><th></th></tr></thead><tbody>
