@@ -639,13 +639,65 @@ window.BP_I18N_DICT = {
   "Échéance":"Due date",
   "Émargée":"Signed",
   "État du jour":"Daily status",
-  "Document confidentiel — données de santé (RGPD).":"Confidential document — health data (GDPR)."
+  "Document confidentiel — données de santé (RGPD).":"Confidential document — health data (GDPR).",
+
+  /* ===== APA — écran Groupes / vue d'ensemble ===== */
+  "Clients APA":"APA clients",
+  "dossiers ouverts":"open files",
+  "Anamnèses complètes":"Completed intakes",
+  "à terminer":"to finish",
+  "Tout est renseigné":"All filled in",
+  "Avis médical à obtenir":"Medical opinion required",
+  "Avant tout test d'effort":"Before any stress test",
+  "Aucun avis à obtenir":"No opinion required",
+  "client(s) avec une action en attente":"client(s) with a pending action",
+  "Anamnèse à compléter pour placer le client.":"Intake to complete before placing the client.",
+  "Tous les clients sont placés":"All clients are placed",
+  "Choisir un client":"Choose a client",
+  "Avis médical":"Medical opinion",
+
+  /* Groupes par pathologie (noms + descriptions) */
+  "Cardio-métabolique":"Cardio-metabolic",
+  "HTA, diabète de type 2, obésité, dyslipidémie, maladie coronarienne":"Hypertension, type 2 diabetes, obesity, dyslipidemia, coronary heart disease",
+  "Oncologie":"Oncology",
+  "Pendant et après un traitement du cancer":"During and after cancer treatment",
+  "Locomoteur et douleur chronique":"Musculoskeletal and chronic pain",
+  "Lombalgie, arthrose, ostéoporose, fibromyalgie":"Low back pain, osteoarthritis, osteoporosis, fibromyalgia",
+  "Respiratoire":"Respiratory",
+  "BPCO, asthme":"COPD, asthma",
+  "Neurologique":"Neurological",
+  "Parkinson, sclérose en plaques, séquelles d'AVC":"Parkinson's, multiple sclerosis, stroke sequelae",
+  "Santé mentale et fatigue":"Mental health and fatigue",
+  "Dépression, anxiété, fatigue chronique":"Depression, anxiety, chronic fatigue",
+  "Vieillissement et chutes":"Ageing and falls",
+  "Sarcopénie, fragilité, risque de chute":"Sarcopenia, frailty, fall risk",
+  "Autre ou à définir":"Other or to be defined",
+  "Situation à préciser avec un professionnel de santé":"Situation to clarify with a healthcare professional",
+
+  /* Modèles de programme par pathologie */
+  "Cardio-métabolique (HTA, DT2, obésité)":"Cardio-metabolic (hypertension, T2D, obesity)",
+  "Vieillissement, prévention des chutes":"Ageing, fall prevention",
+  "Oncologie (pendant / après traitement)":"Oncology (during / after treatment)",
+  "Respiratoire (BPCO, asthme)":"Respiratory (COPD, asthma)",
+  "Locomoteur / douleur chronique (lombalgie, arthrose)":"Musculoskeletal / chronic pain (low back pain, osteoarthritis)"
 
 };
+
+/* Dates françaises → anglaises */
+var _WD = { lundi:'Monday', mardi:'Tuesday', mercredi:'Wednesday', jeudi:'Thursday', vendredi:'Friday', samedi:'Saturday', dimanche:'Sunday' };
+var _MO = { janvier:'January', 'février':'February', mars:'March', avril:'April', mai:'May', juin:'June', juillet:'July', 'août':'August', septembre:'September', octobre:'October', novembre:'November', 'décembre':'December' };
+var _MOS = { 'janv.':'Jan', 'févr.':'Feb', mars:'Mar', 'avr.':'Apr', mai:'May', juin:'Jun', 'juil.':'Jul', 'août':'Aug', 'sept.':'Sep', 'oct.':'Oct', 'nov.':'Nov', 'déc.':'Dec' };
 
 /* Motifs dynamiques (sur le cœur de chaîne normalisé) */
 window.BP_I18N_PATTERNS = [
   [/^Semaine (\d+)$/, function(m){ return 'Week ' + m[1]; }],
   [/^Sem\. (\d+)$/, function(m){ return 'Wk ' + m[1]; }],
-  [/^Jour (\d+)$/, function(m){ return 'Day ' + m[1]; }]
+  [/^Jour (\d+)$/, function(m){ return 'Day ' + m[1]; }],
+  [/^Anamnèse (\d+)\/(\d+)$/, function(m){ return 'Intake ' + m[1] + '/' + m[2]; }],
+  // "vendredi 16 octobre" → "Friday 16 October"
+  [/^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) (\d{1,2}) (janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)( \d{4})?$/,
+    function(m){ return _WD[m[1]] + ' ' + m[2] + ' ' + _MO[m[3]] + (m[4]||''); }],
+  // "16 oct. 2025" → "16 Oct 2025"
+  [/^(\d{1,2}) (janv\.|févr\.|mars|avr\.|mai|juin|juil\.|août|sept\.|oct\.|nov\.|déc\.) (\d{4})$/,
+    function(m){ return m[1] + ' ' + _MOS[m[2]] + ' ' + m[3]; }]
 ];
