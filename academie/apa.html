@@ -182,6 +182,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .pdayitem .pgo{color:var(--muted);font-size:22px;line-height:1;flex:0 0 auto}
 .pwa{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:#25D366;color:#fff;flex:0 0 auto;text-decoration:none;border:0;cursor:pointer;transition:transform .1s,box-shadow .12s}
 .pwa:hover{transform:scale(1.07);box-shadow:0 3px 10px rgba(37,211,102,.45)}
+.pwa.walabel{width:auto;height:auto;gap:7px;padding:8px 14px;font:600 13px var(--f-body);border-radius:9px}
+.pwa.walabel:hover{transform:translateY(-1px)}
 .pdayempty{padding:34px;text-align:center;color:var(--muted);background:var(--card2);border:1px dashed var(--line);border-radius:13px;font-size:14px}
 /* sélecteur de couleur de groupe */
 .gsw-row{display:flex;gap:10px;flex-wrap:wrap}
@@ -982,6 +984,11 @@ render();
 const uid6=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const todayISO=()=>new Date().toISOString().slice(0,10);
 const dISO=iso=>{try{return new Date((iso&&iso.length<=10?iso+'T00:00':iso)).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})}catch(e){return iso||''}};
+/* ---- Rappel WhatsApp (clic pour envoyer) : lien wa.me pré-rempli ---- */
+const WA_SVG='<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.3A10 10 0 1012 2zm0 18.2a8.2 8.2 0 01-4.2-1.2l-.3-.2-2.9.8.8-2.8-.2-.3A8.2 8.2 0 1112 20.2zm4.5-5.6c-.2-.1-1.4-.7-1.7-.8s-.4-.1-.5.1-.6.8-.8 1-.3.1-.5 0a6.7 6.7 0 01-2-1.2 7.4 7.4 0 01-1.3-1.7c-.2-.3 0-.4.1-.5l.4-.5.2-.4a.5.5 0 000-.4l-.8-1.9c-.2-.5-.4-.4-.5-.4h-.5a.9.9 0 00-.7.3A2.9 2.9 0 006 8.8c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.8 5.1c.8.4 1.5.6 2 .7.8.3 1.6.2 2.2.1.6-.1 1.4-.6 1.6-1.1.2-.6.2-1 .1-1.1s-.2-.2-.5-.4z"/></svg>';
+function waDigits(code){const c=(ctx.cache.clients||{})[code]||{};const raw=((c.p&&c.p.tel)||'').trim();let d=raw.replace(/[^\d]/g,'');if(!d)return '';if(raw.charAt(0)!=='+'&&d.charAt(0)==='0'&&d.length===10)d='33'+d.slice(1);return d;}
+function waHref(code,dateISO){const num=waDigits(code);if(!num)return '';const c=(ctx.cache.clients||{})[code]||{};const prenom=(c.p&&c.p.prenom)||'';const msg=T('Bonjour','Hello')+(prenom?' '+prenom:'')+', '+T('petit rappel de votre séance d’activité physique adaptée le','just a reminder of your adapted physical activity session on')+' '+dISO(dateISO)+'. '+T('À bientôt !','See you soon!');return 'https://wa.me/'+num+'?text='+encodeURIComponent(msg);}
+function waBtn(code,dateISO,opts){opts=opts||{};const h=waHref(code,dateISO);if(!h)return '';return `<a class="pwa${opts.label?' walabel':''}" href="${h}" target="_blank" rel="noopener" title="${T('Envoyer un rappel WhatsApp','Send a WhatsApp reminder')}" aria-label="WhatsApp">${WA_SVG}${opts.label?'<span>'+T('Rappel WhatsApp','WhatsApp reminder')+'</span>':''}</a>`;}
 const numv=v=>{const n=parseFloat(String(v??'').replace(',','.'));return Number.isFinite(n)?n:NaN};
 const seancesOf=code=>Object.values(ctx.cache.seances||{}).filter(s=>s&&s.code===code).sort((a,b)=>String(a.date+a.id).localeCompare(String(b.date+b.id)));
 const bilansOf=code=>Object.values(ctx.cache.bilans||{}).filter(b=>b&&b.code===code).sort((a,b)=>String(a.date+a.id).localeCompare(String(b.date+b.id)));
@@ -1064,7 +1071,7 @@ subviews.seances=function(){const code=ctx.sel;if(ctx.sdraft&&ctx.sdraft.code!==
  const head=`<div class="bar"><div style="min-width:220px"><p class="lead" style="margin:0">Fiches de séance de ce bénéficiaire, pensées pour la tablette en salle.</p>${al.length?`<div class="alert" style="margin-top:8px">${al.map(a=>`<span class="pill ${a[1]}">${esc(a[0])}</span>`).join('')}</div>`:''}</div><span class="ctl"><button class="btn pri" data-act="snew">+ Nouvelle séance</button>${list.length?'<button class="btn" data-act="sdup">Dupliquer la dernière</button>':''}</span></div>`;
  if(!list.length)return head+'<p class="empty" style="margin-top:14px">Aucune séance enregistrée pour l’instant.</p>';
  const cards=list.slice().reverse().map(s=>{const pc=s.presence==='present'?'ok':s.presence==='abs_j'?'warn':'bad';
-  return`<div class="card scard"><div class="sh"><b>${esc(dISO(s.date))}</b><div class="meta"><span class="pill ${pc}">${presLabel(s.presence)}</span><span class="pill">${s.type==='collectif'?'Collectif':'Individuel'}</span>${s.duree?`<span class="pill">${esc(s.duree)} min</span>`:''}${s.lieu?`<span class="pill">${esc(s.lieu)}</span>`:''}</div></div>${s.presence==='present'?`<div class="meta"><span class="pill">Forme ${esc(s.forme)}/10</span><span class="pill ${numv(s.douleur)>=5?'bad':''}">Douleur ${esc(s.douleur)}/10${s.douleur_loc?' · '+esc(s.douleur_loc):''}</span><span class="pill">Fatigue ${esc(s.fatigue)}/10</span>${s.borg?`<span class="pill">Borg ${esc(s.borg)}</span>`:''}${s.fc?`<span class="pill">${esc(s.fc)} bpm</span>`:''}${s.tolerance?`<span class="pill">Tolérance ${esc(tolLabel(s.tolerance)).toLowerCase()}</span>`:''}${s.emarge?'<span class="pill ok">Émargée</span>':''}</div>`:''}${s.contenu?`<p class="obs">${esc(s.contenu)}</p>`:''}${s.adaptations?`<p class="obs"><b>Adaptations.</b> ${esc(s.adaptations)}</p>`:''}${s.obs?`<p class="obs"><b>Obs.</b> ${esc(s.obs)}</p>`:''}<div class="mfoot" style="border-top:0;padding-top:0"><button class="btn del" data-act="sdel" data-sid="${esc(s.id)}">Supprimer</button></div></div>`}).join('');
+  return`<div class="card scard"><div class="sh"><b>${esc(dISO(s.date))}</b><div class="meta"><span class="pill ${pc}">${presLabel(s.presence)}</span><span class="pill">${s.type==='collectif'?'Collectif':'Individuel'}</span>${s.duree?`<span class="pill">${esc(s.duree)} min</span>`:''}${s.lieu?`<span class="pill">${esc(s.lieu)}</span>`:''}</div></div>${s.presence==='present'?`<div class="meta"><span class="pill">Forme ${esc(s.forme)}/10</span><span class="pill ${numv(s.douleur)>=5?'bad':''}">Douleur ${esc(s.douleur)}/10${s.douleur_loc?' · '+esc(s.douleur_loc):''}</span><span class="pill">Fatigue ${esc(s.fatigue)}/10</span>${s.borg?`<span class="pill">Borg ${esc(s.borg)}</span>`:''}${s.fc?`<span class="pill">${esc(s.fc)} bpm</span>`:''}${s.tolerance?`<span class="pill">Tolérance ${esc(tolLabel(s.tolerance)).toLowerCase()}</span>`:''}${s.emarge?'<span class="pill ok">Émargée</span>':''}</div>`:''}${s.contenu?`<p class="obs">${esc(s.contenu)}</p>`:''}${s.adaptations?`<p class="obs"><b>Adaptations.</b> ${esc(s.adaptations)}</p>`:''}${s.obs?`<p class="obs"><b>Obs.</b> ${esc(s.obs)}</p>`:''}<div class="mfoot" style="border-top:0;padding-top:0">${waBtn(code,s.date,{label:true})}<button class="btn del" data-act="sdel" data-sid="${esc(s.id)}">Supprimer</button></div></div>`}).join('');
  return head+`<div class="slist" style="margin-top:14px">${cards}</div>`};
 
 /* ---------- Bilans datés + comparaison + courbes ---------- */
@@ -1678,19 +1685,12 @@ document.addEventListener('click',e=>{
       cells+=`<div class="mcell${out?' out':''}${d===today?' today':''}${d===ref?' focus':''}"><div class="mnum">${parse(d).getDate()}</div><div class="mchips">${shown}</div></div>`;}
     return `<div class="pmonthhead">${[0,1,2,3,4,5,6].map(i=>`<div>${esc(parse(addD(monday(ref),i)).toLocaleDateString(loc(),{weekday:'short'}))}</div>`).join('')}</div><div class="pmonth">${cells}</div>`;
   }
-  function waNumber(code){const c=(ctx.cache.clients||{})[code]||{};const raw=((c.p&&c.p.tel)||'').trim();let d=raw.replace(/[^\d]/g,'');if(!d)return '';if(raw.charAt(0)!=='+'&&d.charAt(0)==='0'&&d.length===10)d='33'+d.slice(1);return d;}
-  function waLink(code,date){const num=waNumber(code);if(!num)return '';const c=(ctx.cache.clients||{})[code]||{};const prenom=(c.p&&c.p.prenom)||'';
-    let dstr=date;try{dstr=parse(date).toLocaleDateString(loc(),{weekday:'long',day:'numeric',month:'long'});}catch(e){}
-    const msg=T('Bonjour','Hello')+(prenom?' '+prenom:'')+', '+T('petit rappel de votre séance d’activité physique adaptée','just a reminder of your adapted physical activity session')+' '+T('le','on')+' '+dstr+'. '+T('À bientôt !','See you soon!');
-    return 'https://wa.me/'+num+'?text='+encodeURIComponent(msg);}
-  const WA_SVG='<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.3A10 10 0 1012 2zm0 18.2a8.2 8.2 0 01-4.2-1.2l-.3-.2-2.9.8.8-2.8-.2-.3A8.2 8.2 0 1112 20.2zm4.5-5.6c-.2-.1-1.4-.7-1.7-.8s-.4-.1-.5.1-.6.8-.8 1-.3.1-.5 0a6.7 6.7 0 01-2-1.2 7.4 7.4 0 01-1.3-1.7c-.2-.3 0-.4.1-.5l.4-.5.2-.4a.5.5 0 000-.4l-.8-1.9c-.2-.5-.4-.4-.5-.4h-.5a.9.9 0 00-.7.3A2.9 2.9 0 006 8.8c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.8 5.1c.8.4 1.5.6 2 .7.8.3 1.6.2 2.2.1.6-.1 1.4-.6 1.6-1.1.2-.6.2-1 .1-1.1s-.2-.2-.5-.4z"/></svg>';
   function dayItem(ev){const isG=ev.kind==='group';const g=isG&&typeof groupOf==='function'?groupOf(ev.gid):null;
     const col=isG?(g?gcolorVar(g):'var(--lav)'):clientColor(ev.code);
     const title=isG?(g?g.name:'Groupe'):ev.name;
     const sub=[isG?T('Cours collectif','Group class')+' · '+ev.count+' '+T('participant(s)','participant(s)'):T('Séance individuelle','Individual session'),ev.dur?esc(ev.dur)+' min':'',ev.lieu?esc(ev.lieu):''].filter(Boolean).join(' · ');
     const attr=isG?`data-open-group="${esc(ev.gid)}"`:`data-open-page="${esc(ev.code)}"`;
-    const wl=!isG?waLink(ev.code,ev.date):'';
-    const wa=wl?`<a class="pwa" href="${wl}" target="_blank" rel="noopener" title="${T('Envoyer un rappel WhatsApp','Send a WhatsApp reminder')}" aria-label="WhatsApp">${WA_SVG}</a>`:'';
+    const wa=!isG?waBtn(ev.code,ev.date):'';
     return `<div class="pdayitem" style="--c:${col}"><span class="pbar"></span><button class="pdaymain" ${attr}><b>${esc(title)}</b><span class="psub">${sub}</span></button>${wa}<span class="pgo">›</span></div>`;
   }
   function dayView(ref,ev,today){const list=ev[ref]||[];const t=ref===today;
