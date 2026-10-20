@@ -69,8 +69,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .crow.prow{cursor:pointer;transition:background .12s;padding-left:8px;padding-right:8px;border-radius:10px}
 .crow.prow:hover{background:var(--card2)}
-.gcard.clk{cursor:pointer;transition:transform .1s,box-shadow .12s,border-color .12s}
-.gcard.clk:hover{box-shadow:0 6px 20px rgba(0,0,0,.16);transform:translateY(-1px)}
+.gcard.clk,.icard.clk{cursor:pointer;transition:transform .1s,box-shadow .12s,border-color .12s}
+.gcard.clk:hover,.icard.clk:hover{box-shadow:0 6px 20px rgba(0,0,0,.16);transform:translateY(-1px)}
+.icard.clk:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
 /* Mes groupes — cartes principales */
 .mesg .hd{align-items:flex-start}
 .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
