@@ -151,7 +151,36 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .pcol{scroll-snap-align:start}
   .pmonth .pchip,.pmonthhead{font-size:9px}
   .mchips .pchip{font-size:9px;padding:1px 4px}
+  .planwide{width:calc(100vw - 24px)}
+  .pyear{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 }
+/* planning — vue élargie, jour, année, cadre du jour */
+.planwide{position:relative;left:50%;transform:translateX(-50%);width:min(1480px,calc(100vw - 32px))}
+.pnav{font-size:18px;font-weight:700;line-height:1;padding:6px 13px}
+.pcol{min-height:200px}
+.pcol.focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.pcol.today:not(.focus){border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.pcol.today .pnum{color:var(--accent)}
+.pcells .pchip{font-size:12.5px;padding:6px 10px}
+.mcell{min-height:106px}
+.mcell.focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.mcell.today .mnum{color:var(--accent);font-weight:700}
+.pday{padding:4px 2px}
+.pdayh{display:flex;align-items:center;gap:12px;margin:0 0 16px}
+.pdayh h3{font-size:25px;margin:0;text-transform:capitalize}
+.pdaylist{display:flex;flex-direction:column;gap:10px;max-width:640px}
+.pdaylist .pchip{font-size:15px;padding:13px 17px;border-radius:11px}
+.pyear{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:14px}
+.minim{text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;font:inherit;color:var(--fg)}
+.minim:hover{border-color:var(--accent)}
+.minim.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.minih{display:flex;justify-content:space-between;align-items:center;font-weight:700;text-transform:capitalize;margin-bottom:8px}
+.minic{font:700 11px var(--f-body);background:var(--accent);color:var(--on-accent);border-radius:99px;padding:1px 8px}
+.minig{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.mmd{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);border-radius:5px}
+.mmd.out{opacity:.35}
+.mmd.today{background:var(--accent);color:var(--on-accent);font-weight:700}
+.mmdot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--c,var(--lav))}
 #view{display:flex;flex-direction:column;gap:14px;min-width:0}
 /* boutons et badges */
 .btn{font:600 13px var(--f-body);border:1px solid var(--line);background:var(--bar);color:var(--fg);padding:9px 14px;border-radius:8px;cursor:pointer}
@@ -640,7 +669,7 @@ add({id:'an',kind:'a',title:'Anamnèse',sub:'Entretien avec le client',
   return{t,h:`<h4>Placement</h4><div class="row"><span>${gbadge(i.fin)}</span><span class="note">${i.ov?'Choisi par le coach':'Déterminé par la pathologie principale'}</span></div>${i.sec.length?`<div class="row"><span class="note">Groupes secondaires à surveiller</span><span>${i.sec.map(gbadge).join(' ')}</span></div>`:''}${i.al?`<div class="row"><span>${i.al} réponse(s) positive(s) à la sécurité avant l’effort</span><span class="pill ${i.med?'bad':'warn'}">${i.med?'Avis médical requis':'Avis obtenu'}</span></div>`:'<div class="row"><span>Aucun signal d’alerte relevé</span><span class="pill ok">RAS</span></div>'}`}}});
 </script>
 <script>
-const TABS=[['groupes',T('Vue d’ensemble','Overview')],['planning','📅 '+T('Planning','Schedule')],['m2',T('Dossier bénéficiaire','Beneficiary file')],['anamnese',T('Anamnèse','History')]];
+const TABS=[['groupes',T('Vue d’ensemble','Overview')],['planning','📅'],['m2',T('Dossier bénéficiaire','Beneficiary file')],['anamnese',T('Anamnèse','History')]];
 const SUBS=[['profil',T('Profil','Profile')],['objectifs',T('Objectifs','Goals')],['documents',T('Documents','Documents')],['reponses',T('Questionnaires','Questionnaires')],['tests',T('Tests','Tests')],['bilans',T('Bilans & suivi','Assessments & follow-up')],['programme',T('Programme','Program')],['seances',T('Séances','Sessions')],['synthese',T('Synthèse','Summary')]];
 const DEMO='DEMO2026';
 S.ui.tab='groupes';S.ui.sub='profil';S.ui.screen=null;S.ui.psub='seances';S.ui.gsel=null;S.ui.pathOpen=false;S.ui.planMode='week';S.ui.planRef=null;
@@ -712,7 +741,7 @@ function head(title,sub,ctl=''){$('#head').innerHTML=`<div><h1>${title}</h1><p>$
 function loginRender(){$('#tabs').innerHTML='';setRole('');$('#saved').hidden=true;head(T('Activité physique adaptée','Adapted physical activity'),T('Choisissez votre espace pour continuer.','Choose your space to continue.'));
  $('#view').innerHTML=`<div class="login"><div class="card"><h2>${T('Espace coach','Coach area')}</h2><p class="note">${T('Créer les fiches clients, conduire l’anamnèse, placer chaque client dans son groupe, saisir les tests et lire les réponses.','Create client files, run the history interview, assign each client to their group, enter tests and read answers.')}</p>${ctx.canEdit?'<button class="btn pri" data-act="logcoach">'+T('Entrer en tant que coach','Enter as coach')+'</button>':`<button class="btn" disabled>${T('Entrer en tant que coach','Enter as coach')}</button><p class="note">${T('Réservé au compte du coach. Un accès Éditeur sur ce dossier est nécessaire.','Restricted to the coach account. Editor access to this file is required.')}</p>`}</div>
  <div class="card"><h2>${T('Espace client','Client area')}</h2><p class="note">${T('Saisissez le code reçu de votre coach pour remplir vos questionnaires.','Enter the code from your coach to fill in your questionnaires.')}</p><label class="f"><span>${T('Code d’accès','Access code')}</span><span class="inp"><input class="codein" id="codein" maxlength="12" autocomplete="off" placeholder="ex. K7M2QX9A"></span></label><p class="err" id="loginerr">${esc(ctx.err)}</p><button class="btn pri" data-act="logclient">${T('Accéder à mes questionnaires','Open my questionnaires')}</button><p class="note">${T('Pour un aperçu, saisissez le code','For a preview, enter code')} <b>${DEMO}</b>${T(' : rien n’est enregistré.',': nothing is saved.')}</p></div></div>`+(ctx.db?'':'<div class="banner">'+T('Connexion au stockage impossible : seul l’aperçu avec le code ','Storage connection failed: only the preview with code ')+DEMO+T(' est disponible.</div>',' is available.</div>'))}
-function coachRender(){setRole(`<span class="pill">${T('Espace coach','Coach area')}</span>`);$('#saved').hidden=false;
+function coachRender(){setRole('');$('#saved').hidden=true;
  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.ui.tab===k}">${l}</button>`).join('');
  const cl=Object.entries(ctx.cache.clients).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
  const clientSelect=`<select class="sel" id="clientsel" aria-label="Client"><option value="">${T('Choisir un client','Choose a client')}</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select>`;
@@ -1613,38 +1642,59 @@ document.addEventListener('click',e=>{
     return `<button class="pchip" data-open-patient="${esc(ev.code)}" style="--c:var(--lav)" title="${esc(ev.name)}"><span class="pdot"></span>${esc(ev.name)}</button>`;
   }
 
+  function weekGrid(ref,ev,today){const mon=monday(ref);
+    return '<div class="pweek">'+[0,1,2,3,4,5,6].map(i=>{const d=addD(mon,i);const list=ev[d]||[];
+      return `<div class="pcol${d===today?' today':''}${d===ref?' focus':''}"><div class="pcolh">${esc(fmtDow(d))}<span class="pnum">${parse(d).getDate()}</span></div><div class="pcells">${list.length?list.map(x=>chip(x)).join(''):'<span class="pempty">–</span>'}</div></div>`;}).join('')+'</div>';
+  }
+  function monthGrid(ref,ev,today){const first=firstOfMonth(ref);const start=monday(first);const curMonth=ref.slice(0,7);
+    const lastDay=(()=>{const d=parse(first);d.setMonth(d.getMonth()+1,0);return iso(d);})();
+    const endSun=addD(monday(lastDay),6);const total=Math.round((parse(endSun).getTime()-parse(start).getTime())/864e5)+1;
+    let cells='';for(let i=0;i<total;i++){const d=addD(start,i);const out=d.slice(0,7)!==curMonth;const list=ev[d]||[];
+      const shown=list.slice(0,4).map(x=>chip(x,true)).join('')+(list.length>4?`<span class="pmore">+${list.length-4}</span>`:'');
+      cells+=`<div class="mcell${out?' out':''}${d===today?' today':''}${d===ref?' focus':''}"><div class="mnum">${parse(d).getDate()}</div><div class="mchips">${shown}</div></div>`;}
+    return `<div class="pmonthhead">${[0,1,2,3,4,5,6].map(i=>`<div>${esc(parse(addD(monday(ref),i)).toLocaleDateString(loc(),{weekday:'short'}))}</div>`).join('')}</div><div class="pmonth">${cells}</div>`;
+  }
+  function dayView(ref,ev,today){const list=ev[ref]||[];const t=ref===today;
+    const title=parse(ref).toLocaleDateString(loc(),{weekday:'long',day:'numeric',month:'long'});
+    return `<div class="pday${t?' today':''}"><div class="pdayh"><h3>${esc(title)}</h3>${t?`<span class="pill ok">${T('Aujourd’hui','Today')}</span>`:''}</div>${list.length?`<div class="pdaylist">${list.map(x=>chip(x)).join('')}</div>`:`<p class="empty">${T('Aucune séance ce jour.','No session on this day.')}</p>`}</div>`;
+  }
+  function miniMonth(ym,ev,today){const first=ym+'-01';const start=monday(first);
+    const lastDay=(()=>{const d=parse(first);d.setMonth(d.getMonth()+1,0);return iso(d);})();
+    const endSun=addD(monday(lastDay),6);const total=Math.round((parse(endSun).getTime()-parse(start).getTime())/864e5)+1;
+    let cells='';for(let i=0;i<total;i++){const d=addD(start,i);const out=d.slice(0,7)!==ym;const list=ev[d]||[];
+      const first0=list[0];const col=first0?(first0.kind==='group'&&groupOf(first0.gid)?gcolorVar(groupOf(first0.gid)):'var(--lav)'):'';
+      cells+=`<div class="mmd${out?' out':''}${d===today?' today':''}">${parse(d).getDate()}${list.length?`<span class="mmdot" style="--c:${col}"></span>`:''}</div>`;}
+    const mName=parse(first).toLocaleDateString(loc(),{month:'long'});
+    const count=Object.keys(ev).filter(d=>d.slice(0,7)===ym).reduce((n,d)=>n+ev[d].length,0);
+    return `<button class="minim${ym===(S.ui.planRef||'').slice(0,7)?' on':''}" data-act="planGotoMonth" data-m="${ym}"><div class="minih"><span>${esc(mName)}</span>${count?`<span class="minic">${count}</span>`:''}</div><div class="minig">${cells}</div></button>`;
+  }
+  function yearView(ref,ev,today){const y=ref.slice(0,4);
+    return `<div class="pyear">${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>miniMonth(y+'-'+String(m).padStart(2,'0'),ev,today)).join('')}</div>`;
+  }
+
   window.planningView=function(){
-    const mode=S.ui.planMode||'week';const ref=S.ui.planRef||todayI();const today=todayI();
-    const ev=planEvents();
-    const label=mode==='week'?(T('Semaine du','Week of')+' '+esc(parse(monday(ref)).toLocaleDateString(loc(),{day:'numeric',month:'long'}))):esc(fmtMonthTitle(ref));
-    const nav=`<div class="bar planbar"><div class="ctl"><button class="btn" data-act="planPrev" aria-label="${T('Précédent','Previous')}">‹</button><button class="btn" data-act="planToday">${T('Aujourd’hui','Today')}</button><button class="btn" data-act="planNext" aria-label="${T('Suivant','Next')}">›</button><span class="plabel">${label}</span></div><div class="ctl seg"><button class="${mode==='week'?'on':''}" data-act="planWeek">${T('Semaine','Week')}</button><button class="${mode==='month'?'on':''}" data-act="planMonth">${T('Mois','Month')}</button></div></div>`;
+    const mode=S.ui.planMode||'week';const ref=S.ui.planRef||todayI();const today=todayI();const ev=planEvents();
+    let label;
+    if(mode==='day')label=parse(ref).toLocaleDateString(loc(),{day:'numeric',month:'long',year:'numeric'});
+    else if(mode==='week')label=T('Semaine du','Week of')+' '+parse(monday(ref)).toLocaleDateString(loc(),{day:'numeric',month:'long'});
+    else if(mode==='month')label=fmtMonthTitle(ref);
+    else label=ref.slice(0,4);
+    const modes=[['day',T('Jour','Day')],['week',T('Semaine','Week')],['month',T('Mois','Month')],['year',T('Année','Year')]];
+    const nav=`<div class="bar planbar"><div class="ctl"><button class="btn pnav" data-act="planPrev" aria-label="${T('Précédent','Previous')}">‹</button><button class="btn" data-act="planToday">${T('Aujourd’hui','Today')}</button><button class="btn pnav" data-act="planNext" aria-label="${T('Suivant','Next')}">›</button><span class="plabel">${esc(label)}</span></div><div class="ctl seg">${modes.map(([k,l])=>`<button class="${mode===k?'on':''}" data-act="planMode" data-m="${k}">${l}</button>`).join('')}</div></div>`;
     const legend=`<div class="plegend"><span><span class="pdot" style="--c:var(--lav)"></span> ${T('Séance individuelle','Individual session')}</span>${(typeof groupsList==='function'?groupsList():[]).map(g=>`<span><span class="pdot" style="--c:${gcolorVar(g)}"></span> ${esc(g.name)}</span>`).join('')}</div>`;
-    let grid='';
-    if(mode==='week'){
-      const mon=monday(ref);
-      grid='<div class="pweek">'+[0,1,2,3,4,5,6].map(i=>{const d=addD(mon,i);const list=ev[d]||[];const isToday=d===today;
-        return `<div class="pcol${isToday?' today':''}"><div class="pcolh">${esc(fmtDow(d))}<span class="pnum">${parse(d).getDate()}</span></div><div class="pcells">${list.length?list.map(x=>chip(x)).join(''):'<span class="pempty">–</span>'}</div></div>`;}).join('')+'</div>';
-    } else {
-      const first=firstOfMonth(ref);const start=monday(first);const curMonth=ref.slice(0,7);
-      const lastDay=(()=>{const d=parse(first);d.setMonth(d.getMonth()+1,0);return iso(d);})();
-      const endSun=addD(monday(lastDay),6);
-      const total=Math.round((parse(endSun).getTime()-parse(start).getTime())/864e5)+1;
-      let cells='';for(let i=0;i<total;i++){const d=addD(start,i);const out=d.slice(0,7)!==curMonth;const isToday=d===today;const list=ev[d]||[];
-        const shown=list.slice(0,3).map(x=>chip(x,true)).join('')+(list.length>3?`<span class="pmore">+${list.length-3}</span>`:'');
-        cells+=`<div class="mcell${out?' out':''}${isToday?' today':''}"><div class="mnum">${parse(d).getDate()}</div><div class="mchips">${shown}</div></div>`;}
-      grid=`<div class="pmonthhead">${[0,1,2,3,4,5,6].map(i=>`<div>${esc(parse(addD(monday(ref),i)).toLocaleDateString(loc(),{weekday:'short'}))}</div>`).join('')}</div><div class="pmonth">${cells}</div>`;
-    }
-    return `<div class="card">${nav}${legend}${grid}<p class="note" style="margin-top:12px">${T('Les séances s’affichent automatiquement à leur date. Clique une séance pour ouvrir la fiche (individuelle) ou le groupe. Pour planifier une séance à venir, crée-la avec une date future (fiche bénéficiaire → Séances, ou « Nouvelle séance collective » dans un groupe).','Sessions appear automatically on their date. Click one to open the beneficiary file (individual) or the group. To schedule a future session, create it with a future date (beneficiary file → Sessions, or “New group session” in a group).')}</p></div>`;
+    const grid=mode==='day'?dayView(ref,ev,today):mode==='week'?weekGrid(ref,ev,today):mode==='month'?monthGrid(ref,ev,today):yearView(ref,ev,today);
+    return `<div class="card planwide">${nav}${legend}${grid}<p class="note" style="margin-top:12px">${T('Les séances s’affichent automatiquement à leur date. Clique une séance pour ouvrir la fiche (individuelle) ou le groupe. Les flèches avancent jour par jour (vues Jour et Semaine), ou de mois / année selon la vue.','Sessions appear automatically on their date. Click one to open the beneficiary file (individual) or the group. The arrows move day by day (Day & Week views), or by month / year depending on the view.')}</p></div>`;
   };
 
-  document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;if(!/^plan[PNTWM]/.test(a))return;
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+    if(a==='planMode'){S.ui.planMode=b.dataset.m;render();return;}
+    if(a==='planGotoMonth'){S.ui.planMode='month';S.ui.planRef=b.dataset.m+'-01';render();window.scrollTo(0,0);return;}
+    if(a!=='planPrev'&&a!=='planNext'&&a!=='planToday')return;
     const mode=S.ui.planMode||'week';const ref=S.ui.planRef||todayI();
-    if(a==='planPrev')S.ui.planRef=mode==='week'?addD(ref,-7):shiftMonth(ref,-1);
-    else if(a==='planNext')S.ui.planRef=mode==='week'?addD(ref,7):shiftMonth(ref,1);
-    else if(a==='planToday')S.ui.planRef=todayI();
-    else if(a==='planWeek')S.ui.planMode='week';
-    else if(a==='planMonth')S.ui.planMode='month';
-    else return;
+    const step=n=>mode==='month'?shiftMonth(ref,n):mode==='year'?(()=>{const d=parse(ref.slice(0,4)+'-07-01');d.setFullYear(d.getFullYear()+n);return iso(d);})():addD(ref,n);
+    if(a==='planPrev')S.ui.planRef=step(-1);
+    else if(a==='planNext')S.ui.planRef=step(1);
+    else S.ui.planRef=todayI();
     render();
   });
 })();
