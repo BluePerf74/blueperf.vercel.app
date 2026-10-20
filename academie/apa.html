@@ -95,6 +95,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .pathwrap>summary .psum::before{content:"▸";color:var(--muted);margin-right:9px;display:inline-block;transition:transform .15s}
 .pathwrap[open]>summary .psum::before{transform:rotate(90deg)}
 .pathwrap .cnt2{font:700 15px var(--f-display);color:var(--muted);background:var(--card2);border-radius:99px;padding:2px 12px;min-width:34px;text-align:center}
+/* fenêtre modale d'aperçu bénéficiaire */
+.modal-back{position:fixed;inset:0;background:rgba(5,10,20,.55);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto;animation:mfade .14s ease}
+@keyframes mfade{from{opacity:0}to{opacity:1}}
+.modal{background:var(--bg);border:1px solid var(--line);border-radius:18px;width:min(900px,100%);max-height:calc(100vh - 48px);display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.45);overflow:hidden;margin:auto}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:20px 22px 14px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.modal-head h2{font-size:28px;margin:0;line-height:1.1}
+.modal-x{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--muted);width:38px;height:38px;border-radius:11px;font-size:22px;line-height:1;cursor:pointer;flex:0 0 auto}
+.modal-x:hover{color:var(--fg);background:var(--card2)}
+.modal-tabs{padding:14px 22px 0;flex:0 0 auto}
+.modal-body{padding:16px 22px 22px;overflow:auto}
 #view{display:flex;flex-direction:column;gap:14px;min-width:0}
 /* boutons et badges */
 .btn{font:600 13px var(--f-body);border:1px solid var(--line);background:var(--bar);color:var(--fg);padding:9px 14px;border-radius:8px;cursor:pointer}
@@ -212,7 +222,7 @@ input[type=number]{font-variant-numeric:tabular-nums}
 .login .card{padding:20px;display:flex;flex-direction:column;gap:12px}
 .login h2{font-size:26px}
 .codein{text-transform:uppercase;letter-spacing:.1em;font-weight:600}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--lav);color:var(--on-lav);padding:9px 16px;border-radius:99px;font-weight:600;font-size:13px;z-index:9}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--lav);color:var(--on-lav);padding:9px 16px;border-radius:99px;font-weight:600;font-size:13px;z-index:60}
 .nav:empty,.pagehead:empty{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 /* --- Suivi longitudinal : séances, bilans, courbes, alertes --- */
@@ -668,7 +678,7 @@ function coachRender(){setRole(`<span class="pill">${T('Espace coach','Coach are
  if(ctx.sel==='_new')body=newForm();
  else if(S.ui.tab==='groupes')body=S.ui.screen==='newgroup'?newGroupForm():S.ui.screen==='group'?groupDetailView():S.ui.screen==='patient'?patientDetailView():groupesView();
  else body=({anamnese:anamneseView,m2:m2View}[S.ui.tab])();
- $('#view').innerHTML=body}
+ $('#view').innerHTML=body+((ctx.modal&&(ctx.cache.clients||{})[ctx.modal]&&typeof patientModal==='function')?patientModal():'')}
 function clientRender(){$('#tabs').innerHTML='';$('#saved').hidden=ctx.preview;
  setRole(`<span class="pill">Espace client</span>`);
  head('Mes questionnaires','Vos réponses sont enregistrées automatiquement et visibles par votre coach.');
@@ -752,7 +762,7 @@ V.addEventListener('focusout',()=>setTimeout(()=>{if(ctx.pending&&!editing()&&!c
 document.addEventListener('change',e=>{if(e.target.id==='clientsel')selectClient(e.target.value)});
 V.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='codein')clientEnter(e.target.value)});
 document.addEventListener('click',async e=>{
- const tb=e.target.closest('[data-tab]');if(tb){S.ui.tab=tb.dataset.tab;S.ui.confirm=null;S.ui.screen=null;ctx.confirmDel=false;if(ctx.sel==='_new')ctx.sel=null;render();window.scrollTo(0,0);return}
+ const tb=e.target.closest('[data-tab]');if(tb){S.ui.tab=tb.dataset.tab;S.ui.confirm=null;S.ui.screen=null;ctx.modal=null;ctx.confirmDel=false;if(ctx.sel==='_new')ctx.sel=null;render();window.scrollTo(0,0);return}
  const sbt=e.target.closest('[data-sub]');if(sbt){S.ui.sub=sbt.dataset.sub;S.ui.confirm=null;ctx.confirmDel=false;render();return}
  const op=e.target.closest('[data-open]');if(op){await selectClient(op.dataset.open);S.ui.tab=op.dataset.to;render();window.scrollTo(0,0);return}
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id,m=MODS.find(x=>x.id===id);
@@ -1367,8 +1377,9 @@ async function setMember(code,gid){const c=(ctx.cache.clients||{})[code];if(!c)r
  ctx.cache.clients[code]=nc;if(ctx.sel===code)loadSel();render();toast(gid?T('Ajouté au groupe','Added to group'):T('Retiré du groupe','Removed from group'))}
 
 /* --- navigation --- */
-function openGroup(gid){S.ui.gsel=gid;S.ui.screen='group';ctx.gConfirmDel=false;render();window.scrollTo(0,0)}
-async function openPatient(code){await flush();ctx.sel=code;ctx.confirmDel=false;loadSel();S.ui.screen='patient';S.ui.psub='seances';render();window.scrollTo(0,0)}
+function openGroup(gid){S.ui.gsel=gid;S.ui.screen='group';ctx.gConfirmDel=false;ctx.modal=null;render();window.scrollTo(0,0)}
+async function openPatient(code){await flush();ctx.sel=code;ctx.confirmDel=false;loadSel();S.ui.psub='seances';ctx.modal=code;render()}
+function closeModal(){ctx.modal=null;render()}
 function backToGroups(){S.ui.screen=null;ctx.gConfirmDel=false;render();window.scrollTo(0,0)}
 function backToGroup(){S.ui.screen=(S.ui.gsel&&groupOf(S.ui.gsel))?'group':null;render();window.scrollTo(0,0)}
 
@@ -1439,7 +1450,20 @@ function patientDetailView(){if(!hasSel())return groupesView();
  else{body=subviews.seances()}
  return head+tabs+body}
 
+/* --- aperçu d'un bénéficiaire en fenêtre modale (séances · anamnèse · dossier) --- */
+function patientModal(){const code=ctx.modal,c=(ctx.cache.clients||{})[code];if(!c)return'';
+ const gi=grpInfoOf(code),g=c.grp?groupOf(c.grp):null;
+ const badges=`${gi&&gi.fin?gbadge(gi.fin):''}${g?`<span class="gb" style="--gc:${gcolorVar(g)}"><i></i>${esc(g.name)}</span>`:''}<span class="codebox">${esc(code)}</span>`;
+ const TB=[['seances',T('Séances','Sessions')],['anamnese',T('Anamnèse','History')],['dossier',T('Dossier','File')]];
+ const tabs=`<div class="sub" role="tablist">${TB.map(([k,l])=>`<button role="tab" data-psub="${k}" aria-selected="${S.ui.psub===k}">${l}</button>`).join('')}</div>`;
+ let inner;
+ if(S.ui.psub==='anamnese'){const m=MODS.find(x=>x.id==='an');inner=`<div class="card mod" data-id="an"><div class="mbody" style="border-top:0;padding-top:16px">${m.body()}<div class="res" data-res>${m.calc().h}</div></div></div>`}
+ else if(S.ui.psub==='dossier'){inner=`<div class="sub" role="tablist" style="margin-bottom:12px">${SUBS.map(([k,l])=>`<button role="tab" data-sub="${k}" aria-selected="${S.ui.sub===k}">${l}</button>`).join('')}</div>`+subviews[S.ui.sub]()}
+ else{inner=subviews.seances()}
+ return `<div class="modal-back"><div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><div style="min-width:0"><h2>${esc(cname(c))}</h2><p class="note" style="margin:6px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badges}</p></div><button class="modal-x" data-act="closemodal" aria-label="${T('Fermer','Close')}">×</button></div><div class="modal-tabs">${tabs}</div><div class="modal-body">${inner}</div></div></div>`}
+
 /* --- évènements (change + click), isolés des autres gestionnaires --- */
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ctx.modal)closeModal()});
 document.addEventListener('change',e=>{
  if(e.target.id==='groupsel'){const v=e.target.value;if(v)openGroup(v);else backToGroups();return}
  if(e.target.id==='addmemsel'){const v=e.target.value;if(v)setMember(v,S.ui.gsel)}});
@@ -1454,7 +1478,9 @@ document.addEventListener('click',e=>{
   else if(a==='delgroupcancel'){ctx.gConfirmDel=false;render()}
   else if(a==='delgroup')deleteGroup(b.dataset.gid);
   else if(a==='rmmember')setMember(b.dataset.code,null);
+  else if(a==='closemodal')closeModal();
   return}
+ const mb=e.target.closest('.modal-back');if(mb&&e.target===mb){closeModal();return}
  const gp=e.target.closest('[data-open-group]');if(gp){openGroup(gp.dataset.openGroup);return}
  const pp=e.target.closest('[data-open-patient]');if(pp){openPatient(pp.dataset.openPatient);return}
  const bk=e.target.closest('[data-back]');if(bk){bk.dataset.back==='group'?backToGroup():backToGroups();return}
