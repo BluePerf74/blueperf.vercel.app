@@ -171,8 +171,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .pday{padding:4px 2px}
 .pdayh{display:flex;align-items:center;gap:12px;margin:0 0 16px}
 .pdayh h3{font-size:25px;margin:0;text-transform:capitalize}
-.pdaylist{display:flex;flex-direction:column;gap:10px;max-width:640px}
-.pdaylist .pchip{font-size:15px;padding:13px 17px;border-radius:11px}
+.pdaylist{display:flex;flex-direction:column;gap:10px;max-width:760px}
+.pdayitem{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:14px 16px;cursor:pointer;color:var(--fg);font:inherit;transition:border-color .12s,box-shadow .12s,transform .08s}
+.pdayitem:hover{border-color:color-mix(in srgb,var(--c) 60%,var(--line));box-shadow:0 4px 16px rgba(0,0,0,.16);transform:translateY(-1px)}
+.pdayitem .pbar{width:5px;align-self:stretch;min-height:34px;border-radius:3px;background:var(--c);flex:0 0 auto}
+.pdaymain{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pdaymain b{font-size:16px}
+.pdaymain .psub{font-size:12.5px;color:var(--muted)}
+.pdayitem .pgo{color:var(--muted);font-size:22px;line-height:1;flex:0 0 auto}
+.pdayempty{padding:34px;text-align:center;color:var(--muted);background:var(--card2);border:1px dashed var(--line);border-radius:13px;font-size:14px}
+/* sélecteur de couleur de groupe */
+.gsw-row{display:flex;gap:10px;flex-wrap:wrap}
+.gsw{width:30px;height:30px;border-radius:50%;border:2px solid transparent;background:var(--c);cursor:pointer;padding:0;appearance:none;transition:transform .1s}
+.gsw:hover{transform:scale(1.12)}
+.gsw.on{box-shadow:0 0 0 2px var(--bar),0 0 0 4px var(--c)}
 .pyear{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:14px}
 .minim{text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;font:inherit;color:var(--fg)}
 .minim:hover{border-color:var(--accent)}
@@ -1444,14 +1456,15 @@ function grpInfoOf(code){const c=(ctx.cache.clients||{})[code]||{};const lk=link
 function newGroupForm(){const e=ctx.gerr||'';const d=ctx.gdraft||{name:'',desc:''};
  return `<div class="card sect"><h2>${ctx.geditId?T('Modifier le groupe','Edit group'):T('Nouveau groupe','New group')}</h2><p class="note" style="margin:6px 0 12px">${T('Créez un groupe (cours collectif, créneau, cohorte…) puis ajoutez-y des bénéficiaires. Le classement par pathologie reste disponible en plus.','Create a group (class, time slot, cohort…) then add beneficiaries to it. Classification by condition is still available on top.')}</p>`
   +`<div class="grid"><label class="f"><span>${T('Nom du groupe','Group name')}</span><input id="ng-name" type="text" value="${esc(d.name)}" placeholder="${esc(T('ex. Cours du mardi 10 h','e.g. Tuesday 10am class'))}"></label><label class="f"><span>${T('Description (facultatif)','Description (optional)')}</span><input id="ng-desc" type="text" value="${esc(d.desc)}" placeholder="${esc(T('ex. Équilibre et renforcement doux','e.g. Balance and gentle strengthening'))}"></label></div>`
-  +`<div class="bar" style="margin-top:12px"><span class="err">${esc(e)}</span><span class="ctl"><button class="btn" data-act="cancelgroup">${T('Annuler','Cancel')}</button><button class="btn pri" data-act="creategroup">${ctx.geditId?T('Enregistrer','Save'):T('Créer le groupe','Create group')}</button></span></div></div>`}
+  +`<div class="f" style="margin-top:12px"><span style="display:block;color:var(--muted);font-size:13px;margin-bottom:8px">${T('Couleur du groupe (pour le planning)','Group color (for the schedule)')}</span><div class="gsw-row">${[1,2,3,4,5,6,7].map(n=>`<button type="button" class="gsw${(d.color||1)===n?' on':''}" data-act="pickColor" data-c="${n}" style="--c:var(--g${n})" aria-label="${T('Couleur','Color')} ${n}"></button>`).join('')}</div></div>`
+  +`<div class="bar" style="margin-top:14px"><span class="err">${esc(e)}</span><span class="ctl"><button class="btn" data-act="cancelgroup">${T('Annuler','Cancel')}</button><button class="btn pri" data-act="creategroup">${ctx.geditId?T('Enregistrer','Save'):T('Créer le groupe','Create group')}</button></span></div></div>`}
 async function createGroup(){const ne=$('#ng-name'),de=$('#ng-desc');const name=(ne&&ne.value||'').trim();const desc=(de&&de.value||'').trim();
  if(!name){ctx.gerr=T('Donnez un nom au groupe.','Give the group a name.');ctx.gdraft={name,desc};return render()}
  ctx.gerr='';const editing=ctx.geditId;const gid=editing||('g'+uid6());const prev=groupOf(gid)||{};
- const rec={id:gid,name,desc,color:prev.color||((groupsList().length%GCOLORS)+1),created:prev.created||new Date().toISOString()};
+ const rec={id:gid,name,desc,color:(ctx.gdraft&&ctx.gdraft.color)||prev.color||((groupsList().length%GCOLORS)+1),created:prev.created||new Date().toISOString()};
  try{if(ctx.db)await ctx.db.doc('groups/'+gid).set(rec);}catch(err){ctx.gerr=T('Enregistrement impossible.','Could not save.');return render()}
  ctx.cache.groups=ctx.cache.groups||{};ctx.cache.groups[gid]=rec;ctx.gdraft=null;ctx.geditId=null;S.ui.gsel=gid;S.ui.screen='group';render();window.scrollTo(0,0);toast(editing?T('Groupe mis à jour','Group updated'):T('Groupe créé','Group created'))}
-function editGroup(gid){const g=groupOf(gid);if(!g)return;ctx.gdraft={name:g.name||'',desc:g.desc||''};ctx.geditId=gid;ctx.gerr='';S.ui.screen='newgroup';render();window.scrollTo(0,0)}
+function editGroup(gid){const g=groupOf(gid);if(!g)return;ctx.gdraft={name:g.name||'',desc:g.desc||'',color:g.color||1};ctx.geditId=gid;ctx.gerr='';S.ui.screen='newgroup';render();window.scrollTo(0,0)}
 async function deleteGroup(gid){const mem=membersOf(gid);
  try{for(const code of mem){const c=(ctx.cache.clients||{})[code]||{};const nc=Object.assign({},c);delete nc.grp;if(ctx.db)await ctx.db.doc('clients/'+code).set(nc);ctx.cache.clients[code]=nc;}
   if(ctx.db)await ctx.db.doc('groups/'+gid).delete();}catch(err){toast(T('Suppression impossible','Could not delete'));return}
@@ -1596,6 +1609,7 @@ document.addEventListener('click',e=>{
  if(b){const a=b.dataset.act;
   if(a==='newgroup'){ctx.gdraft=null;ctx.geditId=null;ctx.gerr='';S.ui.screen='newgroup';render();window.scrollTo(0,0)}
   else if(a==='creategroup')createGroup();
+  else if(a==='pickColor'){const ne=$('#ng-name'),de=$('#ng-desc');ctx.gdraft={name:(ne&&ne.value)||'',desc:(de&&de.value)||'',color:+b.dataset.c};render()}
   else if(a==='cancelgroup'){ctx.gdraft=null;ctx.geditId=null;ctx.gerr='';S.ui.screen=(S.ui.gsel&&groupOf(S.ui.gsel))?'group':null;render()}
   else if(a==='editgroup')editGroup(b.dataset.gid);
   else if(a==='delgroupask'){ctx.gConfirmDel=true;render()}
@@ -1632,8 +1646,8 @@ document.addEventListener('click',e=>{
     const seances=Object.values(ctx.cache.seances||{}).filter(s=>s&&s.date);
     const byDate={},grp={};
     seances.forEach(s=>{
-      if(s.type==='collectif'&&s.group){const k=s.date+'|'+s.group;if(!grp[k])grp[k]={kind:'group',date:s.date,gid:s.group,count:0};grp[k].count++;}
-      else{(byDate[s.date]=byDate[s.date]||[]).push({kind:'patient',date:s.date,code:s.code,name:cname((ctx.cache.clients||{})[s.code]||{})});}
+      if(s.type==='collectif'&&s.group){const k=s.date+'|'+s.group;if(!grp[k])grp[k]={kind:'group',date:s.date,gid:s.group,count:0,dur:s.duree,lieu:s.lieu};grp[k].count++;}
+      else{(byDate[s.date]=byDate[s.date]||[]).push({kind:'patient',date:s.date,code:s.code,name:cname((ctx.cache.clients||{})[s.code]||{}),dur:s.duree,lieu:s.lieu});}
     });
     Object.values(grp).forEach(g=>{(byDate[g.date]=byDate[g.date]||[]).push(g);});
     Object.keys(byDate).forEach(d=>byDate[d].sort((a,b)=>(a.kind===b.kind?0:a.kind==='group'?-1:1)));
@@ -1657,9 +1671,17 @@ document.addEventListener('click',e=>{
       cells+=`<div class="mcell${out?' out':''}${d===today?' today':''}${d===ref?' focus':''}"><div class="mnum">${parse(d).getDate()}</div><div class="mchips">${shown}</div></div>`;}
     return `<div class="pmonthhead">${[0,1,2,3,4,5,6].map(i=>`<div>${esc(parse(addD(monday(ref),i)).toLocaleDateString(loc(),{weekday:'short'}))}</div>`).join('')}</div><div class="pmonth">${cells}</div>`;
   }
+  function dayItem(ev){const isG=ev.kind==='group';const g=isG&&typeof groupOf==='function'?groupOf(ev.gid):null;
+    const col=isG?(g?gcolorVar(g):'var(--lav)'):'var(--lav)';
+    const title=isG?(g?g.name:'Groupe'):ev.name;
+    const sub=[isG?T('Cours collectif','Group class')+' · '+ev.count+' '+T('participant(s)','participant(s)'):T('Séance individuelle','Individual session'),ev.dur?esc(ev.dur)+' min':'',ev.lieu?esc(ev.lieu):''].filter(Boolean).join(' · ');
+    const attr=isG?`data-open-group="${esc(ev.gid)}"`:`data-open-patient="${esc(ev.code)}"`;
+    return `<button class="pdayitem" ${attr} style="--c:${col}"><span class="pbar"></span><span class="pdaymain"><b>${esc(title)}</b><span class="psub">${sub}</span></span><span class="pgo">›</span></button>`;
+  }
   function dayView(ref,ev,today){const list=ev[ref]||[];const t=ref===today;
     const title=parse(ref).toLocaleDateString(loc(),{weekday:'long',day:'numeric',month:'long'});
-    return `<div class="pday${t?' today':''}"><div class="pdayh"><h3>${esc(title)}</h3>${t?`<span class="pill ok">${T('Aujourd’hui','Today')}</span>`:''}</div>${list.length?`<div class="pdaylist">${list.map(x=>chip(x)).join('')}</div>`:`<p class="empty">${T('Aucune séance ce jour.','No session on this day.')}</p>`}</div>`;
+    const count=list.reduce((n,x)=>n+(x.kind==='group'?x.count:1),0);
+    return `<div class="pday${t?' today':''}"><div class="pdayh"><h3>${esc(title)}</h3>${t?`<span class="pill ok">${T('Aujourd’hui','Today')}</span>`:''}${list.length?`<span class="note">${count} ${T('séance(s)','session(s)')}</span>`:''}</div>${list.length?`<div class="pdaylist">${list.map(dayItem).join('')}</div>`:`<div class="pdayempty">🗓️ ${T('Aucune séance ce jour.','No session on this day.')}</div>`}</div>`;
   }
   function miniMonth(ym,ev,today){const first=ym+'-01';const start=monday(first);
     const lastDay=(()=>{const d=parse(first);d.setMonth(d.getMonth()+1,0);return iso(d);})();
