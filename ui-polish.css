@@ -1,0 +1,54 @@
+/* Blueperf — couche de finition visuelle commune à TOUS les modules
+   (accueil, Football, APA, Nutrition). Elle agit sur des éléments génériques
+   (boutons, champs, onglets, barres de défilement) et non sur la mise en page :
+   aucun risque pour les écrans existants, un rendu plus soigné et plus accessible
+   partout. Les couleurs de la marque sont reprises (bleu #3da9fc). */
+
+/* --- Rendu du texte plus net --- */
+html{-webkit-text-size-adjust:100%}
+body{-webkit-tap-highlight-color:transparent}
+body,button,input,select,textarea{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+
+/* --- Transitions douces et cohérentes sur les éléments interactifs --- */
+a,button,.btn,input,select,textarea,summary,[role="tab"]{
+  transition:background-color .16s ease,border-color .16s ease,color .16s ease,
+             box-shadow .16s ease,transform .1s ease,opacity .16s ease}
+
+/* --- Retour tactile au clic sur les boutons --- */
+button:not(:disabled):active,.btn:not(:disabled):active{transform:translateY(1px)}
+button:disabled,.btn:disabled,[disabled]{cursor:not-allowed}
+
+/* --- Focus clavier visible (accessibilité) — n'apparaît qu'à la navigation clavier --- */
+a:focus-visible,button:focus-visible,.btn:focus-visible,summary:focus-visible,
+[role="tab"]:focus-visible,[role="button"]:focus-visible,[tabindex]:focus-visible,
+input[type="checkbox"]:focus-visible,input[type="radio"]:focus-visible,input[type="range"]:focus-visible{
+  outline:2.5px solid #3da9fc !important;outline-offset:2px}
+:focus:not(:focus-visible){outline:none}
+
+/* --- Champs texte : halo doux et net au focus --- */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(61,169,252,.22);outline:none}
+
+/* --- Contrôles de formulaire aux couleurs de la marque --- */
+input[type="checkbox"],input[type="radio"],input[type="range"],progress{accent-color:#3da9fc}
+
+/* --- Barres de défilement fines et discrètes --- */
+*{scrollbar-width:thin;scrollbar-color:rgba(130,144,163,.45) transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-thumb{background:rgba(130,144,163,.42);border-radius:9px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(130,144,163,.62);background-clip:padding-box}
+::-webkit-scrollbar-track{background:transparent}
+
+/* --- Sélection de texte aux couleurs de la marque --- */
+::selection{background:rgba(61,169,252,.26)}
+
+/* --- Boutons principaux : légère profondeur + survol (modules Football & APA) --- */
+.btn.pri{box-shadow:0 1px 2px rgba(10,20,40,.16)}
+.btn.pri:not(:disabled):hover{box-shadow:0 5px 16px rgba(10,20,40,.22);transform:translateY(-1px)}
+.btn.pri:not(:disabled):active{transform:translateY(1px)}
+
+/* --- Respecte la préférence système « animations réduites » (accessibilité) --- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
