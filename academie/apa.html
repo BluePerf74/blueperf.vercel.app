@@ -104,6 +104,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .modal-x:hover{color:var(--fg);background:var(--card2)}
 .modal-tabs{padding:14px 22px 0;flex:0 0 auto}
 .modal-body{padding:16px 22px 22px;overflow:auto}
+/* séance collective — lignes par bénéficiaire */
+.gsrow{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.gsrow .gsname{flex:1 1 160px;min-width:140px}
+.gsrow .sel{flex:0 0 auto;min-width:150px}
+.gsrow .gsborg{max-width:130px}
 #view{display:flex;flex-direction:column;gap:14px;min-width:0}
 /* boutons et badges */
 .btn{font:600 13px var(--f-body);border:1px solid var(--line);background:var(--bar);color:var(--fg);padding:9px 14px;border-radius:8px;cursor:pointer}
@@ -1375,8 +1380,33 @@ async function setMember(code,gid){const c=(ctx.cache.clients||{})[code];if(!c)r
  try{if(ctx.db)await ctx.db.doc('clients/'+code).set(nc);}catch(err){toast(T('Enregistrement impossible','Could not save'));return}
  ctx.cache.clients[code]=nc;if(ctx.sel===code)loadSel();render();toast(gid?T('Ajouté au groupe','Added to group'):T('Retiré du groupe','Removed from group'))}
 
+/* --- séance collective : une séance pour chaque bénéficiaire du groupe, en une fois --- */
+ctx.gsdraft=null;
+function newGroupSeance(gid){const mem=membersOf(gid),m={};mem.forEach(c=>m[c]={presence:'present',borg:''});ctx.gsdraft={gid,date:todayISO(),duree:'',lieu:'',contenu:'',mem:m};render();window.scrollTo(0,0)}
+async function saveGroupSeance(){const d=ctx.gsdraft;if(!d)return;const mem=membersOf(d.gid);if(!mem.length){toast(T('Aucun bénéficiaire dans ce groupe','No beneficiary in this group'));return}
+ let count=0;ctx.cache.seances=ctx.cache.seances||{};
+ try{for(const code of mem){const md=d.mem[code]||{presence:'present',borg:''};const pres=md.presence||'present';const id=uid6();
+   const rec={code,id,date:d.date||todayISO(),type:'collectif',duree:d.duree||'',lieu:d.lieu||'',presence:pres,forme:pres==='present'?5:0,douleur:0,douleur_loc:'',fatigue:pres==='present'?3:0,borg:(pres==='present'&&md.borg)?md.borg:'',fc:'',tolerance:'bonne',contenu:d.contenu||'',adaptations:'',obs:'',emarge:false,group:d.gid};
+   if(ctx.db)await ctx.db.doc('seances/'+code+'__'+id).set(rec);ctx.cache.seances[code+'__'+id]=rec;count++}
+ }catch(err){toast(T('Enregistrement impossible','Could not save'));return}
+ ctx.gsdraft=null;render();window.scrollTo(0,0);toast(count+' '+T('séance(s) enregistrée(s)','session(s) saved'))}
+function groupSeanceForm(g){const gid=g.id,d=ctx.gsdraft,mem=membersOf(gid);
+ const back=`<button class="btn" data-act="gscancel">← ${T('Retour au groupe','Back to group')}</button>`;
+ const field=(k,l,type,extra)=>`<label class="f"><span>${l}</span><input data-gsf="${k}" type="${type||'text'}" value="${esc(d[k]||'')}" ${extra||''}></label>`;
+ const rows=mem.map(code=>{const c=(ctx.cache.clients||{})[code]||{};const md=d.mem[code]||{presence:'present',borg:''};
+   return `<div class="gsrow"><span class="gsname"><b>${esc(cname(c))}</b></span><select class="sel" data-gsm="${code}.presence">${PRES.map(([v,t])=>`<option value="${v}" ${md.presence===v?'selected':''}>${t}</option>`).join('')}</select><span class="inp gsborg"><input data-gsm="${code}.borg" type="number" min="6" max="20" placeholder="${T('effort','effort')}" value="${esc(md.borg||'')}" ${md.presence!=='present'?'disabled':''}><em>Borg</em></span></div>`}).join('');
+ return `<div class="card sect"><div style="min-width:220px">${back}<h2 style="font-size:26px;margin:10px 0 2px">${T('Nouvelle séance collective','New group session')}</h2><p class="note" style="margin:0">${esc(g.name)}</p></div>`
+  +`<div class="grid" style="margin-top:14px">${field('date',T('Date','Date'),'date')}${field('duree',T('Durée (min)','Duration (min)'),'number','min="0" max="300" inputmode="numeric"')}${field('lieu',T('Lieu','Place'))}</div>`
+  +`<label class="f wide"><span>${T('Contenu réalisé','Session content')}</span><textarea data-gsf="contenu" placeholder="${esc(T('Exercices, intensité, matériel…','Exercises, intensity, equipment…'))}">${esc(d.contenu||'')}</textarea></label>`
+  +`<p class="sec">${T('Présence & effort par bénéficiaire','Attendance & effort per beneficiary')}</p>`
+  +(mem.length?rows:`<p class="empty">${T('Ajoutez d’abord des bénéficiaires au groupe.','Add beneficiaries to the group first.')}</p>`)
+  +`<div class="mfoot"><button class="btn" data-act="gscancel">${T('Annuler','Cancel')}</button><button class="btn pri" data-act="gssave" ${mem.length?'':'disabled'}>${T('Enregistrer la séance','Save session')}</button></div></div>`}
+function gsInput(e){const t=e.target;if(!ctx.gsdraft)return;
+ if(t.dataset.gsf){ctx.gsdraft[t.dataset.gsf]=t.value;return}
+ if(t.dataset.gsm){const p=t.dataset.gsm.split('.'),code=p[0],f=p[1],m=ctx.gsdraft.mem;if(!m[code])m[code]={presence:'present',borg:''};m[code][f]=t.value;if(f==='presence'&&e.type==='change')render()}}
+
 /* --- navigation --- */
-function openGroup(gid){S.ui.gsel=gid;S.ui.screen='group';ctx.gConfirmDel=false;ctx.modal=null;render();window.scrollTo(0,0)}
+function openGroup(gid){S.ui.gsel=gid;S.ui.screen='group';ctx.gConfirmDel=false;ctx.modal=null;ctx.gsdraft=null;render();window.scrollTo(0,0)}
 async function openPatient(code){await flush();ctx.sel=code;ctx.confirmDel=false;loadSel();S.ui.psub='seances';ctx.modal=code;render()}
 function closeModal(){ctx.modal=null;render()}
 function backToGroups(){S.ui.screen=null;ctx.gConfirmDel=false;render();window.scrollTo(0,0)}
@@ -1415,6 +1445,7 @@ V.addEventListener('toggle',e=>{const d=e.target;if(d&&d.classList&&d.classList.
 function groupDetailView(){const gid=S.ui.gsel,g=groupOf(gid);
  const back=`<button class="btn" data-back="groups">← ${T('Groupes','Groups')}</button>`;
  if(!g)return `<div class="card sect">${back}<p class="empty" style="margin-top:12px">${T('Groupe introuvable.','Group not found.')}</p></div>`;
+ if(ctx.gsdraft&&ctx.gsdraft.gid===gid)return groupSeanceForm(g);
  const mem=membersOf(gid).map(code=>({code,c:(ctx.cache.clients||{})[code]||{},Ss:seancesOf(code)})).sort((a,b)=>cname(a.c).localeCompare(cname(b.c),'fr'));
  const present=mem.reduce((n,x)=>n+x.Ss.filter(s=>s.presence==='present').length,0);
  const absent=mem.reduce((n,x)=>n+x.Ss.filter(s=>s.presence&&s.presence!=='present').length,0);
@@ -1431,8 +1462,9 @@ function groupDetailView(){const gid=S.ui.gsel,g=groupOf(gid);
  const rows=mem.length?mem.map(x=>{const pres=x.Ss.filter(s=>s.presence==='present').length,last=x.Ss.length?x.Ss[x.Ss.length-1]:null,gi=grpInfoOf(x.code);
    return `<div class="crow prow" data-open-patient="${esc(x.code)}"><span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>${esc(cname(x.c))}</b>${gi&&gi.fin?gbadge(gi.fin):''}</span><span class="meta" style="display:flex;gap:8px;align-items:center"><span class="pill">${pres} ${T('séance(s)','session(s)')}</span>${last?`<span class="pill">${T('Dernière','Last')} ${esc(dISO(last.date))}</span>`:''}<button class="btn" data-act="rmmember" data-code="${esc(x.code)}">${T('Retirer','Remove')}</button></span></div>`}).join(''):`<p class="empty" style="margin-top:8px">${T('Aucun bénéficiaire dans ce groupe. Ajoutez-en avec le menu ci-dessus.','No beneficiary in this group yet. Add some with the menu above.')}</p>`;
  const memberCard=`<div class="card sect"><div class="bar"><div style="min-width:220px"><h2 style="font-size:20px">${T('Bénéficiaires','Beneficiaries')}</h2><p class="note" style="margin:4px 0 0">${T('Cliquez un bénéficiaire pour ouvrir sa fiche.','Click a beneficiary to open their file.')}</p></div><span class="ctl">${addSel}</span></div>${rows}</div>`;
- const recCard=recent.length?`<div class="card sect"><h2 style="font-size:20px">${T('Séances réalisées récentes','Recent sessions')}</h2><div class="tbl"><table><thead><tr><th>${T('Date','Date')}</th><th>${T('Bénéficiaire','Beneficiary')}</th><th>${T('Présence','Attendance')}</th><th>Borg</th></tr></thead><tbody>${recent.slice(0,14).map(r=>{const pc=r.s.presence==='present'?'ok':r.s.presence==='abs_j'?'warn':'bad';return `<tr><td>${esc(dISO(r.s.date))}</td><td><b>${esc(r.name)}</b></td><td><span class="pill ${pc}">${esc(presLabel(r.s.presence))}</span></td><td>${r.s.presence==='present'&&r.s.borg?esc(r.s.borg):'—'}</td></tr>`}).join('')}</tbody></table></div></div>`:'';
- return gHead+kpis+memberCard+recCard}
+ const recTable=recent.length?`<div class="tbl"><table><thead><tr><th>${T('Date','Date')}</th><th>${T('Bénéficiaire','Beneficiary')}</th><th>${T('Présence','Attendance')}</th><th>Borg</th></tr></thead><tbody>${recent.slice(0,14).map(r=>{const pc=r.s.presence==='present'?'ok':r.s.presence==='abs_j'?'warn':'bad';return `<tr><td>${esc(dISO(r.s.date))}</td><td><b>${esc(r.name)}</b></td><td><span class="pill ${pc}">${esc(presLabel(r.s.presence))}</span></td><td>${r.s.presence==='present'&&r.s.borg?esc(r.s.borg):'—'}</td></tr>`}).join('')}</tbody></table></div>`:`<p class="empty" style="margin-top:8px">${T('Aucune séance enregistrée pour ce groupe.','No session recorded for this group yet.')}</p>`;
+ const seaCard=`<div class="card sect"><div class="bar"><div style="min-width:220px"><h2 style="font-size:20px">${T('Séances du groupe','Group sessions')}</h2><p class="note" style="margin:4px 0 0">${T('Enregistrez une séance collective : présence et effort de chaque bénéficiaire en une fois.','Log a group session: attendance and effort for each beneficiary at once.')}</p></div><span class="ctl"><button class="btn pri" data-act="gsnew">+ ${T('Nouvelle séance collective','New group session')}</button></span></div>${recTable}</div>`;
+ return gHead+kpis+memberCard+seaCard}
 
 /* --- fiche d'un patient : nom en gros + 3 onglets (séances · anamnèse · dossier) --- */
 function patientDetailView(){if(!hasSel())return groupesView();
@@ -1463,6 +1495,7 @@ function patientModal(){const code=ctx.modal,c=(ctx.cache.clients||{})[code];if(
 
 /* --- évènements (change + click), isolés des autres gestionnaires --- */
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ctx.modal)closeModal()});
+V.addEventListener('input',gsInput);V.addEventListener('change',gsInput);
 document.addEventListener('change',e=>{
  if(e.target.id==='groupsel'){const v=e.target.value;if(v)openGroup(v);else backToGroups();return}
  if(e.target.id==='addmemsel'){const v=e.target.value;if(v)setMember(v,S.ui.gsel)}});
@@ -1477,6 +1510,9 @@ document.addEventListener('click',e=>{
   else if(a==='delgroupcancel'){ctx.gConfirmDel=false;render()}
   else if(a==='delgroup')deleteGroup(b.dataset.gid);
   else if(a==='rmmember')setMember(b.dataset.code,null);
+  else if(a==='gsnew')newGroupSeance(S.ui.gsel);
+  else if(a==='gssave')saveGroupSeance();
+  else if(a==='gscancel'){ctx.gsdraft=null;render();window.scrollTo(0,0)}
   else if(a==='closemodal')closeModal();
   return}
  const mb=e.target.closest('.modal-back');if(mb&&e.target===mb){closeModal();return}
