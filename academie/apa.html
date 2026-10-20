@@ -63,11 +63,38 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .pagehead h1{font-size:34px}
 .pagehead p{margin:4px 0 0;color:var(--muted);font-size:13px}
 .ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.ctlrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1 0 100%;justify-content:flex-end}
-.crow.prow{cursor:pointer;transition:background .12s}
+.crow.prow{cursor:pointer;transition:background .12s;padding-left:8px;padding-right:8px;border-radius:10px}
 .crow.prow:hover{background:var(--card2)}
-.gcard.clk{cursor:pointer;transition:transform .1s,box-shadow .12s}
-.gcard.clk:hover{box-shadow:0 2px 14px rgba(0,0,0,.14)}
+.gcard.clk{cursor:pointer;transition:transform .1s,box-shadow .12s,border-color .12s}
+.gcard.clk:hover{box-shadow:0 6px 20px rgba(0,0,0,.16);transform:translateY(-1px)}
+/* Mes groupes — cartes principales */
+.mesg .hd{align-items:flex-start}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.gcard.hero{gap:14px;min-height:118px}
+.gfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:auto}
+.avs{display:flex;align-items:center}
+.ava{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:700 11px var(--f-body);color:#fff;background:var(--gc);border:2px solid var(--card);margin-left:-9px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.avs .ava:first-child{margin-left:0}
+.ava.more{background:var(--card2);color:var(--muted)}
+.gcard .open{color:var(--gc);font-weight:700;font-size:13px;white-space:nowrap}
+.gempty{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:6px 2px 2px}
+.gempty p{margin:0;color:var(--muted)}
+/* bandeau de statistiques compact */
+.statstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin:16px 0}
+.stat{display:flex;flex-direction:column;gap:2px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.stat .v{font:700 30px/1.05 var(--f-display);font-variant-numeric:tabular-nums}
+.stat .v .u{font-size:16px;color:var(--muted)}
+.stat .l{color:var(--muted);font-size:12.5px;display:flex;flex-direction:column;gap:1px}
+.stat .l small{opacity:.85;font-size:11px}
+.stat.warn{border-color:color-mix(in srgb,var(--warn) 55%,var(--line));background:var(--warn-bg)}
+.stat.warn .l,.stat.warn .l small{color:var(--warn)}
+/* par pathologie — repliable */
+.pathwrap{padding:14px 18px}
+.pathwrap>summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;list-style:none;font-size:15px}
+.pathwrap>summary::-webkit-details-marker{display:none}
+.pathwrap>summary .psum::before{content:"▸";color:var(--muted);margin-right:9px;display:inline-block;transition:transform .15s}
+.pathwrap[open]>summary .psum::before{transform:rotate(90deg)}
+.pathwrap .cnt2{font:700 15px var(--f-display);color:var(--muted);background:var(--card2);border-radius:99px;padding:2px 12px;min-width:34px;text-align:center}
 #view{display:flex;flex-direction:column;gap:14px;min-width:0}
 /* boutons et badges */
 .btn{font:600 13px var(--f-body);border:1px solid var(--line);background:var(--bar);color:var(--fg);padding:9px 14px;border-radius:8px;cursor:pointer}
@@ -631,12 +658,11 @@ function loginRender(){$('#tabs').innerHTML='';setRole('');$('#saved').hidden=tr
 function coachRender(){setRole(`<span class="pill">${T('Espace coach','Coach area')}</span>`);$('#saved').hidden=false;
  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.ui.tab===k}">${l}</button>`).join('');
  const cl=Object.entries(ctx.cache.clients).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
- const clientCtl=`<select class="sel" id="clientsel" aria-label="Client"><option value="">${T('Choisir un client','Choose a client')}</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select><button class="btn pri" data-act="newc">+ ${T('Nouveau client','New client')}</button>`;
- const gl=(typeof groupsList==='function')?groupsList():[];
- const grpCtl=S.ui.tab==='groupes'?`<select class="sel" id="groupsel" aria-label="${T('Groupe','Group')}"><option value="">${T('Choisir un groupe','Choose a group')}</option>${gl.map(g=>`<option value="${esc(g.id)}" ${S.ui.gsel===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select><button class="btn" data-act="newgroup">+ ${T('Nouveau groupe','New group')}</button>`:'';
- const ctl=(grpCtl?`<div class="ctlrow">${grpCtl}</div>`:'')+`<div class="ctlrow">${clientCtl}</div>`;
+ const clientSelect=`<select class="sel" id="clientsel" aria-label="Client"><option value="">${T('Choisir un client','Choose a client')}</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select>`;
+ const newClientBtn=`<button class="btn pri" data-act="newc">+ ${T('Nouveau client','New client')}</button>`;
+ const ctl=S.ui.tab==='groupes'?newClientBtn:(clientSelect+newClientBtn);
  const nm=hasSel()?cname(ctx.cache.clients[ctx.sel]):'';
- const sub={groupes:today()+T(' · clients par pathologie',' · clients by condition'),anamnese:nm||T('Aucun client sélectionné','No client selected'),m2:nm||T('Aucun client sélectionné','No client selected')}[S.ui.tab];
+ const sub={groupes:today()+T(' · vue d’ensemble',' · overview'),anamnese:nm||T('Aucun client sélectionné','No client selected'),m2:nm||T('Aucun client sélectionné','No client selected')}[S.ui.tab];
  head({groupes:T('Groupes','Groups'),anamnese:T('Anamnèse','History'),m2:T('Dossier bénéficiaire','Beneficiary file')}[S.ui.tab],sub,ctl);
  let body;
  if(ctx.sel==='_new')body=newForm();
@@ -1346,14 +1372,31 @@ async function openPatient(code){await flush();ctx.sel=code;ctx.confirmDel=false
 function backToGroups(){S.ui.screen=null;ctx.gConfirmDel=false;render();window.scrollTo(0,0)}
 function backToGroup(){S.ui.screen=(S.ui.gsel&&groupOf(S.ui.gsel))?'group':null;render();window.scrollTo(0,0)}
 
-/* --- section « Mes groupes » en haut de la vue d'ensemble --- */
+/* initiales pour les pastilles d'avatar */
+const ini=c=>((((c.p&&c.p.prenom)||'')[0]||'')+(((c.p&&c.p.nom)||'')[0]||'')).toUpperCase()||'·';
+
+/* --- section « Mes groupes » (cartes principales) --- */
 function customGroupsSection(){const gl=groupsList();
- const cards=gl.map(g=>{const mem=membersOf(g.id);const names=mem.slice(0,4).map(code=>esc(cname((ctx.cache.clients||{})[code]||{}))).join(' · ');
-  return `<div class="card gcard clk" data-open-group="${esc(g.id)}" style="--gc:${gcolorVar(g)}"><div class="gh"><div><h3>${esc(g.name)}</h3>${g.desc?`<p class="desc">${esc(g.desc)}</p>`:''}</div><span class="cnt">${mem.length}</span></div><p class="note" style="margin:0">${mem.length?names+(mem.length>4?' …':''):T('Aucun bénéficiaire — ouvrez le groupe pour en ajouter.','No beneficiary — open the group to add some.')}</p></div>`}).join('');
- return `<div class="card sect" style="margin-bottom:16px"><div class="hd"><h2>${T('Mes groupes','My groups')}</h2><button class="btn pri" data-act="newgroup">+ ${T('Nouveau groupe','New group')}</button></div>`
-  +(gl.length?`<div class="groups">${cards}</div>`:`<p class="empty">${T('Aucun groupe pour l’instant. Créez votre premier groupe (cours, créneau, cohorte) pour y regrouper des bénéficiaires.','No group yet. Create your first group (class, slot, cohort) to gather beneficiaries.')}</p>`)+`</div>`}
-const _groupesView0=groupesView;
-groupesView=function(){return customGroupsSection()+_groupesView0()};
+ const card=g=>{const mem=membersOf(g.id);const avs=mem.slice(0,5).map(code=>{const c=(ctx.cache.clients||{})[code]||{};return `<span class="ava" title="${esc(cname(c))}">${esc(ini(c))}</span>`}).join('');const more=mem.length>5?`<span class="ava more">+${mem.length-5}</span>`:'';
+  return `<div class="card gcard hero clk" data-open-group="${esc(g.id)}" style="--gc:${gcolorVar(g)}"><div class="gh"><div><h3>${esc(g.name)}</h3>${g.desc?`<p class="desc">${esc(g.desc)}</p>`:''}</div><span class="cnt">${mem.length}</span></div><div class="gfoot">${mem.length?`<span class="avs">${avs}${more}</span>`:`<span class="note">${T('Aucun bénéficiaire pour l’instant','No beneficiary yet')}</span>`}<span class="open">${T('Ouvrir','Open')} →</span></div></div>`};
+ return `<div class="card sect mesg"><div class="hd"><div><h2>${T('Mes groupes','My groups')}</h2><p class="note" style="margin:3px 0 0">${T('Vos groupes (cours, créneaux, cohortes). Cliquez pour ouvrir.','Your groups (classes, slots, cohorts). Click to open.')}</p></div><button class="btn pri" data-act="newgroup">+ ${T('Nouveau groupe','New group')}</button></div>`
+  +(gl.length?`<div class="ggrid">${gl.map(card).join('')}</div>`:`<div class="gempty"><p>${T('Vous n’avez pas encore de groupe.','You don’t have any group yet.')}</p><button class="btn pri" data-act="newgroup">+ ${T('Créer mon premier groupe','Create my first group')}</button></div>`)+`</div>`}
+
+/* --- vue d'ensemble simplifiée : Mes groupes · stats compactes · à traiter · pathologie (repliable) --- */
+groupesView=function(){const st=Object.keys(ctx.cache.clients||{}).map(statOf);
+ const n=st.length,done=st.filter(s=>s.pr[0]>=s.pr[1]).length,med=st.filter(s=>s.gi.med).length,nog=st.filter(s=>!s.gi.fin).length;
+ const hero=customGroupsSection();
+ const stat=(v,l,sub,tone)=>`<div class="stat${tone?' '+tone:''}"><span class="v">${v}</span><span class="l">${l}${sub?`<small>${sub}</small>`:''}</span></div>`;
+ const strip=`<div class="statstrip">${stat(n,T('Clients APA','APA clients'),T('dossiers ouverts','open files'))}${stat(done+'<small class="u"> / '+n+'</small>',T('Anamnèses complètes','Completed intakes'),n-done?(n-done)+' '+T('à terminer','to finish'):T('tout est prêt','all set'))}${stat(med,T('Avis médical','Medical opinion'),med?T('avant test d’effort','before stress test'):T('aucune alerte','no alert'),med?'warn':'')}${stat(nog,T('Sans pathologie','No condition'),nog?T('à préciser','to set'):T('tous placés','all placed'),nog?'warn':'')}</div>`;
+ const todo=st.map(s=>{const t=[];if(s.pr[0]<s.pr[1])t.push(`<span class="pill warn">${T('Anamnèse','History')} ${s.pr[0]}/${s.pr[1]}</span>`);if(s.gi.med)t.push('<span class="pill bad">'+T('Avis médical','Medical opinion')+'</span>');if(!s.linked)t.push('<span class="pill">'+T('Pas encore connecté','Not connected yet')+'</span>');else if(s.qd<s.qt)t.push(`<span class="pill warn">${T('Questionnaires','Questionnaires')} ${s.qd}/${s.qt}</span>`);return{s,t}}).filter(x=>x.t.length);
+ const todoCard=`<div class="card sect"><div class="hd"><h2>${T('À traiter','To do')}</h2><span class="note">${todo.length} ${T('client(s) avec une action en attente','client(s) with a pending action')}</span></div>${todo.length?`<div class="tbl"><table><thead><tr><th>${T('Client','Client')}</th><th>${T('En attente','Pending')}</th><th></th></tr></thead><tbody>${todo.map(x=>`<tr><td><b>${esc(x.s.name)}</b></td><td><div class="tags">${x.t.join('')}</div></td><td class="r"><button class="btn lav" data-open="${esc(x.s.code)}" data-to="${x.s.pr[0]<x.s.pr[1]?'anamnese':'m2'}">${x.s.pr[0]<x.s.pr[1]?T('Anamnèse','History'):T('Dossier','File')}</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="empty">${T('Rien en attente 👍','Nothing pending 👍')}</p>`}</div>`;
+ const row=(s,btn)=>`<div class="crow"><span><b>${esc(s.name)}</b> ${s.gi.med?'<span class="pill bad">'+T('Avis médical','Medical opinion')+'</span>':''}</span><button class="btn lav" data-open="${esc(s.code)}" data-to="${btn}">${T('Ouvrir','Open')}</button></div>`;
+ const grp=G.map(g=>{const l=st.filter(s=>s.gi.fin===g[0]);if(!l.length)return'';return`<div class="card gcard" style="--gc:var(--g${g[3]})"><div class="gh"><div><h3>${g[1]}</h3><p class="desc">${g[2]}</p></div><span class="cnt">${l.length}</span></div>${l.map(s=>row(s,'m2')).join('')}</div>`}).filter(Boolean).join('');
+ const sg=st.filter(s=>!s.gi.fin);
+ const sgCard=sg.length?`<div class="card gcard" style="--gc:var(--g8)"><div class="gh"><div><h3>${T('Sans pathologie','No condition')}</h3><p class="desc">${T('Anamnèse à compléter pour classer le client.','History to complete to classify the client.')}</p></div><span class="cnt">${sg.length}</span></div>${sg.map(s=>row(s,'anamnese')).join('')}</div>`:'';
+ const pathCount=G.filter(g=>st.some(s=>s.gi.fin===g[0])).length+(sg.length?1:0);
+ const pathology=(grp||sgCard)?`<details class="card pathwrap"><summary><span class="psum"><b>${T('Par pathologie','By condition')}</b> <span class="note">${T('classement automatique','automatic classification')}</span></span><span class="cnt2">${pathCount}</span></summary><div class="groups" style="margin-top:14px">${grp}${sgCard}</div></details>`:'';
+ return hero+strip+todoCard+pathology};
 
 /* --- page d'un groupe : bénéficiaires + séances réalisées --- */
 function groupDetailView(){const gid=S.ui.gsel,g=groupOf(gid);
