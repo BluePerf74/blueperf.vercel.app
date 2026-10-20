@@ -63,6 +63,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .pagehead h1{font-size:34px}
 .pagehead p{margin:4px 0 0;color:var(--muted);font-size:13px}
 .ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ctlrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1 0 100%;justify-content:flex-end}
+.crow.prow{cursor:pointer;transition:background .12s}
+.crow.prow:hover{background:var(--card2)}
+.gcard.clk{cursor:pointer;transition:transform .1s,box-shadow .12s}
+.gcard.clk:hover{box-shadow:0 2px 14px rgba(0,0,0,.14)}
 #view{display:flex;flex-direction:column;gap:14px;min-width:0}
 /* boutons et badges */
 .btn{font:600 13px var(--f-body);border:1px solid var(--line);background:var(--bar);color:var(--fg);padding:9px 14px;border-radius:8px;cursor:pointer}
@@ -554,9 +559,9 @@ add({id:'an',kind:'a',title:'Anamnèse',sub:'Entretien avec le client',
 const TABS=[['groupes',T('Groupes','Groups')],['anamnese',T('Anamnèse','History')],['m2',T('Dossier bénéficiaire','Beneficiary file')]];
 const SUBS=[['profil',T('Profil','Profile')],['objectifs',T('Objectifs','Goals')],['documents',T('Documents','Documents')],['reponses',T('Questionnaires','Questionnaires')],['tests',T('Tests','Tests')],['bilans',T('Bilans & suivi','Assessments & follow-up')],['programme',T('Programme','Program')],['seances',T('Séances','Sessions')],['synthese',T('Synthèse','Summary')]];
 const DEMO='DEMO2026';
-S.ui.tab='groupes';S.ui.sub='profil';
+S.ui.tab='groupes';S.ui.sub='profil';S.ui.screen=null;S.ui.psub='seances';S.ui.gsel=null;
 const ctx={role:null,code:null,uid:null,preview:false,db:null,canEdit:false,sel:null,selUid:null,err:'',
-  cache:{clients:{},assign:{},links:{},answers:{},seances:{},bilans:{},objectifs:{},docs:{},consents:{},programmes:{}},unsub:[],dirty:new Set(),pending:false,confirmDel:false};
+  cache:{clients:{},assign:{},links:{},answers:{},seances:{},bilans:{},objectifs:{},docs:{},consents:{},programmes:{},groups:{}},unsub:[],dirty:new Set(),pending:false,confirmDel:false};
 const act=m=>!S.rm.includes(m.id);
 const ro=h=>h.replace(/<(input|textarea|select) /g,'<$1 disabled ');
 const complete=m=>{const[d,t]=m.prog();return d>=t};
@@ -626,11 +631,18 @@ function loginRender(){$('#tabs').innerHTML='';setRole('');$('#saved').hidden=tr
 function coachRender(){setRole(`<span class="pill">${T('Espace coach','Coach area')}</span>`);$('#saved').hidden=false;
  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.ui.tab===k}">${l}</button>`).join('');
  const cl=Object.entries(ctx.cache.clients).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
- const ctl=`<select class="sel" id="clientsel" aria-label="Client"><option value="">${T('Choisir un client','Choose a client')}</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select><button class="btn pri" data-act="newc">+ ${T('Nouveau client','New client')}</button>`;
+ const clientCtl=`<select class="sel" id="clientsel" aria-label="Client"><option value="">${T('Choisir un client','Choose a client')}</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select><button class="btn pri" data-act="newc">+ ${T('Nouveau client','New client')}</button>`;
+ const gl=(typeof groupsList==='function')?groupsList():[];
+ const grpCtl=S.ui.tab==='groupes'?`<select class="sel" id="groupsel" aria-label="${T('Groupe','Group')}"><option value="">${T('Choisir un groupe','Choose a group')}</option>${gl.map(g=>`<option value="${esc(g.id)}" ${S.ui.gsel===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select><button class="btn" data-act="newgroup">+ ${T('Nouveau groupe','New group')}</button>`:'';
+ const ctl=(grpCtl?`<div class="ctlrow">${grpCtl}</div>`:'')+`<div class="ctlrow">${clientCtl}</div>`;
  const nm=hasSel()?cname(ctx.cache.clients[ctx.sel]):'';
  const sub={groupes:today()+T(' · clients par pathologie',' · clients by condition'),anamnese:nm||T('Aucun client sélectionné','No client selected'),m2:nm||T('Aucun client sélectionné','No client selected')}[S.ui.tab];
  head({groupes:T('Groupes','Groups'),anamnese:T('Anamnèse','History'),m2:T('Dossier bénéficiaire','Beneficiary file')}[S.ui.tab],sub,ctl);
- $('#view').innerHTML=ctx.sel==='_new'?newForm():({groupes:groupesView,anamnese:anamneseView,m2:m2View}[S.ui.tab])()}
+ let body;
+ if(ctx.sel==='_new')body=newForm();
+ else if(S.ui.tab==='groupes')body=S.ui.screen==='newgroup'?newGroupForm():S.ui.screen==='group'?groupDetailView():S.ui.screen==='patient'?patientDetailView():groupesView();
+ else body=({anamnese:anamneseView,m2:m2View}[S.ui.tab])();
+ $('#view').innerHTML=body}
 function clientRender(){$('#tabs').innerHTML='';$('#saved').hidden=ctx.preview;
  setRole(`<span class="pill">Espace client</span>`);
  head('Mes questionnaires','Vos réponses sont enregistrées automatiquement et visibles par votre coach.');
@@ -668,7 +680,7 @@ async function flush(){clearTimeout(wt);const d=[...ctx.dirty];ctx.dirty.clear()
 /* connexion */
 const sub=(k)=>ctx.unsub.push(ctx.db.collection(k).onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());ctx.cache[k]=o;onData()},()=>{}));
 function onData(){if(ctx.role!=='coach')return;softApply()}
-function coachEnter(){ctx.role='coach';ctx.preview=false;ctx.sel=null;ctx.err='';['clients','assign','links','answers','seances','bilans','objectifs','docs','consents','programmes'].forEach(sub);render()}
+function coachEnter(){ctx.role='coach';ctx.preview=false;ctx.sel=null;ctx.err='';['clients','assign','links','answers','seances','bilans','objectifs','docs','consents','programmes','groups'].forEach(sub);render()}
 async function clientEnter(code){code=(code||'').trim().toUpperCase();ctx.err='';
  if(!code){ctx.err='Saisissez votre code.';return render()}
  if(code===DEMO){let rm=[];try{if(ctx.db){const s=await ctx.db.doc('assign/'+DEMO).get();if(s.exists)rm=s.data().rm||[]}}catch(e){}
@@ -682,7 +694,7 @@ async function clientEnter(code){code=(code||'').trim().toUpperCase();ctx.err=''
   ctx.role='client';ctx.preview=false;ctx.code=code;S.a=a;S.p={};S.rm=s.data().rm||[];
   ctx.unsub.push(ctx.db.doc('assign/'+code).onSnapshot(sn=>{if(sn.exists){S.rm=sn.data().rm||[];softApply()}},()=>{}));
   render()}catch(e){ctx.err='Connexion impossible pour le moment. Réessayez dans un instant.';render()}}
-function logout(){ctx.unsub.forEach(u=>{try{u()}catch(e){}});ctx.unsub=[];ctx.role=null;ctx.sel=null;ctx.preview=false;ctx.cache={clients:{},assign:{},links:{},answers:{},seances:{},bilans:{},objectifs:{},docs:{},consents:{},programmes:{}};ctx.sdraft=null;ctx.bdraft=null;ctx.odraft=null;ctx.ddraft=null;ctx.pdraft=null;ctx.dirty.clear();ctx.err='';S.p={};S.a={};S.rm=[];render()}
+function logout(){ctx.unsub.forEach(u=>{try{u()}catch(e){}});ctx.unsub=[];ctx.role=null;ctx.sel=null;ctx.preview=false;ctx.cache={clients:{},assign:{},links:{},answers:{},seances:{},bilans:{},objectifs:{},docs:{},consents:{},programmes:{},groups:{}};ctx.sdraft=null;ctx.bdraft=null;ctx.odraft=null;ctx.ddraft=null;ctx.pdraft=null;ctx.dirty.clear();ctx.err='';S.p={};S.a={};S.rm=[];render()}
 const genCode=()=>{const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789',b=new Uint8Array(8);crypto.getRandomValues(b);return[...b].map(x=>A[x%A.length]).join('')};
 async function selectClient(code){await flush();ctx.sel=code||null;ctx.confirmDel=false;loadSel();render()}
 async function createClient(){const pr=$('#nc-prenom').value.trim(),nm=$('#nc-nom').value.trim();if(!pr&&!nm){ctx.err='Saisissez au moins un prénom ou un nom.';return render()}
@@ -714,7 +726,7 @@ V.addEventListener('focusout',()=>setTimeout(()=>{if(ctx.pending&&!editing()&&!c
 document.addEventListener('change',e=>{if(e.target.id==='clientsel')selectClient(e.target.value)});
 V.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='codein')clientEnter(e.target.value)});
 document.addEventListener('click',async e=>{
- const tb=e.target.closest('[data-tab]');if(tb){S.ui.tab=tb.dataset.tab;S.ui.confirm=null;ctx.confirmDel=false;if(ctx.sel==='_new')ctx.sel=null;render();window.scrollTo(0,0);return}
+ const tb=e.target.closest('[data-tab]');if(tb){S.ui.tab=tb.dataset.tab;S.ui.confirm=null;S.ui.screen=null;ctx.confirmDel=false;if(ctx.sel==='_new')ctx.sel=null;render();window.scrollTo(0,0);return}
  const sbt=e.target.closest('[data-sub]');if(sbt){S.ui.sub=sbt.dataset.sub;S.ui.confirm=null;ctx.confirmDel=false;render();return}
  const op=e.target.closest('[data-open]');if(op){await selectClient(op.dataset.open);S.ui.tab=op.dataset.to;render();window.scrollTo(0,0);return}
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id,m=MODS.find(x=>x.id===id);
@@ -767,7 +779,7 @@ async function ensureClient(code,name){
 }
 /* Clients de démonstration (pour l'aperçu) — créés une seule fois. */
 async function seedDemo(){
-  try{const m=await ctx.db.doc('meta/flags').get();if(m.exists&&m.data().seeded>=2)return;}catch(e){}
+  try{const m=await ctx.db.doc('meta/flags').get();if(m.exists&&m.data().seeded>=3)return;}catch(e){}
   const now=new Date().toISOString();
   const DEMOS=[
     {code:'DEMO-MARIE',p:{prenom:'Marie',nom:'Lambert (démo)',age:'68',sexe:'F',date:now.slice(0,10),eval:'Coach APA'},
@@ -804,7 +816,10 @@ async function seedDemo(){
     await ctx.db.doc('bilans/'+dP+'__b1').set({code:dP,id:'b1',date:'2026-06-01',type:'initial',note:'',t:{'anthro.poids':'96','anthro.taille':'178','anthro.tour':'108','cardio.s':'142','cardio.fc':'78'}});
     await ctx.db.doc('objectifs/'+dP+'__o1').set({code:dP,id:'o1',intitule:'Réduire le tour de taille',critere:'tour de taille',cible:'100 cm',echeance:'2027-01-01',priorite:'haute',statut:'en_cours',created:now});
     await ctx.db.doc('consents/'+dP).set({participation:{ok:true,date:now.slice(0,10)},sante:{ok:true,date:now.slice(0,10)}});
-    await ctx.db.doc('meta/flags').set({seeded:2,at:now});
+    // --- groupe de démonstration + appartenance de deux bénéficiaires démo ---
+    await ctx.db.doc('groups/g-demo1').set({id:'g-demo1',name:'Groupe du mardi (démo)',desc:'Cours collectif — équilibre et renforcement doux',color:2,created:now});
+    for(const code of [dM,'DEMO-AMINA']){try{const cd=await ctx.db.doc('clients/'+code).get();const c=cd.exists?cd.data():{};await ctx.db.doc('clients/'+code).set(Object.assign({},c,{grp:'g-demo1'}));}catch(e){}}
+    await ctx.db.doc('meta/flags').set({seeded:3,at:now});
   }catch(e){}
 }
 /* démarrage Blueperf : pas d'écran de connexion — le contexte vient des paramètres d'URL. */
@@ -1291,5 +1306,113 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
  else if(b.dataset.act==='pdfprog'){const nm=cname(ctx.cache.clients[ctx.sel]||{});exportPdf(buildProgDoc(ctx.sel),'Programme APA — '+nm,'Programme-APA-'+slug(nm)+'-'+todayISO()+'.pdf')}});
 </script>
 
+<script>
+/* ===================== GROUPES PERSONNALISÉS (cohortes) · PAGE GROUPE · FICHE PATIENT ===================== */
+/* Collection : groups/{gid} = {id,name,desc,color,created}. Appartenance : clients/{code}.grp = gid.
+   Indépendant du classement automatique par pathologie (grpInfo), qui reste inchangé. */
+const GCOLORS=7; /* --g1 .. --g7 */
+const groupsList=()=>Object.values(ctx.cache.groups||{}).filter(g=>g&&g.id).sort((a,b)=>String(a.created).localeCompare(String(b.created)));
+const groupOf=gid=>(ctx.cache.groups||{})[gid]||null;
+const membersOf=gid=>Object.entries(ctx.cache.clients||{}).filter(([,c])=>c&&c.grp===gid).map(([code])=>code);
+const gcolorVar=g=>`var(--g${(g&&g.color)||1})`;
+/* grpInfo d'un code sans perturber l'état S courant */
+function grpInfoOf(code){const c=(ctx.cache.clients||{})[code]||{};const lk=linkOf(code);const uid=lk?lk[0]:code===DEMO?'demo':null;const an=(uid&&(ctx.cache.answers||{})[uid]||{}).a||{};return grpInfo({...an,...(c.t||{}),...(c.an||{})})}
+
+/* --- création / édition / suppression --- */
+function newGroupForm(){const e=ctx.gerr||'';const d=ctx.gdraft||{name:'',desc:''};
+ return `<div class="card sect"><h2>${ctx.geditId?T('Modifier le groupe','Edit group'):T('Nouveau groupe','New group')}</h2><p class="note" style="margin:6px 0 12px">${T('Créez un groupe (cours collectif, créneau, cohorte…) puis ajoutez-y des bénéficiaires. Le classement par pathologie reste disponible en plus.','Create a group (class, time slot, cohort…) then add beneficiaries to it. Classification by condition is still available on top.')}</p>`
+  +`<div class="grid"><label class="f"><span>${T('Nom du groupe','Group name')}</span><input id="ng-name" type="text" value="${esc(d.name)}" placeholder="${esc(T('ex. Cours du mardi 10 h','e.g. Tuesday 10am class'))}"></label><label class="f"><span>${T('Description (facultatif)','Description (optional)')}</span><input id="ng-desc" type="text" value="${esc(d.desc)}" placeholder="${esc(T('ex. Équilibre et renforcement doux','e.g. Balance and gentle strengthening'))}"></label></div>`
+  +`<div class="bar" style="margin-top:12px"><span class="err">${esc(e)}</span><span class="ctl"><button class="btn" data-act="cancelgroup">${T('Annuler','Cancel')}</button><button class="btn pri" data-act="creategroup">${ctx.geditId?T('Enregistrer','Save'):T('Créer le groupe','Create group')}</button></span></div></div>`}
+async function createGroup(){const ne=$('#ng-name'),de=$('#ng-desc');const name=(ne&&ne.value||'').trim();const desc=(de&&de.value||'').trim();
+ if(!name){ctx.gerr=T('Donnez un nom au groupe.','Give the group a name.');ctx.gdraft={name,desc};return render()}
+ ctx.gerr='';const editing=ctx.geditId;const gid=editing||('g'+uid6());const prev=groupOf(gid)||{};
+ const rec={id:gid,name,desc,color:prev.color||((groupsList().length%GCOLORS)+1),created:prev.created||new Date().toISOString()};
+ try{if(ctx.db)await ctx.db.doc('groups/'+gid).set(rec);}catch(err){ctx.gerr=T('Enregistrement impossible.','Could not save.');return render()}
+ ctx.cache.groups=ctx.cache.groups||{};ctx.cache.groups[gid]=rec;ctx.gdraft=null;ctx.geditId=null;S.ui.gsel=gid;S.ui.screen='group';render();window.scrollTo(0,0);toast(editing?T('Groupe mis à jour','Group updated'):T('Groupe créé','Group created'))}
+function editGroup(gid){const g=groupOf(gid);if(!g)return;ctx.gdraft={name:g.name||'',desc:g.desc||''};ctx.geditId=gid;ctx.gerr='';S.ui.screen='newgroup';render();window.scrollTo(0,0)}
+async function deleteGroup(gid){const mem=membersOf(gid);
+ try{for(const code of mem){const c=(ctx.cache.clients||{})[code]||{};const nc=Object.assign({},c);delete nc.grp;if(ctx.db)await ctx.db.doc('clients/'+code).set(nc);ctx.cache.clients[code]=nc;}
+  if(ctx.db)await ctx.db.doc('groups/'+gid).delete();}catch(err){toast(T('Suppression impossible','Could not delete'));return}
+ delete (ctx.cache.groups||{})[gid];if(S.ui.gsel===gid)S.ui.gsel=null;S.ui.screen=null;ctx.gConfirmDel=false;render();window.scrollTo(0,0);toast(T('Groupe supprimé','Group deleted'))}
+
+/* --- appartenance --- */
+async function setMember(code,gid){const c=(ctx.cache.clients||{})[code];if(!c)return;const nc=Object.assign({},c);if(gid)nc.grp=gid;else delete nc.grp;
+ try{if(ctx.db)await ctx.db.doc('clients/'+code).set(nc);}catch(err){toast(T('Enregistrement impossible','Could not save'));return}
+ ctx.cache.clients[code]=nc;if(ctx.sel===code)loadSel();render();toast(gid?T('Ajouté au groupe','Added to group'):T('Retiré du groupe','Removed from group'))}
+
+/* --- navigation --- */
+function openGroup(gid){S.ui.gsel=gid;S.ui.screen='group';ctx.gConfirmDel=false;render();window.scrollTo(0,0)}
+async function openPatient(code){await flush();ctx.sel=code;ctx.confirmDel=false;loadSel();S.ui.screen='patient';S.ui.psub='seances';render();window.scrollTo(0,0)}
+function backToGroups(){S.ui.screen=null;ctx.gConfirmDel=false;render();window.scrollTo(0,0)}
+function backToGroup(){S.ui.screen=(S.ui.gsel&&groupOf(S.ui.gsel))?'group':null;render();window.scrollTo(0,0)}
+
+/* --- section « Mes groupes » en haut de la vue d'ensemble --- */
+function customGroupsSection(){const gl=groupsList();
+ const cards=gl.map(g=>{const mem=membersOf(g.id);const names=mem.slice(0,4).map(code=>esc(cname((ctx.cache.clients||{})[code]||{}))).join(' · ');
+  return `<div class="card gcard clk" data-open-group="${esc(g.id)}" style="--gc:${gcolorVar(g)}"><div class="gh"><div><h3>${esc(g.name)}</h3>${g.desc?`<p class="desc">${esc(g.desc)}</p>`:''}</div><span class="cnt">${mem.length}</span></div><p class="note" style="margin:0">${mem.length?names+(mem.length>4?' …':''):T('Aucun bénéficiaire — ouvrez le groupe pour en ajouter.','No beneficiary — open the group to add some.')}</p></div>`}).join('');
+ return `<div class="card sect" style="margin-bottom:16px"><div class="hd"><h2>${T('Mes groupes','My groups')}</h2><button class="btn pri" data-act="newgroup">+ ${T('Nouveau groupe','New group')}</button></div>`
+  +(gl.length?`<div class="groups">${cards}</div>`:`<p class="empty">${T('Aucun groupe pour l’instant. Créez votre premier groupe (cours, créneau, cohorte) pour y regrouper des bénéficiaires.','No group yet. Create your first group (class, slot, cohort) to gather beneficiaries.')}</p>`)+`</div>`}
+const _groupesView0=groupesView;
+groupesView=function(){return customGroupsSection()+_groupesView0()};
+
+/* --- page d'un groupe : bénéficiaires + séances réalisées --- */
+function groupDetailView(){const gid=S.ui.gsel,g=groupOf(gid);
+ const back=`<button class="btn" data-back="groups">← ${T('Groupes','Groups')}</button>`;
+ if(!g)return `<div class="card sect">${back}<p class="empty" style="margin-top:12px">${T('Groupe introuvable.','Group not found.')}</p></div>`;
+ const mem=membersOf(gid).map(code=>({code,c:(ctx.cache.clients||{})[code]||{},Ss:seancesOf(code)})).sort((a,b)=>cname(a.c).localeCompare(cname(b.c),'fr'));
+ const present=mem.reduce((n,x)=>n+x.Ss.filter(s=>s.presence==='present').length,0);
+ const absent=mem.reduce((n,x)=>n+x.Ss.filter(s=>s.presence&&s.presence!=='present').length,0);
+ const taux=present+absent?Math.round(present/(present+absent)*100):null;
+ const bilans=mem.reduce((n,x)=>n+bilansOf(x.code).length,0);
+ const recent=[];mem.forEach(x=>x.Ss.forEach(s=>recent.push({s,name:cname(x.c)})));
+ recent.sort((a,b)=>String(b.s.date+b.s.id).localeCompare(String(a.s.date+a.s.id)));
+ const del=ctx.gConfirmDel?`<button class="btn dng" data-act="delgroup" data-gid="${esc(gid)}">${T('Confirmer la suppression','Confirm delete')}</button><button class="btn" data-act="delgroupcancel">${T('Annuler','Cancel')}</button>`:`<button class="btn del" data-act="delgroupask">${T('Supprimer','Delete')}</button>`;
+ const gHead=`<div class="card sect" style="border-top:3px solid ${gcolorVar(g)}"><div class="bar"><div style="min-width:220px">${back}<h2 style="font-size:30px;margin:10px 0 2px">${esc(g.name)}</h2>${g.desc?`<p class="note" style="margin:0">${esc(g.desc)}</p>`:''}</div><span class="ctl"><button class="btn" data-act="editgroup" data-gid="${esc(gid)}">${T('Modifier','Edit')}</button>${del}</span></div></div>`;
+ const kp=(l,v,s)=>`<div class="card kpi"><span class="lab">${l}</span><span class="n">${v}</span><p>${s}</p></div>`;
+ const kpis=`<div class="kpis" style="margin-top:14px">${kp(T('Bénéficiaires','Beneficiaries'),mem.length,T('dans ce groupe','in this group'))}${kp(T('Séances réalisées','Sessions done'),present,absent?absent+' '+T('absence(s)','absence(s)'):T('présence suivie','attendance tracked'))}${kp(T('Taux de présence','Attendance rate'),taux!=null?taux+' %':'–',T('sur le groupe','across the group'))}${kp(T('Bilans datés','Dated assessments'),bilans,T('pour les courbes','for the charts'))}</div>`;
+ const avail=Object.entries(ctx.cache.clients||{}).filter(([,c])=>c&&c.grp!==gid).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
+ const addSel=`<select class="sel" id="addmemsel"><option value="">${T('Ajouter un bénéficiaire…','Add a beneficiary…')}</option>${avail.map(([code,c])=>`<option value="${esc(code)}">${esc(cname(c))}</option>`).join('')}</select>`;
+ const rows=mem.length?mem.map(x=>{const pres=x.Ss.filter(s=>s.presence==='present').length,last=x.Ss.length?x.Ss[x.Ss.length-1]:null,gi=grpInfoOf(x.code);
+   return `<div class="crow prow" data-open-patient="${esc(x.code)}"><span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>${esc(cname(x.c))}</b>${gi&&gi.fin?gbadge(gi.fin):''}</span><span class="meta" style="display:flex;gap:8px;align-items:center"><span class="pill">${pres} ${T('séance(s)','session(s)')}</span>${last?`<span class="pill">${T('Dernière','Last')} ${esc(dISO(last.date))}</span>`:''}<button class="btn" data-act="rmmember" data-code="${esc(x.code)}">${T('Retirer','Remove')}</button></span></div>`}).join(''):`<p class="empty" style="margin-top:8px">${T('Aucun bénéficiaire dans ce groupe. Ajoutez-en avec le menu ci-dessus.','No beneficiary in this group yet. Add some with the menu above.')}</p>`;
+ const memberCard=`<div class="card sect"><div class="bar"><div style="min-width:220px"><h2 style="font-size:20px">${T('Bénéficiaires','Beneficiaries')}</h2><p class="note" style="margin:4px 0 0">${T('Cliquez un bénéficiaire pour ouvrir sa fiche.','Click a beneficiary to open their file.')}</p></div><span class="ctl">${addSel}</span></div>${rows}</div>`;
+ const recCard=recent.length?`<div class="card sect"><h2 style="font-size:20px">${T('Séances réalisées récentes','Recent sessions')}</h2><div class="tbl"><table><thead><tr><th>${T('Date','Date')}</th><th>${T('Bénéficiaire','Beneficiary')}</th><th>${T('Présence','Attendance')}</th><th>Borg</th></tr></thead><tbody>${recent.slice(0,14).map(r=>{const pc=r.s.presence==='present'?'ok':r.s.presence==='abs_j'?'warn':'bad';return `<tr><td>${esc(dISO(r.s.date))}</td><td><b>${esc(r.name)}</b></td><td><span class="pill ${pc}">${esc(presLabel(r.s.presence))}</span></td><td>${r.s.presence==='present'&&r.s.borg?esc(r.s.borg):'—'}</td></tr>`}).join('')}</tbody></table></div></div>`:'';
+ return gHead+kpis+memberCard+recCard}
+
+/* --- fiche d'un patient : nom en gros + 3 onglets (séances · anamnèse · dossier) --- */
+function patientDetailView(){if(!hasSel())return groupesView();
+ const code=ctx.sel,c=(ctx.cache.clients||{})[code]||{};const gi=grpInfoOf(code);const g=c.grp?groupOf(c.grp):null;
+ const bt=(S.ui.gsel&&groupOf(S.ui.gsel))?'group':'groups';
+ const back=`<button class="btn" data-back="${bt}">← ${bt==='group'?esc(groupOf(S.ui.gsel).name):T('Groupes','Groups')}</button>`;
+ const badges=`${gi&&gi.fin?gbadge(gi.fin):''}${g?`<span class="gb" style="--gc:${gcolorVar(g)}"><i></i>${esc(g.name)}</span>`:''}<span class="codebox">${esc(code)}</span>`;
+ const head=`<div class="card chead"><div style="min-width:220px">${back}<h2 style="font-size:34px;margin:10px 0 6px">${esc(cname(c))}</h2><p class="note" style="margin:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badges}</p></div><div class="ctl"><button class="btn" data-act="copycode">${T('Copier le code','Copy code')}</button></div></div>`;
+ const TB=[['seances',T('Séances','Sessions')],['anamnese',T('Anamnèse','History')],['dossier',T('Dossier','File')]];
+ const tabs=`<div class="sub" role="tablist" style="margin:14px 0">${TB.map(([k,l])=>`<button role="tab" data-psub="${k}" aria-selected="${S.ui.psub===k}">${l}</button>`).join('')}</div>`;
+ let body;
+ if(S.ui.psub==='anamnese'){const m=MODS.find(x=>x.id==='an');body=`<p class="lead">${T('Entretien à remplir avec le bénéficiaire. Le groupe par pathologie se met à jour à chaque réponse.','Interview to complete with the beneficiary. The condition group updates with each answer.')}</p><div class="card mod" data-id="an"><div class="mbody" style="border-top:0;padding-top:18px">${m.body()}<div class="res" data-res>${m.calc().h}</div></div></div>`}
+ else if(S.ui.psub==='dossier'){body=`<div class="sub" role="tablist">${SUBS.map(([k,l])=>`<button role="tab" data-sub="${k}" aria-selected="${S.ui.sub===k}">${l}</button>`).join('')}</div>`+subviews[S.ui.sub]()}
+ else{body=subviews.seances()}
+ return head+tabs+body}
+
+/* --- évènements (change + click), isolés des autres gestionnaires --- */
+document.addEventListener('change',e=>{
+ if(e.target.id==='groupsel'){const v=e.target.value;if(v)openGroup(v);else backToGroups();return}
+ if(e.target.id==='addmemsel'){const v=e.target.value;if(v)setMember(v,S.ui.gsel)}});
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-act]');
+ if(b){const a=b.dataset.act;
+  if(a==='newgroup'){ctx.gdraft=null;ctx.geditId=null;ctx.gerr='';S.ui.screen='newgroup';render();window.scrollTo(0,0)}
+  else if(a==='creategroup')createGroup();
+  else if(a==='cancelgroup'){ctx.gdraft=null;ctx.geditId=null;ctx.gerr='';S.ui.screen=(S.ui.gsel&&groupOf(S.ui.gsel))?'group':null;render()}
+  else if(a==='editgroup')editGroup(b.dataset.gid);
+  else if(a==='delgroupask'){ctx.gConfirmDel=true;render()}
+  else if(a==='delgroupcancel'){ctx.gConfirmDel=false;render()}
+  else if(a==='delgroup')deleteGroup(b.dataset.gid);
+  else if(a==='rmmember')setMember(b.dataset.code,null);
+  return}
+ const gp=e.target.closest('[data-open-group]');if(gp){openGroup(gp.dataset.openGroup);return}
+ const pp=e.target.closest('[data-open-patient]');if(pp){openPatient(pp.dataset.openPatient);return}
+ const bk=e.target.closest('[data-back]');if(bk){bk.dataset.back==='group'?backToGroup():backToGroups();return}
+ const ps=e.target.closest('[data-psub]');if(ps){S.ui.psub=ps.dataset.psub;S.ui.confirm=null;render();window.scrollTo(0,0)}});
+</script>
 
 </body></html>
