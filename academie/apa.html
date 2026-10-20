@@ -586,7 +586,7 @@ add({id:'an',kind:'a',title:'Anamnèse',sub:'Entretien avec le client',
 const TABS=[['groupes',T('Groupes','Groups')],['anamnese',T('Anamnèse','History')],['m2',T('Dossier bénéficiaire','Beneficiary file')]];
 const SUBS=[['profil',T('Profil','Profile')],['objectifs',T('Objectifs','Goals')],['documents',T('Documents','Documents')],['reponses',T('Questionnaires','Questionnaires')],['tests',T('Tests','Tests')],['bilans',T('Bilans & suivi','Assessments & follow-up')],['programme',T('Programme','Program')],['seances',T('Séances','Sessions')],['synthese',T('Synthèse','Summary')]];
 const DEMO='DEMO2026';
-S.ui.tab='groupes';S.ui.sub='profil';S.ui.screen=null;S.ui.psub='seances';S.ui.gsel=null;
+S.ui.tab='groupes';S.ui.sub='profil';S.ui.screen=null;S.ui.psub='seances';S.ui.gsel=null;S.ui.pathOpen=false;
 const ctx={role:null,code:null,uid:null,preview:false,db:null,canEdit:false,sel:null,selUid:null,err:'',
   cache:{clients:{},assign:{},links:{},answers:{},seances:{},bilans:{},objectifs:{},docs:{},consents:{},programmes:{},groups:{}},unsub:[],dirty:new Set(),pending:false,confirmDel:false};
 const act=m=>!S.rm.includes(m.id);
@@ -1395,8 +1395,11 @@ groupesView=function(){const st=Object.keys(ctx.cache.clients||{}).map(statOf);
  const sg=st.filter(s=>!s.gi.fin);
  const sgCard=sg.length?`<div class="card gcard" style="--gc:var(--g8)"><div class="gh"><div><h3>${T('Sans pathologie','No condition')}</h3><p class="desc">${T('Anamnèse à compléter pour classer le client.','History to complete to classify the client.')}</p></div><span class="cnt">${sg.length}</span></div>${sg.map(s=>row(s,'anamnese')).join('')}</div>`:'';
  const pathCount=G.filter(g=>st.some(s=>s.gi.fin===g[0])).length+(sg.length?1:0);
- const pathology=(grp||sgCard)?`<details class="card pathwrap"><summary><span class="psum"><b>${T('Par pathologie','By condition')}</b> <span class="note">${T('classement automatique','automatic classification')}</span></span><span class="cnt2">${pathCount}</span></summary><div class="groups" style="margin-top:14px">${grp}${sgCard}</div></details>`:'';
+ const pathology=(grp||sgCard)?`<details class="card pathwrap" ${S.ui.pathOpen?'open':''}><summary><span class="psum"><b>${T('Par pathologie','By condition')}</b> <span class="note">${T('classement automatique','automatic classification')}</span></span><span class="cnt2">${pathCount}</span></summary><div class="groups" style="margin-top:14px">${grp}${sgCard}</div></details>`:'';
  return hero+strip+todoCard+pathology};
+/* mémorise l'état déplié/replié de « Par pathologie » pour qu'un rafraîchissement
+   automatique (synchro toutes les 8 s) ne le referme pas tout seul. */
+V.addEventListener('toggle',e=>{const d=e.target;if(d&&d.classList&&d.classList.contains('pathwrap'))S.ui.pathOpen=!!d.open},true);
 
 /* --- page d'un groupe : bénéficiaires + séances réalisées --- */
 function groupDetailView(){const gid=S.ui.gsel,g=groupOf(gid);
