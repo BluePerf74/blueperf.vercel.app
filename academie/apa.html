@@ -118,6 +118,40 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .gsrow .gsname{flex:1 1 160px;min-width:140px}
 .gsrow .sel{flex:0 0 auto;min-width:150px}
 .gsrow .gsborg{max-width:130px}
+/* planning (semaine / mois) */
+.planbar{align-items:center;margin-bottom:14px}
+.planbar .plabel{font-weight:700;font-size:16px;margin-left:6px;text-transform:capitalize}
+.seg{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:0;flex-wrap:nowrap}
+.seg button{appearance:none;border:0;background:transparent;color:var(--nav);font:600 13px var(--f-body);padding:6px 14px;border-radius:7px;cursor:pointer}
+.seg button.on{background:var(--accent);color:var(--on-accent)}
+.plegend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:14px}
+.plegend span{display:inline-flex;align-items:center;gap:6px}
+.pdot{width:9px;height:9px;border-radius:50%;background:var(--c,var(--lav));display:inline-block;flex:0 0 auto}
+.pchip{display:inline-flex;align-items:center;gap:6px;max-width:100%;background:color-mix(in srgb,var(--c) 16%,var(--card));border:1px solid color-mix(in srgb,var(--c) 42%,var(--line));color:var(--fg);border-radius:8px;padding:4px 9px;font:600 12px var(--f-body);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pchip .pdot{background:var(--c)}
+.pchip:hover{background:color-mix(in srgb,var(--c) 28%,var(--card))}
+.pweek{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.pcol{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px;min-height:130px;display:flex;flex-direction:column;gap:7px}
+.pcol.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.pcolh{font-size:12px;color:var(--muted);font-weight:600;display:flex;justify-content:space-between;align-items:baseline;text-transform:capitalize}
+.pcolh .pnum{font:700 16px var(--f-display);color:var(--fg)}
+.pcells{display:flex;flex-direction:column;gap:6px}
+.pempty{color:var(--muted);opacity:.4;text-align:center}
+.pmonthhead{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;font-size:11px;color:var(--muted);text-transform:capitalize;font-weight:600;text-align:center}
+.pmonth{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.mcell{background:var(--card2);border:1px solid var(--line);border-radius:9px;min-height:84px;padding:5px 6px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.mcell.out{opacity:.4}
+.mcell.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.mnum{font-size:12px;color:var(--muted);font-weight:600}
+.mchips{display:flex;flex-direction:column;gap:3px;min-width:0}
+.mchips .pchip{font-size:10.5px;padding:2px 6px;border-radius:6px}
+.pmore{font-size:10px;color:var(--muted);padding-left:2px}
+@media(max-width:720px){
+  .pweek{grid-auto-flow:column;grid-auto-columns:minmax(150px,78%);grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .pcol{scroll-snap-align:start}
+  .pmonth .pchip,.pmonthhead{font-size:9px}
+  .mchips .pchip{font-size:9px;padding:1px 4px}
+}
 #view{display:flex;flex-direction:column;gap:14px;min-width:0}
 /* boutons et badges */
 .btn{font:600 13px var(--f-body);border:1px solid var(--line);background:var(--bar);color:var(--fg);padding:9px 14px;border-radius:8px;cursor:pointer}
@@ -606,10 +640,10 @@ add({id:'an',kind:'a',title:'Anamnèse',sub:'Entretien avec le client',
   return{t,h:`<h4>Placement</h4><div class="row"><span>${gbadge(i.fin)}</span><span class="note">${i.ov?'Choisi par le coach':'Déterminé par la pathologie principale'}</span></div>${i.sec.length?`<div class="row"><span class="note">Groupes secondaires à surveiller</span><span>${i.sec.map(gbadge).join(' ')}</span></div>`:''}${i.al?`<div class="row"><span>${i.al} réponse(s) positive(s) à la sécurité avant l’effort</span><span class="pill ${i.med?'bad':'warn'}">${i.med?'Avis médical requis':'Avis obtenu'}</span></div>`:'<div class="row"><span>Aucun signal d’alerte relevé</span><span class="pill ok">RAS</span></div>'}`}}});
 </script>
 <script>
-const TABS=[['groupes',T('Vue d’ensemble','Overview')],['m2',T('Dossier bénéficiaire','Beneficiary file')],['anamnese',T('Anamnèse','History')]];
+const TABS=[['groupes',T('Vue d’ensemble','Overview')],['planning','📅 '+T('Planning','Schedule')],['m2',T('Dossier bénéficiaire','Beneficiary file')],['anamnese',T('Anamnèse','History')]];
 const SUBS=[['profil',T('Profil','Profile')],['objectifs',T('Objectifs','Goals')],['documents',T('Documents','Documents')],['reponses',T('Questionnaires','Questionnaires')],['tests',T('Tests','Tests')],['bilans',T('Bilans & suivi','Assessments & follow-up')],['programme',T('Programme','Program')],['seances',T('Séances','Sessions')],['synthese',T('Synthèse','Summary')]];
 const DEMO='DEMO2026';
-S.ui.tab='groupes';S.ui.sub='profil';S.ui.screen=null;S.ui.psub='seances';S.ui.gsel=null;S.ui.pathOpen=false;
+S.ui.tab='groupes';S.ui.sub='profil';S.ui.screen=null;S.ui.psub='seances';S.ui.gsel=null;S.ui.pathOpen=false;S.ui.planMode='week';S.ui.planRef=null;
 const ctx={role:null,code:null,uid:null,preview:false,db:null,canEdit:false,sel:null,selUid:null,err:'',
   cache:{clients:{},assign:{},links:{},answers:{},seances:{},bilans:{},objectifs:{},docs:{},consents:{},programmes:{},groups:{}},unsub:[],dirty:new Set(),pending:false,confirmDel:false};
 const act=m=>!S.rm.includes(m.id);
@@ -683,13 +717,14 @@ function coachRender(){setRole(`<span class="pill">${T('Espace coach','Coach are
  const cl=Object.entries(ctx.cache.clients).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
  const clientSelect=`<select class="sel" id="clientsel" aria-label="Client"><option value="">${T('Choisir un client','Choose a client')}</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select>`;
  const newClientBtn=`<button class="btn pri" data-act="newc">+ ${T('Nouveau client','New client')}</button>`;
- const ctl=S.ui.tab==='groupes'?newClientBtn:(clientSelect+newClientBtn);
+ const ctl=S.ui.tab==='groupes'?newClientBtn:S.ui.tab==='planning'?'':(clientSelect+newClientBtn);
  const nm=hasSel()?cname(ctx.cache.clients[ctx.sel]):'';
- const sub={groupes:today()+T(' · vue d’ensemble',' · overview'),anamnese:nm||T('Aucun client sélectionné','No client selected'),m2:nm||T('Aucun client sélectionné','No client selected')}[S.ui.tab];
- head({groupes:T('Vue d’ensemble','Overview'),anamnese:T('Anamnèse','History'),m2:T('Dossier bénéficiaire','Beneficiary file')}[S.ui.tab],sub,ctl);
+ const sub={groupes:today()+T(' · vue d’ensemble',' · overview'),planning:T('Séances planifiées et réalisées','Scheduled and completed sessions'),anamnese:nm||T('Aucun client sélectionné','No client selected'),m2:nm||T('Aucun client sélectionné','No client selected')}[S.ui.tab];
+ head({groupes:T('Vue d’ensemble','Overview'),planning:T('Planning','Schedule'),anamnese:T('Anamnèse','History'),m2:T('Dossier bénéficiaire','Beneficiary file')}[S.ui.tab],sub,ctl);
  let body;
  if(ctx.sel==='_new')body=newForm();
  else if(S.ui.tab==='groupes')body=S.ui.screen==='newgroup'?newGroupForm():S.ui.screen==='group'?groupDetailView():S.ui.screen==='patient'?patientDetailView():groupesView();
+ else if(S.ui.tab==='planning')body=(typeof planningView==='function')?planningView():'';
  else body=({anamnese:anamneseView,m2:m2View}[S.ui.tab])();
  $('#view').innerHTML=body+((ctx.modal&&(ctx.cache.clients||{})[ctx.modal]&&typeof patientModal==='function')?patientModal():'')}
 function clientRender(){$('#tabs').innerHTML='';$('#saved').hidden=ctx.preview;
@@ -828,7 +863,7 @@ async function ensureClient(code,name){
 }
 /* Clients de démonstration (pour l'aperçu) — créés une seule fois. */
 async function seedDemo(){
-  try{const m=await ctx.db.doc('meta/flags').get();if(m.exists&&m.data().seeded>=3)return;}catch(e){}
+  try{const m=await ctx.db.doc('meta/flags').get();if(m.exists&&m.data().seeded>=4)return;}catch(e){}
   const now=new Date().toISOString();
   const DEMOS=[
     {code:'DEMO-MARIE',p:{prenom:'Marie',nom:'Lambert (démo)',age:'68',sexe:'F',date:now.slice(0,10),eval:'Coach APA'},
@@ -868,7 +903,13 @@ async function seedDemo(){
     // --- groupe de démonstration + appartenance de deux bénéficiaires démo ---
     await ctx.db.doc('groups/g-demo1').set({id:'g-demo1',name:'Groupe du mardi (démo)',desc:'Cours collectif — équilibre et renforcement doux',color:2,created:now});
     for(const code of [dM,'DEMO-AMINA']){try{const cd=await ctx.db.doc('clients/'+code).get();const c=cd.exists?cd.data():{};await ctx.db.doc('clients/'+code).set(Object.assign({},c,{grp:'g-demo1'}));}catch(e){}}
-    await ctx.db.doc('meta/flags').set({seeded:3,at:now});
+    // --- séances pour le planning (démo) : collective cette semaine + à venir, individuelle à venir ---
+    const dPlus=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
+    const mondayS=(()=>{const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7)+1);return d.toISOString().slice(0,10);})();
+    const collSeance=(code,id,date)=>ctx.db.doc('seances/'+code+'__'+id).set({code,id,date,type:'collectif',group:'g-demo1',duree:'60',lieu:'Salle APA',presence:'present',forme:5,douleur:0,douleur_loc:'',fatigue:3,borg:'12',fc:'',tolerance:'bonne',contenu:'Cours collectif — équilibre et renforcement',adaptations:'',obs:'',emarge:true});
+    for(const code of [dM,'DEMO-AMINA']){await collSeance(code,'gc1',mondayS);await collSeance(code,'gc2',dPlus(7));}
+    await ctx.db.doc('seances/'+dP+'__sf1').set({code:dP,id:'sf1',date:dPlus(2),type:'individuel',duree:'45',lieu:'Salle APA',presence:'present',forme:5,douleur:0,douleur_loc:'',fatigue:3,borg:'',fc:'',tolerance:'bonne',contenu:'Séance individuelle — endurance et renforcement',adaptations:'',obs:'',emarge:false});
+    await ctx.db.doc('meta/flags').set({seeded:4,at:now});
   }catch(e){}
 }
 /* démarrage Blueperf : pas d'écran de connexion — le contexte vient des paramètres d'URL. */
@@ -1415,7 +1456,7 @@ function gsInput(e){const t=e.target;if(!ctx.gsdraft)return;
  if(t.dataset.gsm){const p=t.dataset.gsm.split('.'),code=p[0],f=p[1],m=ctx.gsdraft.mem;if(!m[code])m[code]={presence:'present',borg:''};m[code][f]=t.value;if(f==='presence'&&e.type==='change')render()}}
 
 /* --- navigation --- */
-function openGroup(gid){S.ui.gsel=gid;S.ui.screen='group';ctx.gConfirmDel=false;ctx.modal=null;ctx.gsdraft=null;render();window.scrollTo(0,0)}
+function openGroup(gid){S.ui.tab='groupes';S.ui.gsel=gid;S.ui.screen='group';ctx.gConfirmDel=false;ctx.modal=null;ctx.gsdraft=null;render();window.scrollTo(0,0)}
 async function openPatient(code){await flush();ctx.sel=code;ctx.confirmDel=false;loadSel();S.ui.psub='seances';ctx.modal=code;render()}
 function closeModal(){ctx.modal=null;render()}
 function backToGroups(){S.ui.screen=null;ctx.gConfirmDel=false;render();window.scrollTo(0,0)}
@@ -1448,7 +1489,7 @@ groupesView=function(){const st=Object.keys(ctx.cache.clients||{}).map(statOf);
  const stat=(v,l,sub,tone)=>`<div class="stat${tone?' '+tone:''}"><span class="v">${v}</span><span class="l">${l}${sub?`<small>${sub}</small>`:''}</span></div>`;
  const strip=`<div class="statstrip">${stat(n,T('Clients APA','APA clients'),T('dossiers ouverts','open files'))}${stat(done+'<small class="u"> / '+n+'</small>',T('Anamnèses complètes','Completed intakes'),n-done?(n-done)+' '+T('à terminer','to finish'):T('tout est prêt','all set'))}${stat(med,T('Avis médical','Medical opinion'),med?T('avant test d’effort','before stress test'):T('aucune alerte','no alert'),med?'warn':'')}${stat(nog,T('Sans pathologie','No condition'),nog?T('à préciser','to set'):T('tous placés','all placed'),nog?'warn':'')}</div>`;
  const todo=st.map(s=>{const t=[];if(s.pr[0]<s.pr[1])t.push(`<span class="pill warn">${T('Anamnèse','History')} ${s.pr[0]}/${s.pr[1]}</span>`);if(s.gi.med)t.push('<span class="pill bad">'+T('Avis médical','Medical opinion')+'</span>');if(!s.linked)t.push('<span class="pill">'+T('Pas encore connecté','Not connected yet')+'</span>');else if(s.qd<s.qt)t.push(`<span class="pill warn">${T('Questionnaires','Questionnaires')} ${s.qd}/${s.qt}</span>`);return{s,t}}).filter(x=>x.t.length);
- const todoCard=`<div class="card sect"><div class="hd"><h2>${T('À traiter','To do')}</h2><span class="note">${todo.length} ${T('client(s) avec une action en attente','client(s) with a pending action')}</span></div>${todo.length?`<div class="tbl"><table><thead><tr><th>${T('Client','Client')}</th><th>${T('En attente','Pending')}</th><th></th></tr></thead><tbody>${todo.map(x=>`<tr><td><b>${esc(x.s.name)}</b></td><td><div class="tags">${x.t.join('')}</div></td><td class="r"><button class="btn lav" data-open="${esc(x.s.code)}" data-to="${x.s.pr[0]<x.s.pr[1]?'anamnese':'m2'}">${x.s.pr[0]<x.s.pr[1]?T('Anamnèse','History'):T('Dossier','File')}</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="empty">${T('Rien en attente 👍','Nothing pending 👍')}</p>`}</div>`;
+ const todoCard=`<div class="card sect"><div class="hd"><h2>${T('Dossier à compléter','Files to complete')}</h2><span class="note">${todo.length} ${T('client(s) avec une action en attente','client(s) with a pending action')}</span></div>${todo.length?`<div class="tbl"><table><thead><tr><th>${T('Client','Client')}</th><th>${T('En attente','Pending')}</th><th></th></tr></thead><tbody>${todo.map(x=>`<tr><td><b>${esc(x.s.name)}</b></td><td><div class="tags">${x.t.join('')}</div></td><td class="r"><button class="btn lav" data-open="${esc(x.s.code)}" data-to="${x.s.pr[0]<x.s.pr[1]?'anamnese':'m2'}">${x.s.pr[0]<x.s.pr[1]?T('Anamnèse','History'):T('Dossier','File')}</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="empty">${T('Rien en attente 👍','Nothing pending 👍')}</p>`}</div>`;
  const row=(s,btn)=>`<div class="crow"><span><b>${esc(s.name)}</b> ${s.gi.med?'<span class="pill bad">'+T('Avis médical','Medical opinion')+'</span>':''}</span><button class="btn lav" data-open="${esc(s.code)}" data-to="${btn}">${T('Ouvrir','Open')}</button></div>`;
  const grp=G.map(g=>{const l=st.filter(s=>s.gi.fin===g[0]);if(!l.length)return'';return`<div class="card gcard" style="--gc:var(--g${g[3]})"><div class="gh"><div><h3>${g[1]}</h3><p class="desc">${g[2]}</p></div><span class="cnt">${l.length}</span></div>${l.map(s=>row(s,'m2')).join('')}</div>`}).filter(Boolean).join('');
  const sg=st.filter(s=>!s.gi.fin);
@@ -1539,6 +1580,74 @@ document.addEventListener('click',e=>{
  const pp=e.target.closest('[data-open-patient]');if(pp){openPatient(pp.dataset.openPatient);return}
  const bk=e.target.closest('[data-back]');if(bk){bk.dataset.back==='group'?backToGroup():backToGroups();return}
  const ps=e.target.closest('[data-psub]');if(ps){S.ui.psub=ps.dataset.psub;S.ui.confirm=null;render();window.scrollTo(0,0)}});
+</script>
+
+<script>
+/* ===================== PLANNING (semaine / mois) — séances auto, code couleur ===================== */
+(function(){
+  const iso=d=>d.toISOString().slice(0,10);
+  const parse=s=>new Date(s+'T12:00:00');
+  const addD=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d);};
+  const monday=s=>{const d=parse(s);const wd=(d.getDay()+6)%7;d.setDate(d.getDate()-wd);return iso(d);};
+  const firstOfMonth=s=>s.slice(0,8)+'01';
+  const shiftMonth=(s,n)=>{const d=parse(firstOfMonth(s));d.setMonth(d.getMonth()+n,1);return iso(d);};
+  const todayI=()=>new Date().toISOString().slice(0,10);
+  const loc=()=>((typeof LANG!=='undefined'&&LANG==='en')?'en-GB':'fr-FR');
+  const fmtDow=s=>{try{return parse(s).toLocaleDateString(loc(),{weekday:'short'})}catch(e){return ''}};
+  const fmtMonthTitle=s=>{try{return parse(s).toLocaleDateString(loc(),{month:'long',year:'numeric'})}catch(e){return s}};
+
+  function planEvents(){
+    const seances=Object.values(ctx.cache.seances||{}).filter(s=>s&&s.date);
+    const byDate={},grp={};
+    seances.forEach(s=>{
+      if(s.type==='collectif'&&s.group){const k=s.date+'|'+s.group;if(!grp[k])grp[k]={kind:'group',date:s.date,gid:s.group,count:0};grp[k].count++;}
+      else{(byDate[s.date]=byDate[s.date]||[]).push({kind:'patient',date:s.date,code:s.code,name:cname((ctx.cache.clients||{})[s.code]||{})});}
+    });
+    Object.values(grp).forEach(g=>{(byDate[g.date]=byDate[g.date]||[]).push(g);});
+    Object.keys(byDate).forEach(d=>byDate[d].sort((a,b)=>(a.kind===b.kind?0:a.kind==='group'?-1:1)));
+    return byDate;
+  }
+  function chip(ev,compact){
+    if(ev.kind==='group'){const g=(typeof groupOf==='function')?groupOf(ev.gid):null;const col=g?gcolorVar(g):'var(--lav)';const nm=g?g.name:'Groupe';
+      return `<button class="pchip" data-open-group="${esc(ev.gid)}" style="--c:${col}" title="${esc(nm)} · ${ev.count}"><span class="pdot"></span>${esc(nm)}${compact?'':' · '+ev.count}</button>`;}
+    return `<button class="pchip" data-open-patient="${esc(ev.code)}" style="--c:var(--lav)" title="${esc(ev.name)}"><span class="pdot"></span>${esc(ev.name)}</button>`;
+  }
+
+  window.planningView=function(){
+    const mode=S.ui.planMode||'week';const ref=S.ui.planRef||todayI();const today=todayI();
+    const ev=planEvents();
+    const label=mode==='week'?(T('Semaine du','Week of')+' '+esc(parse(monday(ref)).toLocaleDateString(loc(),{day:'numeric',month:'long'}))):esc(fmtMonthTitle(ref));
+    const nav=`<div class="bar planbar"><div class="ctl"><button class="btn" data-act="planPrev" aria-label="${T('Précédent','Previous')}">‹</button><button class="btn" data-act="planToday">${T('Aujourd’hui','Today')}</button><button class="btn" data-act="planNext" aria-label="${T('Suivant','Next')}">›</button><span class="plabel">${label}</span></div><div class="ctl seg"><button class="${mode==='week'?'on':''}" data-act="planWeek">${T('Semaine','Week')}</button><button class="${mode==='month'?'on':''}" data-act="planMonth">${T('Mois','Month')}</button></div></div>`;
+    const legend=`<div class="plegend"><span><span class="pdot" style="--c:var(--lav)"></span> ${T('Séance individuelle','Individual session')}</span>${(typeof groupsList==='function'?groupsList():[]).map(g=>`<span><span class="pdot" style="--c:${gcolorVar(g)}"></span> ${esc(g.name)}</span>`).join('')}</div>`;
+    let grid='';
+    if(mode==='week'){
+      const mon=monday(ref);
+      grid='<div class="pweek">'+[0,1,2,3,4,5,6].map(i=>{const d=addD(mon,i);const list=ev[d]||[];const isToday=d===today;
+        return `<div class="pcol${isToday?' today':''}"><div class="pcolh">${esc(fmtDow(d))}<span class="pnum">${parse(d).getDate()}</span></div><div class="pcells">${list.length?list.map(x=>chip(x)).join(''):'<span class="pempty">–</span>'}</div></div>`;}).join('')+'</div>';
+    } else {
+      const first=firstOfMonth(ref);const start=monday(first);const curMonth=ref.slice(0,7);
+      const lastDay=(()=>{const d=parse(first);d.setMonth(d.getMonth()+1,0);return iso(d);})();
+      const endSun=addD(monday(lastDay),6);
+      const total=Math.round((parse(endSun).getTime()-parse(start).getTime())/864e5)+1;
+      let cells='';for(let i=0;i<total;i++){const d=addD(start,i);const out=d.slice(0,7)!==curMonth;const isToday=d===today;const list=ev[d]||[];
+        const shown=list.slice(0,3).map(x=>chip(x,true)).join('')+(list.length>3?`<span class="pmore">+${list.length-3}</span>`:'');
+        cells+=`<div class="mcell${out?' out':''}${isToday?' today':''}"><div class="mnum">${parse(d).getDate()}</div><div class="mchips">${shown}</div></div>`;}
+      grid=`<div class="pmonthhead">${[0,1,2,3,4,5,6].map(i=>`<div>${esc(parse(addD(monday(ref),i)).toLocaleDateString(loc(),{weekday:'short'}))}</div>`).join('')}</div><div class="pmonth">${cells}</div>`;
+    }
+    return `<div class="card">${nav}${legend}${grid}<p class="note" style="margin-top:12px">${T('Les séances s’affichent automatiquement à leur date. Clique une séance pour ouvrir la fiche (individuelle) ou le groupe. Pour planifier une séance à venir, crée-la avec une date future (fiche bénéficiaire → Séances, ou « Nouvelle séance collective » dans un groupe).','Sessions appear automatically on their date. Click one to open the beneficiary file (individual) or the group. To schedule a future session, create it with a future date (beneficiary file → Sessions, or “New group session” in a group).')}</p></div>`;
+  };
+
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;if(!/^plan[PNTWM]/.test(a))return;
+    const mode=S.ui.planMode||'week';const ref=S.ui.planRef||todayI();
+    if(a==='planPrev')S.ui.planRef=mode==='week'?addD(ref,-7):shiftMonth(ref,-1);
+    else if(a==='planNext')S.ui.planRef=mode==='week'?addD(ref,7):shiftMonth(ref,1);
+    else if(a==='planToday')S.ui.planRef=todayI();
+    else if(a==='planWeek')S.ui.planMode='week';
+    else if(a==='planMonth')S.ui.planMode='month';
+    else return;
+    render();
+  });
+})();
 </script>
 
 </body></html>
