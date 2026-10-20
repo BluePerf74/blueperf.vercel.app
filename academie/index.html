@@ -677,6 +677,38 @@ function makeDemo(){
     D.maxes[p.id]={id:p.id,values:{'Squat arrière':Math.round(m*J(1.1,1.6)/2.5)*2.5,'Soulevé de terre roumain':Math.round(m*J(1,1.4)/2.5)*2.5,'Développé couché':Math.round(m*J(.75,1.1)/2.5)*2.5,'Hip thrust':Math.round(m*J(1.4,2)/2.5)*2.5},
       skills:Object.fromEntries(DEF.skills.map(s=>[s,ri(1,3)]))};});
   Object.values(D.players).filter(p=>p.cat==='U15').forEach(p=>{D.maxes[p.id]={id:p.id,values:{},skills:Object.fromEntries(DEF.skills.map(s=>[s,ri(0,2)]))};});
+  // planification de saison (démo) — macrocycle 40 semaines, pour l'aperçu
+  D.seasonplan=D.seasonplan||{};
+  const spOpp=['FC Nantes','OL Académie','Stade Rennais','AS Monaco','LOSC','Paris FC','RC Lens','Montpellier HSC','OGC Nice','Angers SCO','FC Lorient','Stade Brestois'];
+  ['U18','U15'].forEach(cat=>{
+    const weeks={};let mi=0;
+    for(let i=0;i<SP_WEEKS;i++){
+      const w={};
+      let phase;
+      if(i<=2)phase='ppr';else if(i<=6)phase='prepa';
+      else if(i===14||i===15)phase='coupure';else if(i===27)phase='transition';
+      else if(i>=38)phase='transition';else phase='comp';
+      w.phase=phase;
+      const deload=(i>6&&i%4===3);
+      if(phase==='ppr'){w.vol=2+Math.min(i,2);w.int=1;w.content={explo:1,submax:2,vitesse:1,coord:2,vma:3};}
+      else if(phase==='prepa'){w.vol=i>=5?5:4;w.int=i>=5?3:2;w.content={explo:2,submax:4,vitesse:2,coord:3,vma:4};}
+      else if(phase==='coupure'){w.vol=1;w.int=1;w.content={explo:0,submax:0,vitesse:0,coord:1,vma:1};}
+      else if(phase==='transition'){w.vol=2;w.int=2;w.content={explo:1,submax:1,vitesse:1,coord:1,vma:1};}
+      else{w.vol=deload?2:3;w.int=deload?3:4;w.content=deload?{explo:3,submax:1,vitesse:3,coord:2,vma:1}:{explo:3,submax:3,vitesse:4,coord:3,vma:2};
+        if(!deload)w.opp=spOpp[(mi++)%spOpp.length];}
+      weeks[i]=w;
+    }
+    weeks[0].event='Reprise';weeks[0].objCol='Réathlétisation progressive';weeks[0].test='Batterie de rentrée';weeks[0].themeA='Aérobie';
+    weeks[3].event='Tournoi de préparation';weeks[3].themeA='Force générale';weeks[3].themeB='Prévention ischios';
+    weeks[6].objCol='Mise en place du pressing';weeks[6].test='VMA / sprint';weeks[6].themeA='Vitesse';
+    weeks[7].event='J1 championnat';weeks[7].objCol='Bloc médian compact';
+    weeks[14].event='Vacances Toussaint';weeks[14].objInd='Programme individuel allégé';
+    weeks[20].test='Batterie mi-saison';weeks[20].objCol='Transitions offensives';weeks[20].themeA='Puissance';
+    weeks[27].event='Trêve hivernale';weeks[27].objInd='Entretien + récupération';
+    weeks[30].objCol='Jeu dans les petits espaces';weeks[30].themeA='Vitesse-vivacité';weeks[30].themeB='Changements de direction';
+    weeks[38].event='Fin de saison';weeks[38].test='Batterie finale';weeks[38].objCol='Bilan individuel';
+    D.seasonplan[cat]={cat,start:spStartDefault(),weeks};
+  });
   return D;
 }
 
@@ -1375,7 +1407,7 @@ function spBarsCell(i,key,lv,color){const bars=[5,4,3,2,1].map(n=>`<div style="h
 function spTxtCell(i,key,val){return `<td style="padding:2px;min-width:${SP_COLW}px;width:${SP_COLW}px"><input data-chg="spText" data-wk="${i}" data-key="${key}" value="${esc(val||'')}" style="width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:5px;padding:4px;font-size:11px"></td>`;}
 function spPhaseCell(i,phase){const ph=SP_PHASES.find(p=>p[0]===(phase||''))||SP_PHASES[0];return `<td data-act="spPhase" data-wk="${i}" title="clique pour changer la phase" style="cursor:pointer;padding:3px;text-align:center;min-width:${SP_COLW}px;width:${SP_COLW}px"><span style="display:block;background:${ph[2]};color:#fff;border-radius:5px;padding:4px 2px;font-size:9.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ph[1])}</span></td>`;}
 VIEWS.seasonplan=()=>{
-  if(!INDIV&&UI.cat==='Tous')return `<div class="hrow"><h2>Planification de la saison</h2></div><p class="muted">Choisis une catégorie en haut pour planifier sa saison.</p>`;
+  const allCats=!INDIV&&UI.cat==='Tous';
   const cat=spKey();const plan=spGet(cat);
   const lbl=i=>({wk:isoWeekNum(addDays(plan.start,7*i)),d:addDays(plan.start,7*i)});
   const th=`<th style="position:sticky;left:0;z-index:3;background:var(--nav);min-width:150px;width:150px;text-align:left;padding:6px 8px"></th>`;
@@ -1403,6 +1435,7 @@ VIEWS.seasonplan=()=>{
     ${SP_CONTENT.map(c=>`<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c[2]}"></span> ${c[1]}</span>`).join('')}</div>`;
   return `<div class="card"><div class="hrow"><h2>Planification de la saison — ${esc(cat)}</h2>
       <div class="row" style="gap:8px"><label class="small muted" style="margin:0">Début de saison</label><input type="date" data-chg="spStart" value="${plan.start}" style="width:auto"></div></div>
+    ${allCats?`<p class="note" style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:0 0 10px">📅 Catégorie affichée : <b>${esc(cat)}</b> — utilise le sélecteur de catégorie en haut à droite (U15 / U18) pour afficher l'autre équipe.</p>`:''}
     <p class="note" style="margin:0 0 10px">Clique une barre pour régler le niveau (0→5). Les cases texte, phases et thèmes sont modifiables directement. Bande du haut = phases · points = contenus athlétiques · ⚽ = match. Tout est enregistré automatiquement.</p>
     ${spChart(plan,cat)}
     ${legend}
