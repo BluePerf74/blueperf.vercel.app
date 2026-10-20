@@ -161,7 +161,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .planwide{position:relative;left:50%;transform:translateX(-50%);width:min(1480px,calc(100vw - 32px))}
 .pnav{font-size:18px;font-weight:700;line-height:1;padding:6px 13px}
 .pcol{min-height:200px}
-.pcol.focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.pcol.focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;background:color-mix(in srgb,var(--accent) 9%,var(--card2))}
+.pcol.focus .pcolh,.pcol.focus .pnum{color:var(--accent)}
 .pcol.today:not(.focus){border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
 .pcol.today .pnum{color:var(--accent)}
 .pcells .pchip{font-size:12.5px;padding:6px 10px}
@@ -736,7 +737,7 @@ function delBox(){return ctx.confirmDel
  ?`<div class="bar"><span class="note">${T('Supprimer ce client et toutes ses données ?','Delete this client and all their data?')}</span><span class="ctl"><button class="btn" data-act="delcancel">${T('Annuler','Cancel')}</button><button class="btn dng" data-act="delclient">${T('Supprimer le client','Delete client')}</button></span></div>`
  :`<div class="bar"><span class="note">${T('Le client ouvre le lien avec son compte Claude, puis saisit son code.','The client opens the link with their Claude account, then enters their code.')}</span><button class="btn del" data-act="delask">${T('Supprimer ce client','Delete this client')}</button></div>`}
 const subviews={
- profil:()=>`<p class="lead">${T('Ces informations alimentent le calcul de certains résultats (âge et sexe pour les normes). Seul le coach les voit.','This information feeds some result calculations (age and sex for norms). Only the coach sees it.')}</p><div class="card mbody" style="border-top:0;padding-top:18px"><div class="grid">${fld('prenom','Prénom')}${fld('nom','Nom')}${fld('age','Âge','number','min="0" max="120" inputmode="numeric"')}<label class="f"><span>Sexe</span><select id="p-sexe" data-p="sexe"><option value="">À préciser</option><option value="F" ${S.p.sexe==='F'?'selected':''}>Femme</option><option value="H" ${S.p.sexe==='H'?'selected':''}>Homme</option></select></label>${fld('date','Date du bilan','date')}${fld('eval','Évaluateur')}${area('ctx','Contexte et situation de santé déclarée','pathologies, traitements, antécédents utiles à la pratique')}${area('precau','Précautions et contre-indications','avis médical, limitations fonctionnelles')}${area('obj','Objectifs de la personne','ce qu’elle souhaite changer, et pourquoi')}</div></div>`+delBox(),
+ profil:()=>`<p class="lead">${T('Ces informations alimentent le calcul de certains résultats (âge et sexe pour les normes). Seul le coach les voit.','This information feeds some result calculations (age and sex for norms). Only the coach sees it.')}</p><div class="card mbody" style="border-top:0;padding-top:18px"><div class="grid">${fld('prenom','Prénom')}${fld('nom','Nom')}${fld('age','Âge','number','min="0" max="120" inputmode="numeric"')}<label class="f"><span>Sexe</span><select id="p-sexe" data-p="sexe"><option value="">À préciser</option><option value="F" ${S.p.sexe==='F'?'selected':''}>Femme</option><option value="H" ${S.p.sexe==='H'?'selected':''}>Homme</option></select></label>${fld('date','Date du bilan','date')}${fld('eval','Évaluateur')}${area('ctx','Contexte et situation de santé déclarée','pathologies, traitements, antécédents utiles à la pratique')}${area('precau','Précautions et contre-indications','avis médical, limitations fonctionnelles')}${area('obj','Objectifs de la personne','ce qu’elle souhaite changer, et pourquoi')}</div><div style="margin-top:14px"><span style="display:block;color:var(--muted);font-size:13px;margin-bottom:8px">${T('Couleur sur le planning (pour distinguer ses rendez-vous)','Color on the schedule (to tell their appointments apart)')}</span><div class="gsw-row">${[1,2,3,4,5,6,7].map(n=>`<button type="button" class="gsw${((S.p.color||0)===n)?' on':''}" data-act="clientColor" data-c="${n}" style="--c:var(--g${n})" aria-label="${T('Couleur','Color')} ${n}"></button>`).join('')}</div></div></div>`+delBox(),
  reponses:()=>{const an=ctx.selUid&&ctx.cache.answers[ctx.selUid];
   const st=!ctx.selUid?'<div class="banner">Le client n’a pas encore ouvert son espace avec ce code.</div>':an&&an.updated?`<p class="note">Dernière réponse enregistrée le ${fdate(an.updated)}.</p>`:'<p class="note">Aucune réponse enregistrée pour l’instant.</p>';
   return st+listView('q','Réponses saisies par le client, en lecture seule. Retirez un questionnaire pour qu’il ne soit plus proposé à ce client.',{ro:true})},
@@ -1610,6 +1611,7 @@ document.addEventListener('click',e=>{
   if(a==='newgroup'){ctx.gdraft=null;ctx.geditId=null;ctx.gerr='';S.ui.screen='newgroup';render();window.scrollTo(0,0)}
   else if(a==='creategroup')createGroup();
   else if(a==='pickColor'){const ne=$('#ng-name'),de=$('#ng-desc');ctx.gdraft={name:(ne&&ne.value)||'',desc:(de&&de.value)||'',color:+b.dataset.c};render()}
+  else if(a==='clientColor'){S.p.color=+b.dataset.c;if(typeof queueSave==='function')queueSave('c');render();toast(T('Couleur enregistrée','Color saved'))}
   else if(a==='cancelgroup'){ctx.gdraft=null;ctx.geditId=null;ctx.gerr='';S.ui.screen=(S.ui.gsel&&groupOf(S.ui.gsel))?'group':null;render()}
   else if(a==='editgroup')editGroup(b.dataset.gid);
   else if(a==='delgroupask'){ctx.gConfirmDel=true;render()}
@@ -1653,10 +1655,11 @@ document.addEventListener('click',e=>{
     Object.keys(byDate).forEach(d=>byDate[d].sort((a,b)=>(a.kind===b.kind?0:a.kind==='group'?-1:1)));
     return byDate;
   }
+  function clientColor(code){const c=(ctx.cache.clients||{})[code]||{};const col=c.p&&c.p.color;return col?('var(--g'+col+')'):'var(--lav)';}
   function chip(ev,compact){
     if(ev.kind==='group'){const g=(typeof groupOf==='function')?groupOf(ev.gid):null;const col=g?gcolorVar(g):'var(--lav)';const nm=g?g.name:'Groupe';
       return `<button class="pchip" data-open-group="${esc(ev.gid)}" style="--c:${col}" title="${esc(nm)} · ${ev.count}"><span class="pdot"></span>${esc(nm)}${compact?'':' · '+ev.count}</button>`;}
-    return `<button class="pchip" data-open-patient="${esc(ev.code)}" style="--c:var(--lav)" title="${esc(ev.name)}"><span class="pdot"></span>${esc(ev.name)}</button>`;
+    return `<button class="pchip" data-open-patient="${esc(ev.code)}" style="--c:${clientColor(ev.code)}" title="${esc(ev.name)}"><span class="pdot"></span>${esc(ev.name)}</button>`;
   }
 
   function weekGrid(ref,ev,today){const mon=monday(ref);
@@ -1672,7 +1675,7 @@ document.addEventListener('click',e=>{
     return `<div class="pmonthhead">${[0,1,2,3,4,5,6].map(i=>`<div>${esc(parse(addD(monday(ref),i)).toLocaleDateString(loc(),{weekday:'short'}))}</div>`).join('')}</div><div class="pmonth">${cells}</div>`;
   }
   function dayItem(ev){const isG=ev.kind==='group';const g=isG&&typeof groupOf==='function'?groupOf(ev.gid):null;
-    const col=isG?(g?gcolorVar(g):'var(--lav)'):'var(--lav)';
+    const col=isG?(g?gcolorVar(g):'var(--lav)'):clientColor(ev.code);
     const title=isG?(g?g.name:'Groupe'):ev.name;
     const sub=[isG?T('Cours collectif','Group class')+' · '+ev.count+' '+T('participant(s)','participant(s)'):T('Séance individuelle','Individual session'),ev.dur?esc(ev.dur)+' min':'',ev.lieu?esc(ev.lieu):''].filter(Boolean).join(' · ');
     const attr=isG?`data-open-group="${esc(ev.gid)}"`:`data-open-patient="${esc(ev.code)}"`;
@@ -1701,7 +1704,7 @@ document.addEventListener('click',e=>{
     const mode=S.ui.planMode||'week';const ref=S.ui.planRef||todayI();const today=todayI();const ev=planEvents();
     let label;
     if(mode==='day')label=parse(ref).toLocaleDateString(loc(),{day:'numeric',month:'long',year:'numeric'});
-    else if(mode==='week')label=T('Semaine du','Week of')+' '+parse(monday(ref)).toLocaleDateString(loc(),{day:'numeric',month:'long'});
+    else if(mode==='week')label=T('Semaine du','Week of')+' '+parse(monday(ref)).toLocaleDateString(loc(),{day:'numeric',month:'long'})+' — '+parse(ref).toLocaleDateString(loc(),{weekday:'long',day:'numeric'});
     else if(mode==='month')label=fmtMonthTitle(ref);
     else label=ref.slice(0,4);
     const modes=[['day',T('Jour','Day')],['week',T('Semaine','Week')],['month',T('Mois','Month')],['year',T('Année','Year')]];
