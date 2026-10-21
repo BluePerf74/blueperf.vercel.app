@@ -1717,11 +1717,14 @@ document.addEventListener('click',e=>{
     const mode=S.ui.planMode||'week';const ref=S.ui.planRef||todayI();const today=todayI();const ev=planEvents();
     let label;
     if(mode==='day')label=parse(ref).toLocaleDateString(loc(),{day:'numeric',month:'long',year:'numeric'});
-    else if(mode==='week')label=T('Semaine du','Week of')+' '+parse(monday(ref)).toLocaleDateString(loc(),{day:'numeric',month:'long'})+' — '+parse(ref).toLocaleDateString(loc(),{weekday:'long',day:'numeric'});
+    else if(mode==='week')label=T('Semaine du','Week of')+' '+parse(monday(ref)).toLocaleDateString(loc(),{day:'numeric',month:'long'});
     else if(mode==='month')label=fmtMonthTitle(ref);
     else label=ref.slice(0,4);
+    const cap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+    const isToday=ref===today;
+    const todayLbl=(mode==='day'||mode==='week')?(isToday?T('Aujourd’hui','Today'):cap(parse(ref).toLocaleDateString(loc(),{weekday:'long',day:'numeric'}))):T('Aujourd’hui','Today');
     const modes=[['day',T('Jour','Day')],['week',T('Semaine','Week')],['month',T('Mois','Month')],['year',T('Année','Year')]];
-    const nav=`<div class="bar planbar"><div class="ctl"><button class="btn pnav" data-act="planPrev" aria-label="${T('Précédent','Previous')}">‹</button><button class="btn" data-act="planToday">${T('Aujourd’hui','Today')}</button><button class="btn pnav" data-act="planNext" aria-label="${T('Suivant','Next')}">›</button><span class="plabel">${esc(label)}</span></div><div class="ctl seg">${modes.map(([k,l])=>`<button class="${mode===k?'on':''}" data-act="planMode" data-m="${k}">${l}</button>`).join('')}</div></div>`;
+    const nav=`<div class="bar planbar"><div class="ctl"><button class="btn pnav" data-act="planPrev" aria-label="${T('Précédent','Previous')}">‹</button><button class="btn${isToday?'':' pri'}" data-act="planToday" title="${isToday?T('Aujourd’hui','Today'):T('Revenir à aujourd’hui','Back to today')}">${esc(todayLbl)}</button><button class="btn pnav" data-act="planNext" aria-label="${T('Suivant','Next')}">›</button><span class="plabel">${esc(label)}</span></div><div class="ctl seg">${modes.map(([k,l])=>`<button class="${mode===k?'on':''}" data-act="planMode" data-m="${k}">${l}</button>`).join('')}</div></div>`;
     const legend=`<div class="plegend"><span><span class="pdot" style="--c:var(--lav)"></span> ${T('Séance individuelle','Individual session')}</span>${(typeof groupsList==='function'?groupsList():[]).map(g=>`<span><span class="pdot" style="--c:${gcolorVar(g)}"></span> ${esc(g.name)}</span>`).join('')}</div>`;
     const grid=mode==='day'?dayView(ref,ev,today):mode==='week'?weekGrid(ref,ev,today):mode==='month'?monthGrid(ref,ev,today):yearView(ref,ev,today);
     return `<div class="card planwide">${nav}${legend}${grid}<p class="note" style="margin-top:12px">${T('Les séances s’affichent automatiquement à leur date. Clique une séance pour ouvrir la fiche (individuelle) ou le groupe. Les flèches avancent jour par jour (vues Jour et Semaine), ou de mois / année selon la vue.','Sessions appear automatically on their date. Click one to open the beneficiary file (individual) or the group. The arrows move day by day (Day & Week views), or by month / year depending on the view.')}</p></div>`;
