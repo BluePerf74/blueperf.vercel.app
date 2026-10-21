@@ -122,6 +122,24 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .gsrow .gsname{flex:1 1 160px;min-width:140px}
 .gsrow .sel{flex:0 0 auto;min-width:150px}
 .gsrow .gsborg{max-width:130px}
+/* séance de groupe adaptée */
+.admgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.admem{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.admem-h{font-size:15px;margin-bottom:8px}
+.admem-tags{display:flex;flex-wrap:wrap;gap:6px}
+.adxtitle{font-size:20px;margin:18px 0 2px}
+.adx{padding:14px 16px}
+.adx-h{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.adx-h h3{font-size:17px;margin:0}
+.adx-ok{color:var(--ok);margin:4px 0 0;font-size:13px}
+.adx-list{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.adx-row{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--line)}
+.adx-who{font-weight:700;min-width:120px;flex:0 0 auto}
+.adx-cauts{flex:1 1 220px;display:flex;flex-direction:column;gap:4px}
+.adx-caut{display:flex;gap:7px;align-items:baseline;flex-wrap:wrap;font-size:13px}
+.adx-risk{color:var(--warn);font-weight:600}
+.adx-arrow{color:var(--muted)}
+.adx-var{color:var(--fg)}
 /* planning (semaine / mois) */
 .planbar{align-items:center;margin-bottom:14px}
 .planbar .plabel{font-weight:700;font-size:16px;margin-left:6px;text-transform:capitalize}
@@ -773,7 +791,7 @@ function coachRender(){setRole('<button class="iconbtn'+(S.ui.tab==='planning'?'
  head({groupes:T('Vue d’ensemble','Overview'),planning:T('Planning','Schedule'),anamnese:T('Anamnèse','History'),m2:T('Dossier bénéficiaire','Beneficiary file')}[S.ui.tab],sub,ctl);
  let body;
  if(ctx.sel==='_new')body=newForm();
- else if(S.ui.tab==='groupes')body=S.ui.screen==='newgroup'?newGroupForm():S.ui.screen==='group'?groupDetailView():S.ui.screen==='patient'?patientDetailView():groupesView();
+ else if(S.ui.tab==='groupes')body=S.ui.screen==='newgroup'?newGroupForm():S.ui.screen==='adapted'?adaptedSessionView():S.ui.screen==='group'?groupDetailView():S.ui.screen==='patient'?patientDetailView():groupesView();
  else if(S.ui.tab==='planning')body=(typeof planningView==='function')?planningView():'';
  else body=({anamnese:anamneseView,m2:m2View}[S.ui.tab])();
  $('#view').innerHTML=body+((ctx.modal&&(ctx.cache.clients||{})[ctx.modal]&&typeof patientModal==='function')?patientModal():'')}
@@ -1530,6 +1548,77 @@ function customGroupsSection(){const gl=groupsList();
   +(gl.length?`<div class="ggrid">${gl.map(card).join('')}</div>`:`<div class="gempty"><p>${T('Vous n’avez pas encore de groupe.','You don’t have any group yet.')}</p><button class="btn pri" data-act="newgroup">+ ${T('Créer mon premier groupe','Create my first group')}</button></div>`)+`</div>`}
 
 /* --- Prise en charge individuelle : bénéficiaires hors groupe --- */
+/* ===================== SÉANCE DE GROUPE ADAPTÉE (fonctionnalité phare) =====================
+   Croise les contre-indications de chaque membre (issues de l'anamnèse) avec une
+   bibliothèque d'exercices et propose une variante par personne. Repères indicatifs,
+   à valider avec l'avis médical. */
+const pathoName=k=>{const p=PATHOS.find(x=>x[0]===k);return p?p[1]:k;};
+const ADEX=[
+ {id:'march',name:'Marche / endurance au sol',cat:'Endurance',caut:{
+   coro:{r:'Effort cardiaque à surveiller',v:'Allure modérée, Borg ≤ 13, pauses'},
+   bpco:{r:'Essoufflement',v:'Par paliers, récupération active'},
+   asthme:{r:'Risque de bronchospasme',v:'Échauffement long, éviter l’air froid'},
+   obe:{r:'Charge articulaire',v:'Terrain plat, chaussures adaptées'}}},
+ {id:'velo',name:'Vélo / cycloergomètre',cat:'Endurance',caut:{
+   coro:{r:'Effort cardiaque',v:'Résistance faible, Borg ≤ 13'},
+   avc:{r:'Équilibre/transfert',v:'Vélo allongé ou maintien latéral'}}},
+ {id:'squat',name:'Squat / lever de chaise',cat:'Renforcement',caut:{
+   arthr:{r:'Contrainte des genoux',v:'Amplitude réduite, lever de chaise'},
+   osteo:{r:'Charge sur le rachis',v:'Sans charge, dos neutre'},
+   hta:{r:'Manœuvre de Valsalva',v:'Léger, souffler à l’effort, pas d’apnée'},
+   sarco:{r:'Difficulté à se relever',v:'Avec accoudoirs/appui'}}},
+ {id:'pliom',name:'Sauts / pliométrie',cat:'Puissance',caut:{
+   osteo:{r:'Risque fracturaire',v:'Remplacer par montées sur step'},
+   arthr:{r:'Impact articulaire',v:'Sans impact (step bas, vélo)'},
+   chute:{r:'Risque de chute',v:'Supprimer, travail d’appui stable'},
+   coro:{r:'Pic d’effort',v:'Éviter, rester en continu modéré'},
+   obe:{r:'Charge articulaire',v:'Sans impact'}}},
+ {id:'flex',name:'Flexions du tronc / abdos au sol',cat:'Renforcement',caut:{
+   lomb:{r:'Contrainte lombaire',v:'Gainage en position neutre'},
+   osteo:{r:'Flexion du rachis à risque',v:'Extension/gainage, éviter la flexion'}}},
+ {id:'equil',name:'Équilibre debout (appui unipodal)',cat:'Équilibre',caut:{
+   chute:{r:'Risque de chute',v:'Près d’un appui (mur/chaise), yeux ouverts'},
+   park:{r:'Instabilité posturale',v:'Appui sécurisé, double tâche progressive'},
+   avc:{r:'Asymétrie / équilibre',v:'Appui, débuter côté sain'},
+   sep:{r:'Fatigue / équilibre',v:'Assis→debout progressif, pauses'}}},
+ {id:'sol',name:'Exercices au sol / relevés',cat:'Mobilité',caut:{
+   sarco:{r:'Difficulté à se relever',v:'Transferts assistés, via chaise'},
+   obe:{r:'Relevé difficile',v:'Travail debout ou sur chaise'},
+   arthr:{r:'Appui articulaire au sol',v:'Tapis épais / sur chaise'}}},
+ {id:'haut',name:'Renforcement membres sup. (élastique)',cat:'Renforcement',caut:{
+   hta:{r:'Valsalva',v:'Léger, souffler, pas d’apnée'},
+   cancer:{r:'Fatigue / lymphœdème',v:'Charges légères, surveiller le bras concerné'}}},
+ {id:'etire',name:'Étirements',cat:'Souplesse',caut:{
+   fibro:{r:'Hypersensibilité à la douleur',v:'Amplitude douce, indolore'},
+   osteo:{r:'Étirement forcé',v:'Doux, sans à-coups'}}},
+ {id:'hiit',name:'Travail intermittent haute intensité',cat:'Intensité',caut:{
+   coro:{r:'Risque cardiaque',v:'Proscrire sans avis cardio, rester modéré'},
+   hta:{r:'Pics tensionnels',v:'Continu modéré'},
+   bpco:{r:'Désaturation',v:'Paliers courts, surveiller la respiration'},
+   asthme:{r:'Risque de crise',v:'Éviter, échauffement prolongé'},
+   dt2:{r:'Risque d’hypoglycémie',v:'Collation si besoin, surveiller'}}}
+];
+function memberAnswers(code){const c=(ctx.cache.clients||{})[code]||{};const lk=(typeof linkOf==='function')?linkOf(code):null;const uid=lk?lk[0]:code===DEMO?'demo':null;const an=(uid&&(ctx.cache.answers||{})[uid]||{}).a||{};return Object.assign({},an,c.t||{},c.an||{});}
+function memberPathos(code){const a=memberAnswers(code);const out=[];const main=a['an.main'];if(main)out.push(main);PATHOS.forEach(p=>{if(a['an.as.'+p[0]]==='1'&&out.indexOf(p[0])<0)out.push(p[0]);});return out;}
+function parAlert(code){const a=memberAnswers(code);let pos=false;for(let i=1;i<=PAR.length;i++){if(a['an.par'+i]==='1')pos=true;}return pos&&a['an.avis']!=='obtenu';}
+function memberLabels(code){const a=memberAnswers(code);const out=[];memberPathos(code).forEach(k=>out.push({txt:pathoName(k),cls:''}));if(parAlert(code))out.push({txt:T('Avis médical requis','Medical opinion required'),cls:'bad'});const c=(ctx.cache.clients||{})[code]||{};if(c.p&&c.p.precau)out.push({txt:T('Précautions','Precautions')+' : '+c.p.precau,cls:'warn'});if(a['an.obj'])out.push({txt:'🎯 '+a['an.obj'],cls:'ok'});return out;}
+function adaptedSessionView(){const gid=S.ui.gsel,g=groupOf(gid);
+ const back=`<button class="btn" data-act="gsback">← ${esc(g?g.name:T('Groupe','Group'))}</button>`;
+ if(!g)return `<div class="card sect">${back}<p class="empty" style="margin-top:12px">${T('Groupe introuvable.','Group not found.')}</p></div>`;
+ const members=membersOf(gid).map(code=>({code,c:(ctx.cache.clients||{})[code]||{},pathos:memberPathos(code),par:parAlert(code),labels:memberLabels(code)}));
+ const head=`<div class="card sect" style="border-top:3px solid ${gcolorVar(g)}"><div style="min-width:220px">${back}<h2 style="font-size:27px;margin:10px 0 2px">⚕️ ${T('Séance de groupe adaptée','Adapted group session')}</h2><p class="note" style="margin:0">${esc(g.name)} · ${members.length} ${T('bénéficiaire(s)','beneficiary(ies)')}</p></div></div>`;
+ const disc=`<div class="banner"><span>⚠️ ${T('Repères indicatifs issus de l’anamnèse — à valider avec l’avis médical et le staff. Un bénéficiaire peut cumuler plusieurs pathologies.','Indicative guidance from the history interview — validate with the medical opinion and staff. A beneficiary may have several conditions.')}</span></div>`;
+ const memCards=members.length?members.map(m=>`<div class="admem"><div class="admem-h"><b>${esc(cname(m.c))}</b></div><div class="admem-tags">${m.labels.length?m.labels.map(l=>`<span class="pill ${l.cls}">${esc(l.txt)}</span>`).join(''):`<span class="note">${T('Aucune contre-indication notée','No contraindication noted')}</span>`}</div></div>`).join(''):`<p class="empty">${T('Ajoutez des bénéficiaires au groupe pour générer les adaptations.','Add beneficiaries to the group to generate adaptations.')}</p>`;
+ const profiles=`<div class="card sect"><h2 style="font-size:20px">${T('Profils de contraintes','Constraint profiles')}</h2><p class="note" style="margin:4px 0 12px">${T('Étiquettes générées automatiquement depuis l’anamnèse de chaque personne.','Labels generated automatically from each person’s history interview.')}</p><div class="admgrid">${memCards}</div></div>`;
+ const exBlocks=members.length?ADEX.map(ex=>{
+   const affected=members.map(m=>{let cs=m.pathos.map(pk=>ex.caut[pk]?Object.assign({pk},ex.caut[pk]):null).filter(Boolean);
+     if(m.par&&(ex.cat==='Intensité'||ex.cat==='Puissance')&&!cs.length)cs=[{r:T('Avis médical requis avant effort intense','Medical opinion required before intense effort'),v:T('Valider l’aptitude, rester modéré','Confirm fitness, keep it moderate')}];
+     return cs.length?{name:cname(m.c),cs}:null;}).filter(Boolean);
+   return `<div class="card adx"><div class="adx-h"><h3>${esc(ex.name)}</h3><span class="pill">${esc(ex.cat)}</span></div>${affected.length?`<div class="adx-list">${affected.map(a=>`<div class="adx-row"><span class="adx-who">${esc(a.name)}</span><div class="adx-cauts">${a.cs.map(c=>`<div class="adx-caut"><span class="adx-risk">⚠ ${esc(c.r)}</span><span class="adx-arrow">→</span><span class="adx-var">${esc(c.v)}</span></div>`).join('')}</div></div>`).join('')}</div>`:`<p class="adx-ok">✅ ${T('Aucune adaptation nécessaire pour ce groupe','No adaptation needed for this group')}</p>`}</div>`;
+ }).join(''):'';
+ return head+disc+profiles+(members.length?`<h2 class="adxtitle">${T('Exercices et adaptations par personne','Exercises and per-person adaptations')}</h2>`+exBlocks:'');
+}
+
 function individualSection(){
  const indiv=Object.entries(ctx.cache.clients||{}).filter(([,c])=>c&&!c.grp).map(([code])=>code)
    .sort((a,b)=>cname((ctx.cache.clients||{})[a]||{}).localeCompare(cname((ctx.cache.clients||{})[b]||{}),'fr'));
@@ -1571,7 +1660,7 @@ function groupDetailView(){const gid=S.ui.gsel,g=groupOf(gid);
  const recent=[];mem.forEach(x=>x.Ss.forEach(s=>recent.push({s,name:cname(x.c)})));
  recent.sort((a,b)=>String(b.s.date+b.s.id).localeCompare(String(a.s.date+a.s.id)));
  const del=ctx.gConfirmDel?`<button class="btn dng" data-act="delgroup" data-gid="${esc(gid)}">${T('Confirmer la suppression','Confirm delete')}</button><button class="btn" data-act="delgroupcancel">${T('Annuler','Cancel')}</button>`:`<button class="btn del" data-act="delgroupask">${T('Supprimer','Delete')}</button>`;
- const gHead=`<div class="card sect" style="border-top:3px solid ${gcolorVar(g)}"><div class="bar"><div style="min-width:220px">${back}<h2 style="font-size:30px;margin:10px 0 2px">${esc(g.name)}</h2>${g.desc?`<p class="note" style="margin:0">${esc(g.desc)}</p>`:''}</div><span class="ctl"><button class="btn" data-act="editgroup" data-gid="${esc(gid)}">${T('Modifier','Edit')}</button>${del}</span></div></div>`;
+ const gHead=`<div class="card sect" style="border-top:3px solid ${gcolorVar(g)}"><div class="bar"><div style="min-width:220px">${back}<h2 style="font-size:30px;margin:10px 0 2px">${esc(g.name)}</h2>${g.desc?`<p class="note" style="margin:0">${esc(g.desc)}</p>`:''}</div><span class="ctl"><button class="btn pri" data-act="adapted">⚕️ ${T('Séance adaptée','Adapted session')}</button><button class="btn" data-act="editgroup" data-gid="${esc(gid)}">${T('Modifier','Edit')}</button>${del}</span></div></div>`;
  const kp=(l,v,s)=>`<div class="card kpi"><span class="lab">${l}</span><span class="n">${v}</span><p>${s}</p></div>`;
  const kpis=`<div class="kpis" style="margin-top:14px">${kp(T('Bénéficiaires','Beneficiaries'),mem.length,T('dans ce groupe','in this group'))}${kp(T('Séances réalisées','Sessions done'),present,absent?absent+' '+T('absence(s)','absence(s)'):T('présence suivie','attendance tracked'))}${kp(T('Taux de présence','Attendance rate'),taux!=null?taux+' %':'–',T('sur le groupe','across the group'))}${kp(T('Bilans datés','Dated assessments'),bilans,T('pour les courbes','for the charts'))}</div>`;
  const avail=Object.entries(ctx.cache.clients||{}).filter(([,c])=>c&&c.grp!==gid).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
@@ -1629,6 +1718,8 @@ document.addEventListener('click',e=>{
   else if(a==='delgroupcancel'){ctx.gConfirmDel=false;render()}
   else if(a==='delgroup')deleteGroup(b.dataset.gid);
   else if(a==='rmmember')setMember(b.dataset.code,null);
+  else if(a==='adapted'){S.ui.screen='adapted';render();window.scrollTo(0,0)}
+  else if(a==='gsback'){S.ui.screen='group';render();window.scrollTo(0,0)}
   else if(a==='gsnew')newGroupSeance(S.ui.gsel);
   else if(a==='gssave')saveGroupSeance();
   else if(a==='gscancel'){ctx.gsdraft=null;render();window.scrollTo(0,0)}
