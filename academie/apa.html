@@ -383,6 +383,37 @@ input[type=number]{font-variant-numeric:tabular-nums}
 .vttl{text-align:left;margin-top:14px;display:block}
 .vttl>span{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
 .vttl textarea{width:100%}
+/* Onglet Séances (agenda) */
+.aglist{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.agrow{display:flex;gap:14px;align-items:center;padding:12px 14px;flex-wrap:wrap}
+.agrow.over{border-left:3px solid var(--warn)}
+.agdate{flex:0 0 auto;width:58px;height:58px;border-radius:12px;background:var(--card2);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.agdate .agd{font:700 24px var(--f-display);color:var(--fg)}
+.agdate .agm{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-top:2px}
+.aginfo{flex:1 1 220px;min-width:0}
+.agwho{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:16px}
+.agdot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.agmeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:5px}
+.agrel{font-size:12px;font-weight:700;color:var(--accent)}
+.agrel.over{color:var(--warn)}
+.agpill{font-size:12px;color:var(--muted);background:var(--card2);border:1px solid var(--line);border-radius:99px;padding:1px 9px}
+.agcont{font-size:13px;color:var(--muted)}
+.agact{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
+.agcount{flex:0 0 auto;min-width:26px;height:26px;padding:0 8px;border-radius:99px;background:var(--card2);border:1px solid var(--line);color:var(--muted);font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+.agcount.warn{background:var(--warn-bg);border-color:transparent;color:var(--warn)}
+.agguide{display:flex;gap:12px;align-items:flex-start;background:color-mix(in srgb,var(--accent) 7%,transparent);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);border-radius:12px;padding:13px 15px;margin-bottom:14px}
+.agguide .agi{font-size:20px;flex:0 0 auto}
+.agguide b{display:block;margin-bottom:3px}
+.agguide p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.55}
+.psseg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.psbtn{appearance:none;border:0;background:transparent;color:var(--nav);font:inherit;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer}
+.psbtn.on{background:var(--accent);color:#04121f}
+/* carte « prochaines séances » sur la vue d'ensemble */
+.nextlist{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.nextrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line)}
+.nextrow:last-child{border-bottom:0}
+.nxwho{flex:1 1 auto;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nxdate{flex:0 0 auto;font-size:13px;color:var(--muted);font-weight:600}
 .chart{width:100%;max-width:360px;height:auto;display:block}
 .chart .axis{stroke:var(--line)}
 .chart .ln{fill:none;stroke:var(--accent);stroke-width:2}
@@ -740,7 +771,7 @@ add({id:'an',kind:'a',title:'Anamnèse',sub:'Entretien avec le client',
   return{t,h:`<h4>Placement</h4><div class="row"><span>${gbadge(i.fin)}</span><span class="note">${i.ov?'Choisi par le coach':'Déterminé par la pathologie principale'}</span></div>${i.sec.length?`<div class="row"><span class="note">Groupes secondaires à surveiller</span><span>${i.sec.map(gbadge).join(' ')}</span></div>`:''}${i.al?`<div class="row"><span>${i.al} réponse(s) positive(s) à la sécurité avant l’effort</span><span class="pill ${i.med?'bad':'warn'}">${i.med?'Avis médical requis':'Avis obtenu'}</span></div>`:'<div class="row"><span>Aucun signal d’alerte relevé</span><span class="pill ok">RAS</span></div>'}`}}});
 </script>
 <script>
-const TABS=[['groupes',T('Vue d’ensemble','Overview')],['m2',T('Dossier bénéficiaire','Beneficiary file')],['anamnese',T('Anamnèse','History')]];
+const TABS=[['groupes',T('Vue d’ensemble','Overview')],['agenda',T('Séances','Sessions')],['m2',T('Dossier bénéficiaire','Beneficiary file')],['anamnese',T('Anamnèse','History')]];
 const SUBS=[['profil',T('Profil','Profile')],['objectifs',T('Objectifs','Goals')],['documents',T('Documents','Documents')],['reponses',T('Questionnaires','Questionnaires')],['tests',T('Tests','Tests')],['bilans',T('Bilans & suivi','Assessments & follow-up')],['programme',T('Programme','Program')],['seances',T('Séances','Sessions')],['synthese',T('Synthèse','Summary')]];
 const DEMO='DEMO2026';
 S.ui.tab='groupes';S.ui.sub='profil';S.ui.screen=null;S.ui.psub='seances';S.ui.gsel=null;S.ui.pathOpen=false;S.ui.planMode='week';S.ui.planRef=null;
@@ -817,13 +848,15 @@ function coachRender(){setRole('<button class="iconbtn'+(S.ui.tab==='planning'?'
  const cl=Object.entries(ctx.cache.clients).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
  const clientSelect=`<select class="sel" id="clientsel" aria-label="Client"><option value="">${T('Choisir un client','Choose a client')}</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select>`;
  const newClientBtn=`<button class="btn pri" data-act="newc">+ ${T('Nouveau client','New client')}</button>`;
- const ctl=S.ui.tab==='groupes'?newClientBtn:S.ui.tab==='planning'?'':(clientSelect+newClientBtn);
+ const planBtn=`<button class="btn pri" data-act="planNew">+ ${T('Programmer une séance','Schedule a session')}</button>`;
+ const ctl=S.ui.tab==='groupes'?newClientBtn:S.ui.tab==='planning'?'':S.ui.tab==='agenda'?planBtn:(clientSelect+newClientBtn);
  const nm=hasSel()?cname(ctx.cache.clients[ctx.sel]):'';
- const sub={groupes:today()+T(' · vue d’ensemble',' · overview'),planning:T('Séances planifiées et réalisées','Scheduled and completed sessions'),anamnese:nm||T('Aucun client sélectionné','No client selected'),m2:nm||T('Aucun client sélectionné','No client selected')}[S.ui.tab];
- head({groupes:T('Vue d’ensemble','Overview'),planning:T('Planning','Schedule'),anamnese:T('Anamnèse','History'),m2:T('Dossier bénéficiaire','Beneficiary file')}[S.ui.tab],sub,ctl);
+ const sub={groupes:today()+T(' · vue d’ensemble',' · overview'),agenda:T('Programmer, retrouver et faire le compte rendu de vos séances','Schedule, find and report on your sessions'),planning:T('Séances planifiées et réalisées','Scheduled and completed sessions'),anamnese:nm||T('Aucun client sélectionné','No client selected'),m2:nm||T('Aucun client sélectionné','No client selected')}[S.ui.tab];
+ head({groupes:T('Vue d’ensemble','Overview'),agenda:T('Séances','Sessions'),planning:T('Planning','Schedule'),anamnese:T('Anamnèse','History'),m2:T('Dossier bénéficiaire','Beneficiary file')}[S.ui.tab],sub,ctl);
  let body;
  if(ctx.sel==='_new')body=newForm();
  else if(S.ui.tab==='groupes')body=S.ui.screen==='newgroup'?newGroupForm():S.ui.screen==='adapted'?adaptedSessionView():S.ui.screen==='group'?groupDetailView():S.ui.screen==='patient'?patientDetailView():groupesView();
+ else if(S.ui.tab==='agenda')body=(typeof agendaView==='function')?agendaView():'';
  else if(S.ui.tab==='planning')body=(typeof planningView==='function')?planningView():'';
  else body=({anamnese:anamneseView,m2:m2View}[S.ui.tab])();
  $('#view').innerHTML=body+((ctx.modal&&(ctx.cache.clients||{})[ctx.modal]&&typeof patientModal==='function')?patientModal():'')}
@@ -910,7 +943,7 @@ V.addEventListener('focusout',()=>setTimeout(()=>{if(ctx.pending&&!editing()&&!c
 document.addEventListener('change',e=>{if(e.target.id==='clientsel')selectClient(e.target.value)});
 V.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='codein')clientEnter(e.target.value)});
 document.addEventListener('click',async e=>{
- const tb=e.target.closest('[data-tab]');if(tb){S.ui.tab=tb.dataset.tab;S.ui.confirm=null;S.ui.screen=null;ctx.modal=null;ctx.confirmDel=false;if(ctx.sel==='_new')ctx.sel=null;render();window.scrollTo(0,0);return}
+ const tb=e.target.closest('[data-tab]');if(tb){S.ui.tab=tb.dataset.tab;S.ui.confirm=null;S.ui.screen=null;ctx.modal=null;ctx.confirmDel=false;ctx.psdraft=null;if(ctx.sel==='_new')ctx.sel=null;render();window.scrollTo(0,0);return}
  const sbt=e.target.closest('[data-sub]');if(sbt){S.ui.sub=sbt.dataset.sub;S.ui.confirm=null;ctx.confirmDel=false;render();return}
  const op=e.target.closest('[data-open]');if(op){await selectClient(op.dataset.open);S.ui.tab=op.dataset.to;render();window.scrollTo(0,0);return}
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id,m=MODS.find(x=>x.id===id);
@@ -1206,6 +1239,12 @@ function alertsOf(code){const Ss=seancesOf(code),out=[];const withP=Ss.filter(s=
 /* ---------- Séances ---------- */
 ctx.sdraft=null;ctx.bdraft=null;
 function newSeance(code,dup){ctx.sdraft=dup?Object.assign({},dup,{id:uid6(),date:todayISO(),presence:'present'}):{code,id:uid6(),date:todayISO(),type:'individuel',duree:'',lieu:'',presence:'present',forme:5,douleur:0,douleur_loc:'',fatigue:3,borg:11,fc:'',tolerance:'bonne',contenu:'',adaptations:'',obs:'',emarge:false};S.ui.sub='seances';render();window.scrollTo(0,0)}
+/* Modifier / faire le compte rendu d'une séance existante (individuelle) : on charge
+   la séance dans le formulaire ; si elle était « programmée » (sans présence), on
+   pré-coche « Présent » pour saisir ce qui s'est passé. */
+function editSeance(code,id){const s=(ctx.cache.seances||{})[code+'__'+id];if(!s){toast(T('Séance introuvable','Session not found'));return}
+ ctx.sel=code;loadSel();const d=JSON.parse(JSON.stringify(s));if(!d.presence)d.presence='present';ctx.sdraft=d;
+ S.ui.tab='groupes';S.ui.screen='patient';S.ui.psub='seances';ctx.modal=null;render();window.scrollTo(0,0)}
 async function saveSeance(){const s=ctx.sdraft;if(!s)return;const rec=JSON.parse(JSON.stringify(s));
  if(ctx.db){try{await ctx.db.doc('seances/'+s.code+'__'+s.id).set(rec)}catch(e){toast('Enregistrement impossible');return}}
  ctx.cache.seances=ctx.cache.seances||{};ctx.cache.seances[s.code+'__'+s.id]=rec;ctx.sdraft=null;render();window.scrollTo(0,0);toast('Séance enregistrée')}
@@ -1231,7 +1270,7 @@ subviews.seances=function(){const code=ctx.sel;if(ctx.sdraft&&ctx.sdraft.code!==
  const head=`<div class="bar"><div style="min-width:220px"><p class="lead" style="margin:0">Fiches de séance de ce bénéficiaire, pensées pour la tablette en salle.</p>${al.length?`<div class="alert" style="margin-top:8px">${al.map(a=>`<span class="pill ${a[1]}">${esc(a[0])}</span>`).join('')}</div>`:''}</div><span class="ctl"><button class="btn pri" data-act="snew">+ Nouvelle séance</button>${list.length?'<button class="btn" data-act="sdup">Dupliquer la dernière</button>':''}</span></div>`;
  if(!list.length)return head+'<p class="empty" style="margin-top:14px">Aucune séance enregistrée pour l’instant.</p>';
  const cards=list.slice().reverse().map(s=>{const pc=s.presence==='present'?'ok':s.presence==='abs_j'?'warn':s.presence?'bad':'';const plab=s.presence?presLabel(s.presence):T('Programmée','Scheduled');
-  return`<div class="card scard${s.presence?'':' splanned'}"><div class="sh"><b>${esc(dISO(s.date))}</b><div class="meta"><span class="pill ${pc}">${plab}</span><span class="pill">${s.type==='collectif'?'Collectif':'Individuel'}</span>${s.duree?`<span class="pill">${esc(s.duree)} min</span>`:''}${s.lieu?`<span class="pill">${esc(s.lieu)}</span>`:''}</div></div>${s.presence==='present'?`<div class="meta"><span class="pill">Forme ${esc(s.forme)}/10</span><span class="pill ${numv(s.douleur)>=5?'bad':''}">Douleur ${esc(s.douleur)}/10${s.douleur_loc?' · '+esc(s.douleur_loc):''}</span><span class="pill">Fatigue ${esc(s.fatigue)}/10</span>${s.borg?`<span class="pill">Borg ${esc(s.borg)}</span>`:''}${s.fc?`<span class="pill">${esc(s.fc)} bpm</span>`:''}${s.tolerance?`<span class="pill">Tolérance ${esc(tolLabel(s.tolerance)).toLowerCase()}</span>`:''}${s.emarge?'<span class="pill ok">Émargée</span>':''}</div>`:''}<div class="srecap"><span class="srtag">📋 ${T('Récap auto','Auto recap')}</span><span class="srtxt">${esc(seanceRecap(s))}</span></div>${s.contenu?`<p class="obs">${esc(s.contenu)}</p>`:''}${s.adaptations?`<p class="obs"><b>Adaptations.</b> ${esc(s.adaptations)}</p>`:''}${s.obs?`<p class="obs"><b>Obs.</b> ${esc(s.obs)}</p>`:''}${voiceNote(code,s)}<div class="mfoot" style="border-top:0;padding-top:0">${voiceBtns(code,s)}${waBtn(code,s.date,{label:true})}<button class="btn del" data-act="sdel" data-sid="${esc(s.id)}">Supprimer</button></div></div>`}).join('');
+  return`<div class="card scard${s.presence?'':' splanned'}"><div class="sh"><b>${esc(dISO(s.date))}</b><div class="meta"><span class="pill ${pc}">${plab}</span><span class="pill">${s.type==='collectif'?'Collectif':'Individuel'}</span>${s.duree?`<span class="pill">${esc(s.duree)} min</span>`:''}${s.lieu?`<span class="pill">${esc(s.lieu)}</span>`:''}</div></div>${s.presence==='present'?`<div class="meta"><span class="pill">Forme ${esc(s.forme)}/10</span><span class="pill ${numv(s.douleur)>=5?'bad':''}">Douleur ${esc(s.douleur)}/10${s.douleur_loc?' · '+esc(s.douleur_loc):''}</span><span class="pill">Fatigue ${esc(s.fatigue)}/10</span>${s.borg?`<span class="pill">Borg ${esc(s.borg)}</span>`:''}${s.fc?`<span class="pill">${esc(s.fc)} bpm</span>`:''}${s.tolerance?`<span class="pill">Tolérance ${esc(tolLabel(s.tolerance)).toLowerCase()}</span>`:''}${s.emarge?'<span class="pill ok">Émargée</span>':''}</div>`:''}<div class="srecap"><span class="srtag">📋 ${T('Récap auto','Auto recap')}</span><span class="srtxt">${esc(seanceRecap(s))}</span></div>${s.contenu?`<p class="obs">${esc(s.contenu)}</p>`:''}${s.adaptations?`<p class="obs"><b>Adaptations.</b> ${esc(s.adaptations)}</p>`:''}${s.obs?`<p class="obs"><b>Obs.</b> ${esc(s.obs)}</p>`:''}${voiceNote(code,s)}<div class="mfoot" style="border-top:0;padding-top:0">${s.presence?`${voiceBtns(code,s)}<button class="btn" data-act="sedit" data-sid="${esc(s.id)}">${T('Modifier','Edit')}</button>`:`<button class="btn pri" data-act="sedit" data-sid="${esc(s.id)}">✏️ ${T('Faire le compte rendu','Write the report')}</button>`}${waBtn(code,s.date,{label:true})}<button class="btn del" data-act="sdel" data-sid="${esc(s.id)}">Supprimer</button></div></div>`}).join('');
  return head+`<div class="slist" style="margin-top:14px">${cards}</div>`};
 
 /* ---------- Bilans datés + comparaison + courbes ---------- */
@@ -1270,6 +1309,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
  else if(a==='ssave')saveSeance();
  else if(a==='scancel'){ctx.sdraft=null;render()}
  else if(a==='sdel')delSeance(ctx.sel,b.dataset.sid);
+ else if(a==='sedit')editSeance(ctx.sel,b.dataset.sid);
  else if(a==='vrec')openVoiceRecorder(ctx.sel,b.dataset.sid);
  else if(a==='vplay')playVoice(ctx.sel,b.dataset.sid,b);
  else if(a==='vdel')delVoice(ctx.sel,b.dataset.sid);
@@ -1651,9 +1691,16 @@ async function setMember(code,gid){const c=(ctx.cache.clients||{})[code];if(!c)r
 /* --- séance collective : une séance pour chaque bénéficiaire du groupe, en une fois --- */
 ctx.gsdraft=null;
 function newGroupSeance(gid){const mem=membersOf(gid),m={};mem.forEach(c=>m[c]={presence:'present',borg:''});ctx.gsdraft={gid,date:todayISO(),duree:'',lieu:'',contenu:'',mem:m};render();window.scrollTo(0,0)}
+/* compte rendu d'une séance collective programmée : on pré-remplit le formulaire
+   avec la date et les docs déjà programmés (pour les écraser en les complétant). */
+function recapGroupSeance(gid,date){const mem=membersOf(gid),m={},ids={};let lieu='',contenu='',duree='';
+ mem.forEach(code=>{const f=Object.values(ctx.cache.seances||{}).find(s=>s&&s.code===code&&s.group===gid&&s.date===date&&!s.presence);
+   if(f){ids[code]=f.id;if(f.lieu&&!lieu)lieu=f.lieu;if(f.contenu&&!contenu)contenu=f.contenu;if(f.duree&&!duree)duree=f.duree;}
+   m[code]={presence:'present',borg:(f&&f.borg)||''};});
+ ctx.gsdraft={gid,date,duree,lieu,contenu,mem:m,ids,editing:true};S.ui.tab='groupes';S.ui.gsel=gid;S.ui.screen='group';ctx.modal=null;render();window.scrollTo(0,0)}
 async function saveGroupSeance(){const d=ctx.gsdraft;if(!d)return;const mem=membersOf(d.gid);if(!mem.length){toast(T('Aucun bénéficiaire dans ce groupe','No beneficiary in this group'));return}
  let count=0;ctx.cache.seances=ctx.cache.seances||{};
- try{for(const code of mem){const md=d.mem[code]||{presence:'present',borg:''};const pres=md.presence||'present';const id=uid6();
+ try{for(const code of mem){const md=d.mem[code]||{presence:'present',borg:''};const pres=md.presence||'present';const id=(d.ids&&d.ids[code])||uid6();
    const rec={code,id,date:d.date||todayISO(),type:'collectif',duree:d.duree||'',lieu:d.lieu||'',presence:pres,forme:pres==='present'?5:0,douleur:0,douleur_loc:'',fatigue:pres==='present'?3:0,borg:(pres==='present'&&md.borg)?md.borg:'',fc:'',tolerance:'bonne',contenu:d.contenu||'',adaptations:'',obs:'',emarge:false,group:d.gid};
    if(ctx.db)await ctx.db.doc('seances/'+code+'__'+id).set(rec);ctx.cache.seances[code+'__'+id]=rec;count++}
  }catch(err){toast(T('Enregistrement impossible','Could not save'));return}
@@ -1663,7 +1710,7 @@ function groupSeanceForm(g){const gid=g.id,d=ctx.gsdraft,mem=membersOf(gid);
  const field=(k,l,type,extra)=>`<label class="f"><span>${l}</span><input data-gsf="${k}" type="${type||'text'}" value="${esc(d[k]||'')}" ${extra||''}></label>`;
  const rows=mem.map(code=>{const c=(ctx.cache.clients||{})[code]||{};const md=d.mem[code]||{presence:'present',borg:''};
    return `<div class="gsrow"><span class="gsname"><b>${esc(cname(c))}</b></span><select class="sel" data-gsm="${code}.presence">${PRES.map(([v,t])=>`<option value="${v}" ${md.presence===v?'selected':''}>${t}</option>`).join('')}</select><span class="inp gsborg"><input data-gsm="${code}.borg" type="number" min="6" max="20" placeholder="${T('effort','effort')}" value="${esc(md.borg||'')}" ${md.presence!=='present'?'disabled':''}><em>Borg</em></span></div>`}).join('');
- return `<div class="card sect"><div style="min-width:220px">${back}<h2 style="font-size:26px;margin:10px 0 2px">${T('Nouvelle séance collective','New group session')}</h2><p class="note" style="margin:0">${esc(g.name)}</p></div>`
+ return `<div class="card sect"><div style="min-width:220px">${back}<h2 style="font-size:26px;margin:10px 0 2px">${d.editing?T('Compte rendu de séance','Session report'):T('Nouvelle séance collective','New group session')}</h2><p class="note" style="margin:0">${esc(g.name)}${d.editing&&d.date?' · '+esc(dISO(d.date)):''}</p></div>`
   +`<div class="grid" style="margin-top:14px">${field('date',T('Date','Date'),'date')}${field('duree',T('Durée (min)','Duration (min)'),'number','min="0" max="300" inputmode="numeric"')}${field('lieu',T('Lieu','Place'))}</div>`
   +`<label class="f wide"><span>${T('Contenu réalisé','Session content')}</span><textarea data-gsf="contenu" placeholder="${esc(T('Exercices, intensité, matériel…','Exercises, intensity, equipment…'))}">${esc(d.contenu||'')}</textarea></label>`
   +`<p class="sec">${T('Présence & effort par bénéficiaire','Attendance & effort per beneficiary')}</p>`
@@ -1786,7 +1833,8 @@ groupesView=function(){const st=Object.keys(ctx.cache.clients||{}).map(statOf);
  const sgCard=sg.length?`<div class="card gcard" style="--gc:var(--g8)"><div class="gh"><div><h3>${T('Sans pathologie','No condition')}</h3><p class="desc">${T('Anamnèse à compléter pour classer le client.','History to complete to classify the client.')}</p></div><span class="cnt">${sg.length}</span></div>${sg.map(s=>row(s,'anamnese')).join('')}</div>`:'';
  const pathCount=G.filter(g=>st.some(s=>s.gi.fin===g[0])).length+(sg.length?1:0);
  const pathology=(grp||sgCard)?`<details class="card pathwrap" ${S.ui.pathOpen?'open':''}><summary><span class="psum"><b>${T('Par pathologie','By condition')}</b> <span class="note">${T('classement automatique','automatic classification')}</span></span><span class="cnt2">${pathCount}</span></summary><div class="groups" style="margin-top:14px">${grp}${sgCard}</div></details>`:'';
- return hero+individualSection()+strip+todoCard+pathology};
+ const nextSessions=(typeof upcomingRecap==='function')?upcomingRecap():'';
+ return hero+individualSection()+strip+nextSessions+todoCard+pathology};
 /* mémorise l'état déplié/replié de « Par pathologie » pour qu'un rafraîchissement
    automatique (synchro toutes les 8 s) ne le referme pas tout seul. */
 V.addEventListener('toggle',e=>{const d=e.target;if(d&&d.classList&&d.classList.contains('pathwrap'))S.ui.pathOpen=!!d.open},true);
@@ -1977,6 +2025,85 @@ document.addEventListener('click',e=>{
     render();
   });
 })();
+</script>
+
+<script>
+/* ===================== ONGLET SÉANCES (agenda + programmation) =====================
+   Un point d'entrée unique pour : programmer une séance (individuelle ou collective),
+   voir ce qui est à venir, et faire le compte rendu des séances passées. */
+ctx.psdraft=null;
+function agColorVar(e){if(e.kind==='group'){const g=groupOf(e.gid);return g?gcolorVar(g):'var(--muted)';}const c=(ctx.cache.clients||{})[e.code]||{};const n=c.p&&c.p.color;return n?`var(--g${n})`:'var(--lav)';}
+function agendaEvents(){const all=Object.values(ctx.cache.seances||{}).filter(s=>s&&!s.presence);const map={};
+ all.forEach(s=>{if(s.type==='collectif'&&s.group){const k='g:'+s.group+':'+s.date;if(!map[k])map[k]={kind:'group',gid:s.group,date:s.date,contenu:s.contenu||'',lieu:s.lieu||'',n:0};map[k].n++;}
+   else{const k='c:'+s.code+':'+s.id;map[k]={kind:'indiv',code:s.code,id:s.id,date:s.date,contenu:s.contenu||'',lieu:s.lieu||''};}});
+ return Object.values(map);}
+function agWho(e){if(e.kind==='group'){const g=groupOf(e.gid);return `<span class="agdot" style="background:${agColorVar(e)}"></span><b>${esc(g?g.name:T('Groupe','Group'))}</b> <span class="note">· ${e.n} ${T('bénéficiaire(s)','beneficiary(ies)')}</span>`;}
+ const c=(ctx.cache.clients||{})[e.code]||{};const gi=grpInfoOf(e.code);return `<span class="agdot" style="background:${agColorVar(e)}"></span><b>${esc(cname(c))}</b> ${gi&&gi.fin?gbadge(gi.fin):''}`;}
+function agActions(e){if(e.kind==='group')return `<button class="btn pri" data-act="agRecapGroup" data-gid="${esc(e.gid)}" data-date="${esc(e.date)}">✏️ ${T('Compte rendu','Report')}</button><button class="btn" data-act="agOpenGroup" data-gid="${esc(e.gid)}">${T('Ouvrir le groupe','Open group')}</button>`;
+ return `<button class="btn pri" data-act="agRecapIndiv" data-code="${esc(e.code)}" data-sid="${esc(e.id)}">✏️ ${T('Compte rendu','Report')}</button><button class="btn" data-act="agOpenPage" data-code="${esc(e.code)}">${T('Ouvrir la fiche','Open file')}</button>${waBtn(e.code,e.date,{label:true})}`;}
+function agRow(e,today){const D=new Date(e.date+'T00:00:00');const loc=LANG==='en'?'en-GB':'fr-FR';const dnum=D.getDate();const mon=D.toLocaleDateString(loc,{month:'short'}).replace('.','');const wd=D.toLocaleDateString(loc,{weekday:'long'});
+ const diff=Math.round((D-new Date(today+'T00:00:00'))/864e5);const over=diff<0;
+ const rel=diff===0?T('Aujourd’hui','Today'):diff===1?T('Demain','Tomorrow'):over?(diff===-1?T('Hier','Yesterday'):T('En retard','Overdue')):wd.charAt(0).toUpperCase()+wd.slice(1);
+ return `<div class="card agrow${over?' over':''}"><div class="agdate"><span class="agd">${dnum}</span><span class="agm">${esc(mon)}</span></div><div class="aginfo"><div class="agwho">${agWho(e)}</div><div class="agmeta"><span class="agrel${over?' over':''}">${esc(rel)}</span>${e.lieu?`<span class="agpill">${esc(e.lieu)}</span>`:''}${e.contenu?`<span class="agcont">${esc(e.contenu)}</span>`:''}</div></div><div class="agact">${agActions(e)}</div></div>`;}
+function plannerForm(){const d=ctx.psdraft;const cl=Object.entries(ctx.cache.clients||{}).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
+ const gl=(typeof groupsList==='function'?groupsList():[]);
+ const seg=`<div class="psseg">${[['indiv',T('Individuelle','Individual')],['collectif',T('Collective','Group')]].map(([v,l])=>`<button type="button" class="psbtn${d.type===v?' on':''}" data-act="psType" data-t="${v}">${l}</button>`).join('')}</div>`;
+ const pick=d.type==='collectif'
+   ? `<label class="f"><span>${T('Groupe','Group')}</span><select data-ps="gid"><option value="">${T('Choisir un groupe…','Choose a group…')}</option>${gl.map(g=>`<option value="${esc(g.id)}" ${d.gid===g.id?'selected':''}>${esc(g.name)} (${membersOf(g.id).length})</option>`).join('')}</select></label>`
+   : `<label class="f"><span>${T('Bénéficiaire','Beneficiary')}</span><select data-ps="code"><option value="">${T('Choisir un bénéficiaire…','Choose a beneficiary…')}</option>${cl.map(([code,c])=>`<option value="${esc(code)}" ${d.code===code?'selected':''}>${esc(cname(c))}</option>`).join('')}</select></label>`;
+ return `<div class="card sect"><div style="min-width:220px"><button class="btn" data-act="psCancel">← ${T('Retour','Back')}</button><h2 style="font-size:26px;margin:10px 0 2px">${T('Programmer une séance','Schedule a session')}</h2><p class="note" style="margin:0">${T('La séance apparaît dans l’agenda et le planning. Vous ferez le compte rendu après.','The session shows up in the agenda and schedule. You’ll write the report afterwards.')}</p></div>`
+  +`<p class="sec">${T('Type de séance','Session type')}</p>${seg}`
+  +`<div class="grid" style="margin-top:14px">${pick}<label class="f"><span>${T('Date','Date')}</span><input data-ps="date" type="date" value="${esc(d.date||'')}"></label><label class="f"><span>${T('Lieu','Place')}</span><input data-ps="lieu" type="text" value="${esc(d.lieu||'')}"></label></div>`
+  +`<label class="f wide"><span>${T('Contenu prévu (facultatif)','Planned content (optional)')}</span><textarea data-ps="contenu" placeholder="${esc(T('Objectif de la séance, exercices prévus…','Session goal, planned exercises…'))}">${esc(d.contenu||'')}</textarea></label>`
+  +`<div class="mfoot"><button class="btn" data-act="psCancel">${T('Annuler','Cancel')}</button><button class="btn pri" data-act="psSave">${T('Programmer la séance','Schedule session')}</button></div></div>`;}
+function agendaView(){if(ctx.psdraft)return plannerForm();
+ const today=todayISO();const evs=agendaEvents();
+ const todo=evs.filter(e=>e.date<today).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+ const todayEv=evs.filter(e=>e.date===today).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ const soon=evs.filter(e=>e.date>today).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ const guide=`<div class="agguide"><span class="agi">💡</span><div><b>${T('Comment ça marche','How it works')}</b><p>${T('1. « Programmer une séance » planifie un rendez-vous. 2. Après la séance, cliquez « Compte rendu » pour noter la présence, le ressenti et ajouter une 🎤 note vocale (transcrite automatiquement). 3. Tout se retrouve dans le dossier du bénéficiaire et dans le planning.','1. “Schedule a session” plans an appointment. 2. After the session, click “Report” to note attendance, how it felt and add a 🎤 voice note (auto-transcribed). 3. Everything lands in the beneficiary file and the schedule.')}</p></div></div>`;
+ const bar=`<div class="bar" style="margin-bottom:14px"><span class="note" style="min-width:220px">${T('Vos séances à venir et les comptes rendus à faire.','Your upcoming sessions and the reports to write.')}</span><span class="ctl"><button class="btn" data-act="agCalendar">📅 ${T('Voir le calendrier','See the calendar')}</button></span></div>`;
+ const section=(title,sub,list,tone)=>`<div class="card sect"><div class="hd"><div><h2>${title}</h2><p class="note" style="margin:3px 0 0">${sub}</p></div>${list.length?`<span class="agcount${tone?' '+tone:''}">${list.length}</span>`:''}</div>${list.length?`<div class="aglist">${list.map(e=>agRow(e,today)).join('')}</div>`:`<p class="empty" style="margin-top:6px">${T('Rien ici pour l’instant.','Nothing here for now.')}</p>`}</div>`;
+ let out=bar+guide;
+ if(todo.length)out+=section('⏳ '+T('Comptes rendus à faire','Reports to write'),T('Séances passées pas encore renseignées.','Past sessions not filled in yet.'),todo,'warn');
+ out+=section('📍 '+T('Aujourd’hui','Today'),T('Les séances du jour.','Today’s sessions.'),todayEv);
+ out+=section('🗓️ '+T('À venir','Upcoming'),T('Les prochaines séances programmées.','Your next scheduled sessions.'),soon);
+ return out;}
+function openPlanner(){const d=new Date();d.setDate(d.getDate()+1);ctx.psdraft={type:'indiv',code:ctx.sel&&(ctx.cache.clients||{})[ctx.sel]?ctx.sel:'',gid:'',date:d.toISOString().slice(0,10),lieu:'Salle APA',contenu:''};S.ui.tab='agenda';S.ui.screen=null;ctx.modal=null;render();window.scrollTo(0,0);}
+async function savePlanned(){const d=ctx.psdraft;if(!d)return;const date=d.date||todayISO();ctx.cache.seances=ctx.cache.seances||{};
+ const base=(code,extra)=>Object.assign({code,date,duree:'',lieu:d.lieu||'',presence:'',forme:5,douleur:0,douleur_loc:'',fatigue:3,borg:'',fc:'',tolerance:'bonne',contenu:d.contenu||'',adaptations:'',obs:'',emarge:false},extra);
+ try{
+  if(d.type==='collectif'){if(!d.gid){toast(T('Choisissez un groupe','Choose a group'));return;}const mem=membersOf(d.gid);if(!mem.length){toast(T('Ce groupe n’a pas de bénéficiaire','This group has no beneficiary'));return;}
+   for(const code of mem){const id=uid6();const rec=base(code,{id,type:'collectif',group:d.gid});if(ctx.db)await ctx.db.doc('seances/'+code+'__'+id).set(rec);ctx.cache.seances[code+'__'+id]=rec;}}
+  else{if(!d.code){toast(T('Choisissez un bénéficiaire','Choose a beneficiary'));return;}const id=uid6();const rec=base(d.code,{id,type:'individuel'});if(ctx.db)await ctx.db.doc('seances/'+d.code+'__'+id).set(rec);ctx.cache.seances[d.code+'__'+id]=rec;}
+ }catch(e){toast(T('Enregistrement impossible','Could not save'));return;}
+ ctx.psdraft=null;render();window.scrollTo(0,0);toast(T('Séance programmée','Session scheduled'));}
+/* nombre de comptes rendus en retard (pour la vue d'ensemble) */
+function agendaTodoCount(){const today=todayISO();return agendaEvents().filter(e=>e.date<today).length;}
+/* carte compacte « Prochaines séances » pour la vue d'ensemble */
+function upcomingRecap(){const today=todayISO();const evs=agendaEvents();const todo=evs.filter(e=>e.date<today).length;
+ const next=evs.filter(e=>e.date>=today).sort((a,b)=>String(a.date).localeCompare(String(b.date))).slice(0,4);
+ const mini=e=>{const D=new Date(e.date+'T00:00:00');const loc=LANG==='en'?'en-GB':'fr-FR';const diff=Math.round((D-new Date(today+'T00:00:00'))/864e5);const rel=diff===0?T('Aujourd’hui','Today'):diff===1?T('Demain','Tomorrow'):D.toLocaleDateString(loc,{weekday:'short',day:'numeric',month:'short'}).replace('.','');
+   const who=e.kind==='group'?esc((groupOf(e.gid)||{}).name||T('Groupe','Group'))+` <span class="note">· ${e.n}</span>`:esc(cname((ctx.cache.clients||{})[e.code]||{}));
+   return `<div class="nextrow"><span class="agdot" style="background:${agColorVar(e)}"></span><span class="nxwho">${who}</span><span class="nxdate">${esc(rel)}</span></div>`;};
+ const todoBtn=todo?`<button class="btn" data-act="agGoto">⏳ ${todo} ${T('compte(s) rendu(s) à faire','report(s) to write')}</button>`:'';
+ const body=next.length?`<div class="nextlist">${next.map(mini).join('')}</div>`:`<p class="empty" style="margin:4px 0 0">${T('Aucune séance programmée. Cliquez « Programmer ».','No session scheduled. Click “Schedule”.')}</p>`;
+ return `<div class="card sect nextcard"><div class="hd"><div><h2>🗓️ ${T('Prochaines séances','Upcoming sessions')}</h2><p class="note" style="margin:3px 0 0">${T('Vos rendez-vous à venir. Tout se gère dans l’onglet Séances.','Your upcoming appointments. Manage everything in the Sessions tab.')}</p></div><span class="ctl">${todoBtn}<button class="btn pri" data-act="planNew">+ ${T('Programmer','Schedule')}</button></span></div>${body}<div class="bar" style="margin-top:12px"><button class="btn" data-act="agGoto">${T('Ouvrir l’onglet Séances','Open the Sessions tab')} →</button></div></div>`;}
+/* saisie du formulaire de programmation */
+V.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.ps&&ctx.psdraft){ctx.psdraft[t.dataset.ps]=t.value;}});
+V.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.ps&&ctx.psdraft){ctx.psdraft[t.dataset.ps]=t.value;}});
+/* actions de l'agenda (au niveau document : certains boutons sont dans l'en-tête) */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+ if(a==='planNew')openPlanner();
+ else if(a==='psType'){if(ctx.psdraft){ctx.psdraft.type=b.dataset.t;render();}}
+ else if(a==='psSave')savePlanned();
+ else if(a==='psCancel'){ctx.psdraft=null;render();window.scrollTo(0,0);}
+ else if(a==='agCalendar'){S.ui.tab='planning';ctx.psdraft=null;render();window.scrollTo(0,0);}
+ else if(a==='agOpenPage'){openPatientPage(b.dataset.code);}
+ else if(a==='agOpenGroup'){openGroup(b.dataset.gid);}
+ else if(a==='agRecapIndiv'){editSeance(b.dataset.code,b.dataset.sid);}
+ else if(a==='agRecapGroup'){recapGroupSeance(b.dataset.gid,b.dataset.date);}
+ else if(a==='agGoto'){S.ui.tab='agenda';ctx.psdraft=null;S.ui.screen=null;render();window.scrollTo(0,0);}});
 </script>
 
 </body></html>
