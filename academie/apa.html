@@ -413,6 +413,27 @@ input[type=number]{font-variant-numeric:tabular-nums}
 .nextrow:last-child{border-bottom:0}
 .nxwho{flex:1 1 auto;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nxdate{flex:0 0 auto;font-size:13px;color:var(--muted);font-weight:600}
+/* Espace client */
+.cnext{background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 16%,var(--card)),var(--card));border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));padding:18px 20px}
+.cnexttag{display:block;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.cnextmain{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.cnextmain h2{margin:0;font-size:26px}
+.cnexttype{margin:4px 0 0;color:var(--muted);font-size:15px}
+.cnextrel{flex:0 0 auto;background:var(--accent);color:#04121f;font-weight:700;border-radius:99px;padding:6px 14px;font-size:14px}
+.cslist{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.cseance{display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.csd{flex:0 0 auto;width:52px;height:52px;border-radius:10px;background:var(--card2);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.csday{font:700 22px var(--f-display);color:var(--fg)}
+.csm{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-top:2px}
+.csinfo{display:flex;flex-direction:column;gap:2px;min-width:0}
+.csinfo b{font-size:15px}
+.csdone{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:14px 18px}
+.csdone span{font-weight:600}
+.csdone b{font:700 26px var(--f-display);color:var(--accent)}
+.cobj{padding:14px 16px}
+.cobjh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cobjh b{font-size:16px}
+.cobjmeta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .chart{width:100%;max-width:360px;height:auto;display:block}
 .chart .axis{stroke:var(--line)}
 .chart .ln{fill:none;stroke:var(--accent);stroke-width:2}
@@ -859,13 +880,36 @@ function coachRender(){setRole('<button class="iconbtn'+(S.ui.tab==='planning'?'
  else if(S.ui.tab==='planning')body=(typeof planningView==='function')?planningView():'';
  else body=({anamnese:anamneseView,m2:m2View}[S.ui.tab])();
  $('#view').innerHTML=body+((ctx.modal&&(ctx.cache.clients||{})[ctx.modal]&&typeof patientModal==='function')?patientModal():'')}
-function clientRender(){$('#tabs').innerHTML='';$('#saved').hidden=ctx.preview;
- setRole(`<span class="pill">Espace client</span>`);
- head('Mes questionnaires','Vos réponses sont enregistrées automatiquement et visibles par votre coach.');
- const l=MODS.filter(m=>m.kind==='q'&&act(m)),d=l.filter(complete).length;
- $('#view').innerHTML=(ctx.preview?`<div class="banner"><span>Aperçu côté client : rien n’est enregistré.</span><button class="btn" data-act="back">Quitter l’aperçu</button></div>`:'')
-  +`<p class="lead">${d===l.length&&l.length?'Merci, tout est rempli. Votre coach consultera vos réponses.':'Répondez à votre rythme.'} <b>${d}/${l.length}</b> questionnaire(s) complété(s).</p>`
-  +(l.length?l.map(m=>card(m,{client:true})).join(''):'<p class="empty">Aucun questionnaire à remplir pour le moment.</p>')}
+/* ---- Espace client : onglets simples (séances · questionnaires · objectifs) ---- */
+const CTABS=[['seances',T('Mes séances','My sessions')],['questionnaires',T('Mes questionnaires','My questionnaires')],['objectifs',T('Mes objectifs','My goals')]];
+const clientCode=()=>ctx.prevCoach?ctx.sel:ctx.code;
+function clientSeanceType(s){if(s.type==='collectif'&&s.group){const g=(typeof groupOf==='function')?groupOf(s.group):null;return g?g.name:T('Séance de groupe','Group session');}return T('Séance individuelle','Individual session');}
+function clientSeancesView(){const code=clientCode();const Ss=code?seancesOf(code):[];const today=todayISO();const loc=LANG==='en'?'en-GB':'fr-FR';
+ const upcoming=Ss.filter(s=>s.date>=today).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+ const done=Ss.filter(s=>s.date<today&&s.presence==='present').length;
+ const fmtDay=d=>{const D=new Date(d+'T00:00:00');return D.toLocaleDateString(loc,{weekday:'long',day:'numeric',month:'long'});};
+ const rel=d=>{const diff=Math.round((new Date(d+'T00:00:00')-new Date(today+'T00:00:00'))/864e5);return diff===0?T('Aujourd’hui','Today'):diff===1?T('Demain','Tomorrow'):diff<7?T('Cette semaine','This week'):'';};
+ let out=`<p class="lead">${T('Retrouvez ici les créneaux de séance prévus par votre coach.','Here are the session slots planned by your coach.')}</p>`;
+ if(upcoming.length){const n=upcoming[0];const r=rel(n.date);
+   out+=`<div class="card cnext"><span class="cnexttag">${T('Votre prochaine séance','Your next session')}</span><div class="cnextmain"><div><h2>${esc(fmtDay(n.date)).replace(/^./,c=>c.toUpperCase())}</h2><p class="cnexttype">${esc(clientSeanceType(n))}${n.lieu?' · '+esc(n.lieu):''}</p></div>${r?`<span class="cnextrel">${r}</span>`:''}</div></div>`;
+   if(upcoming.length>1){out+=`<div class="card sect"><h2 style="font-size:20px">${T('Séances suivantes','Later sessions')}</h2><div class="cslist">${upcoming.slice(1).map(s=>`<div class="cseance"><div class="csd"><span class="csday">${new Date(s.date+'T00:00:00').getDate()}</span><span class="csm">${new Date(s.date+'T00:00:00').toLocaleDateString(loc,{month:'short'}).replace('.','')}</span></div><div class="csinfo"><b>${esc(fmtDay(s.date)).replace(/^./,c=>c.toUpperCase())}</b><span class="note">${esc(clientSeanceType(s))}${s.lieu?' · '+esc(s.lieu):''}</span></div></div>`).join('')}</div></div>`;}
+ } else {out+=`<div class="card sect"><p class="empty" style="margin:0">${T('Aucune séance programmée pour le moment. Votre coach vous préviendra dès qu’un créneau est prévu.','No session scheduled yet. Your coach will let you know once a slot is planned.')}</p></div>`;}
+ out+=`<div class="card csdone"><span>✅ ${T('Séances déjà réalisées','Sessions already done')}</span><b>${done}</b></div>`;
+ return out;}
+function clientObjView(){const code=clientCode();const objs=code&&typeof objectifsOf==='function'?objectifsOf(code):[];
+ if(!objs.length)return `<p class="lead">${T('Les objectifs définis avec votre coach apparaîtront ici.','Goals set with your coach will show up here.')}</p><div class="card sect"><p class="empty" style="margin:0">${T('Aucun objectif pour l’instant.','No goal yet.')}</p></div>`;
+ return `<p class="lead">${T('Vos objectifs, définis avec votre coach. Ils guident vos séances.','Your goals, set with your coach. They guide your sessions.')}</p><div class="cslist">${objs.map(o=>{const st=objStatus(o.statut);return `<div class="card cobj"><div class="cobjh"><b>${esc(o.intitule||'')}</b><span class="pill ${st[2]}">${st[1]}</span></div><div class="cobjmeta">${o.cible?`<span class="agpill">🎯 ${esc(o.cible)}</span>`:''}${o.echeance?`<span class="agpill">📅 ${esc(dISO(o.echeance))}</span>`:''}</div></div>`}).join('')}</div>`;}
+function clientQuestView(){const l=MODS.filter(m=>m.kind==='q'&&act(m)),d=l.filter(complete).length;
+ return `<p class="lead">${d===l.length&&l.length?T('Merci, tout est rempli. Votre coach consultera vos réponses.','Thanks, everything is filled in. Your coach will review your answers.'):T('Répondez à votre rythme.','Answer at your own pace.')} <b>${d}/${l.length}</b> ${T('questionnaire(s) complété(s).','questionnaire(s) completed.')}</p>`
+  +(l.length?l.map(m=>card(m,{client:true})).join(''):`<p class="empty">${T('Aucun questionnaire à remplir pour le moment.','No questionnaire to fill in right now.')}</p>`);}
+function clientRender(){if(!S.ui.ctab)S.ui.ctab='seances';
+ $('#tabs').innerHTML=CTABS.map(([k,l])=>`<button role="tab" data-ctab="${k}" aria-selected="${S.ui.ctab===k}">${l}</button>`).join('');
+ $('#saved').hidden=ctx.preview;setRole(`<span class="pill">${T('Espace client','Client area')}</span>`);
+ const H={seances:[T('Mes séances','My sessions'),T('Vos créneaux à venir','Your upcoming slots')],questionnaires:[T('Mes questionnaires','My questionnaires'),T('Vos réponses sont enregistrées automatiquement et visibles par votre coach.','Your answers are saved automatically and visible to your coach.')],objectifs:[T('Mes objectifs','My goals'),T('Ce vers quoi vous avancez','What you are working towards')]}[S.ui.ctab];
+ head(H[0],H[1]);
+ const banner=ctx.preview?`<div class="banner"><span>${T('Aperçu côté client : rien n’est enregistré.','Client preview: nothing is saved.')}</span><button class="btn" data-act="back">${T('Quitter l’aperçu','Leave preview')}</button></div>`:'';
+ const body=({seances:clientSeancesView,questionnaires:clientQuestView,objectifs:clientObjView}[S.ui.ctab]||clientQuestView)();
+ $('#view').innerHTML=banner+body}
 function render(){if(ctx.booting){$('#view').innerHTML='<p class="empty">Chargement…</p>';return}(ctx.role==='coach'?coachRender:ctx.role==='client'?clientRender:loginRender)()}
 </script>
 <script>
@@ -895,7 +939,7 @@ async function flush(){clearTimeout(wt);const d=[...ctx.dirty];ctx.dirty.clear()
 
 /* connexion */
 const sub=(k)=>ctx.unsub.push(ctx.db.collection(k).onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());ctx.cache[k]=o;onData()},()=>{}));
-function onData(){if(ctx.role!=='coach')return;softApply()}
+function onData(){if(ctx.role!=='coach'&&ctx.role!=='client')return;softApply()}
 function coachEnter(){ctx.role='coach';ctx.preview=false;ctx.sel=null;ctx.err='';['clients','assign','links','answers','seances','bilans','objectifs','docs','consents','programmes','groups'].forEach(sub);render()}
 async function clientEnter(code){code=(code||'').trim().toUpperCase();ctx.err='';
  if(!code){ctx.err='Saisissez votre code.';return render()}
@@ -909,6 +953,8 @@ async function clientEnter(code){code=(code||'').trim().toUpperCase();ctx.err=''
   else await ctx.db.doc('links/'+ctx.uid).set({code,at:new Date().toISOString()});
   ctx.role='client';ctx.preview=false;ctx.code=code;S.a=a;S.p={};S.rm=s.data().rm||[];
   ctx.unsub.push(ctx.db.doc('assign/'+code).onSnapshot(sn=>{if(sn.exists){S.rm=sn.data().rm||[];softApply()}},()=>{}));
+  /* le client voit ses propres séances et objectifs */
+  ['seances','objectifs','groups'].forEach(sub);
   render()}catch(e){ctx.err='Connexion impossible pour le moment. Réessayez dans un instant.';render()}}
 function logout(){ctx.unsub.forEach(u=>{try{u()}catch(e){}});ctx.unsub=[];ctx.role=null;ctx.sel=null;ctx.preview=false;ctx.cache={clients:{},assign:{},links:{},answers:{},seances:{},bilans:{},objectifs:{},docs:{},consents:{},programmes:{},groups:{}};ctx.sdraft=null;ctx.bdraft=null;ctx.odraft=null;ctx.ddraft=null;ctx.pdraft=null;ctx.dirty.clear();ctx.err='';S.p={};S.a={};S.rm=[];render()}
 const genCode=()=>{const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789',b=new Uint8Array(8);crypto.getRandomValues(b);return[...b].map(x=>A[x%A.length]).join('')};
@@ -943,6 +989,7 @@ document.addEventListener('change',e=>{if(e.target.id==='clientsel')selectClient
 V.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='codein')clientEnter(e.target.value)});
 document.addEventListener('click',async e=>{
  const tb=e.target.closest('[data-tab]');if(tb){S.ui.tab=tb.dataset.tab;S.ui.confirm=null;S.ui.screen=null;ctx.modal=null;ctx.confirmDel=false;ctx.psdraft=null;if(ctx.sel==='_new')ctx.sel=null;render();window.scrollTo(0,0);return}
+ const ctb=e.target.closest('[data-ctab]');if(ctb){S.ui.ctab=ctb.dataset.ctab;render();window.scrollTo(0,0);return}
  const sbt=e.target.closest('[data-sub]');if(sbt){S.ui.sub=sbt.dataset.sub;S.ui.confirm=null;ctx.confirmDel=false;render();return}
  const op=e.target.closest('[data-open]');if(op){await selectClient(op.dataset.open);S.ui.tab=op.dataset.to;render();window.scrollTo(0,0);return}
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id,m=MODS.find(x=>x.id===id);
