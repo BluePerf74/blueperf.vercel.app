@@ -174,11 +174,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .pcol{scroll-snap-align:start}
   .pmonth .pchip,.pmonthhead{font-size:9px}
   .mchips .pchip{font-size:9px;padding:1px 4px}
-  .planwide{width:calc(100vw - 24px)}
   .pyear{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 }
-/* planning — vue élargie, jour, année, cadre du jour */
-.planwide{position:relative;left:50%;transform:translateX(-50%);width:min(1480px,calc(100vw - 32px))}
+/* planning — aligné sur la largeur du reste de la page (en-tête, onglets) */
+.planwide{width:100%}
 .pnav{font-size:18px;font-weight:700;line-height:1;padding:6px 13px}
 .pcol{min-height:200px}
 .pcol.focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;background:color-mix(in srgb,var(--accent) 9%,var(--card2))}
