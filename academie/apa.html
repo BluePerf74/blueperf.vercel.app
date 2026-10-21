@@ -1722,7 +1722,7 @@ function gsInput(e){const t=e.target;if(!ctx.gsdraft)return;
 /* --- navigation --- */
 function openGroup(gid){S.ui.tab='groupes';S.ui.gsel=gid;S.ui.screen='group';ctx.gConfirmDel=false;ctx.modal=null;ctx.gsdraft=null;render();window.scrollTo(0,0)}
 async function openPatient(code){await flush();ctx.sel=code;ctx.confirmDel=false;loadSel();S.ui.psub='seances';ctx.modal=code;render()}
-async function openPatientPage(code){await flush();ctx.sel=code;ctx.confirmDel=false;loadSel();const c=(ctx.cache.clients||{})[code]||{};S.ui.gsel=(c.grp&&groupOf(c.grp))?c.grp:null;S.ui.psub='seances';S.ui.screen='patient';ctx.modal=null;render();window.scrollTo(0,0)}
+async function openPatientPage(code){await flush();ctx.sel=code;ctx.confirmDel=false;loadSel();const c=(ctx.cache.clients||{})[code]||{};S.ui.gsel=(c.grp&&groupOf(c.grp))?c.grp:null;S.ui.psub='seances';S.ui.tab='groupes';S.ui.screen='patient';ctx.psdraft=null;ctx.modal=null;render();window.scrollTo(0,0)}
 function closeModal(){ctx.modal=null;render()}
 function backToGroups(){S.ui.screen=null;ctx.gConfirmDel=false;render();window.scrollTo(0,0)}
 function backToGroup(){S.ui.screen=(S.ui.gsel&&groupOf(S.ui.gsel))?'group':null;render();window.scrollTo(0,0)}
