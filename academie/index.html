@@ -1398,23 +1398,45 @@ function spReal(plan,i,cat){const a=addDays(plan.start,7*i),b=addDays(a,6);let l
 function spEst(w){return (+w.vol||0)*(+w.int||0)*40;}
 function spChart(plan,cat){
   const W=SP_WEEKS*SP_COLW,H=200,band=16,padTop=34,padBot=22,plotH=H-padTop-padBot;
-  let phases='',bars='',dots='',matches='',ticks='';const lp=[];
+  let phases='',bars='',dots='',matches='',ticks='',logos='';const lp=[];
   for(let i=0;i<SP_WEEKS;i++){const w=spW(plan,i);const x=i*SP_COLW,cx=x+SP_COLW/2;
     const vol=+w.vol||0,int=+w.int||0;
     const ph=SP_PHASES.find(p=>p[0]===(w.phase||''))||SP_PHASES[0];
     phases+=`<rect x="${x}" y="0" width="${SP_COLW}" height="${band}" fill="${ph[2]}" opacity="${w.phase?0.92:0.22}"/>`;
-    const bh=(vol/5)*plotH;bars+=`<rect x="${x+7}" y="${H-padBot-bh}" width="${SP_COLW-14}" height="${bh}" rx="3" fill="#3DA9FC" opacity="0.82"/>`;
-    lp.push([cx,H-padBot-(int/5)*plotH]);
-    if(spIsMatch(plan,i,cat))matches+=`<circle cx="${cx}" cy="${band+9}" r="4.5" fill="#E7A13B"/>`;
-    SP_CONTENT.forEach((c,ci)=>{const lv=+((w.content||{})[c[0]])||0;if(lv>0)dots+=`<circle cx="${cx}" cy="${padTop-4+ci*5}" r="${1.5+lv*0.9}" fill="${c[2]}" opacity="0.92"/>`;});
+    const bh=(vol/5)*plotH;bars+=`<rect x="${x+7}" y="${H-padBot-bh}" width="${SP_COLW-14}" height="${bh}" rx="3" fill="#3DA9FC" opacity="0.82"><title>S${isoWeekNum(addDays(plan.start,7*i))} · Volume ${vol}/5 · Intensité ${int}/5${w.opp?' · vs '+w.opp:''}</title></rect>`;
+    const crest=spCrest(w);if(crest){const sz=18;logos+=`<image href="${crest}" x="${(cx-sz/2).toFixed(1)}" y="${Math.max(band+2,H-padBot-bh-sz-3).toFixed(1)}" width="${sz}" height="${sz}"><title>${esc(w.opp||'')}</title></image>`;}
+    lp.push([cx,H-padBot-(int/5)*plotH,int]);
+    if(spIsMatch(plan,i,cat))matches+=`<circle cx="${cx}" cy="${band+9}" r="4.5" fill="#E7A13B"><title>Semaine de match</title></circle>`;
+    SP_CONTENT.forEach((c,ci)=>{const lv=+((w.content||{})[c[0]])||0;if(lv>0)dots+=`<circle cx="${cx}" cy="${padTop-4+ci*5}" r="${1.5+lv*0.9}" fill="${c[2]}" opacity="0.92"><title>${c[1]} ${lv}/5</title></circle>`;});
     if(i%2===0)ticks+=`<text x="${cx}" y="${H-6}" text-anchor="middle" font-size="9" fill="#7E90A8">S${isoWeekNum(addDays(plan.start,7*i))}</text>`;
   }
-  const line=`<polyline points="${lp.map(p=>p[0]+','+p[1]).join(' ')}" fill="none" stroke="#E5604D" stroke-width="2.2"/>`+lp.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#E5604D"/>`).join('');
-  return `<div style="overflow-x:auto" id="sp-chart"><svg width="${W}" height="${H}" style="display:block;min-width:100%">${phases}${matches}${bars}${line}${dots}${ticks}</svg></div>`;
+  const line=`<polyline points="${lp.map(p=>p[0]+','+p[1]).join(' ')}" fill="none" stroke="#E5604D" stroke-width="2.2"/>`+lp.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#E5604D"><title>Intensité ${p[2]}/5</title></circle>`).join('');
+  // superpositions de charge (échelles indépendantes, valeur au survol)
+  const overlay=(vals,color,dash,unit)=>{const mx=Math.max(1,...vals.map(v=>+v||0));const pts=vals.map((v,i)=>[i*SP_COLW+SP_COLW/2,H-padBot-((+v||0)/mx)*plotH,+v||0]);
+    return `<polyline points="${pts.map(p=>p[0]+','+p[1].toFixed(1)).join(' ')}" fill="none" stroke="${color}" stroke-width="2" ${dash?'stroke-dasharray="5 4"':''} opacity="0.9"/>`+pts.map(p=>p[2]?`<circle cx="${p[0]}" cy="${p[1].toFixed(1)}" r="2.6" fill="${color}"><title>${p[2]} ${unit||''}</title></circle>`:'').join('');};
+  let over='';
+  if(UI.spOverPlan)over+=overlay(range0(SP_WEEKS).map(i=>spEst(spW(plan,i))),'#c9a227',true,'UA');
+  if(UI.spOverReal)over+=overlay(range0(SP_WEEKS).map(i=>spReal(plan,i,cat)),'#2FBF71',false,'UA');
+  if(UI.spGpsMetric)over+=overlay(range0(SP_WEEKS).map(i=>spGps(plan,i,cat,UI.spGpsMetric)),'#38bdf8',false,GPS_METRICS[UI.spGpsMetric]||'');
+  return `<div style="overflow-x:auto" id="sp-chart"><svg width="${W}" height="${H}" style="display:block;min-width:100%">${phases}${matches}${bars}${line}${over}${dots}${logos}${ticks}</svg></div>`;
 }
+const GPS_METRICS={dist:'Distance (m)',hsr:'HSR (m)',sprint:'Sprint (m)'};
+function spGps(plan,i,cat,metric){if(!metric)return 0;const a=addDays(plan.start,7*i),b=addDays(a,6);let tot=0;const pids=new Set();const scan=o=>Object.values(o).forEach(s=>{if(!s||s.cat!==cat||s.date<a||s.date>b)return;Object.entries(s.players||{}).forEach(([pid,e])=>{const v=num(e&&e[metric]);if(v!=null){tot+=v;pids.add(pid);}});});scan(DATA.sessions);scan(DATA.matches);return pids.size?Math.round(tot/pids.size):0;}
 function spBarsCell(i,key,lv,color){const bars=[5,4,3,2,1].map(n=>`<div style="height:3px;margin:1.5px 0;border-radius:2px;background:${n<=lv?color:'rgba(255,255,255,.12)'}"></div>`).join('');return `<td data-act="spLevel" data-wk="${i}" data-key="${key}" title="${lv}/5 — clique pour changer" style="cursor:pointer;padding:5px;text-align:center;min-width:${SP_COLW}px;width:${SP_COLW}px">${bars}</td>`;}
 function spTxtCell(i,key,val){return `<td style="padding:2px;min-width:${SP_COLW}px;width:${SP_COLW}px"><input data-chg="spText" data-wk="${i}" data-key="${key}" value="${esc(val||'')}" style="width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:5px;padding:4px;font-size:11px"></td>`;}
 function spPhaseCell(i,phase){const ph=SP_PHASES.find(p=>p[0]===(phase||''))||SP_PHASES[0];return `<td data-act="spPhase" data-wk="${i}" title="clique pour changer la phase" style="cursor:pointer;padding:3px;text-align:center;min-width:${SP_COLW}px;width:${SP_COLW}px"><span style="display:block;background:${ph[2]};color:#fff;border-radius:5px;padding:4px 2px;font-size:9.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ph[1])}</span></td>`;}
+/* Écusson de démonstration (placeholder) généré depuis le nom de l'adversaire —
+   l'utilisateur peut téléverser le vrai logo pour l'écraser. */
+const _crestCache={};
+function demoCrest(name){if(!name)return'';if(_crestCache[name])return _crestCache[name];
+  const init=name.split(/\s+/).map(s=>s[0]).filter(Boolean).join('').slice(0,3).toUpperCase();
+  const cols=['#c0563a','#3a6ea5','#2f8f6b','#8a5cc7','#b7760a','#0e6f55','#1b46c9','#0c8a8a','#a0402f'];let h=0;for(const c of name)h=(h*31+c.charCodeAt(0))>>>0;const col=cols[h%cols.length];
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="46" viewBox="0 0 40 46"><path d="M3 3 H37 V27 Q37 40 20 45 Q3 40 3 27 Z" fill="${col}" stroke="#ffffff" stroke-width="2"/><text x="20" y="25" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#ffffff">${init}</text></svg>`;
+  const url='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));_crestCache[name]=url;return url;}
+function spCrest(w){return w.logo||(w.opp?demoCrest(w.opp):'');}
+function spLogoCell(i,w){const logo=w.logo,ph=!logo&&w.opp?demoCrest(w.opp):'',src=logo||ph;
+  if(src)return `<td style="text-align:center;padding:3px;min-width:${SP_COLW}px;width:${SP_COLW}px;position:relative"><img src="${src}" data-act="spLogo" data-wk="${i}" title="Clique pour changer le logo" style="height:28px;width:auto;max-width:${SP_COLW-6}px;cursor:pointer;vertical-align:middle;${logo?'':'opacity:.5'}">${logo?`<button data-act="spLogoDel" data-wk="${i}" title="Retirer le logo" style="position:absolute;top:1px;right:4px;background:#e5604d;color:#fff;border:0;border-radius:50%;width:15px;height:15px;font-size:10px;line-height:15px;cursor:pointer;padding:0">×</button>`:''}</td>`;
+  return `<td data-act="spLogo" data-wk="${i}" title="Ajouter un logo du club" style="text-align:center;cursor:pointer;min-width:${SP_COLW}px;width:${SP_COLW}px"><span style="display:inline-block;border:1px dashed var(--line);border-radius:6px;padding:4px 9px;font-size:14px;color:var(--muted)">+</span></td>`;}
 VIEWS.seasonplan=()=>{
   const allCats=!INDIV&&UI.cat==='Tous';
   const cat=spKey();const plan=spGet(cat);
@@ -1425,7 +1447,9 @@ VIEWS.seasonplan=()=>{
   const rows=[];
   rows.push(`<tr>${rowLbl('Phase')}${range0(SP_WEEKS).map(i=>spPhaseCell(i,spW(plan,i).phase)).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('Événement')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'event',spW(plan,i).event)).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Logos')}${range0(SP_WEEKS).map(i=>spLogoCell(i,spW(plan,i))).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('Adversaire')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'opp',spW(plan,i).opp)).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('Lieu')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'lieu',spW(plan,i).lieu)).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('▮ Volume')}${range0(SP_WEEKS).map(i=>spBarsCell(i,'vol',+spW(plan,i).vol||0,'#3DA9FC')).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('▲ Intensité')}${range0(SP_WEEKS).map(i=>spBarsCell(i,'int',+spW(plan,i).int||0,'#E5604D')).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('Charge estimée')}${range0(SP_WEEKS).map(i=>`<td style="text-align:center;font-size:11px;color:var(--muted)">${spEst(spW(plan,i))||'·'}</td>`).join('')}</tr>`);
@@ -1438,14 +1462,25 @@ VIEWS.seasonplan=()=>{
   rows.push(`<tr>${rowLbl('Thème principal')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'themeA',spW(plan,i).themeA)).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('Thème secondaire')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'themeB',spW(plan,i).themeB)).join('')}</tr>`);
   const legend=`<div class="row" style="gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2);margin-top:8px">
-    <span><span style="display:inline-block;width:12px;height:8px;background:#3DA9FC;border-radius:2px"></span> Volume</span>
-    <span><span style="display:inline-block;width:16px;height:2px;background:#E5604D;vertical-align:middle"></span> Intensité</span>
+    <span><span style="display:inline-block;width:12px;height:8px;background:#3DA9FC;border-radius:2px"></span> Volume (barres)</span>
+    <span><span style="display:inline-block;width:16px;height:2px;background:#E5604D;vertical-align:middle"></span> Intensité (courbe)</span>
+    ${UI.spOverPlan?'<span><span style="display:inline-block;width:16px;height:2px;background:#c9a227;vertical-align:middle;border-top:2px dashed #c9a227"></span> Charge attendue</span>':''}
+    ${UI.spOverReal?'<span><span style="display:inline-block;width:16px;height:2px;background:#2FBF71;vertical-align:middle"></span> Charge réelle</span>':''}
+    ${UI.spGpsMetric?'<span><span style="display:inline-block;width:16px;height:2px;background:#38bdf8;vertical-align:middle"></span> '+GPS_METRICS[UI.spGpsMetric]+'</span>':''}
     <span>⚽ semaine de match</span>
-    ${SP_CONTENT.map(c=>`<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c[2]}"></span> ${c[1]}</span>`).join('')}</div>`;
+    ${SP_CONTENT.map(c=>`<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c[2]}"></span> ${c[1]}</span>`).join('')}
+    <span style="color:var(--muted)">Taille du point : ${[1,2,3,4,5].map(n=>`<span style="display:inline-block;width:${2*(1.5+n*0.9)}px;height:${2*(1.5+n*0.9)}px;border-radius:50%;background:var(--ink-2);vertical-align:middle;margin:0 2px"></span>`).join('')} = importance 1→5</span></div>`;
+  const chartCtl=`<div class="row" style="gap:16px;flex-wrap:wrap;align-items:center;margin:0 0 8px;font-size:12.5px">
+    <span class="small muted">Superposer la charge :</span>
+    <label class="chk" style="margin:0"><input type="checkbox" data-chg="spOver" data-k="plan" ${UI.spOverPlan?'checked':''}> Attendue (plan)</label>
+    <label class="chk" style="margin:0"><input type="checkbox" data-chg="spOver" data-k="real" ${UI.spOverReal?'checked':''}> Réelle (SRPE)</label>
+    <label class="row" style="gap:6px;margin:0;align-items:center">GPS : <select data-chg="spGps" style="width:auto"><option value="">— aucune —</option>${Object.entries(GPS_METRICS).map(([k,l])=>`<option value="${k}" ${UI.spGpsMetric===k?'selected':''}>${l}</option>`).join('')}</select></label>
+    <span class="small muted">échelles indépendantes · valeurs au survol</span></div>`;
   return `<div class="card"><div class="hrow"><h2>Planification de la saison — ${esc(cat)}</h2>
-      <div class="row" style="gap:8px"><label class="small muted" style="margin:0">Début de saison</label><input type="date" data-chg="spStart" value="${plan.start}" style="width:auto"></div></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><label class="small muted" style="margin:0">Début de saison</label><input type="date" data-chg="spStart" value="${plan.start}" style="width:auto"><button class="btn sm" data-act="spExportPdf">📄 Exporter PDF (A4 paysage)</button><button class="btn sm" data-act="spRefresh">↻ Rafraîchir</button></div></div>
     ${allCats?`<p class="note" style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:0 0 10px">📅 Catégorie affichée : <b>${esc(cat)}</b> — utilise le sélecteur de catégorie en haut à droite (U15 / U18) pour afficher l'autre équipe.</p>`:''}
     <p class="note" style="margin:0 0 10px">Clique une barre pour régler le niveau (0→5). Les cases texte, phases et thèmes sont modifiables directement. <b>Clique l'en-tête d'une semaine (🔍) pour ouvrir son microcycle détaillé</b> (séances jour par jour). Bande du haut = phases · points = contenus athlétiques · ⚽ = match. Tout est enregistré automatiquement.</p>
+    ${chartCtl}
     ${spChart(plan,cat)}
     ${legend}
     <div id="sp-scroll" style="overflow-x:auto;margin-top:14px"><table style="border-collapse:separate;border-spacing:0"><thead>${headWk}</thead><tbody>${rows.join('')}</tbody></table></div>
@@ -1505,6 +1540,19 @@ function spMicroPrint(){const cat=spKey();const plan=spGet(cat);const i=UI.spMic
   const body=rows.map(([l,f])=>`<tr><th>${l}</th>${range0(7).map(d=>`<td>${val(d,f)}</td>`).join('')}</tr>`).join('');
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>Microcycle S${wk} — ${esc(cat)}</title><style>@page{size:A4 landscape;margin:12mm}body{font:12px Arial,sans-serif;color:#1b2430}h1{font-size:18px;margin:0 0 2px}.sub{color:#667;margin:0 0 12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #c7d0db;padding:7px 8px;text-align:left;vertical-align:top}thead th,tbody th{background:#eef3f9}tbody th{width:130px;font-size:11px}td{height:34px}</style></head><body><h1>Microcycle — ${esc(cat)} · S${wk} (${dt})</h1><p class="sub">Thème : ${esc(m.theme||'—')}${m.note?' · '+esc(m.note):''} · Volume ${+w.vol||0} · Intensité ${+w.int||0} · Charge ${(+w.vol||0)+(+w.int||0)}</p><table><thead><tr><th></th>${SP_DAYS.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></body></html>`;
   const win=window.open('','_blank');if(!win){toast('Autorise les pop-up pour l\'export PDF');return;}win.document.write(html);win.document.close();win.focus();setTimeout(()=>{try{win.print();}catch(e){}},300);}
+/* Export PDF A4 paysage de toute la planification (par blocs de 13 semaines) */
+function spExportPdf(){const cat=spKey();const plan=spGet(cat);const WK=range0(SP_WEEKS);const chunks=[];for(let i=0;i<SP_WEEKS;i+=13)chunks.push(WK.slice(i,i+13));
+  const phOf=w=>SP_PHASES.find(p=>p[0]===(w.phase||''))||SP_PHASES[0];
+  const bar=(lv,c)=>`<div class="b"><span style="width:${(lv/5)*100}%;background:${c}"></span></div>`;
+  const tbl=ws=>{const h=`<tr><th class="l"></th>${ws.map(i=>{const wk=isoWeekNum(addDays(plan.start,7*i));return `<th>S${wk}<br><span class="d">${fmtShort(addDays(plan.start,7*i))}</span>${spIsMatch(plan,i,cat)?' ⚽':''}</th>`;}).join('')}</tr>`;
+    const r=(l,fn)=>`<tr><th class="l">${l}</th>${ws.map(i=>fn(spW(plan,i),i)).join('')}</tr>`;
+    const td=v=>`<td>${esc(v==null?'':String(v))}</td>`;
+    const body=[r('Phase',w=>{const p=phOf(w);return `<td style="background:${p[2]};color:#fff;font-size:7px">${esc(p[1])}</td>`;}),r('Événement',w=>td(w.event)),r('Adversaire',w=>td(w.opp)),r('Lieu',w=>td(w.lieu)),r('Volume',w=>`<td>${bar(+w.vol||0,'#3DA9FC')}</td>`),r('Intensité',w=>`<td>${bar(+w.int||0,'#E5604D')}</td>`),r('Charge est.',w=>td(spEst(w)||'')),r('Charge réelle',(w,i)=>td(spReal(plan,i,cat)||'')),...SP_CONTENT.map(c=>r(c[1],w=>`<td>${bar(+((w.content||{})[c[0]])||0,c[2])}</td>`)),r('Objectif collectif',w=>td(w.objCol)),r('Test',w=>td(w.test)),r('Thème principal',w=>td(w.themeA))].join('');
+    return `<table><thead>${h}</thead><tbody>${body}</tbody></table>`;};
+  const pages=chunks.map((c,idx)=>`<div${idx?' style="page-break-before:always"':''}><h1>Planification de la saison — ${esc(cat)} · semaines S${isoWeekNum(addDays(plan.start,7*c[0]))}→S${isoWeekNum(addDays(plan.start,7*c[c.length-1]))}</h1>${tbl(c)}</div>`).join('');
+  const css=`@page{size:A4 landscape;margin:8mm}body{font:9px Arial,sans-serif;color:#1b2430;margin:0}h1{font-size:13px;margin:0 0 6px}table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1px solid #c7d0db;padding:3px;text-align:center;overflow:hidden;word-break:break-word}th.l{text-align:left;width:86px;background:#eef3f9;font-size:8px}th .d{color:#889;font-weight:400}.b{height:7px;background:#e8edf3;border-radius:2px;overflow:hidden}.b span{display:block;height:100%}`;
+  const win=window.open('','_blank');if(!win){toast('Autorise les pop-up pour l\'export PDF');return;}
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Planification ${esc(cat)}</title><style>${css}</style></head><body>${pages}</body></html>`);win.document.close();win.focus();setTimeout(()=>{try{win.print();}catch(e){}},400);}
 VIEWS.training=()=>{
   const v=UI.planView;
   const sw=`<div class="subtabs">${[['week','Semaine (microcycle)'],['month','Mois'],['season','Saison']].map(([k,l])=>`<button class="${v===k?'on':''}" data-act="planView" data-id="${k}">${l}</button>`).join('')}</div>`;
@@ -2616,6 +2664,10 @@ const ACT={
   spMicroNav:b=>{const d=+b.dataset.d;UI.spMicro=Math.max(0,Math.min(SP_WEEKS-1,(UI.spMicro||0)+d));renderDrawer();},
   spMicroCopy:()=>{const cat=spKey();const plan=spGet(cat);const i=UI.spMicro;if(i==null)return;if(i>=SP_WEEKS-1){toast('Dernière semaine de la saison');return;}const w=plan.weeks[i]=plan.weeks[i]||{};const nw=plan.weeks[i+1]=plan.weeks[i+1]||{};nw.micro=JSON.parse(JSON.stringify(w.micro||{theme:'',note:'',days:[]}));spSave(cat,plan);UI.spMicro=i+1;renderDrawer();toast('Microcycle copié vers la semaine suivante');},
   spMicroPdf:()=>spMicroPrint(),
+  spLogo:b=>{const i=+b.dataset.wk;const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;if(f.size>600000){toast('Image trop lourde (max ~600 Ko)');return;}const r=new FileReader();r.onload=()=>{const cat=spKey();const plan=spGet(cat);const w=plan.weeks[i]=plan.weeks[i]||{};w.logo=r.result;spSave(cat,plan);toast('Logo ajouté');};r.readAsDataURL(f);};inp.click();},
+  spLogoDel:b=>{const i=+b.dataset.wk;const cat=spKey();const plan=spGet(cat);const w=plan.weeks[i]=plan.weeks[i]||{};delete w.logo;spSave(cat,plan);},
+  spRefresh:()=>{render();toast('Planification actualisée');},
+  spExportPdf:()=>spExportPdf(),
   goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
@@ -2738,6 +2790,8 @@ const CHG={
     if(t.dataset.d!=null){const d=+t.dataset.d;w.micro.days[d]=w.micro.days[d]||{};w.micro.days[d][t.dataset.f]=t.value;}else{w.micro[t.dataset.f]=t.value;}
     spSave(cat,plan,true);if(t.tagName==='SELECT')renderDrawer();},
   spMicroGoto:t=>{UI.spMicro=+t.value;renderDrawer();},
+  spOver:t=>{if(t.dataset.k==='plan')UI.spOverPlan=t.checked;else if(t.dataset.k==='real')UI.spOverReal=t.checked;render();},
+  spGps:t=>{UI.spGpsMetric=t.value;render();},
   rpeSess:t=>{UI.rpeSess=t.value;render();},
   indivClient:t=>{UI.indivClient=t.value;render();},
   reminderToggle:async t=>{await saveSettings({reminders:t.checked});toast(t.checked?'Rappels activés':'Rappels désactivés');},
