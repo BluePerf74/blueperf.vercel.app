@@ -707,6 +707,15 @@ function makeDemo(){
     weeks[27].event='Trêve hivernale';weeks[27].objInd='Entretien + récupération';
     weeks[30].objCol='Jeu dans les petits espaces';weeks[30].themeA='Vitesse-vivacité';weeks[30].themeB='Changements de direction';
     weeks[38].event='Fin de saison';weeks[38].test='Batterie finale';weeks[38].objCol='Bilan individuel';
+    weeks[7].micro={theme:'Semaine de match — microcycle J-',note:'Match le samedi',days:[
+      {pm:'Récupération active + prévention',pmSeq:'aero',pmDur:'1h00'},
+      {pm:'Force spécifique · jeux réduits',pmSeq:'force',pmDur:'1h30',salle:'Renforcement bas du corps'},
+      {pm:'Endurance intermittente · grands espaces',pmSeq:'aero',pmDur:'1h40'},
+      {pm:'Vitesse + réactivité',pmSeq:'vitesse',pmDur:'1h20'},
+      {pm:'Activation + coups de pied arrêtés',pmSeq:'jeu',pmDur:'1h00'},
+      {pm:'MATCH'},
+      {}
+    ]};
     D.seasonplan[cat]={cat,start:spStartDefault(),weeks};
   });
   return D;
@@ -960,7 +969,7 @@ function render(){
   renderDrawer();
   if(POST[UI.tab])POST[UI.tab]();
 }
-function go(tab){UI.tab=tab;UI.edit=UI.edit&&tab==='entry'?UI.edit:null;formDirty=false;saveUI();render();window.scrollTo(0,0);}
+function go(tab){UI.tab=tab;UI.edit=UI.edit&&tab==='entry'?UI.edit:null;UI.spMicro=null;formDirty=false;saveUI();render();window.scrollTo(0,0);}
 </script>
 
 <script>
@@ -1411,7 +1420,7 @@ VIEWS.seasonplan=()=>{
   const cat=spKey();const plan=spGet(cat);
   const lbl=i=>({wk:isoWeekNum(addDays(plan.start,7*i)),d:addDays(plan.start,7*i)});
   const th=`<th style="position:sticky;left:0;z-index:3;background:var(--nav);min-width:150px;width:150px;text-align:left;padding:6px 8px"></th>`;
-  const headWk=`<tr>${th}${range0(SP_WEEKS).map(i=>{const {wk,d}=lbl(i);const m=spIsMatch(plan,i,cat);return `<th style="min-width:${SP_COLW}px;width:${SP_COLW}px;padding:5px 2px;text-align:center;font-size:10px;color:${m?'#E7A13B':'var(--ink-2)'}">S${wk}<br><span class="muted" style="font-weight:400">${fmtShort(d)}</span>${m?'<br>⚽':''}</th>`;}).join('')}</tr>`;
+  const headWk=`<tr>${th}${range0(SP_WEEKS).map(i=>{const {wk,d}=lbl(i);const m=spIsMatch(plan,i,cat);return `<th data-act="spMicro" data-wk="${i}" title="Clique pour ouvrir le microcycle détaillé de la semaine" style="cursor:pointer;min-width:${SP_COLW}px;width:${SP_COLW}px;padding:5px 2px;text-align:center;font-size:10px;color:${m?'#E7A13B':'var(--ink-2)'}">S${wk}<br><span class="muted" style="font-weight:400">${fmtShort(d)}</span>${m?'<br>⚽':''}<br><span style="color:var(--accent);font-size:12px">🔍</span></th>`;}).join('')}</tr>`;
   const rowLbl=t=>`<td style="position:sticky;left:0;z-index:2;background:var(--surface-2);min-width:150px;width:150px;font-size:11px;font-weight:600;color:var(--ink-2);padding:5px 8px;white-space:nowrap">${t}</td>`;
   const rows=[];
   rows.push(`<tr>${rowLbl('Phase')}${range0(SP_WEEKS).map(i=>spPhaseCell(i,spW(plan,i).phase)).join('')}</tr>`);
@@ -1436,7 +1445,7 @@ VIEWS.seasonplan=()=>{
   return `<div class="card"><div class="hrow"><h2>Planification de la saison — ${esc(cat)}</h2>
       <div class="row" style="gap:8px"><label class="small muted" style="margin:0">Début de saison</label><input type="date" data-chg="spStart" value="${plan.start}" style="width:auto"></div></div>
     ${allCats?`<p class="note" style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:0 0 10px">📅 Catégorie affichée : <b>${esc(cat)}</b> — utilise le sélecteur de catégorie en haut à droite (U15 / U18) pour afficher l'autre équipe.</p>`:''}
-    <p class="note" style="margin:0 0 10px">Clique une barre pour régler le niveau (0→5). Les cases texte, phases et thèmes sont modifiables directement. Bande du haut = phases · points = contenus athlétiques · ⚽ = match. Tout est enregistré automatiquement.</p>
+    <p class="note" style="margin:0 0 10px">Clique une barre pour régler le niveau (0→5). Les cases texte, phases et thèmes sont modifiables directement. <b>Clique l'en-tête d'une semaine (🔍) pour ouvrir son microcycle détaillé</b> (séances jour par jour). Bande du haut = phases · points = contenus athlétiques · ⚽ = match. Tout est enregistré automatiquement.</p>
     ${spChart(plan,cat)}
     ${legend}
     <div id="sp-scroll" style="overflow-x:auto;margin-top:14px"><table style="border-collapse:separate;border-spacing:0"><thead>${headWk}</thead><tbody>${rows.join('')}</tbody></table></div>
@@ -1444,6 +1453,58 @@ VIEWS.seasonplan=()=>{
 };
 function range0(n){return Array.from({length:n},(_,i)=>i);}
 POST.seasonplan=()=>{const el=$('#sp-scroll');if(el){el.scrollLeft=UI.spScroll||0;el.addEventListener('scroll',()=>{UI.spScroll=el.scrollLeft;});const ch=$('#sp-chart');if(ch)ch.scrollLeft=UI.spScroll||0;}};
+/* ---- Détail du microcycle (jour par jour) ---- */
+const SP_SEQ=[['','—','#4a5568',''],['jeu','Jeu de position','#3DA9FC','5–75'],['force','Force Spécifique','#E5604D','75–125'],['aero','Aérobie Spécifique','#2FBF71','125–175'],['puissance','Puissance Spécifique','#E7A13B','200–275'],['vitesse','Vitesse Spécifique','#A06FF0','275–300']];
+const SP_DAYS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function spSeqOf(v){return SP_SEQ.find(s=>s[0]===(v||''))||SP_SEQ[0];}
+function spMicroCount(w){let n=0;const m=w.micro||{};(m.days||[]).forEach(d=>{if(!d)return;['am','pm','salle'].forEach(k=>{if((d[k]||'').trim())n++;});});return n;}
+function renderMicroDrawer(host){
+  const cat=spKey();const plan=spGet(cat);const i=UI.spMicro;
+  if(i==null||i<0||i>=SP_WEEKS){host.innerHTML='';document.body.style.overflow='';return;}
+  const w=spW(plan,i);const m=w.micro||{theme:'',note:'',days:[]};m.days=m.days||[];
+  const wk=isoWeekNum(addDays(plan.start,7*i));const dt=fmtShort(addDays(plan.start,7*i));
+  const vol=+w.vol||0,int=+w.int||0;
+  const chip=(l,v,c)=>`<span style="font-size:13px;color:var(--ink-2)">${l} <b style="color:${c||'var(--ink)'};font-size:17px;font-family:var(--fd)">${v}</b></span>`;
+  const sumRow=`<div class="row" style="gap:18px;flex-wrap:wrap">${chip('Volume',vol,'#3DA9FC')}${chip('Intensité',int,'#E5604D')}${chip('Charge',vol+int,'#2FBF71')}${chip('Entraînements',spMicroCount(w))}</div>`;
+  const cont=`<div class="row" style="gap:12px;flex-wrap:wrap;margin-top:6px">${SP_CONTENT.map(c=>`<span style="font-size:12px;color:var(--ink-2)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c[2]};margin-right:4px"></span>${c[1]} <b>${+((w.content||{})[c[0]])||0}</b></span>`).join('')}</div>`;
+  const nav=`<div class="row" style="gap:6px"><button class="btn sm" data-act="spMicroNav" data-d="-1" ${i<=0?'disabled':''} aria-label="Semaine précédente">‹</button><select data-chg="spMicroGoto" style="width:auto">${range0(SP_WEEKS).map(k=>`<option value="${k}" ${k===i?'selected':''}>S${isoWeekNum(addDays(plan.start,7*k))} — ${fmtShort(addDays(plan.start,7*k))}</option>`).join('')}</select><button class="btn sm" data-act="spMicroNav" data-d="1" ${i>=SP_WEEKS-1?'disabled':''} aria-label="Semaine suivante">›</button></div>`;
+  const inpSt='width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px;font-size:12px';
+  const txt=(d,f,ph)=>{const v=(m.days[d]||{})[f]||'';return `<input data-chg="spMicro" data-d="${d}" data-f="${f}" value="${esc(v)}" placeholder="${ph||''}" style="${inpSt}">`;};
+  const seq=(d,f)=>{const v=(m.days[d]||{})[f]||'';const s=spSeqOf(v);return `<select data-chg="spMicro" data-d="${d}" data-f="${f}" style="${inpSt};border-left:5px solid ${s[2]}">${SP_SEQ.map(x=>`<option value="${x[0]}" ${x[0]===v?'selected':''}>${x[1]}</option>`).join('')}</select>`;};
+  const cw='min-width:150px;width:150px;padding:4px';
+  const rl=t=>`<td style="position:sticky;left:0;z-index:2;background:var(--surface-2);min-width:140px;width:140px;font-size:11px;font-weight:700;color:var(--ink-2);padding:7px 10px;white-space:nowrap">${t}</td>`;
+  const headRow=`<tr><th style="position:sticky;left:0;z-index:3;background:var(--nav);min-width:140px;width:140px"></th>${SP_DAYS.map(d=>`<th style="${cw};text-align:center;font-size:13px;padding:8px">${d}</th>`).join('')}</tr>`;
+  const spacer=`<tr style="height:8px"><td colspan="8"></td></tr>`;
+  const line=(lbl,fn)=>`<tr>${rl(lbl)}${range0(7).map(d=>`<td style="${cw}">${fn(d)}</td>`).join('')}</tr>`;
+  const bodyRows=[
+    line('Séance matin',d=>txt(d,'am','ex. 20 min activation')),
+    line('Espace / séquence',d=>seq(d,'amSeq')),
+    line('Durée séance matin',d=>txt(d,'amDur','ex. 1h00')),
+    spacer,
+    line('Séance après-midi',d=>txt(d,'pm','ex. 25 min intense')),
+    line('Espace / séquence',d=>seq(d,'pmSeq')),
+    line('Durée séance A-M',d=>txt(d,'pmDur','ex. 1h30')),
+    spacer,
+    line('Séance salle',d=>txt(d,'salle','muscu, prévention…'))
+  ].join('');
+  const legend=`<div class="row" style="gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2);margin-top:12px"><b style="color:var(--ink)">Espace/séquence — densité (m²/j) :</b>${SP_SEQ.slice(1).map(s=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${s[2]};margin-right:4px;vertical-align:middle"></span>${s[1]} ${s[3]}</span>`).join('')}</div>`;
+  host.innerHTML=`<div class="scrim" data-act="closeMicro"></div><aside class="drawer fillfull" role="dialog" aria-modal="true" aria-label="Microcycle S${wk}" style="left:0;right:0;width:100%;max-width:100%;overflow-y:auto">
+    <div class="row sb" style="padding:14px 18px;border-bottom:1px solid var(--line);flex:none;flex-wrap:wrap;gap:12px">
+      <div><div class="eyebrow">Détail du microcycle · ${esc(cat)}</div><h2 style="margin:2px 0 6px;font-size:22px">S${wk} — ${dt}</h2>${sumRow}${cont}</div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">${nav}<button class="btn sm" data-act="spMicroCopy">Copier → semaine suivante</button><button class="btn sm" data-act="spMicroPdf">📄 PDF</button><button class="btn pri" data-act="closeMicro">✓ Fermer</button></div></div>
+    <div style="padding:16px 18px">
+      <div class="grid g2" style="margin-bottom:14px"><div><label class="small muted">Thème</label><input data-chg="spMicro" data-f="theme" value="${esc(m.theme||'')}" placeholder="Thème principal de la semaine" style="${inpSt}"></div><div><label class="small muted">Note / durée</label><input data-chg="spMicro" data-f="note" value="${esc(m.note||'')}" placeholder="Note libre" style="${inpSt}"></div></div>
+      <div style="overflow-x:auto"><table style="border-collapse:separate;border-spacing:0;min-width:100%">${headRow}<tbody>${bodyRows}</tbody></table></div>
+      ${legend}
+    </div></aside>`;
+  document.body.style.overflow='hidden';
+}
+function spMicroPrint(){const cat=spKey();const plan=spGet(cat);const i=UI.spMicro;if(i==null)return;const w=spW(plan,i);const m=w.micro||{days:[]};m.days=m.days||[];const wk=isoWeekNum(addDays(plan.start,7*i));const dt=fmtShort(addDays(plan.start,7*i));
+  const val=(d,f)=>{let v=(m.days[d]||{})[f]||'';if(f.slice(-3)==='Seq'){const s=spSeqOf(v);v=s[0]?s[1]:'';}return esc(v);};
+  const rows=[['Séance matin','am'],['Espace / séquence','amSeq'],['Durée matin','amDur'],['Séance après-midi','pm'],['Espace / séquence','pmSeq'],['Durée A-M','pmDur'],['Séance salle','salle']];
+  const body=rows.map(([l,f])=>`<tr><th>${l}</th>${range0(7).map(d=>`<td>${val(d,f)}</td>`).join('')}</tr>`).join('');
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Microcycle S${wk} — ${esc(cat)}</title><style>@page{size:A4 landscape;margin:12mm}body{font:12px Arial,sans-serif;color:#1b2430}h1{font-size:18px;margin:0 0 2px}.sub{color:#667;margin:0 0 12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #c7d0db;padding:7px 8px;text-align:left;vertical-align:top}thead th,tbody th{background:#eef3f9}tbody th{width:130px;font-size:11px}td{height:34px}</style></head><body><h1>Microcycle — ${esc(cat)} · S${wk} (${dt})</h1><p class="sub">Thème : ${esc(m.theme||'—')}${m.note?' · '+esc(m.note):''} · Volume ${+w.vol||0} · Intensité ${+w.int||0} · Charge ${(+w.vol||0)+(+w.int||0)}</p><table><thead><tr><th></th>${SP_DAYS.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+  const win=window.open('','_blank');if(!win){toast('Autorise les pop-up pour l\'export PDF');return;}win.document.write(html);win.document.close();win.focus();setTimeout(()=>{try{win.print();}catch(e){}},300);}
 VIEWS.training=()=>{
   const v=UI.planView;
   const sw=`<div class="subtabs">${[['week','Semaine (microcycle)'],['month','Mois'],['season','Saison']].map(([k,l])=>`<button class="${v===k?'on':''}" data-act="planView" data-id="${k}">${l}</button>`).join('')}</div>`;
@@ -2437,6 +2498,7 @@ function renderFillDrawer(host){
 /* ---------- FICHE JOUEUR (panneau) ---------- */
 function renderDrawer(){
   const host=$('#drawerHost');
+  if(UI.spMicro!=null)return renderMicroDrawer(host);
   if(UI.fill)return renderFillDrawer(host);
   host.dataset.fillSig='';
   const p=DATA.players[UI.drawer];if(!p){host.innerHTML='';document.body.style.overflow='';return;}
@@ -2549,6 +2611,11 @@ const ACT={
   spLevel:b=>{const cat=spKey();const plan=spGet(cat);const i=+b.dataset.wk,key=b.dataset.key;const w=plan.weeks[i]=plan.weeks[i]||{};
     if(key.indexOf('content.')===0){const ck=key.slice(8);w.content=w.content||{};w.content[ck]=((+w.content[ck]||0)+1)%6;}else{w[key]=((+w[key]||0)+1)%6;}spSave(cat,plan);},
   spPhase:b=>{const cat=spKey();const plan=spGet(cat);const i=+b.dataset.wk;const w=plan.weeks[i]=plan.weeks[i]||{};const cur=SP_PHASES.findIndex(p=>p[0]===(w.phase||''));w.phase=SP_PHASES[(cur+1)%SP_PHASES.length][0];spSave(cat,plan);},
+  spMicro:b=>{UI.spMicro=+b.dataset.wk;renderDrawer();},
+  closeMicro:()=>{UI.spMicro=null;renderDrawer();document.body.style.overflow='';},
+  spMicroNav:b=>{const d=+b.dataset.d;UI.spMicro=Math.max(0,Math.min(SP_WEEKS-1,(UI.spMicro||0)+d));renderDrawer();},
+  spMicroCopy:()=>{const cat=spKey();const plan=spGet(cat);const i=UI.spMicro;if(i==null)return;if(i>=SP_WEEKS-1){toast('Dernière semaine de la saison');return;}const w=plan.weeks[i]=plan.weeks[i]||{};const nw=plan.weeks[i+1]=plan.weeks[i+1]||{};nw.micro=JSON.parse(JSON.stringify(w.micro||{theme:'',note:'',days:[]}));spSave(cat,plan);UI.spMicro=i+1;renderDrawer();toast('Microcycle copié vers la semaine suivante');},
+  spMicroPdf:()=>spMicroPrint(),
   goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
@@ -2667,6 +2734,10 @@ const CHG={
   assignDate:t=>{UI.assignDate=t.value;render();},
   spText:t=>{const cat=spKey();const plan=spGet(cat);const i=+t.dataset.wk,key=t.dataset.key;const w=plan.weeks[i]=plan.weeks[i]||{};w[key]=t.value;spSave(cat,plan,true);},
   spStart:t=>{const cat=spKey();const plan=spGet(cat);plan.start=t.value||spStartDefault();spSave(cat,plan);},
+  spMicro:t=>{const cat=spKey();const plan=spGet(cat);const i=UI.spMicro;if(i==null)return;const w=plan.weeks[i]=plan.weeks[i]||{};w.micro=w.micro||{theme:'',note:'',days:[]};w.micro.days=w.micro.days||[];
+    if(t.dataset.d!=null){const d=+t.dataset.d;w.micro.days[d]=w.micro.days[d]||{};w.micro.days[d][t.dataset.f]=t.value;}else{w.micro[t.dataset.f]=t.value;}
+    spSave(cat,plan,true);if(t.tagName==='SELECT')renderDrawer();},
+  spMicroGoto:t=>{UI.spMicro=+t.value;renderDrawer();},
   rpeSess:t=>{UI.rpeSess=t.value;render();},
   indivClient:t=>{UI.indivClient=t.value;render();},
   reminderToggle:async t=>{await saveSettings({reminders:t.checked});toast(t.checked?'Rappels activés':'Rappels désactivés');},
@@ -2708,7 +2779,7 @@ document.addEventListener('click',e=>{if(!UI.entryOpen&&!UI.perfOpen)return;if(e
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='refDate'){UI.ref=t.value||TODAY;render();return;}if(t.dataset&&t.dataset.chg&&CHG[t.dataset.chg])CHG[t.dataset.chg](t);});
 document.addEventListener('input',e=>{const t=e.target;if(t.closest('form'))formDirty=true;if(t.dataset&&t.dataset.fill){const k=t.dataset.fill;const form=t.closest('form');$$('#grid tr',form).forEach(tr=>{const on=tr.querySelector('input[name^="on-"]');const inp=tr.querySelector(`input[name^="${k}-"]`);if(on&&on.checked&&inp)inp.value=t.value;});}});
 document.addEventListener('submit',e=>{const f=e.target.closest('form[data-form]');if(!f)return;e.preventDefault();formDirty=false;const h=FORMS[f.dataset.form];if(h)h(f,e.submitter);});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(UI.drawer||UI.fill)){if(UI.fill){UI.fill=null;renderDrawer();document.body.style.overflow='';reloadData();}else{UI.drawer=null;renderDrawer();}}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(UI.spMicro!=null){UI.spMicro=null;renderDrawer();document.body.style.overflow='';return;}if(UI.drawer||UI.fill){if(UI.fill){UI.fill=null;renderDrawer();document.body.style.overflow='';reloadData();}else{UI.drawer=null;renderDrawer();}}}});
 // Fermeture du cadre de saisie staff demandée depuis l'intérieur (bouton « ← Retour »).
 window.addEventListener('message',e=>{if(e&&e.data==='blueperf-close-fill'&&UI.fill&&ACT.closeFill)ACT.closeFill();});
 boot();
