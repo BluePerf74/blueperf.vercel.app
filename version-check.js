@@ -1,4 +1,4 @@
-/* Détecteur de nouvelle version Blueperf.
+/* Détecteur de nouvelle version Elite Adapt.
    Interroge /api/version (jeton qui change à chaque déploiement). Quand le jeton diffère de
    celui chargé au démarrage, affiche un bandeau « Recharger » — l'utilisateur met à jour
    l'application sans la fermer ni la rouvrir. 100 % local : aucune donnée envoyée. */

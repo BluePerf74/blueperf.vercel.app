@@ -11,7 +11,8 @@
 <script src="/i18n-dict.js?v=2" defer></script>
 <script src="/i18n-dom.js?v=2" defer></script>
 <link rel="stylesheet" href="/ui-polish.css?v=1">
-<title>Blueperf Académie</title>
+<title>Elite Adapt — Académie</title>
+<link rel="icon" href="/elite-adapt-icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap">
@@ -58,9 +59,12 @@ a{color:var(--accent)}
 .app{display:block;min-height:100%}
 /* NAV — barre horizontale en haut */
 .nav{background:var(--nav);color:var(--nav-ink);padding:8px 14px;position:sticky;top:0;z-index:30;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 10px}
-.brand{padding:0 10px 0 0;margin-right:4px;flex:none;display:flex;flex-direction:column;justify-content:center;line-height:1}
-.brand b{font-family:var(--fd);font-size:19px;letter-spacing:.02em;color:#fff;display:block;line-height:1}
-.brand span{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--nav-ink-2)}
+.brand{padding:0 12px 0 0;margin-right:4px;flex:none;display:flex;align-items:center;gap:8px;line-height:1}
+.brand .mark{height:24px;width:auto;flex:none}
+.brand b.wm,.brand b.ad{font-family:var(--fd);font-size:18px;letter-spacing:.02em;line-height:1;white-space:nowrap;display:inline}
+.brand b.wm{color:#fff}
+.brand b.ad{color:#ff9a8b;margin-left:4px}
+.brand span{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--nav-ink-2);border-left:1px solid rgba(255,255,255,.18);padding-left:8px;margin-left:4px}
 .nav ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:row;flex-wrap:wrap;gap:2px 3px;align-items:center}
 .nav li{position:relative;flex:none}
 .nav button.ni{width:auto;display:flex;align-items:center;justify-content:space-between;gap:6px;background:none;border:0;color:var(--nav-ink);padding:8px 11px;border-radius:7px;cursor:pointer;text-align:left;font-weight:500;white-space:nowrap}
@@ -906,7 +910,7 @@ function renderNav(){
   const healthN=sig.health?sig.health.split(',').length:0;
   const badge={overview:show('overview')?(c.red?`<span class="badge crit">${c.red}</span>`:c.orange?`<span class="badge warn">${c.orange}</span>`:''):'',medical:show('medical')&&c.inj?`<span class="badge">${c.inj}</span>`:'',reathle:show('reathle')&&c.rea?`<span class="badge">${c.rea}</span>`:'',health:show('health')&&healthN?`<span class="badge warn">🩸${healthN}</span>`:''};
   const inPerf=['testing','reathle','muscu'].includes(UI.tab);
-  let h=`<div class="brand"><b>Blueperf</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
+  let h=`<div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt"><b class="wm">Elite</b><b class="ad">Adapt</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
   TABS.forEach(t=>{
     if(t.entryGroup){ // groupe Saisie : menu déroulant dans la barre, navigation par goEntry (UI.entryTab)
       if(!tabOn('entry'))return;const inGrp=UI.tab==='entry';const open=!!UI.entryOpen; // ouvert seulement au clic sur « Saisie » ; se referme après avoir choisi une entrée
@@ -1403,7 +1407,7 @@ function spChart(plan,cat){
     const vol=+w.vol||0,int=+w.int||0;
     const ph=SP_PHASES.find(p=>p[0]===(w.phase||''))||SP_PHASES[0];
     phases+=`<rect x="${x}" y="0" width="${SP_COLW}" height="${band}" fill="${ph[2]}" opacity="${w.phase?0.92:0.22}"/>`;
-    const bh=(vol/5)*plotH;bars+=`<rect x="${x+7}" y="${H-padBot-bh}" width="${SP_COLW-14}" height="${bh}" rx="3" fill="#3DA9FC" opacity="0.82"><title>S${isoWeekNum(addDays(plan.start,7*i))} · Volume ${vol}/5 · Intensité ${int}/5${w.opp?' · vs '+w.opp:''}</title></rect>`;
+    const bh=(vol/5)*plotH;bars+=`<rect x="${x+7}" y="${H-padBot-bh}" width="${SP_COLW-14}" height="${bh}" rx="3" fill="#3b82f6" opacity="0.82"><title>S${isoWeekNum(addDays(plan.start,7*i))} · Volume ${vol}/5 · Intensité ${int}/5${w.opp?' · vs '+w.opp:''}</title></rect>`;
     const crest=spCrest(w);if(crest){const sz=18;logos+=`<image href="${crest}" x="${(cx-sz/2).toFixed(1)}" y="${Math.max(band+2,H-padBot-bh-sz-3).toFixed(1)}" width="${sz}" height="${sz}"><title>${esc(w.opp||'')}</title></image>`;}
     lp.push([cx,H-padBot-(int/5)*plotH,int]);
     if(spIsMatch(plan,i,cat))matches+=`<circle cx="${cx}" cy="${band+9}" r="4.5" fill="#E7A13B"><title>Semaine de match</title></circle>`;
@@ -1450,7 +1454,7 @@ VIEWS.seasonplan=()=>{
   rows.push(`<tr>${rowLbl('Logos')}${range0(SP_WEEKS).map(i=>spLogoCell(i,spW(plan,i))).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('Adversaire')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'opp',spW(plan,i).opp)).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('Lieu')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'lieu',spW(plan,i).lieu)).join('')}</tr>`);
-  rows.push(`<tr>${rowLbl('▮ Volume')}${range0(SP_WEEKS).map(i=>spBarsCell(i,'vol',+spW(plan,i).vol||0,'#3DA9FC')).join('')}</tr>`);
+  rows.push(`<tr>${rowLbl('▮ Volume')}${range0(SP_WEEKS).map(i=>spBarsCell(i,'vol',+spW(plan,i).vol||0,'#3b82f6')).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('▲ Intensité')}${range0(SP_WEEKS).map(i=>spBarsCell(i,'int',+spW(plan,i).int||0,'#E5604D')).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('Charge estimée')}${range0(SP_WEEKS).map(i=>`<td style="text-align:center;font-size:11px;color:var(--muted)">${spEst(spW(plan,i))||'·'}</td>`).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('Charge réelle')}${range0(SP_WEEKS).map(i=>{const r=spReal(plan,i,cat);return `<td style="text-align:center;font-size:11px;font-weight:600">${r||'·'}</td>`;}).join('')}</tr>`);
@@ -1462,7 +1466,7 @@ VIEWS.seasonplan=()=>{
   rows.push(`<tr>${rowLbl('Thème principal')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'themeA',spW(plan,i).themeA)).join('')}</tr>`);
   rows.push(`<tr>${rowLbl('Thème secondaire')}${range0(SP_WEEKS).map(i=>spTxtCell(i,'themeB',spW(plan,i).themeB)).join('')}</tr>`);
   const legend=`<div class="row" style="gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2);margin-top:8px">
-    <span><span style="display:inline-block;width:12px;height:8px;background:#3DA9FC;border-radius:2px"></span> Volume (barres)</span>
+    <span><span style="display:inline-block;width:12px;height:8px;background:#3b82f6;border-radius:2px"></span> Volume (barres)</span>
     <span><span style="display:inline-block;width:16px;height:2px;background:#E5604D;vertical-align:middle"></span> Intensité (courbe)</span>
     ${UI.spOverPlan?'<span><span style="display:inline-block;width:16px;height:2px;background:#c9a227;vertical-align:middle;border-top:2px dashed #c9a227"></span> Charge attendue</span>':''}
     ${UI.spOverReal?'<span><span style="display:inline-block;width:16px;height:2px;background:#2FBF71;vertical-align:middle"></span> Charge réelle</span>':''}
@@ -1489,7 +1493,7 @@ VIEWS.seasonplan=()=>{
 function range0(n){return Array.from({length:n},(_,i)=>i);}
 POST.seasonplan=()=>{const el=$('#sp-scroll');if(el){el.scrollLeft=UI.spScroll||0;el.addEventListener('scroll',()=>{UI.spScroll=el.scrollLeft;});const ch=$('#sp-chart');if(ch)ch.scrollLeft=UI.spScroll||0;}};
 /* ---- Détail du microcycle (jour par jour) ---- */
-const SP_SEQ=[['','—','#4a5568',''],['jeu','Jeu de position','#3DA9FC','5–75'],['force','Force Spécifique','#E5604D','75–125'],['aero','Aérobie Spécifique','#2FBF71','125–175'],['puissance','Puissance Spécifique','#E7A13B','200–275'],['vitesse','Vitesse Spécifique','#A06FF0','275–300']];
+const SP_SEQ=[['','—','#4a5568',''],['jeu','Jeu de position','#3b82f6','5–75'],['force','Force Spécifique','#E5604D','75–125'],['aero','Aérobie Spécifique','#2FBF71','125–175'],['puissance','Puissance Spécifique','#E7A13B','200–275'],['vitesse','Vitesse Spécifique','#A06FF0','275–300']];
 const SP_DAYS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 function spSeqOf(v){return SP_SEQ.find(s=>s[0]===(v||''))||SP_SEQ[0];}
 function spMicroCount(w){let n=0;const m=w.micro||{};(m.days||[]).forEach(d=>{if(!d)return;['am','pm','salle'].forEach(k=>{if((d[k]||'').trim())n++;});});return n;}
@@ -1500,7 +1504,7 @@ function renderMicroDrawer(host){
   const wk=isoWeekNum(addDays(plan.start,7*i));const dt=fmtShort(addDays(plan.start,7*i));
   const vol=+w.vol||0,int=+w.int||0;
   const chip=(l,v,c)=>`<span style="font-size:13px;color:var(--ink-2)">${l} <b style="color:${c||'var(--ink)'};font-size:17px;font-family:var(--fd)">${v}</b></span>`;
-  const sumRow=`<div class="row" style="gap:18px;flex-wrap:wrap">${chip('Volume',vol,'#3DA9FC')}${chip('Intensité',int,'#E5604D')}${chip('Charge',vol+int,'#2FBF71')}${chip('Entraînements',spMicroCount(w))}</div>`;
+  const sumRow=`<div class="row" style="gap:18px;flex-wrap:wrap">${chip('Volume',vol,'#3b82f6')}${chip('Intensité',int,'#E5604D')}${chip('Charge',vol+int,'#2FBF71')}${chip('Entraînements',spMicroCount(w))}</div>`;
   const cont=`<div class="row" style="gap:12px;flex-wrap:wrap;margin-top:6px">${SP_CONTENT.map(c=>`<span style="font-size:12px;color:var(--ink-2)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c[2]};margin-right:4px"></span>${c[1]} <b>${+((w.content||{})[c[0]])||0}</b></span>`).join('')}</div>`;
   const nav=`<div class="row" style="gap:6px"><button class="btn sm" data-act="spMicroNav" data-d="-1" ${i<=0?'disabled':''} aria-label="Semaine précédente">‹</button><select data-chg="spMicroGoto" style="width:auto">${range0(SP_WEEKS).map(k=>`<option value="${k}" ${k===i?'selected':''}>S${isoWeekNum(addDays(plan.start,7*k))} — ${fmtShort(addDays(plan.start,7*k))}</option>`).join('')}</select><button class="btn sm" data-act="spMicroNav" data-d="1" ${i>=SP_WEEKS-1?'disabled':''} aria-label="Semaine suivante">›</button></div>`;
   const inpSt='width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px;font-size:12px';
@@ -1547,7 +1551,7 @@ function spExportPdf(){const cat=spKey();const plan=spGet(cat);const WK=range0(S
   const tbl=ws=>{const h=`<tr><th class="l"></th>${ws.map(i=>{const wk=isoWeekNum(addDays(plan.start,7*i));return `<th>S${wk}<br><span class="d">${fmtShort(addDays(plan.start,7*i))}</span>${spIsMatch(plan,i,cat)?' ⚽':''}</th>`;}).join('')}</tr>`;
     const r=(l,fn)=>`<tr><th class="l">${l}</th>${ws.map(i=>fn(spW(plan,i),i)).join('')}</tr>`;
     const td=v=>`<td>${esc(v==null?'':String(v))}</td>`;
-    const body=[r('Phase',w=>{const p=phOf(w);return `<td style="background:${p[2]};color:#fff;font-size:7px">${esc(p[1])}</td>`;}),r('Événement',w=>td(w.event)),r('Adversaire',w=>td(w.opp)),r('Lieu',w=>td(w.lieu)),r('Volume',w=>`<td>${bar(+w.vol||0,'#3DA9FC')}</td>`),r('Intensité',w=>`<td>${bar(+w.int||0,'#E5604D')}</td>`),r('Charge est.',w=>td(spEst(w)||'')),r('Charge réelle',(w,i)=>td(spReal(plan,i,cat)||'')),...SP_CONTENT.map(c=>r(c[1],w=>`<td>${bar(+((w.content||{})[c[0]])||0,c[2])}</td>`)),r('Objectif collectif',w=>td(w.objCol)),r('Test',w=>td(w.test)),r('Thème principal',w=>td(w.themeA))].join('');
+    const body=[r('Phase',w=>{const p=phOf(w);return `<td style="background:${p[2]};color:#fff;font-size:7px">${esc(p[1])}</td>`;}),r('Événement',w=>td(w.event)),r('Adversaire',w=>td(w.opp)),r('Lieu',w=>td(w.lieu)),r('Volume',w=>`<td>${bar(+w.vol||0,'#3b82f6')}</td>`),r('Intensité',w=>`<td>${bar(+w.int||0,'#E5604D')}</td>`),r('Charge est.',w=>td(spEst(w)||'')),r('Charge réelle',(w,i)=>td(spReal(plan,i,cat)||'')),...SP_CONTENT.map(c=>r(c[1],w=>`<td>${bar(+((w.content||{})[c[0]])||0,c[2])}</td>`)),r('Objectif collectif',w=>td(w.objCol)),r('Test',w=>td(w.test)),r('Thème principal',w=>td(w.themeA))].join('');
     return `<table><thead>${h}</thead><tbody>${body}</tbody></table>`;};
   const pages=chunks.map((c,idx)=>`<div${idx?' style="page-break-before:always"':''}><h1>Planification de la saison — ${esc(cat)} · semaines S${isoWeekNum(addDays(plan.start,7*c[0]))}→S${isoWeekNum(addDays(plan.start,7*c[c.length-1]))}</h1>${tbl(c)}</div>`).join('');
   const css=`@page{size:A4 landscape;margin:8mm}body{font:9px Arial,sans-serif;color:#1b2430;margin:0}h1{font-size:13px;margin:0 0 6px}table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1px solid #c7d0db;padding:3px;text-align:center;overflow:hidden;word-break:break-word}th.l{text-align:left;width:86px;background:#eef3f9;font-size:8px}th .d{color:#889;font-weight:400}.b{height:7px;background:#e8edf3;border-radius:2px;overflow:hidden}.b span{display:block;height:100%}`;
@@ -2348,7 +2352,7 @@ async function exportLoadPdf(){
   });
   y+=7;if(y>285){doc.addPage();y=16;}
   doc.setFontSize(7);doc.setTextColor(120,130,145);
-  doc.text('Document confidentiel — usage interne staff. Charge interne (sRPE = RPE x minutes). Genere localement par Blueperf le '+fmtD(TODAY)+'.',M,y);
+  doc.text('Document confidentiel — usage interne staff. Charge interne (sRPE = RPE x minutes). Genere localement par Elite Adapt le '+fmtD(TODAY)+'.',M,y);
   doc.save('Rapport-charge-'+cat.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-')+'-'+ref+'.pdf');
   toast('PDF telecharge');
 }

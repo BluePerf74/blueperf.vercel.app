@@ -106,10 +106,10 @@ module.exports = async (req, res) => {
         if (slot === 'evening') {
           // Le soir : uniquement les joueur·ses avec une séance aujourd'hui sans RPE.
           targetsRaw = await lateRpeToday(db, space);
-          payload = { title: 'Blueperf — RPE du soir 🌙', body: 'Pense à noter ton RPE de la séance d’aujourd’hui 💪', url: '/academie/espace.html' };
+          payload = { title: 'Elite Adapt — RPE du soir 🌙', body: 'Pense à noter ton RPE de la séance d’aujourd’hui 💪', url: '/academie/espace.html' };
         } else {
           targetsRaw = await latePids(db, space);
-          payload = { title: 'Blueperf — bonjour 👋', body: 'Pense à remplir ton wellness du matin (et tes RPE) 💪', url: '/academie/espace.html' };
+          payload = { title: 'Elite Adapt — bonjour 👋', body: 'Pense à remplir ton wellness du matin (et tes RPE) 💪', url: '/academie/espace.html' };
         }
         const targets = targetsRaw.filter(p => subbed.includes(p));
         for (const pid of targets) { if (await sendTo(db, space, pid, payload)) sent++; }
@@ -133,7 +133,7 @@ module.exports = async (req, res) => {
       if (action === 'send') {
         const v = await getVapid(db);
         webpush.setVapidDetails('mailto:coach@blueperf.app', v.publicKey, v.privateKey);
-        const title = body.title || 'Blueperf — rappel';
+        const title = body.title || 'Elite Adapt — rappel';
         const bodyTxt = body.body || 'Pense à remplir ton wellness et tes RPE du jour 💪';
         const url = body.url || '/academie/espace.html';
         let pids = Array.isArray(body.pids) ? body.pids : null;

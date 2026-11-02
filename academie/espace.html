@@ -3,20 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Blueperf — Mon espace</title>
+<title>Elite Adapt — Mon espace</title>
 <meta name="theme-color" content="#0E1A2C">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Blueperf">
+<meta name="apple-mobile-web-app-title" content="Elite Adapt">
 <link rel="manifest" href="/manifest.json">
 <script src="/pwa-install.js" defer></script>
+<link rel="icon" href="/elite-adapt-icon.svg" type="image/svg+xml">
 <link rel="icon" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <style>
 :root{
   --bg:#0E1A2C; --surface:#152439; --surface-2:#0f1d30; --line:#25344b; --line-2:#33465f;
-  --ink:#EAF1FB; --ink-2:#B7C4D6; --muted:#7E90A8; --accent:#3DA9FC; --accent-ink:#04121f;
+  --ink:#EAF1FB; --ink-2:#B7C4D6; --muted:#7E90A8; --accent:#5b8cff; --accent-ink:#04121f;
   --good:#2FBF71; --warn:#E7A13B; --crit:#E5604D; --r:12px;
   --fd:"Space Grotesk",system-ui,sans-serif; --fb:system-ui,-apple-system,"Segoe UI",sans-serif;
   --kpi-bg:var(--surface); --kpi-ink:var(--ink); --kpi-muted:var(--muted); --onbg:var(--ink);
@@ -40,7 +41,8 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .btn:disabled{opacity:.5;cursor:default}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .brand{font-family:var(--fd);font-weight:700;font-size:20px;letter-spacing:.02em}
-.brand span{color:var(--accent)}
+.brand span{color:#ff9a8b}
+.brand .mark{height:24px;width:auto;vertical-align:middle;margin-right:7px}
 .err{color:#ffb4a8;font-size:13px;min-height:18px;margin-top:8px}
 .ok{color:var(--good);font-size:13px;min-height:18px}
 .muted{color:var(--muted)}
@@ -49,7 +51,7 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .scale button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .scale.big{gap:10px}
 .scale.big button{min-width:52px;padding:16px 0;font-size:17px;border-radius:12px}
-.staff-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(90deg,rgba(61,169,252,.18),rgba(61,169,252,.04));border:1px solid var(--line);border-radius:12px;padding:9px 14px;margin-bottom:14px;font-size:13px;color:var(--accent);font-weight:600}
+.staff-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(90deg,rgba(91,140,255,.18),rgba(91,140,255,.04));border:1px solid var(--line);border-radius:12px;padding:9px 14px;margin-bottom:14px;font-size:13px;color:var(--accent);font-weight:600}
 .staff-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .staff-chip{appearance:none;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:20px;padding:7px 14px;font-size:13px;font-weight:600}
 .staff-chip:hover{border-color:var(--accent)}
@@ -63,12 +65,12 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .bodywrap{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px}
 .bodyfig{text-align:center}
 .bodyfig .cap{font-size:11px;color:var(--ink-2);margin-bottom:4px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
-.zone{fill:rgba(61,169,252,.07);stroke:#3DA9FC;stroke-opacity:.55;stroke-width:1.3;stroke-linejoin:round;cursor:pointer;transition:fill .12s}
-.zone:hover{fill:rgba(61,169,252,.2)}
+.zone{fill:rgba(91,140,255,.07);stroke:#5b8cff;stroke-opacity:.55;stroke-width:1.3;stroke-linejoin:round;cursor:pointer;transition:fill .12s}
+.zone:hover{fill:rgba(91,140,255,.2)}
 .zone.on{fill:rgba(229,96,77,.72);stroke:#ff8f7f;stroke-opacity:1}
-.silhouette{fill:#122a44;stroke:#3DA9FC;stroke-opacity:.6;stroke-width:1.4;stroke-linejoin:round}
-.bdetail{fill:none;stroke:#3DA9FC;stroke-opacity:.3;stroke-width:1;stroke-linecap:round}
-.bfoot{fill:#0f2236;stroke:#3DA9FC;stroke-opacity:.45;stroke-width:1.2}
+.silhouette{fill:#122a44;stroke:#5b8cff;stroke-opacity:.6;stroke-width:1.4;stroke-linejoin:round}
+.bdetail{fill:none;stroke:#5b8cff;stroke-opacity:.3;stroke-width:1;stroke-linecap:round}
+.bfoot{fill:#0f2236;stroke:#5b8cff;stroke-opacity:.45;stroke-width:1.2}
 .zones-list{font-size:12.5px;color:var(--ink-2);margin-top:8px;min-height:18px}
 .session{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--surface-2)}
 .session .t{font-weight:600;font-size:14px}
@@ -135,7 +137,7 @@ input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px
 </style>
 </head>
 <body>
-<div class="splash" id="splash" aria-hidden="true"><div class="sp-top"><div class="sp-brand">BLUE<span>PERF</span></div></div><div class="sp-body"><div class="sp-row"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sp-card sk"></div><div class="sp-card sk"></div></div></div>
+<div class="splash" id="splash" aria-hidden="true"><div class="sp-top"><div class="sp-brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">Elite<span> Adapt</span></div></div><div class="sp-body"><div class="sp-row"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sp-card sk"></div><div class="sp-card sk"></div></div></div>
 <div class="boot" id="boot"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
 <div class="wrap" id="app"></div>
 <script src="program-data.js"></script>
@@ -253,7 +255,7 @@ async function openNotif(){
   const body = ps==='unsupported'
     ? `<p class="muted" style="font-size:13px;margin:0">Les notifications ne sont pas disponibles sur cet appareil/navigateur. Sur iPhone, ajoute d'abord l'app à l'écran d'accueil, puis reviens ici.</p>`
     : ps==='denied'
-    ? `<p class="muted" style="font-size:13px;margin:0">Notifications bloquées : autorise-les pour Blueperf dans les réglages de ton navigateur, puis rouvre ce menu.</p>`
+    ? `<p class="muted" style="font-size:13px;margin:0">Notifications bloquées : autorise-les pour Elite Adapt dans les réglages de ton navigateur, puis rouvre ce menu.</p>`
     : `<p class="muted" style="font-size:13px;margin:0 0 12px">${ps==='on'?'Les rappels sont activés sur cet appareil — tu seras notifié·e pour remplir ton wellness et tes RPE.':'Active les rappels pour ne pas oublier de remplir ton wellness et tes RPE (envoyés le matin).'}</p>
        <button class="btn block ${ps==='on'?'sec':''}" id="notif-toggle">${ps==='on'?'Désactiver les notifications':'Activer les notifications'}</button>
        <div class="ok" id="notif-ok"></div>`;
@@ -370,7 +372,7 @@ function clearSession(){try{sessionStorage.removeItem('espace_pid');sessionStora
 function renderLogin(msg){
   $('#app').innerHTML=`
     <div style="text-align:center;margin:28px 0 22px">
-      <div class="brand">BLUE<span>PERF</span></div>
+      <div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">Elite<span> Adapt</span></div>
       <div class="muted" style="font-size:12px;letter-spacing:.14em;text-transform:uppercase">Mon espace</div>
     </div>
     <div class="card">
@@ -603,7 +605,7 @@ function wellnessStaffHtml(){
       <div class="staff-chips">${chips||'<span class="muted" style="font-size:13px">Tout le monde a rempli ✅</span>'}</div>
       <div class="field" style="margin-top:12px"><label>Date</label><input type="date" id="w-date" value="${FEEL_DATE}" max="${TODAY}" style="max-width:210px"></div>
     </div>
-    <div class="card" style="background:rgba(61,169,252,.06);border-color:rgba(61,169,252,.25);margin-bottom:14px"><b style="color:var(--accent)">👉 ${esc(PLAYER.name)}</b> — réponds aux questions ci-dessous pour le ${isoLong(FEEL_DATE)}.</div>
+    <div class="card" style="background:rgba(91,140,255,.06);border-color:rgba(91,140,255,.25);margin-bottom:14px"><b style="color:var(--accent)">👉 ${esc(PLAYER.name)}</b> — réponds aux questions ci-dessous pour le ${isoLong(FEEL_DATE)}.</div>
     <div class="qgrid">${questions}</div>
     <div class="qcard" style="margin-top:14px"><h3>💬 Commentaire (optionnel)</h3><input id="w-note" value="${note}" placeholder="ex : mal dormi, genou sensible…" style="width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-family:inherit;font-size:14px"></div>
     <button class="btn block" id="w-save">Enregistrer le check-in de ${esc(PLAYER.name)}</button>
@@ -655,7 +657,7 @@ function menstruPlayerMessage(){
 function menstruOverviewCard(){
   if(!menstruAllowed(PLAYER))return '';
   const m=menstruPlayerMessage();
-  const col=(m&&m.zone&&m.zone.color)||'#3DA9FC';
+  const col=(m&&m.zone&&m.zone.color)||'#5b8cff';
   const body=(m&&m.zone&&m.zone.msg)||"Pense à tenir ton suivi à jour dans « Santé &amp; forme » quand c'est le moment.";
   return `<div class="card" style="border-left:4px solid ${col};background:${col}12">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:17px">📝</span><b>À noter</b></div>
@@ -1381,7 +1383,7 @@ async function renderSpace(skipLoad){
   if(ESPACE_TAB==='programme'&&!MY_PLAN)ESPACE_TAB='apercu';
   $('#app').innerHTML=`
     <div class="topbar">
-      <div><div class="brand">BLUE<span>PERF</span></div><div class="muted" style="font-size:13px">${COACH_MODE?'✍️ Saisie coach — <b>'+esc(PLAYER.name)+'</b>'+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):''):'Bonjour '+esc(PLAYER.name)+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):'')}</div></div>
+      <div><div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">Elite<span> Adapt</span></div><div class="muted" style="font-size:13px">${COACH_MODE?'✍️ Saisie coach — <b>'+esc(PLAYER.name)+'</b>'+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):''):'Bonjour '+esc(PLAYER.name)+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):'')}</div></div>
       ${COACH_MODE?'':`<div class="row" style="gap:8px;flex-wrap:nowrap">
         ${selfLog()?'<button class="iconbtn" id="boutiquebtn" title="Boutique de programmes" aria-label="Boutique de programmes">🛒</button>':''}
         <button class="iconbtn" id="settingsbtn" title="Paramètres" aria-label="Paramètres">⚙️</button>

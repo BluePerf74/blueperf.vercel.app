@@ -2,7 +2,7 @@
   "name": "blueperf-mobile",
   "version": "1.0.0",
   "private": true,
-  "description": "Enveloppe mobile (Capacitor) de l'app web Blueperf, pour publication sur App Store et Google Play.",
+  "description": "Enveloppe mobile (Capacitor) de l'app web Elite Adapt, pour publication sur App Store et Google Play.",
   "scripts": {
     "add:ios": "cap add ios",
     "add:android": "cap add android",

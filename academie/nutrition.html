@@ -10,7 +10,8 @@
 <script src="/i18n-dict.js?v=2" defer></script>
 <script src="/i18n-dom.js?v=2" defer></script>
 <link rel="stylesheet" href="/ui-polish.css?v=1">
-<title>Blueperf · Nutrition</title>
+<title>Elite Adapt · Nutrition</title>
+<link rel="icon" href="/elite-adapt-icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -40,7 +41,8 @@ body{font-family:'Inter',system-ui,sans-serif;color:var(--ink);background:var(--
 h1,h2,h3{font-family:'Space Grotesk',system-ui,sans-serif}
 .nav{background:var(--navy);color:#fff;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
 .brand{font-family:'Space Grotesk';font-weight:700;font-size:16px;letter-spacing:.02em}
-.brand span{color:#3DA9FC}
+.brand span{color:#ff9a8b}
+.brand .mark{height:22px;width:auto;vertical-align:middle;margin-right:7px}
 .brand em{font-style:normal;font-size:11px;opacity:.6;letter-spacing:.14em;margin-left:4px}
 .nav .sp{flex:1}
 .nav select{background:var(--navy-3);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:6px 9px;font-size:12.5px;font-family:inherit;max-width:200px}
@@ -84,7 +86,7 @@ input,select,textarea{background:var(--surface-2);color:var(--ink)}
 .client-row{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-top:8px;background:var(--paper);flex-wrap:wrap}
 .client-row .cn{font-weight:600;flex:1;min-width:120px}
 .client-row .acc{font-size:12px;color:var(--ink-soft)}
-/* Nutrition module (copié de l'app Blueperf) */
+/* Nutrition module (copié de l'app Elite Adapt) */
 .nutri-intro{display:flex;gap:10px;align-items:flex-start;background:var(--chalk);border-left:3px solid var(--grass);border-radius:10px;padding:12px 14px;margin-top:16px;font-size:12.5px;color:var(--ink-soft);line-height:1.55}
 .nutri-intro b{color:var(--ink)}
 .nutri-card{border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:16px;background:var(--paper)}
@@ -174,13 +176,13 @@ input,select,textarea{background:var(--surface-2);color:var(--ink)}
 </head>
 <body>
 <div class="nav">
-  <div class="brand">BLUE<span>PERF</span><em>NUTRITION</em></div>
+  <div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">Elite<span> Adapt</span><em>NUTRITION</em></div>
   <div class="sp"></div>
   <select id="client-select" aria-label="Client suivi"></select>
 </div>
 <div class="tabs" id="tabs"></div>
 <div class="wrap" id="screen"></div>
-<div class="foot">Blueperf · module nutrition — repères pour sportifs en bonne santé</div>
+<div class="foot">Elite Adapt · module nutrition — repères pour sportifs en bonne santé</div>
 <script>
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -198,7 +200,7 @@ function uid(){return 'c'+Date.now().toString(36)+Math.random().toString(36).sli
 async function kvGet(key){try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(PFX+key)+'&_='+Date.now(),{cache:'no-store'});if(!r.ok)return null;const j=await r.json();return j&&j.value?JSON.parse(j.value):null;}catch(e){return null;}}
 async function kvSet(key,val){try{const r=await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key:PFX+key,value:JSON.stringify(val)})});return r.ok;}catch(e){return false;}}
 
-/* ===== Constantes & calculs (repris de l'app Blueperf) ===== */
+/* ===== Constantes & calculs (repris de l'app Elite Adapt) ===== */
 const NUTRI_DAY_LABELS={repos:'Repos',modere:'Entraînement modéré',intense:'Entraînement intense'};
 const NUTRI_ACTIVITY_MULT={repos:1.375,modere:1.55,intense:1.725};
 const NUTRI_CARB_PER_KG={repos:4,modere:6,intense:8};

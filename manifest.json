@@ -1,6 +1,6 @@
 {
-  "name": "Blueperf - Suivi Sportif",
-  "short_name": "Blueperf",
+  "name": "Elite Adapt - Suivi Sportif",
+  "short_name": "Elite Adapt",
   "description": "Coaching, programmes, RPE, wellness et nutrition.",
   "id": "/",
   "start_url": "/",
@@ -12,6 +12,7 @@
   "lang": "fr",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/elite-adapt-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }

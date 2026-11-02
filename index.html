@@ -7,28 +7,29 @@
 <script src="/i18n-dict.js?v=2" defer></script>
 <script src="/i18n-dom.js?v=2" defer></script>
 <link rel="stylesheet" href="/ui-polish.css?v=1">
-<title>Blueperf - Suivi Sportif</title>
-<meta name="description" content="Blueperf — Suivi Sportif : coaching, programmes, RPE, wellness et nutrition.">
+<title>Elite Adapt — Suivi Sportif</title>
+<meta name="description" content="Elite Adapt — Suivi Sportif : coaching, programmes, RPE, wellness et nutrition.">
 <link rel="manifest" href="/manifest.json">
 <script src="/pwa-install.js" defer></script>
 <meta name="theme-color" content="#0D1B2A">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Blueperf">
+<meta name="apple-mobile-web-app-title" content="Elite Adapt">
 <!-- Aperçu au partage (réseaux sociaux, messageries) -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Blueperf">
+<meta property="og:site_name" content="Elite Adapt">
 <meta property="og:url" content="https://blueperf.vercel.app/">
-<meta property="og:title" content="Blueperf - Suivi Sportif">
+<meta property="og:title" content="Elite Adapt - Suivi Sportif">
 <meta property="og:description" content="Coaching, programmes, RPE, wellness et nutrition.">
 <meta property="og:image" content="https://blueperf.vercel.app/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Blueperf - Suivi Sportif">
+<meta name="twitter:title" content="Elite Adapt - Suivi Sportif">
 <meta name="twitter:description" content="Coaching, programmes, RPE, wellness et nutrition.">
 <meta name="twitter:image" content="https://blueperf.vercel.app/og-image.png">
+<link rel="icon" href="/elite-adapt-icon.svg" type="image/svg+xml">
 <link rel="icon" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -56,7 +57,7 @@
     --app-bg:#0b1522; --app-surface:#0f1d30; --app-surface-2:#0c1b2e;
     --app-border:#25344b; --app-border-strong:#2b4a6b;
     --app-text:#EAF1FB; --app-muted:#7E90A8;
-    --app-nav:#0E1A2C; --app-accent:#3DA9FC; --app-accent-ink:#04121f;
+    --app-nav:#0E1A2C; --app-accent:#3b82f6; --app-accent-ink:#04121f;
     --app-danger:#f16b5e; --app-ok:#8fe0b0; --app-warn:#ffd98a;
     --app-shadow:0 1px 3px rgba(0,0,0,.35);
     --app-input-bg:#0E1A2C;
@@ -87,7 +88,7 @@
     --app-bg:#0b1522; --app-surface:#0f1d30; --app-surface-2:#0c1b2e;
     --app-border:#25344b; --app-border-strong:#2b4a6b;
     --app-text:#EAF1FB; --app-muted:#7E90A8;
-    --app-nav:#0E1A2C; --app-accent:#3DA9FC; --app-accent-ink:#04121f;
+    --app-nav:#0E1A2C; --app-accent:#3b82f6; --app-accent-ink:#04121f;
     --app-danger:#f16b5e; --app-ok:#8fe0b0; --app-warn:#ffd98a;
     --app-shadow:0 1px 3px rgba(0,0,0,.35);
     --app-input-bg:#0E1A2C;
@@ -296,9 +297,9 @@
   .bm-dual-col h4{margin:0 0 8px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#8FA0B8;font-weight:700;}
   .bm-svg-wrap{display:flex;justify-content:center;}
   .bm-svg-wrap svg{max-width:150px;width:100%;}
-  .bm-zone{fill:#3DA9FC;fill-opacity:.14;stroke:#3DA9FC;stroke-opacity:.75;stroke-width:1.2;cursor:pointer;transition:fill .12s,fill-opacity .12s;}
+  .bm-zone{fill:#3b82f6;fill-opacity:.14;stroke:#3b82f6;stroke-opacity:.75;stroke-width:1.2;cursor:pointer;transition:fill .12s,fill-opacity .12s;}
   .bm-zone.sel{fill:#FF6B5B;fill-opacity:.7;stroke:#FF6B5B;stroke-opacity:1;}
-  .bm-body-outline{fill:none;stroke:#3DA9FC;stroke-opacity:.55;stroke-width:1.5;}
+  .bm-body-outline{fill:none;stroke:#3b82f6;stroke-opacity:.55;stroke-width:1.5;}
   .bm-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px;}
   .bm-chip{padding:7px 12px;border-radius:20px;border:1px solid #2A3D57;background:var(--navy-2);font-size:12px;
     font-weight:600;color:#9FB0C6;cursor:pointer;}
@@ -357,7 +358,7 @@
   }
   .shield-logo{width:56px;height:auto;margin-bottom:10px;}
   .login-brand{font-size:23px;font-weight:700;margin:0 0 4px;}
-  .login-brand span{color:#3DA9FC;}
+  .login-brand span{color:#ff9a8b;}
   .login-sub{color:#9FB0C6;font-size:13.5px;margin:0 0 26px;}
   .login-form{text-align:left;}
   .login-form label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#7E90A8;margin:14px 0 6px;}
@@ -378,7 +379,7 @@
   .login-pass-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:#9FB0C6;font-size:11px;font-weight:700;letter-spacing:.04em;cursor:pointer;padding:6px 8px;}
   .login-pass-toggle:hover{color:#fff;}
   .login-forgot{margin:10px 0 0;font-size:12px;color:#9FB0C6;text-align:center;}
-  .login-forgot button{background:none;border:0;color:#3DA9FC;font:inherit;cursor:pointer;text-decoration:underline;padding:0;}
+  .login-forgot button{background:none;border:0;color:#3b82f6;font:inherit;cursor:pointer;text-decoration:underline;padding:0;}
   .login-legal{margin:18px 0 0;font-size:11px;line-height:1.55;color:#7E90A8;text-align:center;border-top:1px solid #223A56;padding-top:14px;}
   .login-legal a{color:#9FB0C6;}
   .login-hint{margin-top:12px;font-size:12px;color:#9FB0C6;background:#0F1D30;border:1px solid #223A56;border-radius:9px;padding:10px 12px;text-align:left;line-height:1.5;}
@@ -389,14 +390,14 @@
   .dash-brand{display:flex;align-items:center;gap:10px;}
   .dash-brand .shield-logo{width:30px;margin:0;}
   .dash-title{font-family:'Space Grotesk';font-weight:700;font-size:15px;letter-spacing:.03em;}
-  .dash-title span{color:#3DA9FC;}
+  .dash-title span{color:#ff9a8b;}
   .dash-title em{font-style:normal;font-weight:500;color:#7E90A8;font-size:12.5px;}
   .dash-badges{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .dash-pill{font-size:11.5px;font-weight:600;color:#C6D1DF;background:#1B2C44;border:1px solid #2A3D57;
     border-radius:20px;padding:6px 12px;white-space:nowrap;}
-  .dash-pill.staff{color:#3DA9FC;}
+  .dash-pill.staff{color:#3b82f6;}
   .dash-pill.staff b{color:#C6D1DF;margin-left:4px;font-weight:700;}
-  .dash-logout{font-size:11.5px;font-weight:700;color:#fff;background:#2A5C8A;border:1px solid #3DA9FC;
+  .dash-logout{font-size:11.5px;font-weight:700;color:#fff;background:#2A5C8A;border:1px solid #3b82f6;
     border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap;}
   .dash-logout:hover{background:#3470A3;}
 
@@ -677,7 +678,7 @@
   .cdb-brand{display:flex;align-items:center;gap:7px;flex:0 0 auto;}
   .cdb-brand svg{width:22px;height:25px;display:block;}
   .cdb-brand-text{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;letter-spacing:.02em;color:#fff;white-space:nowrap;}
-  .cdb-brand-text span{color:#3DA9FC;}
+  .cdb-brand-text span{color:#ff9a8b;}
   .cdb-menu{display:flex;align-items:center;gap:2px;flex:1 1 auto;flex-wrap:wrap;}
   .cdb-item-wrap{position:relative;}
   .cdb-item{display:flex;align-items:center;gap:5px;background:none;border:none;color:#AFC0D6;font-family:inherit;
@@ -722,14 +723,14 @@
 #boot.solid{background:#0D1B2A}
 #boot.hidden{display:none}
 #boot .panel{display:flex;flex-direction:column;align-items:center;gap:12px;background:rgba(21,36,57,.94);border:1px solid #25344b;border-radius:14px;padding:20px 28px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
-#boot .spin{width:34px;height:34px;border:3px solid #33465f;border-top-color:#3DA9FC;border-radius:50%;animation:bootspin .8s linear infinite}
+#boot .spin{width:34px;height:34px;border:3px solid #33465f;border-top-color:#3b82f6;border-radius:50%;animation:bootspin .8s linear infinite}
 @keyframes bootspin{to{transform:rotate(360deg)}}
 /* Écran de fond au chargement : fond sombre (aux couleurs de la marque) + squelette, jamais d'écran blanc. */
 #splash{position:fixed;inset:0;z-index:99998;background:#0D1B2A;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0));overflow:hidden}
 #splash.hidden{display:none}
 #splash .sp-top{display:flex;align-items:center;justify-content:space-between;max-width:1180px;margin:0 auto 18px}
 #splash .sp-brand{font-family:system-ui,sans-serif;font-weight:800;letter-spacing:.02em;font-size:19px;color:#EAF1FB}
-#splash .sp-brand span{color:#3DA9FC}
+#splash .sp-brand span{color:#ff9a8b}
 #splash .sp-body{max-width:1180px;margin:0 auto}
 #splash .sp-hero{height:120px;margin-bottom:14px}
 #splash .sp-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
@@ -738,7 +739,7 @@
 #splash .sk{border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 37%,rgba(255,255,255,.05) 63%);background-size:200% 100%;animation:bootsk 1.3s ease-in-out infinite;border:1px solid rgba(255,255,255,.05)}
 @keyframes bootsk{100%{background-position:-200% 0}}
 @media (max-width:640px){#splash .sp-row{grid-template-columns:repeat(2,1fr)}}
-#updbar{position:fixed;top:0;left:0;right:0;z-index:100000;background:#3DA9FC;color:#04121f;font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
+#updbar{position:fixed;top:0;left:0;right:0;z-index:100000;background:#3b82f6;color:#04121f;font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
 #updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
 /* Boutique de programmes (Coaching individuel) */
 .boutique .sec-h{font-size:17px;margin:20px 0 10px;color:var(--ink)}
@@ -763,12 +764,12 @@ button.prog-card{cursor:pointer;font-family:inherit}
 </style>
 </head>
 <body>
-<div id="splash" aria-hidden="true"><div class="sp-top"><div class="sp-brand">BLUE<span>PERF</span></div></div><div class="sp-body"><div class="sp-hero sk"></div><div class="sp-row"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sp-card sk"></div><div class="sp-card sk"></div></div></div>
+<div id="splash" aria-hidden="true"><div class="sp-top"><div class="sp-brand">Elite<span> Adapt</span></div></div><div class="sp-body"><div class="sp-hero sk"></div><div class="sp-row"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sp-card sk"></div><div class="sp-card sk"></div></div></div>
 <div id="boot"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
 <div id="app"></div>
 
 <script src="/programs-catalog.js"></script>
-<script src="/app.min.js?v=31e2acac"></script>
+<script src="/app.min.js?v=adfea240"></script>
 <script src="/version-check.js?v=1" defer></script>
 </body>
 </html>

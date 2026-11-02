@@ -36,7 +36,7 @@
       var d = document.createElement('div');
       d.id = 'bp-install-banner';
       d.setAttribute('role', 'dialog');
-      d.setAttribute('aria-label', "Installer l'application Blueperf");
+      d.setAttribute('aria-label', "Installer l'application Elite Adapt");
       d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:2147483000;background:#0D1B2A;color:#E6ECF4;border:1px solid #27405f;border-radius:14px;padding:13px 14px;box-shadow:0 12px 34px rgba(0,0,0,.45);font:14px/1.45 system-ui,-apple-system,sans-serif;max-width:460px;margin:0 auto;display:flex;align-items:center;gap:12px';
       d.innerHTML = innerHTML;
       document.body.appendChild(d);
@@ -56,7 +56,7 @@
 
     function showAndroidBanner() {
       banner(
-        logoAndText('<b>Installer Blueperf</b><div style="color:#aebacd;font-size:12.5px;margin-top:1px">Accès rapide depuis ton écran d\'accueil.</div>') +
+        logoAndText('<b>Installer Elite Adapt</b><div style="color:#aebacd;font-size:12.5px;margin-top:1px">Accès rapide depuis ton écran d\'accueil.</div>') +
         '<button data-bp-install style="flex:none;appearance:none;cursor:pointer;background:#3DA9FC;color:#04121f;border:0;border-radius:10px;padding:10px 15px;font-weight:800;font-size:13.5px">Installer</button>' +
         closeBtn()
       );
@@ -64,7 +64,7 @@
 
     function showIOSBanner() {
       banner(
-        logoAndText('<b>Installer Blueperf</b><div style="color:#aebacd;font-size:12.5px;margin-top:2px">Appuie sur le bouton <span style="color:#E6ECF4">Partager</span> de Safari, puis « <span style="color:#E6ECF4">Sur l\'écran d\'accueil</span> ».</div>') +
+        logoAndText('<b>Installer Elite Adapt</b><div style="color:#aebacd;font-size:12.5px;margin-top:2px">Appuie sur le bouton <span style="color:#E6ECF4">Partager</span> de Safari, puis « <span style="color:#E6ECF4">Sur l\'écran d\'accueil</span> ».</div>') +
         closeBtn()
       );
     }

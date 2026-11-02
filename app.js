@@ -1,5 +1,5 @@
 /* =========================================================
-   DATA — programme des 12 semaines (issu du programme Blueperf)
+   DATA — programme des 12 semaines (issu du programme Elite Adapt)
    ========================================================= */
 
 const BASE_A = [
@@ -544,12 +544,7 @@ async function saveCoachCredentials(username, password){
 }
 
 function shieldSvg(){
-  return `<svg viewBox="0 0 60 68" xmlns="http://www.w3.org/2000/svg" class="shield-logo">
-    <path d="M30 2 L56 12 V32 C56 48 45 60 30 66 C15 60 4 48 4 32 V12 Z"
-      fill="#16273D" stroke="#3DA9FC" stroke-width="2.5"/>
-    <text x="30" y="42" text-anchor="middle" font-family="'Space Grotesk',sans-serif"
-      font-weight="700" font-size="24" fill="#F6F8F7">BP</text>
-  </svg>`;
+  return `<img src="/elite-adapt-mark.svg" class="shield-logo" alt="Elite Adapt">`;
 }
 
 /* ---------- Clients (multi-athlètes) ---------- */
@@ -777,7 +772,7 @@ function renderStorageError(){
     <div class="login-screen">
       <div class="login-card">
         ${shieldSvg()}
-        <h1 class="login-brand">Blue<span>Perf</span></h1>
+        <h1 class="login-brand">Elite<span> Adapt</span></h1>
         <p class="login-sub" style="color:#ffb4a8;">
           Le stockage n'est pas disponible pour cette appli en ce moment — rien ne peut s'enregistrer
           (ni les séances, ni les ressentis).
@@ -948,7 +943,7 @@ function renderLoginScreen(){
     <div class="login-screen">
       <div class="login-card">
         ${shieldSvg()}
-        <h1 class="login-brand">Blue<span>Perf</span></h1>
+        <h1 class="login-brand">Elite<span> Adapt</span></h1>
         <p class="login-sub">Connecte-toi / Log in</p>
         <form id="login-form" class="login-form">
           <label for="login-user">IDENTIFIANT / USERNAME</label>
@@ -999,7 +994,7 @@ function renderSignupScreen(){
     <div class="login-screen">
       <div class="login-card">
         ${shieldSvg()}
-        <h1 class="login-brand">Blue<span>Perf</span></h1>
+        <h1 class="login-brand">Elite<span> Adapt</span></h1>
         <p class="login-sub">Créer un compte enseignant·e APA</p>
         <form id="signup-form" class="login-form">
           <label for="su-name">NOM</label>
@@ -1018,7 +1013,7 @@ function renderSignupScreen(){
         ${state.loginError ? `<div class="login-error" role="alert">${state.loginError}</div>` : ''}
         <p class="login-forgot" style="margin-top:10px"><button type="button" id="su-back">← Retour à la connexion</button></p>
         <p class="login-legal">
-          Ton compte sera créé « en attente » : l'accès est activé manuellement par Blueperf une fois
+          Ton compte sera créé « en attente » : l'accès est activé manuellement par Elite Adapt une fois
           l'abonnement en place. Tu gères ensuite tes propres patient·es dans un espace isolé.
           <br><a href="/confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité &amp; RGPD</a>
         </p>
@@ -1048,13 +1043,13 @@ async function submitSignup(data){
     const r = await fetch('/api/signup', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
     if(r && r.ok){
       state.loginStep='choice';
-      state.loginNotice='Compte créé ✔ Il est en attente de validation par Blueperf. Tu pourras te connecter dès qu’il sera activé.';
+      state.loginNotice='Compte créé ✔ Il est en attente de validation par Elite Adapt. Tu pourras te connecter dès qu’il sera activé.';
       renderLoginScreen();
       return;
     }
     let j={}; try{ j=await r.json(); }catch(e){}
     state.loginError = j.error==='exists' ? 'Cet identifiant est déjà utilisé, choisis-en un autre.'
-      : j.error==='full' ? 'Les inscriptions sont momentanément fermées. Contacte Blueperf (blueperf@ik.me).'
+      : j.error==='full' ? 'Les inscriptions sont momentanément fermées. Contacte Elite Adapt (blueperf@ik.me).'
       : 'La création a échoué. Réessaie dans un instant.';
     renderSignupScreen();
   }catch(e){ state.loginError='Impossible de joindre le serveur. Réessaie.'; renderSignupScreen(); }
@@ -1077,7 +1072,7 @@ async function attemptLogin(userRaw, passRaw){
     if(ar && ar.status === 403){
       let sj = {}; try{ sj = await ar.json(); }catch(e){}
       state.loginError = (sj && sj.suspended)
-        ? 'Ton compte enseignant est en attente de validation ou suspendu. Contacte Blueperf (blueperf@ik.me) pour l’activer.'
+        ? 'Ton compte enseignant est en attente de validation ou suspendu. Contacte Elite Adapt (blueperf@ik.me) pour l’activer.'
         : 'Accès refusé.';
       renderLoginScreen(); return;
     }
@@ -1243,7 +1238,7 @@ const PROGRAMME_TABS_COACH = [
 const PROGRAMME_TABS_CLIENT = [
   {id:'programme', label:'Programme'}, {id:'ressenti', label:'Ressenti du jour'}, {id:'entrainement', label:'Suivi entraînement'}
 ];
-// Onglet "Football" = l'app Blueperf Académie complète, affichée en iframe (page /academie/).
+// Onglet "Football" = l'app Elite Adapt Académie complète, affichée en iframe (page /academie/).
 const FOOTBALL_TABS = [{id:'football', label:'Académie'}];
 function tabsFor(section, isCoachView){
   if(section === 'football' || section === 'individuel' || section === 'apa') return FOOTBALL_TABS;
@@ -1302,7 +1297,7 @@ function coachNavbarHtml(stats){
   return `
     <nav class="cdb-navbar">
       <div class="cdb-navbar-inner">
-        <div class="cdb-brand">${shieldSvg()}<span class="cdb-brand-text">BLUE<span>PERF</span></span></div>
+        <div class="cdb-brand">${shieldSvg()}<span class="cdb-brand-text">Elite<span> Adapt</span></span></div>
         <div class="cdb-menu">${COACH_NAV_GROUPS.filter(g=>!g.section||sectionVisible(g.section)).map(coachNavItemHtml).join('')}</div>
         <div class="cdb-right">
           <select class="cdb-client-select" id="coach-client-select">
@@ -1469,26 +1464,26 @@ function renderFullApp(section){
   const label = section === 'individuel' ? t('COACHING INDIVIDUEL','INDIVIDUAL') : section === 'nutrition' ? 'NUTRITION' : section === 'apa' ? 'APA' : 'FOOTBALL';
   const swBtn = (sec, txt) => {
     const active = section === sec;
-    return `<button data-fbsec="${sec}" style="appearance:none;cursor:pointer;border:1px solid ${active?'#3DA9FC':'rgba(255,255,255,.25)'};background:${active?'#3DA9FC':'transparent'};color:${active?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${txt}</button>`;
+    return `<button data-fbsec="${sec}" style="appearance:none;cursor:pointer;border:1px solid ${active?'#3b82f6':'rgba(255,255,255,.25)'};background:${active?'#3b82f6':'transparent'};color:${active?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${txt}</button>`;
   };
   app.innerHTML = `
     <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--nav,#0E1A2C)">
       <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3DA9FC">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${label}</span></div>
+          <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3b82f6">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${label}</span></div>
           <span title="${t('Toutes les saisies sont enregistrées en ligne automatiquement','All entries are saved online automatically')}" style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8fe0b0;background:rgba(47,191,113,.14);border:1px solid rgba(47,191,113,.4);border-radius:20px;padding:5px 11px"><span style="width:7px;height:7px;border-radius:50%;background:#2FBF71;display:inline-block"></span>${t('Données enregistrées','Data saved')}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${restricted?'':sectionDropdown(section)}
           ${(state.access==='coach'&&!restricted)?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
           ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:sc?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(sc.name||sc.username)} · <b style="color:#fff">Coach ${admEsc(SPACE_LABELS[sc.space]||sc.space||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
-          ${section==='football'?`<button data-fbdemo title="${t('Afficher une équipe démo (lecture seule) pour voir les courbes','Show a demo team (read-only) to preview the charts')}" style="appearance:none;cursor:pointer;border:1px solid ${state.fbDemo?'#3DA9FC':'rgba(255,255,255,.25)'};background:${state.fbDemo?'#3DA9FC':'transparent'};color:${state.fbDemo?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">👁 ${state.fbDemo?t('Démo ✓','Demo ✓'):t('Démo','Demo')}</button>`:''}
+          ${section==='football'?`<button data-fbdemo title="${t('Afficher une équipe démo (lecture seule) pour voir les courbes','Show a demo team (read-only) to preview the charts')}" style="appearance:none;cursor:pointer;border:1px solid ${state.fbDemo?'#3b82f6':'rgba(255,255,255,.25)'};background:${state.fbDemo?'#3b82f6':'transparent'};color:${state.fbDemo?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">👁 ${state.fbDemo?t('Démo ✓','Demo ✓'):t('Démo','Demo')}</button>`:''}
           <button data-fbtheme title="${t('Thème clair / sombre','Light / dark theme')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">${themeIcon()} ${themeLabel()}</button>
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
         </div>
       </div>
-      <iframe src="${src}" title="Blueperf" style="flex:1;width:100%;border:0;display:block"></iframe>
+      <iframe src="${src}" title="Elite Adapt" style="flex:1;width:100%;border:0;display:block"></iframe>
     </div>`;
   app.querySelectorAll('[data-fbsec]').forEach(b => b.addEventListener('click', () => {
     state.section = b.getAttribute('data-fbsec');
@@ -1599,7 +1594,7 @@ function renderSettingsPage(){
     <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--app-bg);color:var(--app-text)">
       <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--app-nav);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3DA9FC">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${t('PARAMÈTRES','SETTINGS')}</span></div>
+          <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3b82f6">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${t('PARAMÈTRES','SETTINGS')}</span></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${sectionDropdown('settings')}
@@ -1649,9 +1644,9 @@ async function renderCoaches(){
   const INP = 'width:100%;background:var(--app-input-bg);border:1px solid var(--app-border);color:var(--app-text);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px';
   const btn = 'appearance:none;cursor:pointer;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600';
   const spaces = [['apa','APA'],['individuel',t('Coaching individuel','Individual coaching')],['football','Football'],['nutrition','Nutrition']];
-  const list = arr.length ? arr.map(c=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid ${c.id===COACH_EDIT_ID?'#3DA9FC':'#25344b'};border-radius:8px;margin-bottom:6px;${c.active===false?'opacity:.6':''}">
+  const list = arr.length ? arr.map(c=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid ${c.id===COACH_EDIT_ID?'#3b82f6':'#25344b'};border-radius:8px;margin-bottom:6px;${c.active===false?'opacity:.6':''}">
       <div style="flex:1;min-width:150px"><b>${admEsc(c.name||c.username)}</b> <span style="display:inline-block;font-size:10.5px;font-weight:700;color:#8fe0b0;background:rgba(47,191,113,.16);border-radius:20px;padding:2px 8px">${admEsc(SPACE_LABELS[c.space]||c.space)}</span><div style="font-size:11px;color:#7E90A8;margin-top:2px">🔑 ${admEsc(c.username)}${c.active===false?' · '+admEsc(t('inactif','inactive')):''}</div></div>
-      <button data-coach-edit="${admEsc(c.id)}" style="${btn};border:1px solid #3DA9FC;background:transparent;color:#8FCBFF">${admEsc(t('Modifier','Edit'))}</button>
+      <button data-coach-edit="${admEsc(c.id)}" style="${btn};border:1px solid #3b82f6;background:transparent;color:#8FCBFF">${admEsc(t('Modifier','Edit'))}</button>
       <button data-coach-del="${admEsc(c.id)}" style="${btn};border:1px solid #6b3a3a;background:transparent;color:#ffb4a8">${admEsc(t('Supprimer','Delete'))}</button>
     </div>`).join('') : `<p style="color:#7E90A8;font-size:12.5px;margin:0 0 8px">${admEsc(t('Aucun coach pour l’instant.','No coach yet.'))}</p>`;
   el.innerHTML = list + `<div style="border-top:1px dashed #25344b;margin-top:8px;padding-top:10px">
@@ -1669,7 +1664,7 @@ async function renderCoaches(){
         <input id="coach-pass" placeholder="${admEsc(t('Mot de passe','Password'))}" value="${editing?admEsc(editing.password||''):''}" style="${INP}">
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button id="coach-save" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer','Save')):admEsc(t('Ajouter le coach','Add coach'))}</button>
+        <button id="coach-save" style="appearance:none;cursor:pointer;border:1px solid #3b82f6;background:#3b82f6;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer','Save')):admEsc(t('Ajouter le coach','Add coach'))}</button>
         ${editing?`<button id="coach-cancel" style="appearance:none;cursor:pointer;border:1px solid #33465f;background:transparent;color:#EAF1FB;border-radius:9px;padding:9px 14px;font-size:13.5px">${admEsc(t('Annuler','Cancel'))}</button>`:''}
         <span id="coach-status" style="font-size:12.5px;color:#ffb4a8"></span>
       </div>
@@ -1711,7 +1706,7 @@ async function renderApaTeachers(){
   const btn = 'appearance:none;cursor:pointer;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600';
   const list = arr.length ? arr.map(x=>{
     const on = x.active !== false;
-    return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid ${x.id===APA_EDIT_ID?'#3DA9FC':(on?'#2b4a6b':'#5a3030')};border-radius:8px;margin-bottom:6px;${on?'':'opacity:.7'}">
+    return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid ${x.id===APA_EDIT_ID?'#3b82f6':(on?'#2b4a6b':'#5a3030')};border-radius:8px;margin-bottom:6px;${on?'':'opacity:.7'}">
       <div style="flex:1;min-width:160px">
         <b>${admEsc(x.name||x.login)}</b>
         <span style="display:inline-block;font-size:10.5px;font-weight:700;color:${on?'#8fe0b0':'#ffb4a8'};background:${on?'rgba(47,191,113,.16)':'rgba(255,120,110,.16)'};border-radius:20px;padding:2px 8px">${on?admEsc(t('actif','active')):admEsc(t('suspendu / en attente','suspended / pending'))}</span>
@@ -1719,7 +1714,7 @@ async function renderApaTeachers(){
       </div>
       <button data-apa-imp="${admEsc(x.id)}" title="${admEsc(t('Se connecter à sa place pour le dépanner','Log in as them to troubleshoot'))}" style="${btn};border:1px solid #c79a3a;background:transparent;color:#ffd98a">${admEsc(t('Dépanner','Troubleshoot'))}</button>
       <button data-apa-toggle="${admEsc(x.id)}" style="${btn};border:1px solid ${on?'#6b5a3a':'#3a6b4a'};background:transparent;color:${on?'#ffd98a':'#8fe0b0'}">${on?admEsc(t('Suspendre','Suspend')):admEsc(t('Activer','Activate'))}</button>
-      <button data-apa-edit="${admEsc(x.id)}" style="${btn};border:1px solid #3DA9FC;background:transparent;color:#8FCBFF">${admEsc(t('Modifier','Edit'))}</button>
+      <button data-apa-edit="${admEsc(x.id)}" style="${btn};border:1px solid #3b82f6;background:transparent;color:#8FCBFF">${admEsc(t('Modifier','Edit'))}</button>
       <button data-apa-del="${admEsc(x.id)}" style="${btn};border:1px solid #6b3a3a;background:transparent;color:#ffb4a8">${admEsc(t('Supprimer','Delete'))}</button>
     </div>`;
   }).join('') : `<p style="color:#7E90A8;font-size:12.5px;margin:0 0 8px">${admEsc(t('Aucun enseignant pour l’instant.','No teacher yet.'))}</p>`;
@@ -1735,7 +1730,7 @@ async function renderApaTeachers(){
       </div>
       <p style="color:#7E90A8;font-size:11px;margin:-4px 0 10px">🔒 ${admEsc(t('Les mots de passe sont chiffrés (hachés) côté serveur : ils ne sont jamais stockés ni réaffichés en clair. Pour en changer un, saisis-en un nouveau ; laisse vide pour le conserver.','Passwords are hashed server-side: never stored or shown in clear text. To change one, type a new password; leave blank to keep it.'))}</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button id="apa-save" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer','Save')):admEsc(t('Créer l’enseignant·e','Create teacher'))}</button>
+        <button id="apa-save" style="appearance:none;cursor:pointer;border:1px solid #3b82f6;background:#3b82f6;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer','Save')):admEsc(t('Créer l’enseignant·e','Create teacher'))}</button>
         ${editing?`<button id="apa-cancel" style="appearance:none;cursor:pointer;border:1px solid #33465f;background:transparent;color:#EAF1FB;border-radius:9px;padding:9px 14px;font-size:13.5px">${admEsc(t('Annuler','Cancel'))}</button>`:''}
         <span id="apa-status" style="font-size:12.5px;color:#ffb4a8"></span>
       </div>
@@ -1816,7 +1811,7 @@ async function openAdminPanel(){
       <div style="border:1px solid #25344b;border-radius:9px;padding:12px;margin-bottom:14px;background:#0f1d30">
         <b style="font-size:14px">➕ ${admEsc(t('Équipe U18F (Football)','U18F team (Football)'))}</b>
         <p style="color:#7E90A8;font-size:12.5px;margin:4px 0 8px;line-height:1.5">${admEsc(t("Crée l'équipe U18F et ajoute les 31 joueuses avec leurs identifiants (prénom@aca.com / 3 premières lettres du prénom + 123).","Creates the U18F team and adds the 31 players with their logins (firstname@aca.com / first 3 letters + 123)."))}</p>
-        <button id="bp-import-u18f" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${admEsc(t('Importer l’équipe U18F (31 joueuses)','Import U18F team (31 players)'))}</button>
+        <button id="bp-import-u18f" style="appearance:none;cursor:pointer;border:1px solid #3b82f6;background:#3b82f6;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${admEsc(t('Importer l’équipe U18F (31 joueuses)','Import U18F team (31 players)'))}</button>
         <div id="bp-import-status" style="font-size:12.5px;color:#8fe0b0;margin-top:8px;line-height:1.5"></div>
       </div>
       <div id="bp-mgr" style="border:1px solid #25344b;border-radius:9px;padding:12px;margin-bottom:14px;background:#0f1d30">
@@ -1828,7 +1823,7 @@ async function openAdminPanel(){
       <p style="color:#7E90A8;font-size:13px;margin:0 0 14px;line-height:1.5">${admEsc(t("Autorise un·e joueur·se de l'espace Football à accéder aussi à l'espace Coaching individuel, avec les mêmes identifiants. Coche la case pour chaque personne concernée.","Allow a Football player to also access the Individual coaching space, with the same login. Tick the box for each person."))}</p>
       <div id="bp-admin-body" style="font-size:14px">${admEsc(t('Chargement…','Loading…'))}</div>
       <div style="margin-top:16px;display:flex;justify-content:flex-end">
-        <button id="bp-admin-close" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 16px;font-weight:700;font-size:14px">${admEsc(t('Fermer','Close'))}</button>
+        <button id="bp-admin-close" style="appearance:none;cursor:pointer;border:1px solid #3b82f6;background:#3b82f6;color:#04121f;border-radius:9px;padding:9px 16px;font-weight:700;font-size:14px">${admEsc(t('Fermer','Close'))}</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -1846,7 +1841,7 @@ async function openAdminPanel(){
 async function renderSectionsCfg(){
   const el=document.getElementById('bp-sections-body'); if(!el)return;
   if(!APP_CFG)await loadAppCfg();
-  el.innerHTML=sectionDefs().map(([id,lbl])=>`<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:#EAF1FB;padding:4px 0"><input type="checkbox" data-sec-cfg="${id}" ${sectionVisible(id)?'checked':''} style="accent-color:#3DA9FC;width:16px;height:16px"> ${admEsc(lbl)}</label>`).join('');
+  el.innerHTML=sectionDefs().map(([id,lbl])=>`<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:#EAF1FB;padding:4px 0"><input type="checkbox" data-sec-cfg="${id}" ${sectionVisible(id)?'checked':''} style="accent-color:#3b82f6;width:16px;height:16px"> ${admEsc(lbl)}</label>`).join('');
   el.querySelectorAll('[data-sec-cfg]').forEach(c=>c.onchange=async()=>{
     APP_CFG.sections=APP_CFG.sections||{};APP_CFG.sections[c.getAttribute('data-sec-cfg')]=c.checked;
     await saveAppCfg();try{render();}catch(e){}
@@ -1872,7 +1867,7 @@ async function renderAllClients(){
   const el=document.getElementById('bp-allclients-body'); if(!el)return;
   const [aca,ci,apa]=await Promise.all([admReadMap('aca:players'),admReadMap('ci:players'),admReadMap('apa:clients')]);
   const rows=[];
-  Object.values(aca).forEach(p=>{if(p&&p.id)rows.push({sp:'aca',lbl:'Football',cc:'#3DA9FC',id:p.id,name:p.name||'Sans nom',login:p.login||'',active:p.active!==false});});
+  Object.values(aca).forEach(p=>{if(p&&p.id)rows.push({sp:'aca',lbl:'Football',cc:'#3b82f6',id:p.id,name:p.name||'Sans nom',login:p.login||'',active:p.active!==false});});
   Object.values(ci).forEach(p=>{if(p&&p.id)rows.push({sp:'ci',lbl:'Coaching indiv.',cc:'#7b9bff',id:p.id,name:p.name||'Sans nom',login:p.login||'',active:p.active!==false});});
   Object.entries(apa).forEach(([code,c])=>rows.push({sp:'apa',lbl:'APA',cc:'#2fbf71',id:code,name:[c.p&&c.p.prenom,c.p&&c.p.nom].filter(Boolean).join(' ')||'Sans nom',login:'',active:c.active!==false}));
   rows.sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
@@ -1880,12 +1875,12 @@ async function renderAllClients(){
   const btn='appearance:none;cursor:pointer;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600';
   const rowHtml=r=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border:1px solid #25344b;border-radius:8px;margin-bottom:6px;${r.active?'':'opacity:.6'}">
       <div style="flex:1;min-width:150px"><b>${admEsc(r.name)}</b><div style="font-size:11px;color:#7E90A8;margin-top:2px">${r.login?('🔑 '+admEsc(r.login)):(r.sp==='apa'?admEsc(t('Connexion partagée','Shared login')):'—')}${r.active?'':' · '+admEsc(t('inactif','inactive'))}</div></div>
-      <button data-cl-ren="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #3DA9FC;background:transparent;color:#8FCBFF">${admEsc(t('Renommer','Rename'))}</button>
+      <button data-cl-ren="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #3b82f6;background:transparent;color:#8FCBFF">${admEsc(t('Renommer','Rename'))}</button>
       ${r.sp!=='apa'?`<button data-cl-pw="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #33465f;background:transparent;color:#EAF1FB">${admEsc(t('Mot de passe','Password'))}</button>`:''}
       <button data-cl-act="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #33465f;background:transparent;color:#EAF1FB">${r.active?admEsc(t('Désactiver','Disable')):admEsc(t('Activer','Enable'))}</button>
       <button data-cl-del="${r.sp}:${admEsc(r.id)}" style="${btn};border:1px solid #6b3a3a;background:transparent;color:#ffb4a8">${admEsc(t('Supprimer','Delete'))}</button>
     </div>`;
-  const groups=[['aca','Football','#3DA9FC','⚽'],['ci',t('Coaching individuel','Individual coaching'),'#7b9bff','🧍'],['apa','APA','#2fbf71','🤸']];
+  const groups=[['aca','Football','#3b82f6','⚽'],['ci',t('Coaching individuel','Individual coaching'),'#7b9bff','🧍'],['apa','APA','#2fbf71','🤸']];
   el.innerHTML=groups.map(([sp,lbl,cc,ic])=>{
     const g=rows.filter(r=>r.sp===sp);
     return `<div style="margin-bottom:14px">
@@ -1913,14 +1908,14 @@ async function renderManagers(){
   const arr=Object.values(mgrs);
   const editing = MGR_EDIT_ID && mgrs[MGR_EDIT_ID] ? mgrs[MGR_EDIT_ID] : null;
   if(MGR_EDIT_ID && !editing) MGR_EDIT_ID=null;
-  listEl.innerHTML=arr.length?arr.map(m=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid ${m.id===MGR_EDIT_ID?'#3DA9FC':'#25344b'};border-radius:8px;margin-bottom:6px">
+  listEl.innerHTML=arr.length?arr.map(m=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid ${m.id===MGR_EDIT_ID?'#3b82f6':'#25344b'};border-radius:8px;margin-bottom:6px">
       <div style="flex:1"><b>${admEsc(m.label||m.username)}</b><div style="font-size:11.5px;color:#7E90A8">${admEsc(m.username)} · ${admEsc(m.team||'—')} · ${(m.tabs&&m.tabs.length)?m.tabs.length+' onglet(s)':'tous onglets'}</div></div>
-      <button data-mgr-edit="${admEsc(m.id)}" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:transparent;color:#8FCBFF;border-radius:7px;padding:6px 10px;font-size:12px">${admEsc(t('Modifier','Edit'))}</button>
+      <button data-mgr-edit="${admEsc(m.id)}" style="appearance:none;cursor:pointer;border:1px solid #3b82f6;background:transparent;color:#8FCBFF;border-radius:7px;padding:6px 10px;font-size:12px">${admEsc(t('Modifier','Edit'))}</button>
       <button data-mgr-del="${admEsc(m.id)}" style="appearance:none;cursor:pointer;border:1px solid #6b3a3a;background:transparent;color:#ffb4a8;border-radius:7px;padding:6px 10px;font-size:12px">${admEsc(t('Supprimer','Delete'))}</button>
     </div>`).join(''):`<p style="color:#7E90A8;font-size:12.5px;margin:0 0 6px">${admEsc(t("Aucun·e gérant·e pour l'instant.","No managers yet."))}</p>`;
   const teamOpts=catsArr.map(c=>`<option value="${admEsc(c)}" ${editing&&editing.team===c?'selected':''}>${admEsc(c)}</option>`).join('');
   const checked=editing?(editing.tabs&&editing.tabs.length?new Set(editing.tabs):new Set(ACA_TABS.map(x=>x[0]))):new Set(['overview']);
-  const tabChecks=ACA_TABS.map(([id,lbl])=>`<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#EAF1FB"><input type="checkbox" data-mgr-tab="${id}" ${checked.has(id)?'checked':''} style="accent-color:#3DA9FC"> ${admEsc(lbl)}</label>`).join('');
+  const tabChecks=ACA_TABS.map(([id,lbl])=>`<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#EAF1FB"><input type="checkbox" data-mgr-tab="${id}" ${checked.has(id)?'checked':''} style="accent-color:#3b82f6"> ${admEsc(lbl)}</label>`).join('');
   formEl.innerHTML=`<div style="border-top:1px dashed #25344b;margin-top:8px;padding-top:10px">
     ${editing?`<div style="font-size:12.5px;color:#8FCBFF;margin-bottom:8px">${admEsc(t('Modification de','Editing'))} « ${admEsc(editing.username)} »</div>`:''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
@@ -1931,7 +1926,7 @@ async function renderManagers(){
     <div style="font-size:12px;color:#7E90A8;margin-bottom:5px">${admEsc(t('Onglets autorisés','Allowed tabs'))}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px">${tabChecks}</div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button id="mgr-add" style="appearance:none;cursor:pointer;border:1px solid #3DA9FC;background:#3DA9FC;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer les modifications','Save changes')):admEsc(t('Ajouter le/la gérant·e','Add manager'))}</button>
+      <button id="mgr-add" style="appearance:none;cursor:pointer;border:1px solid #3b82f6;background:#3b82f6;color:#04121f;border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${editing?admEsc(t('Enregistrer les modifications','Save changes')):admEsc(t('Ajouter le/la gérant·e','Add manager'))}</button>
       ${editing?`<button id="mgr-cancel" style="appearance:none;cursor:pointer;border:1px solid #33465f;background:transparent;color:#EAF1FB;border-radius:9px;padding:9px 14px;font-size:13.5px">${admEsc(t('Annuler','Cancel'))}</button>`:''}
     </div>
     <div id="mgr-status" style="font-size:12.5px;color:#8fe0b0;margin-top:6px"></div>
@@ -2037,7 +2032,7 @@ async function renderAdminBody(){
     <div style="margin-bottom:12px">
       <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:#7E90A8;font-weight:700;margin-bottom:6px">${admEsc(team)}</div>
       ${teams[team].map(p => `<label style="display:flex;align-items:center;gap:11px;padding:10px;border:1px solid #25344b;border-radius:9px;margin-bottom:6px;cursor:pointer;background:#0f1d30">
-        <input type="checkbox" data-adm-pid="${admEsc(p.id)}" ${ci[p.id] ? 'checked' : ''} style="width:18px;height:18px;flex:none;accent-color:#3DA9FC">
+        <input type="checkbox" data-adm-pid="${admEsc(p.id)}" ${ci[p.id] ? 'checked' : ''} style="width:18px;height:18px;flex:none;accent-color:#3b82f6">
         <span style="flex:1">${admEsc(p.name)}${p.pos ? ' · <span style=\"color:#7E90A8\">'+admEsc(p.pos)+'</span>' : ''}</span>
         <span data-adm-state style="font-size:11.5px;font-weight:600;color:${ci[p.id] ? '#8fe0b0' : '#7E90A8'}">${ci[p.id] ? onLbl : offLbl}</span>
       </label>`).join('')}
@@ -2117,7 +2112,7 @@ async function render(){
       <div class="dash-row">
         <div class="dash-brand">
           ${shieldSvg()}
-          <div class="dash-title">BLUE<span>PERF</span> <em>· DASHBOARD</em></div>
+          <div class="dash-title">Elite<span> Adapt</span> <em>· DASHBOARD</em></div>
         </div>
         <div class="dash-badges">
           <span class="dash-pill">${stats.clients} client${stats.clients>1?'s':''}, ${stats.sessions} séance${stats.sessions>1?'s':''}</span>
@@ -2207,7 +2202,7 @@ function tabLabel(tabs, id){
 function renderFootball(screen){
   screen.innerHTML = `
     <div style="border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--surface);height:calc(100vh - 180px);min-height:600px">
-      <iframe src="/academie/" title="Blueperf Académie" style="width:100%;height:100%;border:0;display:block"></iframe>
+      <iframe src="/academie/" title="Elite Adapt Académie" style="width:100%;height:100%;border:0;display:block"></iframe>
     </div>`;
 }
 
@@ -3889,7 +3884,7 @@ function measureSeriesFor(list, fieldId){
 }
 function measureChartSvg(series){
   const items = series.map(m => ({value: m.value, valueLabel: String(m.value), xLabel: fmtDDMM(new Date(m.date))}));
-  return barChartSvg(items, {color:'#3DA9FC'});
+  return barChartSvg(items, {color:'#3b82f6'});
 }
 
 async function renderPoidsHistory(screen){
@@ -4188,7 +4183,7 @@ function trainingChartSvg(buckets){
     valueLabel: String(b.km),
     xLabel: 'S'+(b.monday ? isoWeekNumber(b.monday) : '?')
   }));
-  return barChartSvg(items, {color:'#3DA9FC'});
+  return barChartSvg(items, {color:'#3b82f6'});
 }
 
 /*
@@ -4202,7 +4197,7 @@ function barChartSvg(items, options){
   const max = options.max || Math.max(1, ...items.map(it => it.value));
   const barW = chartW / items.length * 0.6;
   const gap = chartW / items.length;
-  const color = options.color || '#3DA9FC';
+  const color = options.color || '#3b82f6';
 
   const bars = items.map((it,i) => {
     const h = Math.max(1, (it.value / max) * chartH);
@@ -4232,7 +4227,7 @@ function lineChartSvg(items, options){
   const W = 640, H = 220, padL = 30, padB = 34, padT = 16, padR = 12;
   const chartW = W - padL - padR, chartH = H - padT - padB;
   const max = options.max || Math.max(1, ...items.map(it => it.value));
-  const color = options.color || '#3DA9FC';
+  const color = options.color || '#3b82f6';
   if(!items.length) return `<svg viewBox="0 0 ${W} ${H}" class="training-chart"></svg>`;
 
   const stepX = items.length > 1 ? chartW / (items.length-1) : 0;
@@ -4804,7 +4799,7 @@ function drawHooperHistory(screen){
       const every = Math.ceil(items.length/14);
       items.forEach((it,i) => { if(i % every !== 0) it.xLabel = ''; });
     }
-    hooperChartSlot.innerHTML = lineChartSvg(items, {color:'#3DA9FC', max:28});
+    hooperChartSlot.innerHTML = lineChartSvg(items, {color:'#3b82f6', max:28});
   }
   screen.querySelectorAll('[data-edit-hooper]').forEach(b => {
     b.addEventListener('click', () => {
@@ -5650,7 +5645,7 @@ async function exportAllData(){
     if(raw != null) data[k] = raw;
   }));
   return {
-    app: 'BluePerf.suivi',
+    app: 'Elite Adapt',
     exportedAt: new Date().toISOString(),
     keyCount: Object.keys(data).length,
     data
@@ -6397,7 +6392,7 @@ window.addEventListener('afterprint', () => {
 
 /*
   Rend l'app installable (PWA) : une fois le service worker enregistré, le navigateur propose
-  d'installer BluePerf.suivi sur l'écran d'accueil (mobile ou ordinateur), et la coquille de l'app
+  d'installer Elite Adapt sur l'écran d'accueil (mobile ou ordinateur), et la coquille de l'app
   reste utilisable même hors-ligne ou en connexion instable. Les données restent toujours en ligne
   (voir sw.js : /api/* n'est jamais mis en cache).
 */

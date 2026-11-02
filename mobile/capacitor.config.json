@@ -1,6 +1,6 @@
 {
   "appId": "com.blueperf.app",
-  "appName": "Blueperf",
+  "appName": "Elite Adapt",
   "webDir": "www",
   "server": {
     "url": "https://blueperf.vercel.app",

@@ -1,4 +1,4 @@
-/* Blueperf — dictionnaire de traduction FR → EN (interface).
+/* Elite Adapt — dictionnaire de traduction FR → EN (interface).
  * Chargé AVANT i18n-dom.js. Clés = texte français affiché (apostrophes droites, & réel).
  * Toute chaîne absente ici reste en français : aucun risque pour la version FR.
  */
@@ -427,7 +427,7 @@ window.BP_I18N_DICT = {
   "Débloqué":"Unlocked",
 
   /* ===== Nutrition ===== */
-  "Blueperf · Nutrition":"Blueperf · Nutrition",
+  "Elite Adapt · Nutrition":"Elite Adapt · Nutrition",
   "Nouveau client":"New client",
   "Ajouter le client":"Add client",
   "Aucun client":"No client",
@@ -489,7 +489,7 @@ window.BP_I18N_DICT = {
 
   /* ===== Espace joueur / app racine (restes) ===== */
   "Académie":"Academy",
-  "Blueperf Académie":"Blueperf Academy",
+  "Elite Adapt Académie":"Elite Adapt Academy",
   "Connexion partagée":"Shared login",
   "Accès refusé.":"Access denied.",
   "Accès individuel ✓":"Individual access ✓",
@@ -527,7 +527,7 @@ window.BP_I18N_DICT = {
 
   /* ===== APA (activité physique adaptée) — chrome ===== */
   "Activité physique adaptée":"Adapted physical activity",
-  "Blueperf · Activité physique adaptée":"Blueperf · Adapted physical activity",
+  "Elite Adapt · Activité physique adaptée":"Elite Adapt · Adapted physical activity",
   "Suivi APA":"APA tracking",
   "Dossier bénéficiaire":"Beneficiary file",
   "Espace client":"Client area",

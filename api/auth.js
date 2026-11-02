@@ -1,4 +1,4 @@
-// Authentification côté serveur pour Blueperf.
+// Authentification côté serveur pour Elite Adapt.
 // - Vérifie les identifiants dans la base (Upstash) — jamais confiance au JS du navigateur.
 // - Pose un cookie de session signé (HMAC) ; /api/storage l'exige quand AUTH_SECRET est défini.
 // - Tant que AUTH_SECRET n'est PAS défini : mode "hérité" (aucune contrainte) → rien ne casse.

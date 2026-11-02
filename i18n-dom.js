@@ -1,4 +1,4 @@
-/* Blueperf — couche de traduction d'affichage (FR → EN).
+/* Elite Adapt — couche de traduction d'affichage (FR → EN).
  *
  * Objectif : quand l'utilisateur choisit « English » (localStorage bp_lang === 'en'),
  * toute l'interface des modules s'affiche en anglais, SANS toucher au code métier :

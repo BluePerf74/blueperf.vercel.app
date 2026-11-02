@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Elite Adapt">
+<defs>
+<linearGradient id="ge" gradientUnits="userSpaceOnUse" x1="0" y1="157" x2="0" y2="356"><stop offset="0" stop-color="#5B94FF"/><stop offset="1" stop-color="#1F4FD8"/></linearGradient>
+<linearGradient id="ga" gradientUnits="userSpaceOnUse" x1="0" y1="157" x2="0" y2="356"><stop offset="0" stop-color="#FFB347"/><stop offset="1" stop-color="#F2617A"/></linearGradient>
+</defs>
+<rect width="512" height="512" rx="112" fill="#0b1220"/>
+<g transform="translate(66,107) scale(1.246)">
+<polygon points="24,40 48,40 48,200 24,200" fill="url(#ge)"/>
+<polygon points="24,40 151.3,40 140.5,64 24,64" fill="url(#ge)"/>
+<polygon points="24,108 120.7,108 109.9,132 24,132" fill="url(#ge)"/>
+<polygon points="24,176 90.1,176 79.3,200 24,200" fill="url(#ge)"/>
+<polygon points="171.3,40 199.7,40 127.7,200 99.3,200" fill="url(#ga)"/>
+<polygon points="180.3,40 208.7,40 280.7,200 252.3,200" fill="url(#ga)"/>
+<polygon points="165.6,138 214.4,138 222.5,156 157.5,156" fill="url(#ga)"/>
+</g>
+</svg>

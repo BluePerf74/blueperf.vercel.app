@@ -1,4 +1,4 @@
-/* Service worker Blueperf.
+/* Service worker Elite Adapt.
    - Notifications push.
    - Installabilité (PWA) + repli hors ligne : on NE met PAS en cache les données ni le code de
      l'app (pour ne jamais servir de contenu périmé). On met seulement en cache une page « hors
@@ -46,8 +46,8 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; }
-  catch (_) { d = { title: 'Blueperf', body: event.data ? event.data.text() : '' }; }
-  const title = d.title || 'Blueperf';
+  catch (_) { d = { title: 'Elite Adapt', body: event.data ? event.data.text() : '' }; }
+  const title = d.title || 'Elite Adapt';
   const opts = {
     body: d.body || '',
     icon: '/icons/icon-192.png',
