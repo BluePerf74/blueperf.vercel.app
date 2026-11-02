@@ -4,8 +4,8 @@
      l'app (pour ne jamais servir de contenu périmé). On met seulement en cache une page « hors
      ligne » et les icônes. Les pages sont servies réseau d'abord ; en cas de coupure, on affiche
      la page hors ligne au lieu de l'erreur du navigateur. */
-const CACHE = 'blueperf-shell-v1';
-const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'];
+const CACHE = 'elite-adapt-shell-v2';
+const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/elite-adapt-icon.svg', '/elite-adapt-mark.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).catch(() => {}).then(() => self.skipWaiting()));
@@ -31,14 +31,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Icônes (statiques) : cache d'abord, mise à jour en arrière-plan. Reste du trafic : non intercepté.
-  if (url.origin === self.location.origin && url.pathname.startsWith('/icons/')) {
+  // Icônes et logos (statiques) : on sert le cache tout de suite MAIS on rafraîchit
+  // toujours en arrière-plan (stale-while-revalidate), pour que le logo se mette à
+  // jour tout seul au prochain affichage après un changement de marque.
+  if (url.origin === self.location.origin && (url.pathname.startsWith('/icons/') || /\/elite-adapt-[a-z]+\.svg$/.test(url.pathname))) {
     event.respondWith(
-      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-        return res;
-      }).catch(() => hit))
+      caches.open(CACHE).then((c) => c.match(req).then((hit) => {
+        const net = fetch(req).then((res) => { c.put(req, res.clone()).catch(() => {}); return res; }).catch(() => hit);
+        return hit || net;
+      }))
     );
   }
 });
