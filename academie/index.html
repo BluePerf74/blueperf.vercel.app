@@ -277,7 +277,7 @@ details summary{cursor:pointer;font-weight:600}
 #updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
 </style>
 <body>
-<div class="splash" id="splash" aria-hidden="true"><div class="sp-top"><div class="sp-brand">BLUE<span>PERF</span></div></div><div class="sp-body"><div class="sp-hero sk"></div><div class="sp-row"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sp-card sk"></div><div class="sp-card sk"></div></div></div>
+<div class="splash" id="splash" aria-hidden="true"><div class="sp-top"><div class="sp-brand">Elite<span> Adapt</span></div></div><div class="sp-body"><div class="sp-hero sk"></div><div class="sp-row"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sp-card sk"></div><div class="sp-card sk"></div></div></div>
 <div class="boot" id="boot"><div class="panel"><div class="spin"></div><div>Chargement des données…</div></div></div>
 <div class="app">
   <nav class="nav" id="nav" aria-label="Navigation"></nav>
@@ -2388,8 +2388,8 @@ async function reportPrint(r){
 
   // ---------- EN-TÊTE ----------
   setFill(C.navy); doc.rect(0,0,PW,30,'F');
-  F('bold',23); setText(C.white); doc.text('BLUE',M,15);
-  const bwid=doc.getTextWidth('BLUE'); setText(C.lblue); doc.text('PERF',M+bwid,15);
+  F('bold',23); setText(C.white); doc.text('Elite',M,15);
+  const bwid=doc.getTextWidth('Elite'); setText(C.lblue); doc.text(' Adapt',M+bwid,15);
   F('normal',8.3); setText([172,196,224]); doc.text('Suivi & évaluation de la performance',M,21);
   F('normal',8.3); setText([172,196,224]); doc.text('COMPTE RENDU DE PERFORMANCE',PW-M,11,{align:'right'});
   const badge=clean(r.type)+(r.type==='Match'&&r.opponent?'  vs '+clean(r.opponent):'');
@@ -2488,8 +2488,8 @@ async function reportPrint(r){
   const pages=doc.getNumberOfPages();
   for(let i=1;i<=pages;i++){ doc.setPage(i);
     setDraw(C.boxln); doc.setLineWidth(0.3); doc.line(M,PH-12,PW-M,PH-12);
-    F('bold',9); setText(C.navy); doc.text('BLUE',M,PH-7.5); const fw=doc.getTextWidth('BLUE'); setText(C.blue); doc.text('PERF',M+fw,PH-7.5);
-    F('normal',8.3); setText(C.muted); doc.text('   ·   Établi le '+fmtD(r.date),M+fw+doc.getTextWidth('PERF'),PH-7.5);
+    F('bold',9); setText(C.navy); doc.text('Elite',M,PH-7.5); const fw=doc.getTextWidth('Elite'); setText(C.blue); doc.text(' Adapt',M+fw,PH-7.5);
+    F('normal',8.3); setText(C.muted); doc.text('   ·   Établi le '+fmtD(r.date),M+fw+doc.getTextWidth(' Adapt'),PH-7.5);
     F('normal',8.3); setText(C.lmuted); doc.text((pages>1?('Page '+i+'/'+pages+'   ·   '):'')+'Signature du coach',PW-M,PH-7.5,{align:'right'});
   }
 

@@ -1470,7 +1470,7 @@ function renderFullApp(section){
     <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--nav,#0E1A2C)">
       <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3b82f6">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${label}</span></div>
+          <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">Elite<span style="color:#ff9a8b"> Adapt</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${label}</span></div>
           <span title="${t('Toutes les saisies sont enregistrées en ligne automatiquement','All entries are saved online automatically')}" style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8fe0b0;background:rgba(47,191,113,.14);border:1px solid rgba(47,191,113,.4);border-radius:20px;padding:5px 11px"><span style="width:7px;height:7px;border-radius:50%;background:#2FBF71;display:inline-block"></span>${t('Données enregistrées','Data saved')}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1594,7 +1594,7 @@ function renderSettingsPage(){
     <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--app-bg);color:var(--app-text)">
       <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--app-nav);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">BLUE<span style="color:#3b82f6">PERF</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${t('PARAMÈTRES','SETTINGS')}</span></div>
+          <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">Elite<span style="color:#ff9a8b"> Adapt</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${t('PARAMÈTRES','SETTINGS')}</span></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${sectionDropdown('settings')}
@@ -2126,7 +2126,7 @@ async function render(){
     <div class="topbar">
       ${dashHeaderHtml}
       <div class="topbar-row">
-        <div class="wordmark">${state.access==='coach' ? '' : 'BLUEPERF'}</div>
+        <div class="wordmark">${state.access==='coach' ? '' : 'Elite Adapt'}</div>
         <div class="topbar-actions">
           ${controlsHtml}
           ${state.access==='coach' ? '' : '<button class="logout-pill" id="logout-btn">Déconnexion</button>'}
