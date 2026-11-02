@@ -1438,12 +1438,46 @@ function sectionVisible(sec){return !(APP_CFG&&APP_CFG.sections&&APP_CFG.section
 async function loadAppCfg(){try{const raw=await sGet('appConfig',true);APP_CFG=raw?JSON.parse(raw):{};}catch(e){APP_CFG={};}if(!APP_CFG.sections)APP_CFG.sections={};return APP_CFG;}
 async function saveAppCfg(){try{await sSet('appConfig',JSON.stringify(APP_CFG||{sections:{}}),true);}catch(e){}}
 loadAppCfg();
+const SPACE_META={
+  football:{ic:'⚽',bg:'#2552d6',sub:()=>t('Équipe & saison','Team & season')},
+  individuel:{ic:'🏃',bg:'#f2617a',sub:()=>t('Suivi individuel','One-to-one')},
+  apa:{ic:'⚕️',bg:'#2fbf71',sub:()=>t('Activité adaptée','Adapted activity')},
+  nutrition:{ic:'🥗',bg:'#f59e0b',sub:()=>t('Nutrition','Nutrition')}
+};
+const SWITCH_STYLE=`<style>
+.ea-switch{position:relative}
+.ea-sw-btn{display:inline-flex;align-items:center;gap:10px;justify-content:space-between;min-width:186px;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:6px 11px 6px 7px;color:#fff;font-weight:600;font-size:13px;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}
+.ea-sw-btn:hover{border-color:rgba(91,140,255,.65);background:linear-gradient(180deg,rgba(91,140,255,.18),rgba(91,140,255,.05))}
+.ea-switch.open .ea-sw-btn{border-color:#5b8cff;box-shadow:0 0 0 3px rgba(91,140,255,.22)}
+.ea-sw-left{display:flex;align-items:center;gap:9px;min-width:0}
+.ea-sw-left>span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ea-sw-ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none;line-height:1}
+.ea-sw-chev{transition:transform .2s;opacity:.75;flex:none}
+.ea-switch.open .ea-sw-chev{transform:rotate(180deg)}
+.ea-sw-menu{position:absolute;top:calc(100% + 9px);left:0;min-width:248px;background:#0e1a2c;border:1px solid rgba(255,255,255,.14);border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.55);padding:7px;z-index:70;opacity:0;visibility:hidden;transform:translateY(-6px) scale(.98);transform-origin:top left;transition:opacity .16s ease,transform .16s ease,visibility .16s}
+.ea-switch.open .ea-sw-menu{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+.ea-sw-head{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7e90a8;padding:6px 9px 7px}
+.ea-sw-row{display:flex;align-items:center;gap:11px;width:100%;background:transparent;border:0;color:#dfe8f5;font-weight:600;font-size:13.5px;padding:9px 10px;border-radius:11px;cursor:pointer;text-align:left;transition:background .12s}
+.ea-sw-row:hover{background:rgba(255,255,255,.06)}
+.ea-sw-row.on{background:rgba(91,140,255,.15);color:#fff}
+.ea-sw-row .lbl{flex:1;line-height:1.15}
+.ea-sw-row .chk{color:#5b8cff;font-weight:800;font-size:15px}
+.ea-sw-sub{display:block;font-size:11px;color:#8aa0bd;font-weight:500;margin-top:1px}
+</style>`;
 function sectionDropdown(current){
   const list=sectionDefs().filter(([id])=>sectionVisible(id));
-  const inList=list.some(([id])=>id===current);
-  const chevron="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23ffffff%22 stroke-width=%223%22><path d=%22M6 9l6 6 6-6%22/></svg>";
-  const style=`appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.3);background:#0E1A2C url('${chevron}') no-repeat right 10px center;color:#fff;border-radius:8px;padding:8px 30px 8px 12px;font-size:13px;font-weight:600`;
-  return `<select data-fbsecsel aria-label="${t('Choisir un espace','Choose a space')}" style="${style}">${inList?'':`<option value="" selected disabled style="background:#0E1A2C;color:#fff">${t('Paramètres','Settings')}</option>`}${list.map(([id,lbl])=>`<option value="${id}" ${current===id?'selected':''} style="background:#0E1A2C;color:#fff">${lbl}</option>`).join('')}</select>`;
+  const cur=list.find(([id])=>id===current);
+  const curLbl=cur?cur[1]:t('Paramètres','Settings');
+  const cm=SPACE_META[current]||{ic:'⚙️',bg:'#5f708a'};
+  const row=([id,lbl])=>{const m=SPACE_META[id]||{ic:'•',bg:'#5f708a'};const on=id===current;
+    return `<button class="ea-sw-row${on?' on':''}" data-eassw="${id}" role="menuitem"><span class="ea-sw-ic" style="background:${m.bg}">${m.ic}</span><span class="lbl">${lbl}${m.sub?`<span class="ea-sw-sub">${m.sub()}</span>`:''}</span>${on?'<span class="chk">✓</span>':''}</button>`;};
+  return `${SWITCH_STYLE}<div class="ea-switch" data-eassw-wrap>
+    <button class="ea-sw-btn" data-eassw-btn aria-haspopup="menu" aria-expanded="false" title="${t('Changer d’espace','Switch space')}">
+      <span class="ea-sw-left"><span class="ea-sw-ic" style="background:${cm.bg}">${cm.ic}</span><span>${curLbl}</span></span>
+      <svg class="ea-sw-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="ea-sw-menu" data-eassw-menu role="menu"><div class="ea-sw-head">${t('Espaces','Spaces')}</div>${list.map(row).join('')}</div>
+  </div>`;
 }
 function renderFullApp(section){
   const mgr = state.manager; // gérant·e d'équipe : accès restreint
@@ -1491,13 +1525,22 @@ function renderFullApp(section){
     state.tab = nt[0].id;
     render();
   }));
-  const secSel = app.querySelector('[data-fbsecsel]');
-  if(secSel) secSel.addEventListener('change', () => {
-    state.section = secSel.value;
-    const nt = tabsFor(state.section, state.viewAs === 'coach');
-    state.tab = nt[0].id;
-    render();
-  });
+  const swWrap = app.querySelector('[data-eassw-wrap]');
+  if(swWrap){
+    const swBtn = swWrap.querySelector('[data-eassw-btn]');
+    if(swBtn) swBtn.addEventListener('click', (e) => { e.stopPropagation(); const open = swWrap.classList.toggle('open'); swBtn.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+    swWrap.querySelectorAll('[data-eassw]').forEach(r => r.addEventListener('click', () => {
+      state.section = r.getAttribute('data-eassw');
+      const nt = tabsFor(state.section, state.viewAs === 'coach');
+      state.tab = nt[0].id;
+      render();
+    }));
+    if(!window._eaSwBound){
+      window._eaSwBound = true;
+      document.addEventListener('click', (e) => { document.querySelectorAll('.ea-switch.open').forEach(w => { if(!w.contains(e.target)) w.classList.remove('open'); }); });
+      document.addEventListener('keydown', (e) => { if(e.key === 'Escape') document.querySelectorAll('.ea-switch.open').forEach(w => w.classList.remove('open')); });
+    }
+  }
   const lg = app.querySelector('[data-fblang]');
   if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
   const thb = app.querySelector('[data-fbtheme]');
