@@ -1321,6 +1321,18 @@ function gpsM(x,dur){const dist=num(x.dist)||0,min=num(x.min)??num(dur)??0,hsr=n
   const pload=num(x.pload)!=null?num(x.pload):Math.round(dist/22+(acc+dec)*1.3);
   const z4=Math.max(0,hsr-sprint),low=Math.max(0,dist-hsr),z1=Math.round(low*0.42),z2=Math.round(low*0.44),z3=Math.max(0,low-z1-z2);
   return {min,dist,hsr,sprint,acc,dec,vmax,mpm:min?dist/min:0,pload,z:[z1,z2,z3,z4,sprint]};}
+/* Procédés (périodes d'une séance) : réels si présents dans les données, sinon
+   synthétiques (répartition du total) pour permettre le cumul WARM UP / 1ère MT / 2ème MT. */
+const GPS_PROC=[['warmup','Warm up'],['mt1','1ère MT'],['mt2','2ème MT']];
+const GPS_POS_ORDER=['Gardien','Défenseur','Latéral','Milieu','Attaquant','Autre'];
+function gpsPeriods(x){if(x.periods)return x.periods;
+  const f={warmup:0.14,mt1:0.45,mt2:0.41},hf={warmup:0.04,mt1:0.52,mt2:0.44},P={};
+  ['warmup','mt1','mt2'].forEach(k=>{P[k]={min:Math.round((num(x.min)||0)*f[k]),dist:Math.round((num(x.dist)||0)*f[k]),hsr:Math.round((num(x.hsr)||0)*hf[k]),sprint:Math.round((num(x.sprint)||0)*hf[k]),acc:Math.round((num(x.acc)||0)*hf[k]),dec:Math.round((num(x.dec)||0)*hf[k]),vmax:k==='warmup'?+((num(x.vmax)||0)*0.78).toFixed(1):(num(x.vmax)||0),pload:Math.round((num(x.pload)!=null?num(x.pload):(num(x.dist)||0)/22)*f[k])};});
+  return P;}
+function gpsRaw(x,sel){sel=(sel&&sel.length)?sel:['warmup','mt1','mt2'];if(sel.length===3&&!x.periods)return x;
+  const P=gpsPeriods(x),o={min:0,dist:0,hsr:0,sprint:0,acc:0,dec:0,pload:0,vmax:0};
+  sel.forEach(pk=>{const pd=P[pk];if(!pd)return;['min','dist','hsr','sprint','acc','dec','pload'].forEach(k=>o[k]+=num(pd[k])||0);o.vmax=Math.max(o.vmax,num(pd.vmax)||0);});
+  return o;}
 function gpsHeatTable(rows){const cols=GPS_COLS;
   const rg=cols.map(c=>{const vs=rows.map(r=>r.m[c.k]);return [Math.min(...vs),Math.max(...vs)];});
   const head=`<tr><th style="text-align:left;position:sticky;left:0;background:var(--surface)">${PL.One}</th>${cols.map(c=>`<th class="n" style="font-size:10px;line-height:1.2">${c.l}<br><span class="muted" style="font-weight:400">${c.u||'&nbsp;'}</span></th>`).join('')}</tr>`;
@@ -1362,19 +1374,35 @@ const GPS_STYLE=`<style>
 .gpsheat td{padding:8px 9px}
 .gkpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 </style>`;
+function gpsExportPdf(){
+  const evs=gpsEvents();const ev=evs.find(e=>e.id===UI.gpsEvent)||evs[0];if(!ev){toast('Aucune séance GPS');return;}
+  const proc=(UI.gpsProc&&UI.gpsProc.length)?UI.gpsProc:['warmup','mt1','mt2'],off=UI.gpsPlOff||{};
+  let rows=Object.entries(ev.players||{}).filter(([pid,x])=>DATA.players[pid]&&num(x.dist)!=null&&!off[pid]).map(([pid,x])=>({p:DATA.players[pid],m:gpsM(gpsRaw(x,proc),ev.duration)}));
+  rows.sort(UI.gpsByPos?(a,b)=>GPS_POS_ORDER.indexOf(gpsPosGroup(a.p.pos))-GPS_POS_ORDER.indexOf(gpsPosGroup(b.p.pos))||b.m.dist-a.m.dist:(a,b)=>b.m.dist-a.m.dist);
+  if(!rows.length){toast('Aucun joueur à exporter');return;}
+  const cols=GPS_COLS,rg=cols.map(c=>{const vs=rows.map(r=>r.m[c.k]);return [Math.min(...vs),Math.max(...vs)];});
+  const head=`<tr><th class="l">Joueur</th>${cols.map(c=>`<th>${c.l}<br><span class="u">${c.u||''}</span></th>`).join('')}</tr>`;
+  const body=rows.map(r=>`<tr><td class="l">${esc(r.p.name)}${UI.gpsByPos?' <span class="pos">'+gpsPosGroup(r.p.pos)+'</span>':''}</td>${cols.map((c,i)=>{const v=r.m[c.k],[lo,hi]=rg[i],tt=hi>lo?(v-lo)/(hi-lo):0;return `<td style="background:${hexA(c.c,(0.12+0.5*tt).toFixed(2))}">${c.f(v)}</td>`;}).join('')}</tr>`).join('');
+  const procLbl=GPS_PROC.filter(([k])=>proc.includes(k)).map(([,l])=>l).join(' + ');
+  const css=`@page{size:A4 landscape;margin:10mm}body{font:10px Arial,sans-serif;color:#1b2430;margin:0}h1{font-size:16px;margin:0 0 2px}.sub{color:#667;margin:0 0 10px;font-size:11px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #c7d0db;padding:5px 6px;text-align:center}th.l,td.l{text-align:left;white-space:nowrap}th{background:#eef3f9;font-size:9px}.u{color:#889;font-weight:400}.pos{color:#889;font-size:8px}`;
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>GPS ${esc(ev.cat||'')} ${esc(fmtD(ev.date))}</title><style>${css}</style></head><body><h1>Rapport GPS — ${esc(ev.title||ev.type||'')}</h1><p class="sub">${esc(ev.cat||'')} · ${esc(fmtD(ev.date,{weekday:'long',day:'numeric',month:'long'}))} · Procédés : ${esc(procLbl)} · ${rows.length} joueurs — Elite Adapt</p><table><thead>${head}</thead><tbody>${body}</tbody></table></body></html>`;
+  const win=window.open('','_blank');if(!win){toast('Autorise les pop-up pour l\'export PDF');return;}win.document.write(html);win.document.close();win.focus();setTimeout(()=>{try{win.print();}catch(e){}},400);}
 VIEWS.gps=()=>{
   const ps=playersOf(UI.cat);if(!ps.length)return emptyPlayers();
   const evs=gpsEvents();const ev=evs.find(e=>e.id===UI.gpsEvent)||evs[0];
   const sel=`<select data-chg="gpsSel" style="width:auto;max-width:100%">${evs.map(e=>`<option value="${esc(e.id)}" ${ev&&e.id===ev.id?'selected':''}>${fmtD(e.date)} · ${esc(e.cat)} · ${esc(e.title||e.type)}</option>`).join('')}</select>`;
-  const header=`<div class="card"><div class="hrow"><div><div class="eyebrow">📡 Données GPS</div><h2 style="margin:2px 0 0">${'Rapport de séance'}</h2></div><div class="row" style="gap:8px"><button class="btn sm pri" data-act="goEntry" data-id="gps">📥 ${'Importer un CSV'}</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center"><span class="small muted">${'Séance / date'}</span>${evs.length?sel:''}</div></div>`;
+  const proc=(UI.gpsProc&&UI.gpsProc.length)?UI.gpsProc:['warmup','mt1','mt2'];
+  const procChips=GPS_PROC.map(([k,l])=>`<button class="gchip${proc.includes(k)?' on':''}" data-act="gpsProc" data-k="${k}">${l}</button>`).join('');
+  const procBar=ev?`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center"><span class="small muted" title="Additionne les volumes des procédés sélectionnés, garde le pic de Vmax, recalcule le m/min sur le total">🧩 Procédés cumulés (${proc.length}/3)</span><div class="gchips">${procChips}</div></div>`:'';
+  const header=`<div class="card"><div class="hrow"><div><div class="eyebrow">📡 Données GPS</div><h2 style="margin:2px 0 0">${'Rapport de séance'}</h2></div><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm${UI.gpsByPos?' pri':''}" data-act="gpsByPos">👥 Classer par poste</button><button class="btn sm" data-act="gpsPdf">📄 Exporter en PDF</button><button class="btn sm pri" data-act="goEntry" data-id="gps">📥 ${'Importer un CSV'}</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center"><span class="small muted">${'Séance / date'}</span>${evs.length?sel:''}</div>${procBar}</div>`;
   if(!ev)return GPS_STYLE+header+`<div class="card"><div class="empty">${'Aucune donnée GPS. Importe un CSV (Catapult, GPEXE…) via « Importer un CSV », ou saisis-les avec la séance.'}</div></div>`;
-  const all=Object.entries(ev.players||{}).filter(([pid,x])=>DATA.players[pid]&&num(x.dist)!=null).map(([pid,x])=>({p:DATA.players[pid],m:gpsM(x,ev.duration),rpe:x.rpe}));
+  const all=Object.entries(ev.players||{}).filter(([pid,x])=>DATA.players[pid]&&num(x.dist)!=null).map(([pid,x])=>({p:DATA.players[pid],m:gpsM(gpsRaw(x,proc),ev.duration),rpe:x.rpe}));
   if(!all.length)return GPS_STYLE+header+`<div class="card"><div class="empty">${'Cette séance n’a pas encore de données GPS.'}</div></div>`;
   const off=UI.gpsPlOff||{};
   const posGroups=[...new Set(all.map(r=>gpsPosGroup(r.p.pos)))];
   const posChips=posGroups.map(g=>{const ids=all.filter(r=>gpsPosGroup(r.p.pos)===g).map(r=>r.p.id);const allOn=ids.every(id=>!off[id]);return `<button class="gchip${allOn?' on':''}" data-act="gpsPos" data-g="${esc(g)}">${g}</button>`;}).join('');
   const plChips=all.map(r=>`<button class="gchip${off[r.p.id]?'':' on'}" data-act="gpsPl" data-id="${esc(r.p.id)}">${esc(r.p.name)}</button>`).join('');
-  const rows=all.filter(r=>!off[r.p.id]).sort((a,b)=>b.m.dist-a.m.dist);
+  const rows=all.filter(r=>!off[r.p.id]).sort(UI.gpsByPos?(a,b)=>{const pa=GPS_POS_ORDER.indexOf(gpsPosGroup(a.p.pos)),pb=GPS_POS_ORDER.indexOf(gpsPosGroup(b.p.pos));return pa-pb||b.m.dist-a.m.dist;}:(a,b)=>b.m.dist-a.m.dist);
   const avg=k=>rows.length?mean(rows.map(r=>r.m[k])):0;
   const kpis=`<div class="gkpi">${kpi('Joueurs',rows.length,'')}${kpi('Distance moy.',r0(avg('dist')),'m')}${kpi('HSR moy.',r0(avg('hsr')),'m')}${kpi('Sprint moy.',r0(avg('sprint')),'m')}${kpi('Vmax moy.',r1(avg('vmax')),'km/h')}</div>`;
   const filters=`<div class="card" style="margin-top:14px"><div class="small" style="font-weight:600;margin-bottom:8px">${'Filtrer les joueurs'} <span class="muted">(${rows.length}/${all.length})</span> <button class="btn sm" data-act="gpsAll" style="margin-left:8px">${'Tous'}</button><button class="btn sm" data-act="gpsNone">${'Aucun'}</button></div><div class="gchips" style="margin-bottom:9px">${posChips}</div><div class="gchips">${plChips}</div></div>`;
@@ -2170,7 +2198,7 @@ ENTRY.player=()=>{const e=editing('players');const s=S();const all=playersOf('To
   ${all.map(p=>`<tr><td>${plink(p.id)}</td>${INDIV?`<td>${esc(p.sport||'—')}</td>`:`<td>${esc(p.cat)}</td><td>${esc(p.pos||'')}</td><td class="n">${esc(p.number||'')}</td>`}<td class="n">${r1(age(p.birth,UI.ref))}</td><td class="n">${r1(vref(p))}</td><td>${p.login?esc(p.login)+' · '+esc(p.pass||''):'<span class="muted">—</span>'}</td><td>${p.active===false?'<span class="pill neutral">Inactif</span>':'<span class="pill good">Actif</span>'}</td>
     <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="players" data-id="${esc(p.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="players" data-id="${esc(p.id)}">×</button></div></td></tr>`).join('')||`<tr><td colspan="9" class="muted">${INDIV?'Aucun·e client·e':'Aucun joueur'}</td></tr>`}</tbody></table></div></div>`;};
 ENTRY.gps=()=>{const evs=[...Object.values(DATA.sessions).map(s=>({...s,col:'sessions'})),...Object.values(DATA.matches).map(m=>({...m,col:'matches',title:'Match vs '+m.opponent}))].filter(inCat).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40);
-  return `<div class="card flat stack"><p class="note" style="margin:0">Colle un export CSV de ton logiciel GPS (Catapult, STATSports, Polar…). Première ligne = en-têtes. Colonnes reconnues : nom du joueur, distance, HSR / haute intensité, sprint, accélérations, décélérations, vitesse max, minutes. Le séparateur (; , tabulation) est détecté automatiquement.</p>
+  return `<div class="card flat stack"><p class="note" style="margin:0">Colle un export CSV de ton logiciel GPS (Catapult, STATSports, Polar…). Première ligne = en-têtes. Colonnes reconnues : nom du joueur, distance, HSR / haute intensité, sprint, accélérations, décélérations, vitesse max, minutes, player load. Le séparateur (; , tabulation) est détecté automatiquement.</p>
     ${fld('gp-ev','Séance ou match à compléter',`<select id="gp-ev">${evs.map(e=>`<option value="${esc(e.col+'|'+e.id)}">${fmtD(e.date)} · ${esc(e.cat)} · ${esc(e.title||e.type)}</option>`).join('')}</select>`)}
     <textarea id="gp-csv" style="min-height:160px;font-family:ui-monospace,monospace;font-size:12px" aria-label="Données CSV" placeholder="Joueur;Distance;HSR;Sprint;Acc;Dec;Vmax&#10;Adam B.;6120;410;52;60;55;31.2"></textarea>
     <div class="row"><button class="btn" data-act="gpsParse">Analyser</button></div><div id="gp-prev"></div></div>`;};
@@ -2744,6 +2772,9 @@ const ACT={
   gpsPl:b=>{UI.gpsPlOff=UI.gpsPlOff||{};const id=b.dataset.id;if(UI.gpsPlOff[id])delete UI.gpsPlOff[id];else UI.gpsPlOff[id]=1;render();},
   gpsAll:()=>{UI.gpsPlOff={};render();},
   gpsNone:()=>{const ev=gpsEvents().find(e=>e.id===UI.gpsEvent)||gpsEvents()[0];UI.gpsPlOff={};if(ev)Object.keys(ev.players||{}).forEach(id=>{if(DATA.players[id])UI.gpsPlOff[id]=1;});render();},
+  gpsProc:b=>{const k=b.dataset.k;let s=(UI.gpsProc&&UI.gpsProc.length)?UI.gpsProc.slice():['warmup','mt1','mt2'];if(s.includes(k)){if(s.length>1)s=s.filter(x=>x!==k);}else s.push(k);UI.gpsProc=s;render();},
+  gpsByPos:()=>{UI.gpsByPos=!UI.gpsByPos;render();},
+  gpsPdf:()=>gpsExportPdf(),
   goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
@@ -2890,15 +2921,15 @@ function gpsParse(){const txt=$('#gp-csv').value.trim();const out=$('#gp-prev');
   const lines=txt.split(/\r?\n/).filter(l=>l.trim());const sep=[';','\t',','].map(s=>[s,lines[0].split(s).length]).sort((a,b)=>b[1]-a[1])[0][0];
   const head=lines[0].split(sep).map(h=>norm(h));
   const find=(...keys)=>head.findIndex(h=>keys.some(k=>h.includes(k)));
-  const col={name:find('joueur','player','nom','name','athlete'),dist:find('distancetotale','totaldistance','distance','dist'),hsr:find('hsr','highspeed','hauteintensite','haute','hid'),sprint:find('sprint'),acc:find('acc'),dec:find('dec'),vmax:find('vmax','maxspeed','vitessemax','topspeed','maxvel'),min:find('minute','duree','duration','min')};
+  const col={name:find('joueur','player','nom','name','athlete'),dist:find('distancetotale','totaldistance','distance','dist'),hsr:find('hsr','highspeed','hauteintensite','haute','hid'),sprint:find('sprint'),acc:find('acceleration','acc'),dec:find('deceleration','dec'),vmax:find('vmax','maxspeed','vitessemax','topspeed','maxvel'),min:find('minute','duree','duration','min'),pload:find('playerload','chargejoueur','playerld')};
   if(col.name<0){out.innerHTML='<p class="small" style="color:var(--crit)">Colonne du nom du joueur introuvable.</p>';return;}
   const [c,id]=$('#gp-ev').value.split('|');const ev=DATA[c][id];if(!ev){out.innerHTML='<p class="small">Choisis une séance.</p>';return;}
   const ps=playersOf(ev.cat,true);const rows=[];
   lines.slice(1).forEach(l=>{const a=l.split(sep);const nm=norm(a[col.name]);if(!nm)return;const p=ps.find(p=>norm(p.name)===nm)||ps.find(p=>norm(p.name).startsWith(nm)||nm.startsWith(norm(p.name)));
-    const g=k=>col[k]>=0?num(String(a[col[k]]||'').replace(',','.').replace(/\s/g,'')):null;rows.push({raw:a[col.name],p,v:{dist:g('dist'),hsr:g('hsr'),sprint:g('sprint'),acc:g('acc'),dec:g('dec'),vmax:g('vmax'),min:g('min')}});});
+    const g=k=>col[k]>=0?num(String(a[col[k]]||'').replace(',','.').replace(/\s/g,'')):null;rows.push({raw:a[col.name],p,v:{dist:g('dist'),hsr:g('hsr'),sprint:g('sprint'),acc:g('acc'),dec:g('dec'),vmax:g('vmax'),min:g('min'),pload:g('pload')}});});
   GPS_PARSED={c,id,rows};const ok=rows.filter(r=>r.p).length;
   out.innerHTML=`<p class="small">${ok} ligne${ok>1?'s':''} associée${ok>1?'s':''} à un joueur sur ${rows.length}. Colonnes détectées : ${Object.entries(col).filter(([k,v])=>v>=0).map(([k])=>k).join(', ')}.</p>
-  <div class="tw"><table><thead><tr><th>Ligne</th><th>${PL.One}</th><th class="n">Dist.</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.raw)}</td><td>${r.p?esc(r.p.name):'<span class="pill warn">Non trouvé</span>'}</td>${['dist','hsr','sprint','acc','dec','vmax'].map(k=>`<td class="n">${r.v[k]??'–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+  <div class="tw"><table><thead><tr><th>Ligne</th><th>${PL.One}</th><th class="n">Dist.</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax</th><th class="n">P.Load</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.raw)}</td><td>${r.p?esc(r.p.name):'<span class="pill warn">Non trouvé</span>'}</td>${['dist','hsr','sprint','acc','dec','vmax','pload'].map(k=>`<td class="n">${r.v[k]??'–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
   <div class="row" style="margin-top:8px"><button class="btn pri" data-act="gpsApply" ${ok?'':'disabled'}>Ajouter à la séance</button></div>`;}
 async function gpsApply(){if(!GPS_PARSED)return;const {c,id,rows}=GPS_PARSED;const ev=JSON.parse(JSON.stringify(DATA[c][id]));ev.players=ev.players||{};
   rows.forEach(r=>{if(!r.p)return;const e=ev.players[r.p.id]||{};Object.entries(r.v).forEach(([k,v])=>{if(v!=null)e[k]=v;});ev.players[r.p.id]=e;});await put(c,id,ev);GPS_PARSED=null;toast('Données GPS ajoutées');UI.gpsEvent=id;go('gps');}
