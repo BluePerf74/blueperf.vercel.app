@@ -1300,31 +1300,98 @@ function spark(vals,color='var(--accent)'){const W=140,H=26;const mx=Math.max(1,
 /* ---------- GPS ---------- */
 function gpsEvents(){return [...Object.values(DATA.sessions).map(s=>({...s,kind:'session',col:'sessions'})),...Object.values(DATA.matches).map(m=>({...m,kind:'match',col:'matches',title:'Match vs '+m.opponent}))]
   .filter(inCat).filter(e=>e.date<=UI.ref&&Object.values(e.players||{}).some(x=>num(x.dist)!=null)).sort((a,b)=>b.date.localeCompare(a.date));}
+/* ===== GPS — tableau de bord détaillé (style Catapult), couleurs Elite Adapt ===== */
+const GPS_POS=[['Gardien',['GB']],['Défenseur',['DC']],['Latéral',['DL']],['Milieu',['MDC','MC','MO']],['Attaquant',['AIL','ATT']]];
+function gpsPosGroup(pos){const g=GPS_POS.find(([,arr])=>arr.includes(pos));return g?g[0]:'Autre';}
+const POS_COL={GB:'#f59e0b',DC:'#3b82f6',DL:'#06b6d4',MDC:'#8b5cf6',MC:'#8b5cf6',MO:'#8b5cf6',AIL:'#ef4444',ATT:'#ef4444'};
+const GPS_COLS=[
+ {k:'min',l:'Minutes',u:'min',c:'#64748b',f:v=>r0(v)},
+ {k:'dist',l:'Distance',u:'m',c:'#d1495b',f:v=>r0(v)},
+ {k:'mpm',l:'m/min',u:'',c:'#2a9d8f',f:v=>r0(v)},
+ {k:'hsr',l:'HSR',u:'m',c:'#0f9d9d',f:v=>r0(v)},
+ {k:'sprint',l:'Sprint',u:'m',c:'#e5604d',f:v=>r0(v)},
+ {k:'vmax',l:'Vmax',u:'km/h',c:'#2fbf71',f:v=>r1(v)},
+ {k:'acc',l:'Accél.',u:'nb',c:'#9d4b4b',f:v=>r0(v)},
+ {k:'dec',l:'Décél.',u:'nb',c:'#7a5cc7',f:v=>r0(v)},
+ {k:'pload',l:'Player Load',u:'',c:'#c2863a',f:v=>r0(v)}
+];
+function median(a){if(!a.length)return 0;const s=a.slice().sort((x,y)=>x-y),n=s.length;return n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2;}
+function hexA(hex,a){const h=hex.replace('#','');return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;}
+function gpsM(x,dur){const dist=num(x.dist)||0,min=num(x.min)??num(dur)??0,hsr=num(x.hsr)||0,sprint=num(x.sprint)||0,acc=num(x.acc)||0,dec=num(x.dec)||0,vmax=num(x.vmax)||0;
+  const pload=num(x.pload)!=null?num(x.pload):Math.round(dist/22+(acc+dec)*1.3);
+  const z4=Math.max(0,hsr-sprint),low=Math.max(0,dist-hsr),z1=Math.round(low*0.42),z2=Math.round(low*0.44),z3=Math.max(0,low-z1-z2);
+  return {min,dist,hsr,sprint,acc,dec,vmax,mpm:min?dist/min:0,pload,z:[z1,z2,z3,z4,sprint]};}
+function gpsHeatTable(rows){const cols=GPS_COLS;
+  const rg=cols.map(c=>{const vs=rows.map(r=>r.m[c.k]);return [Math.min(...vs),Math.max(...vs)];});
+  const head=`<tr><th style="text-align:left;position:sticky;left:0;background:var(--surface)">${PL.One}</th>${cols.map(c=>`<th class="n" style="font-size:10px;line-height:1.2">${c.l}<br><span class="muted" style="font-weight:400">${c.u||'&nbsp;'}</span></th>`).join('')}</tr>`;
+  const body=rows.map(r=>`<tr><td style="font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface)">${plink(r.p.id)}</td>${cols.map((c,i)=>{const v=r.m[c.k],[lo,hi]=rg[i],t=hi>lo?(v-lo)/(hi-lo):0;return `<td style="text-align:center;font-variant-numeric:tabular-nums;font-weight:600;background:${hexA(c.c,(0.1+0.5*t).toFixed(2))}">${c.f(v)}</td>`;}).join('')}</tr>`).join('');
+  return `<div class="tw"><table class="gpsheat"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;}
+function gpsZoneChart(rows){const Z=[['Zone 1','#3b82f6'],['Zone 2','#2fbf71'],['Zone 3','#f0b429'],['Zone 4','#f97316'],['Sprint','#ef4444']];
+  const data=rows.map(r=>({name:r.p.name,z:r.m.z,tot:r.m.z.reduce((a,b)=>a+b,0)})).sort((a,b)=>b.tot-a.tot);
+  const max=Math.max(1,...data.map(d=>d.tot)),n=data.length,bw=38,gap=20,padL=48,padB=74,padT=14,H=350,plotH=H-padT-padB,W=padL+n*(bw+gap)+12;
+  let axis='';for(let i=0;i<=5;i++){const y=padT+plotH*(1-i/5);axis+=`<line x1="${padL}" y1="${y}" x2="${W}" y2="${y}" stroke="var(--line)" opacity=".45"/><text x="${padL-6}" y="${y+3}" text-anchor="end" font-size="9" fill="var(--muted)">${r0(max*i/5)}</text>`;}
+  let bars='';data.forEach((d,i)=>{const x=padL+i*(bw+gap)+gap/2;let yb=padT+plotH;d.z.forEach((v,zi)=>{const h=v/max*plotH;yb-=h;bars+=`<rect x="${x}" y="${yb.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" fill="${Z[zi][1]}"><title>${esc(d.name)} · ${Z[zi][0]} : ${r0(v)} m</title></rect>`;});
+    bars+=`<text x="${x+bw/2}" y="${H-padB+15}" text-anchor="end" font-size="9.5" fill="var(--muted)" transform="rotate(-35 ${x+bw/2} ${H-padB+15})">${esc(d.name.length>15?d.name.slice(0,14)+'…':d.name)}</text>`;});
+  const legend=`<div class="row" style="gap:14px;flex-wrap:wrap;justify-content:center;font-size:11.5px;margin-bottom:8px">${Z.map(z=>`<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:${z[1]};vertical-align:middle;margin-right:4px"></span>${z[0]}</span>`).join('')}</div>`;
+  return legend+`<div style="overflow-x:auto"><svg width="${W}" height="${H}" style="min-width:100%;display:block">${axis}${bars}</svg></div>`;}
+function gpsScatter(rows,metric){const mc=GPS_COLS.find(c=>c.k===metric)||GPS_COLS[1];
+  const pts=rows.map(r=>({name:r.p.name,num:r.p.number,pos:r.p.pos,x:r.m[metric],y:(r.m.min||0)*(num(r.rpe)||0)})).filter(p=>p.x>0&&p.y>0);
+  const skipped=rows.length-pts.length;
+  if(pts.length<2)return '<p class="empty">Pas assez de données (RPE + GPS) pour ce graphique.</p>';
+  const W=860,H=430,padL=58,padR=22,padT=18,padB=46,pw=W-padL-padR,ph=H-padT-padB;
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);let xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
+  const xp=(xmax-xmin)*0.12||1,yp=(ymax-ymin)*0.12||1;xmin-=xp;xmax+=xp;ymin=Math.max(0,ymin-yp);ymax+=yp;
+  const X=v=>padL+(v-xmin)/(xmax-xmin)*pw,Y=v=>padT+ph*(1-(v-ymin)/(ymax-ymin)),mx=median(xs),my=median(ys);
+  let grid='';for(let i=0;i<=4;i++){grid+=`<line x1="${padL+pw*i/4}" y1="${padT}" x2="${padL+pw*i/4}" y2="${padT+ph}" stroke="var(--line)" opacity=".35"/><line x1="${padL}" y1="${padT+ph*i/4}" x2="${padL+pw}" y2="${padT+ph*i/4}" stroke="var(--line)" opacity=".35"/><text x="${padL+pw*i/4}" y="${H-padB+16}" text-anchor="middle" font-size="9" fill="var(--muted)">${r0(xmin+(xmax-xmin)*i/4)}</text><text x="${padL-8}" y="${Y(ymin+(ymax-ymin)*i/4)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${r0(ymin+(ymax-ymin)*i/4)}</text>`;}
+  const med=`<line x1="${X(mx)}" y1="${padT}" x2="${X(mx)}" y2="${padT+ph}" stroke="var(--muted)" stroke-dasharray="5 4" opacity=".6"/><line x1="${padL}" y1="${Y(my)}" x2="${padL+pw}" y2="${Y(my)}" stroke="var(--muted)" stroke-dasharray="5 4" opacity=".6"/>`;
+  const quad=`<text x="${padL+6}" y="${padT+14}" font-size="10.5" font-weight="700" fill="#e3aa3e">Fatigue ?</text><text x="${padL+pw-6}" y="${padT+14}" text-anchor="end" font-size="10.5" font-weight="700" fill="#e5604d">Charge lourde</text><text x="${padL+6}" y="${padT+ph-6}" font-size="10.5" font-weight="700" fill="var(--muted)">Sensibilité</text><text x="${padL+pw-6}" y="${padT+ph-6}" text-anchor="end" font-size="10.5" font-weight="700" fill="#2fbf71">Efficace</text>`;
+  const dots=pts.map(p=>{const c=POS_COL[p.pos]||'#3b82f6';return `<g><circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="13" fill="${c}" stroke="#fff" stroke-width="2"><title>${esc(p.name)} · sRPE ${r0(p.y)} · ${mc.l} ${mc.f(p.x)}</title></circle><text x="${X(p.x).toFixed(1)}" y="${(Y(p.y)+3.6).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" pointer-events="none">${p.num||''}</text></g>`;}).join('');
+  const ax=`<text x="${padL+pw/2}" y="${H-5}" text-anchor="middle" font-size="10" fill="var(--muted)">${mc.l}${mc.u?' ('+mc.u+')':''} — charge externe</text><text transform="rotate(-90 14 ${padT+ph/2})" x="14" y="${padT+ph/2}" text-anchor="middle" font-size="10" fill="var(--muted)">sRPE (charge interne)</text>`;
+  return `<div style="overflow-x:auto"><svg width="${W}" height="${H}" style="min-width:100%;display:block">${grid}${med}${quad}${dots}${ax}</svg></div>${skipped?`<p class="small muted" style="margin-top:6px">${skipped} joueur(s) sans RPE ou sans donnée non affiché(s).</p>`:''}`;}
+const GPS_STYLE=`<style>
+.gchips{display:flex;flex-wrap:wrap;gap:6px}
+.gchip{appearance:none;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;transition:.12s}
+.gchip:hover{border-color:var(--accent)}
+.gchip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.gchip.on::before{content:'✓ '}
+.gtabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 12px}
+.gtab{appearance:none;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;padding:9px 15px;font-size:13px;font-weight:600;transition:.12s}
+.gtab:hover{border-color:var(--accent)}
+.gtab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.gpsheat th{font-weight:700;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);text-align:center}
+.gpsheat td{padding:8px 9px}
+.gkpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+</style>`;
 VIEWS.gps=()=>{
-  const ps=playersOf(UI.cat);if(!ps.length)return emptyPlayers();const ref=UI.ref;const th=S().th;
-  const evs=gpsEvents();let ev=evs.find(e=>e.id===UI.gpsEvent)||evs[0];
-  const td=teamDaily(ps,ref,28,'dist');
-  const wk=ps.map(p=>{const t={dist:0,hsr:0,sprint:0,acc:0,dec:0,vmax:0};for(let i=0;i<7;i++){const x=pday(p.id,addDays(ref,-i));if(x){['dist','hsr','sprint','acc','dec'].forEach(k=>t[k]+=x[k]);t.vmax=Math.max(t.vmax,x.vmax);}}return{p,t,vx:lastVmaxExpo(p,ref),vr:vref(p)};});
-  let evTable='<div class="empty">Aucune donnée GPS. Saisis-les avec la séance ou colle un export CSV dans Saisie › Import GPS.</div>';
-  if(ev){const rows=Object.entries(ev.players||{}).filter(([pid])=>DATA.players[pid]).map(([pid,x])=>({p:DATA.players[pid],x,min:num(x.min)??num(ev.duration)}));
-    const avg=k=>mean(rows.map(r=>num(r.x[k])));
-    evTable=`<div class="tw"><table><thead><tr><th>${PL.One}</th><th class="n">Min</th><th class="n">Distance (m)</th><th class="n">m/min</th><th class="n">HSR &gt;${r1(th.hsr)} (m)</th><th class="n">Sprint &gt;${r0(th.sprint)} (m)</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax (km/h)</th><th class="n">% Vmax réf.</th></tr></thead><tbody>
-    ${rows.sort((a,b)=>(num(b.x.dist)||0)-(num(a.x.dist)||0)).map(({p,x,min})=>{const pv=vref(p);const pct=pv&&num(x.vmax)?num(x.vmax)/pv*100:null;return `<tr><td>${plink(p.id)}</td><td class="n">${r0(min)}</td><td class="n"><b>${r0(num(x.dist))}</b></td><td class="n">${min?r0(num(x.dist)/min):'–'}</td><td class="n">${r0(num(x.hsr))}</td><td class="n">${r0(num(x.sprint))}</td><td class="n">${r0(num(x.acc))}</td><td class="n">${r0(num(x.dec))}</td><td class="n">${r1(num(x.vmax))}</td><td class="n">${pct==null?'–':`<span class="pill ${pct>=th.vmaxPct?'good':'neutral'}">${r0(pct)} %</span>`}</td></tr>`;}).join('')}
-    <tr><td><b>Moyenne</b></td><td class="n">${r0(mean(rows.map(r=>r.min)))}</td><td class="n"><b>${r0(avg('dist'))}</b></td><td class="n">–</td><td class="n">${r0(avg('hsr'))}</td><td class="n">${r0(avg('sprint'))}</td><td class="n">${r0(avg('acc'))}</td><td class="n">${r0(avg('dec'))}</td><td class="n">${r1(avg('vmax'))}</td><td></td></tr></tbody></table></div>`;}
-  const noExpo=wk.filter(x=>!activeInjury(x.p.id,ref)&&(x.vx==null||x.vx>th.vmaxDays));
-  return `<div class="card"><div class="hrow"><h2>Séance ou match</h2><div class="row"><select id="gpsSel" style="width:auto;max-width:100%">${evs.map(e=>`<option value="${esc(e.id)}" ${ev&&e.id===ev.id?'selected':''}>${fmtD(e.date)} · ${esc(e.cat)} · ${esc(e.title||e.type)}</option>`).join('')}</select><button class="btn sm" data-act="goEntry" data-id="gps">Importer un CSV</button></div></div>${evTable}</div>
-  <div class="grid g2">
-    <div class="card"><div class="hrow"><h2>Distance moyenne par jour</h2><span class="small muted">28 jours · par joueur présent</span></div>${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'m',legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
-    <div class="card"><div class="hrow"><h2>Haute intensité sur 7 jours</h2><span class="small muted">HSR cumulée par joueur (m)</span></div>${hbars(wk.slice().sort((a,b)=>b.t.hsr-a.t.hsr).map(x=>({label:x.p.name,value:x.t.hsr,tip:x.p.name+' : '+r0(x.t.hsr)+' m de HSR, '+r0(x.t.sprint)+' m de sprint'})),{unit:'m'})}</div>
-  </div>
-  <div class="card"><div class="hrow"><h2>Cumul 7 jours et exposition à la vitesse maximale</h2><span class="small muted">Objectif : au moins 1 exposition ≥ ${th.vmaxPct} % de la Vmax de référence tous les ${th.vmaxDays} jours</span></div>
-    ${noExpo.length?`<p class="small" style="margin-top:0"><span class="pill warn">${noExpo.length} joueur${noExpo.length>1?'s':''} sans exposition récente</span> ${noExpo.map(x=>esc(x.p.name)).join(', ')}</p>`:''}
-    <div class="tw"><table><thead><tr><th>${PL.One}</th><th class="n">Distance</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Acc.</th><th class="n">Déc.</th><th class="n">Vmax 7 j</th><th class="n">Vmax réf.</th><th class="n">Dernière expo ≥${th.vmaxPct} %</th></tr></thead><tbody>
-    ${wk.map(({p,t,vx,vr})=>`<tr><td>${plink(p.id)}</td><td class="n">${r0(t.dist)}</td><td class="n">${r0(t.hsr)}</td><td class="n">${r0(t.sprint)}</td><td class="n">${r0(t.acc)}</td><td class="n">${r0(t.dec)}</td><td class="n">${t.vmax?r1(t.vmax):'–'}</td><td class="n">${r1(vr)}</td>
-      <td class="n">${vx==null?'<span class="pill warn">Jamais</span>':`<span class="pill ${vx>th.vmaxDays?'warn':'good'}">${vx===0?"Aujourd'hui":'J-'+vx}</span>`}</td></tr>`).join('')}
-    </tbody></table></div></div>`;
+  const ps=playersOf(UI.cat);if(!ps.length)return emptyPlayers();
+  const evs=gpsEvents();const ev=evs.find(e=>e.id===UI.gpsEvent)||evs[0];
+  const sel=`<select data-chg="gpsSel" style="width:auto;max-width:100%">${evs.map(e=>`<option value="${esc(e.id)}" ${ev&&e.id===ev.id?'selected':''}>${fmtD(e.date)} · ${esc(e.cat)} · ${esc(e.title||e.type)}</option>`).join('')}</select>`;
+  const header=`<div class="card"><div class="hrow"><div><div class="eyebrow">📡 Données GPS</div><h2 style="margin:2px 0 0">${'Rapport de séance'}</h2></div><div class="row" style="gap:8px"><button class="btn sm pri" data-act="goEntry" data-id="gps">📥 ${'Importer un CSV'}</button></div></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center"><span class="small muted">${'Séance / date'}</span>${evs.length?sel:''}</div></div>`;
+  if(!ev)return GPS_STYLE+header+`<div class="card"><div class="empty">${'Aucune donnée GPS. Importe un CSV (Catapult, GPEXE…) via « Importer un CSV », ou saisis-les avec la séance.'}</div></div>`;
+  const all=Object.entries(ev.players||{}).filter(([pid,x])=>DATA.players[pid]&&num(x.dist)!=null).map(([pid,x])=>({p:DATA.players[pid],m:gpsM(x,ev.duration),rpe:x.rpe}));
+  if(!all.length)return GPS_STYLE+header+`<div class="card"><div class="empty">${'Cette séance n’a pas encore de données GPS.'}</div></div>`;
+  const off=UI.gpsPlOff||{};
+  const posGroups=[...new Set(all.map(r=>gpsPosGroup(r.p.pos)))];
+  const posChips=posGroups.map(g=>{const ids=all.filter(r=>gpsPosGroup(r.p.pos)===g).map(r=>r.p.id);const allOn=ids.every(id=>!off[id]);return `<button class="gchip${allOn?' on':''}" data-act="gpsPos" data-g="${esc(g)}">${g}</button>`;}).join('');
+  const plChips=all.map(r=>`<button class="gchip${off[r.p.id]?'':' on'}" data-act="gpsPl" data-id="${esc(r.p.id)}">${esc(r.p.name)}</button>`).join('');
+  const rows=all.filter(r=>!off[r.p.id]).sort((a,b)=>b.m.dist-a.m.dist);
+  const avg=k=>rows.length?mean(rows.map(r=>r.m[k])):0;
+  const kpis=`<div class="gkpi">${kpi('Joueurs',rows.length,'')}${kpi('Distance moy.',r0(avg('dist')),'m')}${kpi('HSR moy.',r0(avg('hsr')),'m')}${kpi('Sprint moy.',r0(avg('sprint')),'m')}${kpi('Vmax moy.',r1(avg('vmax')),'km/h')}</div>`;
+  const filters=`<div class="card" style="margin-top:14px"><div class="small" style="font-weight:600;margin-bottom:8px">${'Filtrer les joueurs'} <span class="muted">(${rows.length}/${all.length})</span> <button class="btn sm" data-act="gpsAll" style="margin-left:8px">${'Tous'}</button><button class="btn sm" data-act="gpsNone">${'Aucun'}</button></div><div class="gchips" style="margin-bottom:9px">${posChips}</div><div class="gchips">${plChips}</div></div>`;
+  const view=UI.gpsView||'table';
+  const tabB=(id,lbl)=>`<button class="gtab${view===id?' on':''}" data-act="gpsTab" data-id="${id}">${lbl}</button>`;
+  const tabs=`<div class="gtabs">${tabB('table','📋 '+'Tableau détaillé')}${tabB('compare','📊 '+'Comparaison')}${tabB('zones','🚦 '+'Zones de vitesse')}${tabB('load','⚖️ '+'Charge interne / externe')}</div>`;
+  let body;
+  if(!rows.length){body=`<div class="card"><div class="empty">${'Aucun joueur sélectionné.'}</div></div>`;}
+  else if(view==='compare'){const mk=GPS_COLS.some(c=>c.k===UI.gpsMetric)?UI.gpsMetric:'dist';const mc=GPS_COLS.find(c=>c.k===mk);
+    const msel=`<select data-chg="gpsMetric" style="width:auto">${GPS_COLS.filter(c=>c.k!=='min').map(c=>`<option value="${c.k}" ${mk===c.k?'selected':''}>${c.l}${c.u?' ('+c.u+')':''}</option>`).join('')}</select>`;
+    body=`<div class="card"><div class="hrow"><h2>${'Comparaison par joueur'}</h2>${msel}</div>${hbars(rows.slice().sort((a,b)=>b.m[mk]-a.m[mk]).map(r=>({label:r.p.name,value:r.m[mk],color:mc.c,tip:r.p.name+' : '+mc.f(r.m[mk])+(mc.u?' '+mc.u:'')})),{unit:mc.u})}</div>`;}
+  else if(view==='zones'){body=`<div class="card"><div class="hrow"><h2>${'Distance par zone de vitesse'}</h2></div><p class="small muted" style="margin-top:0">${'Survole une barre pour voir la distance de chaque zone.'}</p>${gpsZoneChart(rows)}</div>`;}
+  else if(view==='load'){const mk=['dist','hsr','sprint','pload'].includes(UI.gpsMetric)?UI.gpsMetric:'dist';
+    body=`<div class="card"><div class="hrow"><h2>${'Charge interne vs externe'}</h2><select data-chg="gpsMetric" style="width:auto">${GPS_COLS.filter(c=>['dist','hsr','sprint','pload'].includes(c.k)).map(c=>`<option value="${c.k}" ${mk===c.k?'selected':''}>${c.l}</option>`).join('')}</select></div><p class="small muted" style="margin-top:0">${'sRPE (minutes × RPE) vs charge externe GPS. En haut à gauche = effort perçu élevé pour peu de volume : fatigue à surveiller. Pointillés = médianes.'}</p>${gpsScatter(rows,mk)}</div>`;}
+  else{body=`<div class="card"><div class="hrow"><h2>${'Tableau détaillé'}</h2><span class="small muted">${'Couleur = intensité par colonne'}</span></div>${gpsHeatTable(rows)}</div>`;}
+  return GPS_STYLE+header+kpis+filters+tabs+body;
 };
-POST.gps=()=>{const s=$('#gpsSel');if(s)s.onchange=()=>{UI.gpsEvent=s.value;render();};};
 
 /* ---------- COMPÉTITION ---------- */
 VIEWS.comp=()=>{
@@ -2672,6 +2739,11 @@ const ACT={
   spLogoDel:b=>{const i=+b.dataset.wk;const cat=spKey();const plan=spGet(cat);const w=plan.weeks[i]=plan.weeks[i]||{};delete w.logo;spSave(cat,plan);},
   spRefresh:()=>{render();toast('Planification actualisée');},
   spExportPdf:()=>spExportPdf(),
+  gpsTab:b=>{UI.gpsView=b.dataset.id;render();},
+  gpsPos:b=>{const g=b.dataset.g;UI.gpsPlOff=UI.gpsPlOff||{};const ev=gpsEvents().find(e=>e.id===UI.gpsEvent)||gpsEvents()[0];if(!ev)return;const ids=Object.keys(ev.players||{}).filter(pid=>DATA.players[pid]&&gpsPosGroup(DATA.players[pid].pos)===g);const allOn=ids.every(id=>!UI.gpsPlOff[id]);ids.forEach(id=>{if(allOn)UI.gpsPlOff[id]=1;else delete UI.gpsPlOff[id];});render();},
+  gpsPl:b=>{UI.gpsPlOff=UI.gpsPlOff||{};const id=b.dataset.id;if(UI.gpsPlOff[id])delete UI.gpsPlOff[id];else UI.gpsPlOff[id]=1;render();},
+  gpsAll:()=>{UI.gpsPlOff={};render();},
+  gpsNone:()=>{const ev=gpsEvents().find(e=>e.id===UI.gpsEvent)||gpsEvents()[0];UI.gpsPlOff={};if(ev)Object.keys(ev.players||{}).forEach(id=>{if(DATA.players[id])UI.gpsPlOff[id]=1;});render();},
   goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
@@ -2796,6 +2868,8 @@ const CHG={
   spMicroGoto:t=>{UI.spMicro=+t.value;renderDrawer();},
   spOver:t=>{if(t.dataset.k==='plan')UI.spOverPlan=t.checked;else if(t.dataset.k==='real')UI.spOverReal=t.checked;render();},
   spGps:t=>{UI.spGpsMetric=t.value;render();},
+  gpsSel:t=>{UI.gpsEvent=t.value;UI.gpsPlOff={};render();},
+  gpsMetric:t=>{UI.gpsMetric=t.value;render();},
   rpeSess:t=>{UI.rpeSess=t.value;render();},
   indivClient:t=>{UI.indivClient=t.value;render();},
   reminderToggle:async t=>{await saveSettings({reminders:t.checked});toast(t.checked?'Rappels activés':'Rappels désactivés');},
