@@ -1116,7 +1116,7 @@ VIEWS.overview=()=>{
   }).filter(x=>x.noWell||x.noRpe);
   const toFillCard=`<div class="card"><div class="hrow"><h2>À saisir aujourd'hui</h2><span class="small muted">${toFill.length?toFill.length+' joueur·se(s) sans RPE ou wellness':'Tout est saisi'}</span></div>
     ${toFill.length?`<div class="tw"><table><thead><tr><th>${PL.One}</th><th>Manque</th><th></th></tr></thead><tbody>
-      ${toFill.map(x=>`<tr><td>${plink(x.p.id)}</td>
+      ${toFill.map(x=>`<tr><td>${plinkA(x.p.id)}</td>
         <td>${[x.noWell?'<span class="pill warn">Wellness</span>':'',x.noRpe?'<span class="pill warn">RPE séance</span>':''].filter(Boolean).join(' ')}</td>
         <td><button class="btn sm pri" data-act="fillPlayer" data-id="${esc(x.p.id)}" data-tab="${x.noWell?'sante':'rpe'}">Saisir</button></td></tr>`).join('')}
       </tbody></table></div>`:'<p class="muted" style="margin:0">Tous les RPE et wellness du jour sont saisis. 👍</p>'}</div>`;
@@ -1134,7 +1134,7 @@ VIEWS.overview=()=>{
         ${dayMiss.map(x=>`<tr><td>${DAYS[wd(x.d)]} ${fmtShort(x.d)}</td><td class="n">${x.wMiss?`<span class="pill warn">${x.wMiss}</span>`:'<span class="muted">0</span>'}</td><td class="n">${x.rMiss?`<span class="pill warn">${x.rMiss}</span>`:'<span class="muted">0</span>'}</td></tr>`).join('')}
         </tbody></table></div></div>
       <div><h3 style="margin:0 0 6px">Oublis RPE par ${PL.one} (21 j)</h3>
-        ${rpePlayers.length?`<div class="tw"><table><tbody>${rpePlayers.slice(0,12).map(x=>`<tr><td>${plink(x.p.id)}</td><td class="n"><span class="pill warn">${x.c} jour${x.c>1?'s':''}</span></td></tr>`).join('')}</tbody></table></div>${rpePlayers.length>12?`<p class="small muted" style="margin:6px 0 0">+ ${rpePlayers.length-12} autre·s</p>`:''}`:'<p class="muted" style="margin:0">Aucun oubli RPE 👍</p>'}
+        ${rpePlayers.length?`<div class="tw"><table><tbody>${rpePlayers.slice(0,12).map(x=>`<tr><td>${plinkA(x.p.id)}</td><td class="n"><span class="pill warn">${x.c} jour${x.c>1?'s':''}</span></td></tr>`).join('')}</tbody></table></div>${rpePlayers.length>12?`<p class="small muted" style="margin:6px 0 0">+ ${rpePlayers.length-12} autre·s</p>`:''}`:'<p class="muted" style="margin:0">Aucun oubli RPE 👍</p>'}
       </div>
     </div>
     <h3 style="margin:14px 0 6px">Check-in wellness du jour non rempli${wellMiss.length?' ('+wellMiss.length+')':''}</h3>
@@ -1171,7 +1171,7 @@ VIEWS.overview=()=>{
   <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
     <div class="card"><div class="hrow"><h2>État de forme du groupe</h2><span class="small muted">Trié par priorité · clique un joueur pour sa fiche</span></div>
       <div class="tw"><table><thead><tr><th>${PL.One}</th>${UI.cat==='Tous'?'<th>Cat.</th>':''}<th>Poste</th><th>Statut</th><th class="n">Wellness</th><th class="n">ACWR</th><th class="n">Charge 7 j</th><th class="n">≥${th.vmaxPct} % Vmax</th><th>Motifs</th></tr></thead><tbody>
-      ${st.map(({p,s})=>`<tr><td>${plink(p.id)}</td>${UI.cat==='Tous'?`<td>${esc(p.cat)}</td>`:''}<td>${esc(p.pos||'')}</td><td>${lvPill(s.lv)}</td>
+      ${st.map(({p,s})=>`<tr><td>${plinkA(p.id)}</td>${UI.cat==='Tous'?`<td>${esc(p.cat)}</td>`:''}<td>${esc(p.pos||'')}</td><td>${lvPill(s.lv)}</td>
         <td class="n">${s.w.today!=null?`<span class="pill ${wCls(s.w.today)}">${r0(s.w.today)} %</span>`:'<span class="muted">–</span>'}</td>
         <td class="n">${s.e.acwr!=null?`<span class="pill ${acwrCls(s.e.acwr)}">${r2(s.e.acwr)}</span>`:'–'}</td>
         <td class="n">${r0(weekStats(p.id,ref).sum)}</td><td class="n">${s.vx==null?'–':s.vx===0?"aujourd'hui":'il y a '+s.vx+' j'}</td>
@@ -1275,11 +1275,11 @@ VIEWS.health=()=>{
   </div>
   <div class="card"><div class="hrow"><h2>Carte de chaleur, 14 jours</h2><span class="small muted">Score wellness (%) · rouge sous ${th.well} %, orange jusqu'à ${th.well+12} %</span></div>
     <div class="tw"><table class="hm"><thead><tr><th>${PL.One}</th>${days.map(d=>`<th class="n" style="text-align:center">${DAYS[wd(d)]}<br>${fmtShort(d)}</th>`).join('')}<th class="n">Moy.</th></tr></thead><tbody>
-    ${ps.map(p=>{const v=days.map(d=>wOf(p.id,d));return `<tr><td>${plink(p.id)}</td>${v.map((x,i)=>`<td class="c" style="background:${x==null?'transparent':`var(--${wCls(x)}-soft)`};color:${x==null?'var(--muted)':`var(--${wCls(x)})`}" data-tip="${esc(p.name+' · '+fmtD(days[i])+'\n'+(x==null?'Non rempli':wTip(wEntry(p.id,days[i]))))}">${x==null?'·':r0(x)}</td>`).join('')}<td class="n"><b>${r0(mean(v))}</b></td></tr>`;}).join('')}
+    ${ps.map(p=>{const v=days.map(d=>wOf(p.id,d));return `<tr><td>${plinkA(p.id)}</td>${v.map((x,i)=>`<td class="c" style="background:${x==null?'transparent':`var(--${wCls(x)}-soft)`};color:${x==null?'var(--muted)':`var(--${wCls(x)})`}" data-tip="${esc(p.name+' · '+fmtD(days[i])+'\n'+(x==null?'Non rempli':wTip(wEntry(p.id,days[i]))))}">${x==null?'·':r0(x)}</td>`).join('')}<td class="n"><b>${r0(mean(v))}</b></td></tr>`;}).join('')}
     </tbody></table></div></div>
   <div class="card"><div class="hrow"><h2>Détail du ${fmtD(ref,{day:'numeric',month:'long'})}</h2><span class="small muted">échelle 1 (très bien) → 5 (mauvais) · z = écart à la moyenne individuelle des 28 derniers jours</span></div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th>${WK.map(k=>`<th class="n">${WL[k]}</th>`).join('')}<th class="n">Score</th><th class="n">z</th><th>Commentaire</th><th></th></tr></thead><tbody>
-    ${st.map(({p,w,e})=>`<tr><td>${plink(p.id)}</td>${WK.map(k=>{const v=num(e&&e[k]);return `<td class="n" style="${v!=null&&v<=2?'color:var(--crit);font-weight:700':''}">${v!=null?6-v:'–'}</td>`;}).join('')}
+    ${st.map(({p,w,e})=>`<tr><td>${plinkA(p.id)}</td>${WK.map(k=>{const v=num(e&&e[k]);return `<td class="n" style="${v!=null&&v<=2?'color:var(--crit);font-weight:700':''}">${v!=null?6-v:'–'}</td>`;}).join('')}
       <td class="n">${w.today!=null?`<span class="pill ${wCls(w.today)}">${r0(w.today)} %</span>`:'–'}</td><td class="n" style="${w.z!=null&&w.z<th.wz?'color:var(--crit);font-weight:700':''}">${w.z!=null?r1(w.z):'–'}</td><td class="small">${esc(e&&e.note||'')}</td><td>${e?`<button class="btn sm danger" data-act="delWell" data-pid="${esc(p.id)}" data-date="${ref}">Suppr.</button>`:''}</td></tr>`).join('')}
     </tbody></table></div>
     ${missing.length?`<p class="note">Non remplis : ${missing.map(x=>esc(x.p.name)).join(', ')}</p>`:''}</div>
@@ -1311,7 +1311,7 @@ VIEWS.load=()=>{
   </div>
   <div class="card"><div class="hrow"><h2>Charge individuelle</h2><span class="small muted">Variation : 7 derniers jours vs moyenne des 3 semaines précédentes · alerte au-delà de ±${th.weekChg} %</span></div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th><th class="n">7 j (UA)</th><th class="n">Sem. préc.</th><th class="n">Variation</th><th class="n">Monotonie</th><th class="n">Strain</th><th class="n">Aiguë</th><th class="n">Chronique</th><th class="n">ACWR</th><th>Tendance 28 j</th></tr></thead><tbody>
-    ${rows.map(({p,w,e})=>{const l=loads(p.id,ref,28);return `<tr><td>${plink(p.id)}</td><td class="n"><b>${r0(w.sum)}</b></td><td class="n">${r0(w.prev)}</td>
+    ${rows.map(({p,w,e})=>{const l=loads(p.id,ref,28);return `<tr><td>${plinkA(p.id)}</td><td class="n"><b>${r0(w.sum)}</b></td><td class="n">${r0(w.prev)}</td>
       <td class="n">${w.chg==null?'–':`<span class="pill ${Math.abs(w.chg)>th.weekChg?(w.chg>0?'crit':'warn'):'good'}">${w.chg>0?'+':''}${r0(w.chg)} %</span>`}</td>
       <td class="n" style="${w.mono>th.monotony?'color:var(--warn);font-weight:700':''}">${w.mono!=null?r2(w.mono):'–'}</td><td class="n">${r0(w.strain)}</td>
       <td class="n">${r0(e.acute)}</td><td class="n">${r0(e.chronic)}</td><td class="n">${e.acwr!=null?`<span class="pill ${acwrCls(e.acwr)}">${r2(e.acwr)}</span>`:'–'}</td>
@@ -1376,7 +1376,7 @@ function gpsRecalc(e){if(!e.sp)return e;const o={min:0,dist:0,hsr:0,sprint:0,acc
 function gpsHeatTable(rows){const cols=GPS_COLS;
   const rg=cols.map(c=>{const vs=rows.map(r=>r.m[c.k]);return [Math.min(...vs),Math.max(...vs)];});
   const head=`<tr><th style="text-align:left;position:sticky;left:0;background:var(--surface)">${PL.One}</th>${cols.map(c=>`<th class="n" style="font-size:10px;line-height:1.2">${c.l}<br><span class="muted" style="font-weight:400">${c.u||'&nbsp;'}</span></th>`).join('')}</tr>`;
-  const body=rows.map(r=>`<tr><td style="font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface)">${plink(r.p.id)}</td>${cols.map((c,i)=>{const v=r.m[c.k],[lo,hi]=rg[i],t=hi>lo?(v-lo)/(hi-lo):0;return `<td style="text-align:center;font-variant-numeric:tabular-nums;font-weight:600;background:${hexA(c.c,(0.1+0.5*t).toFixed(2))}">${c.f(v)}</td>`;}).join('')}</tr>`).join('');
+  const body=rows.map(r=>`<tr><td style="font-weight:600;white-space:nowrap;position:sticky;left:0;background:var(--surface)">${plinkA(r.p.id)}</td>${cols.map((c,i)=>{const v=r.m[c.k],[lo,hi]=rg[i],t=hi>lo?(v-lo)/(hi-lo):0;return `<td style="text-align:center;font-variant-numeric:tabular-nums;font-weight:600;background:${hexA(c.c,(0.1+0.5*t).toFixed(2))}">${c.f(v)}</td>`;}).join('')}</tr>`).join('');
   return `<div class="tw"><table class="gpsheat"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;}
 function gpsZoneChart(rows){const Z=[['Zone 1','#3b82f6'],['Zone 2','#2fbf71'],['Zone 3','#f0b429'],['Zone 4','#f97316'],['Sprint','#ef4444']];
   const data=rows.map(r=>({name:r.p.name,z:r.m.z,tot:r.m.z.reduce((a,b)=>a+b,0)})).sort((a,b)=>b.tot-a.tot);
@@ -1497,7 +1497,7 @@ VIEWS.comp=()=>{
       <div style="font-family:var(--fd);font-size:30px;font-weight:700">${esc(m.cat)} ${esc(m.gf)} – ${esc(m.ga)} ${esc(m.opponent)} <span class="pill ${res(m)==='V'?'good':res(m)==='D'?'crit':'neutral'}" style="vertical-align:middle">${res(m)==='V'?'Victoire':res(m)==='D'?'Défaite':'Nul'}</span></div></div>
       <div class="row"><button class="btn sm" data-act="edit" data-col="matches" data-id="${esc(m.id)}">Modifier</button></div></div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th><th>Tit.</th><th class="n">Min</th><th class="n">Buts</th><th class="n">PD</th><th class="n">Cartons</th><th class="n">Note</th><th class="n">RPE</th><th class="n">Distance</th><th class="n">HSR</th><th class="n">Sprint</th><th class="n">Vmax</th></tr></thead><tbody>
-    ${rows.map(({p,e})=>`<tr><td>${plink(p.id)}</td><td>${e.starter?'Oui':'Non'}</td><td class="n">${r0(num(e.min))}</td><td class="n">${num(e.goals)||''}</td><td class="n">${num(e.assists)||''}</td><td class="n">${num(e.yellow)?'<span class="pill warn">J</span>':''}${num(e.red)?'<span class="pill crit">R</span>':''}</td><td class="n">${r1(num(e.rating))}</td><td class="n">${r0(num(e.rpe))}</td><td class="n">${r0(num(e.dist))}</td><td class="n">${r0(num(e.hsr))}</td><td class="n">${r0(num(e.sprint))}</td><td class="n">${r1(num(e.vmax))}</td></tr>`).join('')}
+    ${rows.map(({p,e})=>`<tr><td>${plinkA(p.id)}</td><td>${e.starter?'Oui':'Non'}</td><td class="n">${r0(num(e.min))}</td><td class="n">${num(e.goals)||''}</td><td class="n">${num(e.assists)||''}</td><td class="n">${num(e.yellow)?'<span class="pill warn">J</span>':''}${num(e.red)?'<span class="pill crit">R</span>':''}</td><td class="n">${r1(num(e.rating))}</td><td class="n">${r0(num(e.rpe))}</td><td class="n">${r0(num(e.dist))}</td><td class="n">${r0(num(e.hsr))}</td><td class="n">${r0(num(e.sprint))}</td><td class="n">${r1(num(e.vmax))}</td></tr>`).join('')}
     </tbody></table></div>`;}
   return `<div class="grid g6">${kpi('Matchs',ms.length,'')}${kpi('Victoires',W,'','',W?'good':null)}${kpi('Nuls',N,'')}${kpi('Défaites',L,'')}${kpi('Buts marqués',sum(ms.map(x=>num(x.gf))),'',ms.length?r1(sum(ms.map(x=>num(x.gf)))/ms.length)+' par match':'')}${kpi('Buts encaissés',sum(ms.map(x=>num(x.ga))),'',ms.length?r1(sum(ms.map(x=>num(x.ga)))/ms.length)+' par match':'')}</div>
   <div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,2.2fr)">
@@ -1507,7 +1507,7 @@ VIEWS.comp=()=>{
   </div>
   <div class="card"><div class="hrow"><h2>Statistiques de la saison</h2><span class="small muted">% temps de jeu = minutes jouées / minutes possibles</span></div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th><th>Poste</th><th class="n">Matchs</th><th class="n">Tit.</th><th class="n">Minutes</th><th>Temps de jeu</th><th class="n">Buts</th><th class="n">PD</th><th class="n">Cartons J</th><th class="n">Note moy.</th><th class="n">Dist./90</th></tr></thead><tbody>
-    ${season.sort((a,b)=>b.min-a.min).map(r=>`<tr><td>${plink(r.p.id)}</td><td>${esc(r.p.pos||'')}</td><td class="n">${r.n}</td><td class="n">${r.st}</td><td class="n"><b>${r0(r.min)}</b></td><td style="min-width:120px"><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${clamp(r.pct||0,0,100)}%"></i></div><span class="small">${r.pct!=null?r0(r.pct)+' %':'–'}</span></div></td><td class="n">${r.g}</td><td class="n">${r.a}</td><td class="n">${r.y}</td><td class="n">${r.rt!=null?r1(r.rt):'–'}</td><td class="n">${r.d90?r0(r.d90):'–'}</td></tr>`).join('')}
+    ${season.sort((a,b)=>b.min-a.min).map(r=>`<tr><td>${plinkA(r.p.id)}</td><td>${esc(r.p.pos||'')}</td><td class="n">${r.n}</td><td class="n">${r.st}</td><td class="n"><b>${r0(r.min)}</b></td><td style="min-width:120px"><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${clamp(r.pct||0,0,100)}%"></i></div><span class="small">${r.pct!=null?r0(r.pct)+' %':'–'}</span></div></td><td class="n">${r.g}</td><td class="n">${r.a}</td><td class="n">${r.y}</td><td class="n">${r.rt!=null?r1(r.rt):'–'}</td><td class="n">${r.d90?r0(r.d90):'–'}</td></tr>`).join('')}
     </tbody></table></div></div>${indiv}`;
 };
 POST.comp=()=>{const s=$('#compPl');if(s)s.onchange=()=>{UI.compPlayer=s.value;render();};};
@@ -1884,7 +1884,7 @@ VIEWS.testing=()=>{
   </div>
   <div class="card"><div class="hrow"><h2>Suivi par joueur : ${esc(t.name)}</h2><span class="small muted">Variation vs session précédente</span></div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th>${tDates.map(d=>`<th class="n">${fmtShort(d)}</th>`).join('')}<th class="n">Variation</th><th class="n">z groupe</th></tr></thead><tbody>
-    ${rows.map(r=>`<tr><td>${plink(r.p.id)}</td>${tDates.map(d=>{const b=bats.find(x=>x.date===d&&x.cat===r.p.cat);const v=b?num(b.results[t.id][r.p.id]):null;return `<td class="n">${v!=null?fr(v,2):'–'}</td>`;}).join('')}
+    ${rows.map(r=>`<tr><td>${plinkA(r.p.id)}</td>${tDates.map(d=>{const b=bats.find(x=>x.date===d&&x.cat===r.p.cat);const v=b?num(b.results[t.id][r.p.id]):null;return `<td class="n">${v!=null?fr(v,2):'–'}</td>`;}).join('')}
       <td class="n">${r.chg==null?'–':`<span class="pill ${(hi?r.chg:-r.chg)>1?'good':(hi?r.chg:-r.chg)<-3?'crit':'neutral'}">${r.chg>0?'+':''}${r1(r.chg)} %</span>`}</td><td class="n">${r.z!=null?r1(r.z):'–'}</td></tr>`).join('')}
     </tbody></table></div></div>
   <div class="card"><div class="hrow"><h2>Sessions de tests</h2></div><div class="tw"><table><thead><tr><th>Date</th><th>Cat.</th><th>Intitulé</th><th>Tests</th><th class="n">Joueurs</th><th></th></tr></thead><tbody>
@@ -1970,13 +1970,13 @@ VIEWS.muscu=()=>{
     ${withPct.length?`<h3 style="margin-top:16px">Charges individuelles (kg)</h3><p class="note" style="margin-top:0">% 1RM × 1RM du joueur, arrondi à 2,5 kg. Charges indiquées seulement si la technique est au moins « Acquis ».</p>
     <div class="tw"><table><thead><tr><th>${PL.One}</th>${withPct.map(e=>`<th class="n">${esc(e.name)}<br><span style="text-transform:none">${esc(e.sets)}×${esc(e.reps)} @ ${esc(e.pct)} %</span></th>`).join('')}</tr></thead><tbody>
     ${cp.map(p=>{const mx=(DATA.maxes[p.id]||{}).values||{};const sk=(DATA.maxes[p.id]||{}).skills||{};const minSk=Math.min(...skills.map(s=>num(sk[s])??0));
-      return `<tr><td>${plink(p.id)}</td>${withPct.map(e=>{const rm=num(mx[e.name]);return `<td class="n">${rm?(minSk>=2?`<b>${fr(Math.round(rm*num(e.pct)/100/2.5)*2.5,1)}</b>`:`<span class="pill warn" data-tip="Technique à valider avant de charger">Technique</span>`):'<span class="muted">1RM ?</span>'}</td>`;}).join('')}</tr>`;}).join('')}</tbody></table></div>`:''}`;}
+      return `<tr><td>${plinkA(p.id)}</td>${withPct.map(e=>{const rm=num(mx[e.name]);return `<td class="n">${rm?(minSk>=2?`<b>${fr(Math.round(rm*num(e.pct)/100/2.5)*2.5,1)}</b>`:`<span class="pill warn" data-tip="Technique à valider avant de charger">Technique</span>`):'<span class="muted">1RM ?</span>'}</td>`;}).join('')}</tr>`;}).join('')}</tbody></table></div>`:''}`;}
   return `<div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,3fr)">
     <div class="card"><div class="hrow"><h3>Programmes</h3><button class="btn sm pri" data-act="progEdit" data-id="new">Nouveau</button></div><div class="stack" style="gap:6px">${progs.map(p=>`<button class="btn" style="justify-content:space-between;${sel&&p.id===sel.id&&!editing?'border-color:var(--accent);color:var(--accent)':''}" data-act="progSel" data-id="${esc(p.id)}"><span>${esc(p.name)}</span><span class="small muted">${esc(p.cat)}</span></button>`).join('')||'<p class="muted small">Aucun</p>'}</div></div>
     <div class="card">${progHtml}</div></div>
   <div class="card"><div class="hrow"><h2>1RM et maîtrise technique</h2><span class="small muted">Les valeurs s’enregistrent dès que tu quittes la case</span></div>
     ${ps.length?`<div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th>${exos.map(e=>`<th>${esc(e)} (kg)</th>`).join('')}${skills.map(s=>`<th>${esc(s)}</th>`).join('')}</tr></thead><tbody>
-    ${ps.map(p=>{const m=DATA.maxes[p.id]||{};const v=m.values||{},sk=m.skills||{};return `<tr><td>${plink(p.id)}</td>${exos.map(e=>`<td><input type="number" step="2.5" min="0" value="${esc(v[e]??'')}" data-chg="max" data-id="${esc(p.id)}" data-k="${esc(e)}" aria-label="${esc(p.name+' '+e)}"></td>`).join('')}
+    ${ps.map(p=>{const m=DATA.maxes[p.id]||{};const v=m.values||{},sk=m.skills||{};return `<tr><td>${plinkA(p.id)}</td>${exos.map(e=>`<td><input type="number" step="2.5" min="0" value="${esc(v[e]??'')}" data-chg="max" data-id="${esc(p.id)}" data-k="${esc(e)}" aria-label="${esc(p.name+' '+e)}"></td>`).join('')}
       ${skills.map(s=>`<td><select data-chg="skill" data-id="${esc(p.id)}" data-k="${esc(s)}" aria-label="${esc(p.name+' '+s)}" style="width:110px">${SKL.map((l,k)=>`<option value="${k}" ${(num(sk[s])??0)===k?'selected':''}>${l}</option>`).join('')}</select></td>`).join('')}</tr>`;}).join('')}</tbody></table></div>`:emptyPlayers()}</div>
   <div class="card"><h3>Calculateur de 1RM (Epley)</h3><div class="row"><div class="f"><label for="ep-kg">Charge (kg)</label><input type="number" id="ep-kg" style="width:120px"></div><div class="f"><label for="ep-reps">Répétitions</label><input type="number" id="ep-reps" style="width:120px"></div><div class="f"><label>1RM estimé</label><div id="ep-out" style="font-family:var(--fd);font-size:26px;font-weight:700">–</div></div></div>
     <p class="note">1RM = charge × (1 + répétitions / 30). Fiable jusqu’à environ 10 répétitions. Chez les jeunes, préfère un test sur 3 à 5 RM à un vrai 1RM.</p></div>`;
@@ -2010,12 +2010,12 @@ VIEWS.medical=()=>{
   ${fiche}
   <div class="card"><div class="hrow"><h2>Blessures en cours</h2><button class="btn sm pri" data-act="goEntry" data-id="injury">Déclarer une blessure</button></div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th><th>Zone</th><th>Type</th><th>Date</th><th class="n">Jours</th><th>Statut</th><th>Retour prévu</th><th></th></tr></thead><tbody>
-    ${cur.map(i=>`<tr><td>${plink(i.pid)}</td><td>${esc(i.zone)}</td><td>${esc(i.type||'')}</td><td>${fmtD(i.date)}</td><td class="n">${daysOut(i)}</td><td><span class="pill ${i.status==='soins'?'crit':i.status==='reathle'?'info':'warn'}">${STATUS_LABEL[i.status]}${i.status==='reathle'?' · ph. '+((i.phase||0)+1):''}</span></td><td>${fmtD(i.expectedReturn)}</td>
+    ${cur.map(i=>`<tr><td>${plinkA(i.pid)}</td><td>${esc(i.zone)}</td><td>${esc(i.type||'')}</td><td>${fmtD(i.date)}</td><td class="n">${daysOut(i)}</td><td><span class="pill ${i.status==='soins'?'crit':i.status==='reathle'?'info':'warn'}">${STATUS_LABEL[i.status]}${i.status==='reathle'?' · ph. '+((i.phase||0)+1):''}</span></td><td>${fmtD(i.expectedReturn)}</td>
       <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="medOpen" data-id="${esc(i.id)}">Fiche</button>${i.status==='soins'?`<button class="btn sm" data-act="injStatus" data-id="${esc(i.id)}" data-v="reathle">→ Réathlé</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="8" class="muted">Aucun blessé</td></tr>'}
     </tbody></table></div></div>
   <div class="grid g2"><div class="card"><h3>Répartition par zone</h3>${hbars(Object.entries(zones).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k,value:v})))}</div><div class="card"><h3>Mécanisme</h3>${hbars(Object.entries(mech).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k,value:v,color:'var(--s2)'})))}</div></div>
   <div class="card"><h3>Historique</h3><div class="tw"><table><thead><tr><th>${PL.One}</th><th>Zone</th><th>Type</th><th>Date</th><th>Retour</th><th class="n">Jours</th><th>Gravité</th><th>Contexte</th><th></th></tr></thead><tbody>
-    ${hist.map(i=>`<tr><td>${plink(i.pid)}</td><td>${esc(i.zone)}</td><td>${esc(i.type||'')}</td><td>${fmtD(i.date)}</td><td>${fmtD(i.returnDate)}</td><td class="n">${daysOut(i)}</td><td>${sev(daysOut(i))}</td><td>${esc(i.context||'')}</td><td><button class="btn sm" data-act="medOpen" data-id="${esc(i.id)}">Fiche</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">Aucune blessure clôturée</td></tr>'}
+    ${hist.map(i=>`<tr><td>${plinkA(i.pid)}</td><td>${esc(i.zone)}</td><td>${esc(i.type||'')}</td><td>${fmtD(i.date)}</td><td>${fmtD(i.returnDate)}</td><td class="n">${daysOut(i)}</td><td>${sev(daysOut(i))}</td><td>${esc(i.context||'')}</td><td><button class="btn sm" data-act="medOpen" data-id="${esc(i.id)}">Fiche</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">Aucune blessure clôturée</td></tr>'}
   </tbody></table></div></div>`;
 };
 </script>
