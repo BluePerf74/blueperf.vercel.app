@@ -876,7 +876,7 @@ async function loadSessionsToday(){
     const parts=(Array.isArray(s.procedes)&&s.procedes.length)?s.procedes.map((p,j)=>p.type||('Procédé '+(j+1))):(Array.isArray(s.parts)?s.parts:[]);
     const partRpe=me.partRpe||{};
     items.push({sid:s.id,col:'sessions',session:s,isMatch:false,parts,open:!!open,remain:s.rpeOpenedAt?(s.rpeOpenedAt+RPE_WINDOW_MS-now):null,
-      rpe:me.rpe!=null?me.rpe:null,partVals:parts.map((_,j)=>partRpe[j]!=null?partRpe[j]:null)});
+      rpe:me.rpe!=null?me.rpe:null,mrpe:me.mrpe!=null?me.mrpe:null,partVals:parts.map((_,j)=>partRpe[j]!=null?partRpe[j]:null)});
   });
   // Matchs affectés (difficulté RPE + note de perf + commentaire)
   Object.values(allM).forEach(m=>{
@@ -889,7 +889,7 @@ async function loadSessionsToday(){
     if(COACH_MODE){if(m.date!==FEEL_DATE)return;}else if(!(open||(submitted&&m.date===FEEL_DATE)))return;
     items.push({sid:m.id,col:'matches',isMatch:true,session:Object.assign({},m,{title:'Match vs '+(m.opponent||''),type:'Match'}),
       open:!!open,remain:m.rpeOpenedAt?(m.rpeOpenedAt+RPE_WINDOW_MS-now):null,parts:[],
-      rpe:me.rpe!=null?me.rpe:null,perf:me.perf!=null?me.perf:null,comment:me.comment||''});
+      rpe:me.rpe!=null?me.rpe:null,mrpe:me.mrpe!=null?me.mrpe:null,perf:me.perf!=null?me.perf:null,comment:me.comment||''});
   });
   SESSIONS_TODAY=items;
 }
@@ -899,16 +899,18 @@ function drawSessions(){
   el.innerHTML=SESSIONS_TODAY.map((o,i)=>{
     const chrono=o.open&&o.remain!=null?` · <span class="chrono" data-remain="${(o.session.rpeOpenedAt||0)+RPE_WINDOW_MS}" style="color:var(--good);font-weight:600">ferme dans ${fmtRemainE(o.remain)}</span>`:(!o.open?' · <span style="color:var(--warn);font-weight:600">fenêtre fermée</span>':'');
     const head=`<div class="t">${esc(o.session.title||o.session.type||'Séance')}</div>
-      <div class="m">${esc(o.session.type||'')}${o.session.duration?' · '+o.session.duration+' min':''}${o.rpe!=null?' · RPE '+o.rpe:''}${o.isMatch&&o.perf!=null?' · Perf '+o.perf:''}${chrono}</div>`;
+      <div class="m">${esc(o.session.type||'')}${o.session.duration?' · '+o.session.duration+' min':''}${o.rpe!=null?' · RPE '+o.rpe:''}${o.mrpe!=null?' · 🧠 '+o.mrpe:''}${o.isMatch&&o.perf!=null?' · Perf '+o.perf:''}${chrono}</div>`;
     let body;
+    const mentalBlock=`<label style="display:block;margin-top:12px">🧠 Charge mentale (0 → 10) <span class="muted" style="font-weight:400">· facultatif</span></label><div class="muted" style="font-size:12px;margin:0 0 2px">Concentration, prise de décision, pression, fatigue mentale</div>${rpeScale('mrpe-'+i,o.mrpe)}`;
     if(o.isMatch){
       body=`<label>Difficulté du match (1 → 10)</label>${scaleTen('sess-'+i+'-0',o.rpe)}
         <label style="display:block;margin-top:12px">Ta note de performance (1 → 10)</label>${scaleTen('perf-'+i,o.perf)}
+        ${mentalBlock}
         <label style="display:block;margin-top:12px">Commentaire (optionnel)</label><input id="cmt-${i}" value="${esc(o.comment||'')}" placeholder="Ton ressenti sur le match…" style="margin-top:2px">`;
     }else if(o.parts.length){
-      body=o.parts.map((name,j)=>`<div style="margin-bottom:10px"><label>${(j+1)+'. '+esc(name)} — RPE (0 → 10)</label>${rpeScale('sess-'+i+'-'+j,o.partVals[j])}</div>`).join('');
+      body=o.parts.map((name,j)=>`<div style="margin-bottom:10px"><label>${(j+1)+'. '+esc(name)} — RPE (0 → 10)</label>${rpeScale('sess-'+i+'-'+j,o.partVals[j])}</div>`).join('')+mentalBlock;
     }else{
-      body=`<label>RPE ressenti (0 → 10)</label>${rpeScale('sess-'+i+'-0',o.rpe)}`;
+      body=`<label>RPE ressenti (0 → 10)</label>${rpeScale('sess-'+i+'-0',o.rpe)}${mentalBlock}`;
     }
     const btn=o.open?`<button class="btn sec" data-savesess="${i}" style="margin-top:10px">Enregistrer${o.isMatch?' ma note':(o.parts.length?' les RPE':' le RPE')}</button>
       <span class="ok" id="sess-ok-${i}" style="margin-left:8px"></span>`:`<p class="muted" style="font-size:12.5px;margin:6px 0 0">La fenêtre (4 h) est fermée${o.rpe!=null?' — ta note a bien été enregistrée.':'. Contacte ton coach.'}</p>`;
@@ -918,6 +920,7 @@ function drawSessions(){
     if(!o.open)return;
     if(o.isMatch){bindRpeScale('sess-'+i+'-0',v=>o.rpe=v);bindRpeScale('perf-'+i,v=>o.perf=v);}
     else{const n=o.parts.length||1;for(let j=0;j<n;j++){bindRpeScale('sess-'+i+'-'+j,v=>{if(o.parts.length){o.partVals[j]=v;}else{o.rpe=v;}});}}
+    bindRpeScale('mrpe-'+i,v=>o.mrpe=v);
   });
   startEspaceChrono();
   document.querySelectorAll('[data-savesess]').forEach(b=>b.onclick=async()=>{
@@ -925,15 +928,15 @@ function drawSessions(){
     if(o.isMatch){
       if(o.rpe==null){ok.textContent='⚠️ Choisis la difficulté (RPE) avant d\'enregistrer.';return;}
       b.disabled=true;
-      try{const cmt=$('#cmt-'+i)?$('#cmt-'+i).value:'';await saveMatchRating(o.sid,o.rpe,o.perf,cmt);ok.textContent='✓ enregistré';await loadMySessions();}
+      try{const cmt=$('#cmt-'+i)?$('#cmt-'+i).value:'';await saveMatchRating(o.sid,o.rpe,o.perf,cmt,o.mrpe);ok.textContent='✓ enregistré';await loadMySessions();}
       catch(e){ok.textContent='échec';}
       b.disabled=false;return;
     }
     if(o.parts.length?o.partVals.some(v=>v==null):o.rpe==null){ok.textContent='⚠️ Choisis ton RPE'+(o.parts.length>1?' pour chaque procédé':'')+' avant d\'enregistrer.';return;}
     b.disabled=true;
     try{
-      if(o.parts.length)await saveSessionParts(o.sid,o.partVals);
-      else await saveSessionRpe(o.sid,o.rpe);
+      if(o.parts.length)await saveSessionParts(o.sid,o.partVals,o.mrpe);
+      else await saveSessionRpe(o.sid,o.rpe,o.mrpe);
       ok.textContent='✓ enregistré';await loadMySessions();
     }catch(e){ok.textContent='échec';}
     b.disabled=false;
@@ -951,29 +954,29 @@ function bindRpeScale(id,cb){
   sc.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{sc.querySelectorAll('button').forEach(x=>x.classList.remove('on'));btn.classList.add('on');cb(+btn.getAttribute('data-v'));});
 }
 
-async function saveSessionRpe(sid,rpe){
+async function saveSessionRpe(sid,rpe,mrpe){
   const all=await kvGet(SPACE+':sessions');
   const s=all[sid];if(!s)throw new Error('no session');
   s.players=s.players||{};
-  s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{rpe:rpe,min:(s.players[PLAYER.id]&&s.players[PLAYER.id].min)||s.duration||60});
+  s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{rpe:rpe,mrpe:(mrpe==null?null:mrpe),min:(s.players[PLAYER.id]&&s.players[PLAYER.id].min)||s.duration||60});
   all[sid]=s;
   await kvSet(SPACE+':sessions',all);
 }
-async function saveSessionParts(sid,vals){
+async function saveSessionParts(sid,vals,mrpe){
   const all=await kvGet(SPACE+':sessions');
   const s=all[sid];if(!s)throw new Error('no session');
   s.players=s.players||{};
   const partRpe={};vals.forEach((v,j)=>partRpe[j]=v);
   const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
-  s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{partRpe:partRpe,rpe:avg,min:(s.players[PLAYER.id]&&s.players[PLAYER.id].min)||s.duration||60});
+  s.players[PLAYER.id]=Object.assign({},s.players[PLAYER.id]||{},{partRpe:partRpe,rpe:avg,mrpe:(mrpe==null?null:mrpe),min:(s.players[PLAYER.id]&&s.players[PLAYER.id].min)||s.duration||60});
   all[sid]=s;
   await kvSet(SPACE+':sessions',all);
 }
-async function saveMatchRating(mid,rpe,perf,comment){
+async function saveMatchRating(mid,rpe,perf,comment,mrpe){
   const all=await kvGet(SPACE+':matches');
   const m=all[mid];if(!m)throw new Error('no match');
   m.players=m.players||{};
-  m.players[PLAYER.id]=Object.assign({},m.players[PLAYER.id]||{},{rpe:rpe,perf:(perf==null?null:perf),comment:(comment||'').trim(),min:(m.players[PLAYER.id]&&m.players[PLAYER.id].min)||m.duration||90});
+  m.players[PLAYER.id]=Object.assign({},m.players[PLAYER.id]||{},{rpe:rpe,mrpe:(mrpe==null?null:mrpe),perf:(perf==null?null:perf),comment:(comment||'').trim(),min:(m.players[PLAYER.id]&&m.players[PLAYER.id].min)||m.duration||90});
   all[mid]=m;
   await kvSet(SPACE+':matches',all);
 }

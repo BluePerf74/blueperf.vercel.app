@@ -605,9 +605,9 @@ function makeDemo(){
         ps.forEach(p=>{if(unavailable(p.id,d))return;const gk=p.pos==='GB';
           const f=J(.88,1.12)*k*(gk?.6:1);
           const vp=t[9]+J(-.05,.03)-(p.number%3===0&&w===3?.06:0);
-          players[p.id]={rpe:clamp(Math.round(t[3]+J(-1.2,1.2)),1,10),min:t[2],dist:Math.round(t[4]*f),hsr:Math.round(t[5]*f),sprint:Math.round(t[6]*f*(gk?.2:1)),acc:Math.round(t[7]*f),dec:Math.round(t[8]*f),vmax:+(p.vmax*clamp(vp,.55,.99)).toFixed(1)};});
+          players[p.id]={rpe:clamp(Math.round(t[3]+J(-1.2,1.2)),1,10),mrpe:clamp(Math.round(t[3]*.7+J(-1.5,2)),1,10),min:t[2],dist:Math.round(t[4]*f),hsr:Math.round(t[5]*f),sprint:Math.round(t[6]*f*(gk?.2:1)),acc:Math.round(t[7]*f),dec:Math.round(t[8]*f),vmax:+(p.vmax*clamp(vp,.55,.99)).toFixed(1)};});
         D.sessions[sid]={id:sid,date:d,cat,type:t[1],title:t[0],duration:t[2],objective:t[10],content:'',players};
-        if(w===1){const sid2='m-'+cat+'-'+d;const pl={};ps.forEach(p=>{if(unavailable(p.id,d))return;pl[p.id]={rpe:clamp(Math.round(5+J(-1,1.4)),1,10),min:45};});
+        if(w===1){const sid2='m-'+cat+'-'+d;const pl={};ps.forEach(p=>{if(unavailable(p.id,d))return;pl[p.id]={rpe:clamp(Math.round(5+J(-1,1.4)),1,10),mrpe:clamp(Math.round(4+J(-1,2)),1,10),min:45};});
           D.sessions[sid2]={id:sid2,date:d,cat,type:'Salle',title:cat==='U18'?'Force — bloc 1':'Prévention & gainage',duration:45,objective:'Force',content:'',players:pl};}
       }
       if(w===5&&d<TODAY){
@@ -618,7 +618,7 @@ function makeDemo(){
           const f=min/dur*k*(p.pos==='GB'?.55:1);
           const g=p.pos!=='GB'&&goals>0&&R()<(['ATT','AIL','MO'].includes(p.pos)?.45:.12)?1:0;goals-=g;
           const a=p.pos!=='GB'&&assists>0&&R()<.3?1:0;assists-=a;
-          players[p.id]={min,starter,goals:g,assists:a,yellow:R()<.08?1:0,red:0,rating:+J(5,8.2).toFixed(1),rpe:clamp(Math.round(J(6.5,9)),1,10),
+          players[p.id]={min,starter,goals:g,assists:a,yellow:R()<.08?1:0,red:0,rating:+J(5,8.2).toFixed(1),rpe:clamp(Math.round(J(6.5,9)),1,10),mrpe:clamp(Math.round(J(6,9.5)),1,10),
             dist:Math.round((cat==='U18'?10100:8300)*f*J(.92,1.08)),hsr:Math.round(820*f*J(.8,1.2)),sprint:Math.round(210*f*J(.6,1.4)*(p.pos==='GB'?.1:1)),acc:Math.round(70*f*J(.8,1.2)),dec:Math.round(66*f*J(.8,1.2)),vmax:+(p.vmax*J(.9,.99)).toFixed(1)};});
         D.matches[mid]={id:mid,date:d,cat,opponent:o,venue:R()<.5?'Domicile':'Extérieur',competition:cat==='U18'?'Championnat National U19':'Championnat U16 R1',gf,ga,duration:dur,players};
       }
@@ -738,8 +738,8 @@ function buildIndex(){
     if(UI.cat!=='Tous')UI.cat=INDIV_CAT;
   }
   const P={};Object.keys(DATA.players).forEach(id=>P[id]={days:{},vmaxObs:0});
-  const add=(pid,date,e,dur,kind)=>{const p=P[pid];if(!p||!e)return;const d=p.days[date]||(p.days[date]={load:0,min:0,dist:0,hsr:0,sprint:0,acc:0,dec:0,vmax:0,match:false,n:0,gps:false});
-    const min=num(e.min)??num(dur)??0;const rpe=num(e.rpe);if(rpe!=null)d.load+=rpe*min;d.min+=min;
+  const add=(pid,date,e,dur,kind)=>{const p=P[pid];if(!p||!e)return;const d=p.days[date]||(p.days[date]={load:0,mload:0,mmax:0,min:0,dist:0,hsr:0,sprint:0,acc:0,dec:0,vmax:0,match:false,n:0,gps:false});
+    const min=num(e.min)??num(dur)??0;const rpe=num(e.rpe);if(rpe!=null)d.load+=rpe*min;const mrpe=num(e.mrpe);if(mrpe!=null){d.mload+=mrpe*min;d.mmax=Math.max(d.mmax,mrpe);}d.min+=min;
     ['dist','hsr','sprint','acc','dec'].forEach(k=>{const v=num(e[k]);if(v!=null){d[k]+=v;d.gps=true;}});
     const vm=num(e.vmax)||0;d.vmax=Math.max(d.vmax,vm);if(kind==='match')d.match=true;d.n++;p.vmaxObs=Math.max(p.vmaxObs,vm);};
   Object.values(DATA.sessions).forEach(s=>Object.entries(s.players||{}).forEach(([pid,e])=>add(pid,s.date,e,s.duration,'session')));
@@ -2684,6 +2684,7 @@ function renderDrawer(){
   const p=DATA.players[UI.drawer];if(!p){host.innerHTML='';document.body.style.overflow='';return;}
   const ref=UI.ref;const s=playerStatus(p,ref);const days=range(addDays(ref,-27),ref);
   const wv=days.map(d=>wOf(p.id,d));const lv=days.map(d=>{const x=pday(p.id,d);return x?x.load:0;});const isM=days.map(d=>{const x=pday(p.id,d);return x&&x.match;});
+  const mv=days.map(d=>{const x=pday(p.id,d);return x?x.mload:0;});const m7=sum(mv.slice(-7));const mHas=sum(mv)>0;
   const ac=days.map(d=>ewma(p.id,d).acwr);const w=weekStats(p.id,ref);
   const tests=S().tests.map(t=>{const sr=testSeries(p.id,t.id);return{t,last:sr[sr.length-1],prev:sr[sr.length-2]};}).filter(x=>x.last);
   const inj=Object.values(DATA.injuries).filter(i=>i.pid===p.id).sort((a,b)=>b.date.localeCompare(a.date));
@@ -2698,7 +2699,7 @@ function renderDrawer(){
 
   const panelProfil=`
     <div class="card"><div class="row">${lvPill(s.lv)}${s.reasons.map(r=>`<span class="pill ${r.l>=3?'crit':r.l===2?'warn':'neutral'}">${esc(r.t)}</span>`).join('')||'<span class="small muted">Aucun signal particulier</span>'}</div></div>
-    <div class="grid g4">${kpi('Wellness',s.w.today!=null?r0(s.w.today):'–','%',s.w.mean!=null?'Habitude '+r0(s.w.mean)+' %':'')}${kpi('Charge 7 j',r0(w.sum),'UA',w.chg!=null?(w.chg>0?'+':'')+r0(w.chg)+' % vs 3 sem.':'')}${kpi('ACWR',s.e.acwr!=null?r2(s.e.acwr):'–','','EWMA 7/28 j')}${kpi('Matchs',mn,'',r0(mm)+' min · '+g+' B · '+a+' PD')}</div>
+    <div class="grid g4">${kpi('Wellness',s.w.today!=null?r0(s.w.today):'–','%',s.w.mean!=null?'Habitude '+r0(s.w.mean)+' %':'')}${kpi('Charge 7 j',r0(w.sum),'UA',w.chg!=null?(w.chg>0?'+':'')+r0(w.chg)+' % vs 3 sem.':'')}${kpi('🧠 Charge mentale 7 j',mHas?r0(m7):'–','UA',mHas&&w.sum?r0(m7/w.sum*100)+' % de la charge phys.':'sRPE mentale')}${kpi('ACWR',s.e.acwr!=null?r2(s.e.acwr):'–','','EWMA 7/28 j')}${kpi('Matchs',mn,'',r0(mm)+' min · '+g+' B · '+a+' PD')}</div>
     <div class="grid g2">
       <div class="card"><h3>Infos</h3><div class="stack small">
         <div class="row sb"><span>Catégorie</span><b>${esc(p.cat)}</b></div>
@@ -2754,6 +2755,7 @@ function renderDrawer(){
   const panelProg=`
     <div class="card"><h3>Wellness, 28 jours</h3>${lineChart({labels:days,series:[{name:'Wellness',values:wv,color:COL_TR,dots:true}],yMin:30,yMax:100,refs:[{v:S().th.well,label:'Seuil'}],h:150})}</div>
     <div class="card"><h3>Charge quotidienne (sRPE)</h3>${barChart({labels:days,values:lv,colors:isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',h:150,legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
+    ${mHas?`<div class="card"><h3>🧠 Charge mentale quotidienne (sRPE mentale)</h3>${barChart({labels:days,values:mv,colors:isM.map(m=>m?'#ff9a8b':'#f2617a'),unit:'UA',h:150,legend:[['Entraînement','#f2617a'],['Match','#ff9a8b']]})}<p class="note">Charge mentale = note de contrainte mentale (0→10) × durée, déclarée par le ${PL.one} dans son questionnaire.</p></div>`:''}
     <div class="card"><h3>ACWR</h3>${lineChart({labels:days,series:[{name:'ACWR',values:ac,color:COL_TR}],band:[S().th.acwrLo,S().th.acwrHi],h:140,fmt:v=>r2(v),yMin:0})}<p class="note">Zone verte : ${r1(S().th.acwrLo)} à ${r1(S().th.acwrHi)}.</p></div>`;
 
   const panels={profil:panelProfil,match:panelMatch,tests:panelTests,eval:panelEval,inj:panelInj,prog:panelProg};
