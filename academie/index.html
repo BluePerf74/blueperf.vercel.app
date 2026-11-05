@@ -141,6 +141,34 @@ a{color:var(--accent)}
 .pf-list.warn li::before{content:"▸";color:var(--warn)}
 .sect-head{margin:4px 0 -6px;padding-bottom:4px;border-bottom:2px solid var(--line)}
 .sect-title{margin:0;font-family:var(--fd);font-size:19px;font-weight:600}
+/* CALENDRIER DES SÉANCES */
+.cal2{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.cal2-row{display:grid;align-items:stretch;border-bottom:1px solid var(--line);position:relative;min-width:max-content}
+.cal2-row:last-child{border-bottom:0}
+.cal2-head{position:sticky;top:0;z-index:4;background:var(--surface-2)}
+.cal2-th{padding:8px 6px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;border-left:1px solid var(--line)}
+.cal2-th.today{color:var(--accent);background:var(--accent-soft)}
+.cal2-th2{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+.cal2-name{padding:9px 11px;position:sticky;left:0;z-index:2;background:var(--surface);display:flex;gap:9px;align-items:center;border-right:1px solid var(--line-2)}
+.cal2-head .cal2-name{background:var(--surface-2)}
+.cal2-cell{padding:6px;border-left:1px solid var(--line);min-height:62px;display:flex;flex-direction:column;gap:3px;justify-content:center}
+.cal2-tag{font-size:11px;font-weight:700;text-align:center}
+.cal2-chip{font-size:10px;font-weight:700;padding:3px 5px;border-radius:5px;background:var(--surface);border:1px solid var(--line-2);text-align:center;line-height:1.15;letter-spacing:.02em;color:var(--ink-2)}
+.cal2-chip.val{border-color:var(--good);box-shadow:inset 3px 0 0 var(--good)}
+.cal2-chip.inval{border-color:var(--crit);color:var(--crit);box-shadow:inset 3px 0 0 var(--crit)}
+.cal2-chip.plan{border-style:dashed;color:var(--accent);border-color:var(--accent);background:transparent}
+.cal2-dash{color:var(--muted);text-align:center}
+.cal2-spark{position:absolute;top:0;bottom:0;right:0;left:180px;pointer-events:none;z-index:1}
+.st-done{background:color-mix(in srgb,var(--good) 13%,var(--surface))}
+.st-rest{background:var(--surface-2)}
+.st-inj{background:color-mix(in srgb,var(--crit) 16%,var(--surface))}
+.st-ill{background:color-mix(in srgb,var(--warn) 18%,var(--surface))}
+.st-rea{background:color-mix(in srgb,var(--s3) 16%,var(--surface))}
+.st-plan{background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+.st-abs{background:color-mix(in srgb,var(--crit) 8%,var(--surface))}
+.st-empty{background:var(--surface)}
+.cal2-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--ink-2);margin-bottom:10px}
+.cal2-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 /* transitions / polish */
 .card{transition:box-shadow .16s,border-color .16s,transform .16s}
 .btn{transition:border-color .14s,color .14s,background .14s,box-shadow .14s}
@@ -1159,6 +1187,48 @@ VIEWS.joueur=()=>{
 POST.joueur=()=>{};
 /* ===================== ONGLET SÉANCES (difficulté via RPE) ===================== */
 function rpeDiff(r){if(r==null)return ['—','neutral'];if(r<4)return ['Légère','good'];if(r<5.5)return ['Modérée','info'];if(r<7)return ['Soutenue','warn'];return ['Très difficile','crit'];}
+function seanceCalendar(){
+  const ref=UI.ref;
+  const from=UI.seanceFrom||addDays(ref,-5);let to=UI.seanceTo||addDays(ref,4);if(to<from)to=from;
+  let days=range(from,to);if(days.length>21)days=days.slice(0,21);const nd=days.length;
+  const roster=playersOf(UI.cat,true);
+  const curve=UI.seanceCurve||'off';
+  const evAll=[...Object.values(DATA.sessions).map(x=>({...x,_m:false})),...Object.values(DATA.matches).map(x=>({...x,_m:true,title:x.title||('Match vs '+(x.opponent||'?')),type:'Match'}))];
+  const byPD={};evAll.forEach(e=>{if(!e.players)return;Object.keys(e.players).forEach(pid=>{const k=pid+'|'+e.date;(byPD[k]=byPD[k]||[]).push(e);});});
+  const teamDay={};evAll.forEach(e=>{teamDay[e.cat+'|'+e.date]=true;});
+  const planPD={};Object.values(DATA.plan).forEach(pl=>{const k=pl.cat+'|'+pl.date;(planPD[k]=planPD[k]||[]).push(pl);});
+  const injP={};Object.values(DATA.injuries).forEach(i=>{(injP[i.pid]=injP[i.pid]||[]).push(i);});
+  const isIll=i=>/malad|grippe|angine|virus|gastro|fi[eè]vre|rhume/i.test(((i&&i.type)||'')+' '+((i&&i.zone)||''));
+  const injOn=(pid,d)=>(injP[pid]||[]).filter(i=>i.date<=d&&(i.returnDate?d<=i.returnDate:(i.status!=='apte'))).sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
+  const colTmpl=`grid-template-columns:180px repeat(${nd},minmax(108px,1fr))`;
+  const head=`<div class="cal2-row cal2-head" style="${colTmpl}"><div class="cal2-name cal2-th2">${PL.One}</div>`+days.map(d=>`<div class="cal2-th${d===ref?' today':''}">${DAYS[wd(d)]} ${fmtShort(d)}</div>`).join('')+`</div>`;
+  let maxCharge=1;if(curve==='charge')roster.forEach(p=>days.forEach(d=>{const x=pday(p.id,d);if(x&&x.load>maxCharge)maxCharge=x.load;}));
+  const rows=roster.map(p=>{
+    const cells=days.map(d=>{
+      const future=d>ref;const inj=injOn(p.id,d);
+      if(inj){const cls=isIll(inj)?'st-ill':(inj.status==='reathle'?'st-rea':'st-inj');const tag=isIll(inj)?'Malade':(inj.status==='reathle'?'Réathlé':'Blessure');return `<div class="cal2-cell ${cls}"><span class="cal2-tag">${tag}</span></div>`;}
+      const evs=byPD[p.id+'|'+d]||[];
+      if(evs.length){const chips=evs.map(e=>{let vc='';if(!e._m&&!future){const pl=e.players[p.id];if(pl&&(pl.rpe!=null||(pl.partRpe&&Object.keys(pl.partRpe).length)))vc=' val';else if(dayDiff(ref,d)>2)vc=' inval';}const note=(e.content||e.report)?' 📄':'';return `<span class="cal2-chip${vc}">${esc((e.title||e.type||'Séance').toUpperCase())}${note}</span>`;}).join('');return `<div class="cal2-cell ${future?'st-plan':'st-done'}">${chips}</div>`;}
+      const plans=planPD[p.cat+'|'+d]||[];
+      if(plans.length)return `<div class="cal2-cell st-plan">${plans.map(pl=>`<span class="cal2-chip plan">${esc((pl.title||pl.type||'Séance').toUpperCase())}</span>`).join('')}</div>`;
+      if(future)return `<div class="cal2-cell st-empty"><span class="cal2-dash">—</span></div>`;
+      if(teamDay[p.cat+'|'+d])return `<div class="cal2-cell st-abs"><span class="cal2-tag" style="color:var(--crit)">Absent</span></div>`;
+      return `<div class="cal2-cell st-rest"><span class="cal2-tag" style="color:var(--muted)">Repos</span></div>`;
+    }).join('');
+    let spark='';
+    if(curve!=='off'){const vals=days.map(d=>{if(curve==='charge'){const x=pday(p.id,d);return x?x.load:0;}return wOf(p.id,d);});const mx=curve==='charge'?maxCharge:100;let dstr='',first=true;vals.forEach((v,i)=>{if(v==null){first=true;return;}const x=i+0.5,y=100-(Math.max(0,Math.min(mx,v))/mx)*86-7;dstr+=(first?'M':'L')+x.toFixed(2)+' '+y.toFixed(2)+' ';first=false;});spark=`<svg class="cal2-spark" viewBox="0 0 ${nd} 100" preserveAspectRatio="none"><path d="${dstr}" fill="none" stroke="var(--accent)" stroke-width="1.7" vector-effect="non-scaling-stroke" opacity=".6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;}
+    return `<div class="cal2-row" style="${colTmpl}"><div class="cal2-name">${pAvatar(p,'xs')}<div style="min-width:0"><div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</div><div class="small muted">${esc(p.cat)}${p.pos?' · '+esc(p.pos):''}</div></div></div>${cells}${spark}</div>`;
+  }).join('');
+  const curveLabel=curve==='off'?'Graphique Hooper / Charge':curve==='charge'?'Affiché : Charge (sRPE)':'Affiché : Wellness / Hooper';
+  const controls=`<div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
+    ${INDIV?'':`<div class="f" style="min-width:110px"><label>Groupe</label><select data-chg="calCat">${['Tous',...cats()].map(c=>`<option ${UI.cat===c?'selected':''}>${esc(c)}</option>`).join('')}</select></div>`}
+    <div class="f" style="min-width:120px"><label>Du</label><input type="date" data-chg="calFrom" value="${from}"></div>
+    <div class="f" style="min-width:120px"><label>Au</label><input type="date" data-chg="calTo" value="${to}"></div>
+    <button class="btn sm" data-act="calToday">↺ Autour d'aujourd'hui</button>
+    <button class="btn sm${curve!=='off'?' pri':''}" data-act="calCurve">📈 ${curveLabel}</button></div>`;
+  const legend=`<div class="cal2-legend">${[['Entraîné','var(--good)'],['Repos','var(--muted)'],['Blessure','var(--crit)'],['Réathlé','var(--s3)'],['Malade','var(--warn)'],['Absent','#8a93a6'],['Planifiée','var(--accent)'],['Validée (RPE saisi)','var(--good)'],['Non validée > 48 h','var(--crit)']].map(([l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>`;
+  return `<div class="card"><div class="hrow"><h2>Calendrier des séances</h2><span class="small muted">${nd} jours · ${roster.length} ${PL.one}s</span></div>${legend}${controls}<div class="cal2">${head}${rows}</div><p class="note" style="margin-top:8px">Pastille verte = séance validée (RPE saisi) · rouge = non validée depuis plus de 48 h · pointillés = séance planifiée. Bouton « Graphique » : superpose la courbe de charge (sRPE) ou de wellness par ${PL.one}.</p></div>`;
+}
 VIEWS.seances=()=>{
   const ref=UI.ref;const inC=x=>UI.cat==='Tous'||x.cat===UI.cat;
   const evs=[...Object.values(DATA.sessions).map(x=>({...x,_m:false,col:'sessions'})),...Object.values(DATA.matches).map(x=>({...x,_m:true,col:'matches',title:x.title||('Match vs '+(x.opponent||'?'))}))]
@@ -1192,7 +1262,9 @@ VIEWS.seances=()=>{
   const table=`<div class="card"><h3>Toutes les séances</h3><div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th><th class="n">Joueurs</th><th class="n">Durée</th><th class="n">RPE moyen</th><th>Difficulté</th><th class="n">Charge</th><th></th></tr></thead><tbody>
     ${evs.slice(0,50).map(e=>{const st=stat(e);const [dl,dc]=rpeDiff(st.rpe);return `<tr${e.id===selId?' style="background:var(--accent-soft)"':''}><td>${fmtShort(e.date)}</td><td class="wrap">${esc(e.title||e.type)}</td><td><span class="pill ${e._m?'crit':'neutral'}" style="font-size:11px">${e._m?'Match':esc(e.type||'Entr.')}</span></td><td class="n">${st.n}/${st.np}</td><td class="n">${st.dur||'–'}</td><td class="n"><b>${st.rpe!=null?r1(st.rpe):'–'}</b></td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${st.load!=null?r0(st.load):'–'}</td><td><button class="btn sm" data-act="seanceOpen" data-id="${esc(e.id)}">Détail</button></td></tr>`;}).join('')}
     </tbody></table></div></div>`;
-  return `${kpis}${curves}${detail}${table}`;
+  return `${seanceCalendar()}
+    <div class="sect-head"><h2 class="sect-title">📊 Analyse des séances <span class="muted" style="font-weight:400;font-size:13px">— difficulté ressentie (RPE) & charge</span></h2></div>
+    ${kpis}${curves}${detail}${table}`;
 };
 POST.seances=()=>{};
 
@@ -3048,6 +3120,8 @@ const ACT={
   joueurNav:b=>{const roster=playersOf(UI.cat,true);let i=roster.findIndex(x=>x.id===UI.joueurSel);if(i<0)i=0;i=Math.max(0,Math.min(roster.length-1,i+(+b.dataset.d)));if(roster[i]){UI.joueurSel=roster[i].id;saveUI();render();}},
   seanceOpen:b=>{UI.seanceSel=b.dataset.id;render();const el=document.getElementById('seance-detail');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},
   seanceClose:()=>{UI.seanceSel=null;render();},
+  calToday:()=>{UI.seanceFrom=null;UI.seanceTo=null;saveUI();render();},
+  calCurve:()=>{const seq=['off','charge','hooper'];UI.seanceCurve=seq[(seq.indexOf(UI.seanceCurve||'off')+1)%3];saveUI();render();},
   ppPhoto:()=>{const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{const MAX=440;let w=img.width,h=img.height;const sc=Math.min(1,MAX/Math.max(w,h));w=Math.round(w*sc);h=Math.round(h*sc);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);let data;try{data=c.toDataURL('image/jpeg',0.82);}catch(err){toast('Image illisible');return;}if(data.length>900000){toast('Image trop lourde, essaie une photo plus petite');return;}const hid=document.getElementById('pp-photo');if(hid)hid.value=data;const prev=document.getElementById('pp-photo-prev');if(prev){prev.style.backgroundImage=`url('${data}')`;prev.textContent='';}const rm=document.querySelector('[data-act="ppPhotoClear"]');if(rm)rm.hidden=false;formDirty=true;};img.onerror=()=>toast('Image illisible');img.src=rd.result;};rd.readAsDataURL(f);};inp.click();},
   ppPhotoClear:()=>{const hid=document.getElementById('pp-photo');if(hid)hid.value='';const prev=document.getElementById('pp-photo-prev');if(prev){prev.style.backgroundImage='';prev.textContent=prev.dataset.ini||'?';}const rm=document.querySelector('[data-act="ppPhotoClear"]');if(rm)rm.hidden=true;formDirty=true;},
   closeDrawer:()=>{UI.drawer=null;renderDrawer();},
@@ -3190,6 +3264,9 @@ const ACT={
 let PENDING_IMPORT=null;
 const CHG={
   joueurSel:t=>{UI.joueurSel=t.value;saveUI();render();},
+  calCat:t=>{UI.cat=t.value;saveUI();render();},
+  calFrom:t=>{UI.seanceFrom=t.value||null;saveUI();render();},
+  calTo:t=>{UI.seanceTo=t.value||null;saveUI();render();},
   crit:async t=>{const i=JSON.parse(JSON.stringify(DATA.injuries[t.dataset.id]));const ph=i.phase||0;i.criteria=i.criteria||{};const arr=(i.criteria[ph]||[]).slice();arr[+t.dataset.k]=t.checked;i.criteria[ph]=arr;await put('injuries',i.id,i);},
   max:async t=>{const m=JSON.parse(JSON.stringify(DATA.maxes[t.dataset.id]||{id:t.dataset.id,values:{},skills:{}}));m.values=m.values||{};const v=num(t.value);if(v==null)delete m.values[t.dataset.k];else m.values[t.dataset.k]=v;await put('maxes',t.dataset.id,m,true);},
   skill:async t=>{const m=JSON.parse(JSON.stringify(DATA.maxes[t.dataset.id]||{id:t.dataset.id,values:{},skills:{}}));m.skills=m.skills||{};m.skills[t.dataset.k]=+t.value;await put('maxes',t.dataset.id,m,true);},
