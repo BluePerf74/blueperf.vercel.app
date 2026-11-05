@@ -139,6 +139,8 @@ a{color:var(--accent)}
 .pf-list.good li::before{content:"✓";color:var(--good)}
 .pf-list.warn li{background:var(--warn-soft);border-color:transparent;color:var(--ink)}
 .pf-list.warn li::before{content:"▸";color:var(--warn)}
+.sect-head{margin:4px 0 -6px;padding-bottom:4px;border-bottom:2px solid var(--line)}
+.sect-title{margin:0;font-family:var(--fd);font-size:19px;font-weight:600}
 /* transitions / polish */
 .card{transition:box-shadow .16s,border-color .16s,transform .16s}
 .btn{transition:border-color .14s,color .14s,background .14s,box-shadow .14s}
@@ -1063,7 +1065,7 @@ VIEWS.joueur=()=>{
   const p=DATA.players[pid];const ref=UI.ref;const s=playerStatus(p,ref);const th=S().th;
   const days=range(addDays(ref,-27),ref);
   const lv=days.map(d=>{const x=pday(pid,d);return x?x.load:0;});
-  const plv=days.map(d=>{const x=pday(pid,d);return x?Math.round(x.pload):0;});
+  const plv=days.map(d=>{const x=pday(pid,d);return x?Math.round(x.pload):0;});const gps7=plv.slice(-7).reduce((a,b)=>a+(b||0),0);
   const wvv=days.map(d=>wOf(pid,d));
   const isM=days.map(d=>{const x=pday(pid,d);return x&&x.match;});
   const acR=days.map(d=>ewma(pid,d).acwr);
@@ -1112,15 +1114,14 @@ VIEWS.joueur=()=>{
       <div class="pftags">${headTags}</div></div>
     <div class="stack" style="align-self:flex-start;z-index:1;gap:8px;align-items:flex-end">${sel}<button class="btn sm" data-act="player" data-id="${esc(pid)}">Fiche détaillée ↗</button></div></div>`;
   const kpis=`<div class="grid g6">
-    ${kpi('Charge 7 j',r0(w.sum),'UA',w.chg!=null?(w.chg>0?'+':'')+r0(w.chg)+' % vs 3 sem.':'sRPE')}
-    ${kpi('ACWR interne',eR.acwr!=null?r2(eR.acwr):'–','',eR.acute!=null?'Aiguë '+r0(eR.acute)+' / chron. '+r0(eR.chronic):'EWMA 7/28 j',eR.acwr!=null&&(eR.acwr>th.acwrHi||eR.acwr<th.acwrLo)?'warn':null)}
+    ${kpi('Charge interne 7 j',r0(w.sum),'UA',w.chg!=null?(w.chg>0?'+':'')+r0(w.chg)+' % vs 3 sem.':'sRPE (RPE × min)')}
+    ${kpi('Charge GPS 7 j',r0(gps7),'UA','Player load externe')}
     ${kpi('ACWR GPS',eG.acwr!=null?r2(eG.acwr):'–','',eG.acute!=null?'Aiguë '+r0(eG.acute)+' / chron. '+r0(eG.chronic):'Player load 7/28 j',eG.acwr!=null&&(eG.acwr>th.acwrHi||eG.acwr<th.acwrLo)?'warn':null)}
     ${kpi('Wellness',s.w.today!=null?r0(s.w.today):'–','%',s.w.mean!=null?'Habitude '+r0(s.w.mean)+' %':'Fatigue perçue')}
     ${kpi('Temps de jeu',r0(totMin),'min',nMatch+' match'+(nMatch>1?'s':'')+' · '+nStart+' titul.')}
     ${kpi('Buts / passes',gg+' / '+aa,'',(ratings.length?'Note '+r1(mean(ratings))+'/10':'')+(yy||rr?' · '+yy+'🟨 '+rr+'🟥':''))}</div>`;
-  const chargeInt=`<div class="card"><div class="hrow"><h3>Charge interne — RPE (28 j)</h3>${acwrPill(eR)}</div>
-    ${barChart({labels:days,values:lv,colors:isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',h:150,marks:pMarks,legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>`;
-  const acwrInt=`<div class="card"><h3>Charge aiguë / chronique — interne</h3>${lineChart({labels:days,series:[{name:'ACWR interne',values:acR,color:COL_TR}],band:[th.acwrLo,th.acwrHi],h:150,fmt:v=>r2(v),yMin:0})}<p class="note">Zone cible ${r1(th.acwrLo)}–${r1(th.acwrHi)} (aiguë 7 j ÷ chronique 28 j).</p></div>`;
+  const chargeInt=`<div class="card"><div class="hrow"><h3>Charge interne — RPE (28 j)</h3><span class="pill neutral">7 j : ${r0(w.sum)} UA</span></div>
+    ${barChart({labels:days,values:lv,colors:isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',h:150,marks:pMarks,legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}<p class="note">Charge interne = effort perçu (RPE) × durée. Reflète la fatigue ressentie.</p></div>`;
   const chargeGps=`<div class="card"><div class="hrow"><h3>Charge externe — Player Load GPS (28 j)</h3>${acwrPill(eG)}</div>
     ${barChart({labels:days,values:plv,colors:isM.map(m=>m?COL_MATCH:'var(--s2)'),unit:'',h:150,marks:pMarks,legend:[['Entraînement','var(--s2)'],['Match',COL_MATCH]]})}</div>`;
   const acwrGps=`<div class="card"><h3>Charge aiguë / chronique — GPS</h3>${lineChart({labels:days,series:[{name:'ACWR GPS',values:acG,color:'var(--s2)'}],band:[th.acwrLo,th.acwrHi],h:150,fmt:v=>r2(v),yMin:0})}<p class="note">Basée sur le player load GPS (charge mécanique externe).</p></div>`;
@@ -1146,11 +1147,13 @@ VIEWS.joueur=()=>{
         <div><div class="flabel" style="color:var(--warn)">◼ Axes d'amélioration</div>${axes.length?`<ul class="pf-list warn">${axes.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:'<p class="small muted" style="margin:4px 0 0">Aucun point de vigilance particulier.</p>'}</div>
       </div></div></div>`;
   return `${header}${kpis}
-    <div class="grid g2">${chargeInt}${acwrInt}</div>
+    <div class="sect-head"><h2 class="sect-title">🫀 Charge interne & fatigue <span class="muted" style="font-weight:400;font-size:13px">— effort perçu (RPE) et récupération</span></h2></div>
+    <div class="grid g2">${chargeInt}${fatigue}</div>
+    <div class="sect-head"><h2 class="sect-title">📡 Charge externe GPS & aiguë / chronique <span class="muted" style="font-weight:400;font-size:13px">— player load et ACWR</span></h2></div>
     <div class="grid g2">${chargeGps}${acwrGps}</div>
     ${gpsCard}
     ${tempsJeu}
-    <div class="grid g2">${fatigue}<div class="card"><h3>Statistiques de la saison</h3><div class="grid g3">${kpi('Matchs',nMatch,'')}${kpi('Minutes',r0(totMin),'')}${kpi('Titul.',nStart,'')}${kpi('Buts',gg,'')}${kpi('Passes déc.',aa,'')}${kpi('Note moy.',ratings.length?r1(mean(ratings)):'–','/10')}</div></div></div>
+    <div class="card"><h3>Statistiques de la saison</h3><div class="grid g6">${kpi('Matchs',nMatch,'')}${kpi('Minutes',r0(totMin),'')}${kpi('Titul.',nStart,'')}${kpi('Buts',gg,'')}${kpi('Passes déc.',aa,'')}${kpi('Note moy.',ratings.length?r1(mean(ratings)):'–','/10')}</div></div>
     ${profil}`;
 };
 POST.joueur=()=>{};
