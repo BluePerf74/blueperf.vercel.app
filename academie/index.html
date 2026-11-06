@@ -409,7 +409,7 @@ const TABS=[
  {id:'training',label:'Entraînement'},
  {id:'seances',label:'Séances'},
  {id:'reco',label:'Recommandations'},
- {id:'perf',label:'Performance',children:[{id:'testing',label:'Testing'},{id:'reathle',label:'Réathlétisation'},{id:'muscu',label:'Musculation'}]},
+ {id:'perf',label:MODE==='individuel'?'Progrès':'Performance',children:MODE==='individuel'?[{id:'testing',label:'Tests & mesures'},{id:'muscu',label:'Force / muscu'},{id:'reathle',label:'Reprise après blessure'}]:[{id:'testing',label:'Testing'},{id:'reathle',label:'Réathlétisation'},{id:'muscu',label:'Musculation'}]},
  {id:'medical',label:'Médical'},
  {id:'report',label:'Compte rendu'},
  {id:'entry',label:'Saisie',entryGroup:true,children:(MODE==='individuel'?[
@@ -911,7 +911,7 @@ function activeInjury(pid,ref){return Object.values(DATA.injuries).filter(i=>i.p
 function testBatteries(cat){return Object.values(DATA.tests).filter(t=>cat==='Tous'||t.cat===cat).sort((a,b)=>a.date.localeCompare(b.date));}
 function testSeries(pid,tid){const o=[];Object.values(DATA.tests).sort((a,b)=>a.date.localeCompare(b.date)).forEach(b=>{const v=b.results&&b.results[tid]?num(b.results[tid][pid]):null;if(v!=null)o.push({date:b.date,v});});return o;}
 function lastVmaxExpo(p,ref){const v=vref(p);if(!v)return null;const th=S().th.vmaxPct/100*v;for(let i=0;i<60;i++){const d=addDays(ref,-i);const x=pday(p.id,d);if(x&&x.vmax>=th&&d<=ref)return i;}return null;}
-const STATUS_LABEL={soins:'Soins',reathle:'Réathlétisation',reprise:'Reprise collective',apte:'Apte'};
+const STATUS_LABEL=MODE==='individuel'?{soins:'Soins',reathle:'Reprise progressive',reprise:'Reprise complète',apte:'Apte'}:{soins:'Soins',reathle:'Réathlétisation',reprise:'Reprise collective',apte:'Apte'};
 function playerStatus(p,ref){
   const th=S().th;const R=[];let lv=0;const up=(l,t)=>{R.push({l,t});lv=Math.max(lv,l);};
   const inj=activeInjury(p.id,ref);
@@ -921,7 +921,7 @@ function playerStatus(p,ref){
   const e=ewma(p.id,ref);
   if(e.acwr!=null&&e.days>=21){if(e.acwr>th.acwrHi+.2)up(3,'ACWR '+r2(e.acwr));else if(e.acwr>th.acwrHi)up(2,'ACWR '+r2(e.acwr));else if(e.acwr<th.acwrLo&&!inj)up(2,'Sous-charge (ACWR '+r2(e.acwr)+')');}
   const c=testSeries(p.id,'cmj');if(c.length>=2){const a=c[c.length-1].v,b=mean(c.slice(0,-1).map(x=>x.v));const drop=(b-a)/b*100;if(drop>th.cmjDrop)up(2,'CMJ −'+r1(drop)+' %');}
-  const vx=lastVmaxExpo(p,ref);if(!inj&&(vx==null||vx>th.vmaxDays))up(1,vx==null?'Aucun sprint ≥ '+th.vmaxPct+' % Vmax enregistré':'Pas de sprint ≥ '+th.vmaxPct+' % Vmax depuis '+vx+' j');
+  const vx=lastVmaxExpo(p,ref);if(!INDIV&&!inj&&(vx==null||vx>th.vmaxDays))up(1,vx==null?'Aucun sprint ≥ '+th.vmaxPct+' % Vmax enregistré':'Pas de sprint ≥ '+th.vmaxPct+' % Vmax depuis '+vx+' j');
   return{lv,reasons:R,w,e,inj,vx};
 }
 function lvPill(lv){return lv>=3?'<span class="pill crit"><span class="ic"></span>Rouge</span>':lv===2?'<span class="pill warn"><span class="ic"></span>Orange</span>':'<span class="pill good"><span class="ic"></span>Vert</span>';}
@@ -1123,8 +1123,8 @@ function renderTop(){
 function banner(){
   if(!Store.demo)return '';
   if(Store.localImport)return `<div class="banner"><p><b>Des données existent dans ce navigateur.</b> La base partagée est vide : tu peux y transférer tes données pour les retrouver sur tous tes appareils.</p><div class="row"><span id="bulkProg" class="small muted"></span><button class="btn pri" data-act="keepDemo">Transférer vers la base</button></div></div>`;
-  return `<div class="banner"><p><b>Données d'exemple</b> (joueurs et séances fictifs) pour découvrir l'outil. Tes saisies ne sont pas enregistrées tant que tu restes en mode exemple.</p>
-  <div class="row"><span id="bulkProg" class="small muted"></span><button class="btn" data-act="keepDemo">Garder l'exemple comme base</button><button class="btn pri" data-act="startEmpty">Commencer avec mes joueurs</button></div></div>`;
+  return `<div class="banner"><p><b>Données d'exemple</b> (${INDIV?'client·es':'joueurs'} et séances fictifs) pour découvrir l'outil. Tes saisies ne sont pas enregistrées tant que tu restes en mode exemple.</p>
+  <div class="row"><span id="bulkProg" class="small muted"></span><button class="btn" data-act="keepDemo">Garder l'exemple comme base</button><button class="btn pri" data-act="startEmpty">Commencer avec mes ${INDIV?'client·es':'joueurs'}</button></div></div>`;
 }
 // Prise en main guidée : s'affiche en mode réel tant que les 3 premières étapes ne sont pas faites.
 function quickstart(){
@@ -1298,7 +1298,7 @@ VIEWS.joueur=()=>{
     ${kpi('Temps de jeu',r0(totMin),'min',nMatch+' match'+(nMatch>1?'s':'')+' · '+nStart+' titul.')}
     ${kpi('Buts / passes',gg+' / '+aa,'',(ratings.length?'Note '+r1(mean(ratings))+'/10':'')+(yy||rr?' · '+yy+'🟨 '+rr+'🟥':''))}</div>`;
   const chargeInt=`<div class="card"><div class="hrow"><h3>Charge interne — RPE (28 j)</h3><span class="pill neutral">7 j : ${r0(w.sum)} UA</span></div>
-    ${barChart({labels:days,values:lv,colors:isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',h:150,marks:pMarks,legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}<p class="note">Charge interne = effort perçu (RPE) × durée. Reflète la fatigue ressentie.</p></div>`;
+    ${barChart({labels:days,values:lv,colors:isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',h:150,marks:pMarks,legend:CHART_LEG})}<p class="note">Charge interne = effort perçu (RPE) × durée. Reflète la fatigue ressentie.</p></div>`;
   const chargeGps=`<div class="card"><div class="hrow"><h3>Charge externe — Player Load GPS (28 j)</h3>${acwrPill(eG)}</div>
     ${barChart({labels:days,values:plv,colors:isM.map(m=>m?COL_MATCH:'var(--s2)'),unit:'',h:150,marks:pMarks,legend:[['Entraînement','var(--s2)'],['Match',COL_MATCH]]})}</div>`;
   const acwrGps=`<div class="card"><h3>Charge aiguë / chronique — GPS</h3>${lineChart({labels:days,series:[{name:'ACWR GPS',values:acG,color:'var(--s2)'}],band:[th.acwrLo,th.acwrHi],h:150,fmt:v=>r2(v),yMin:0})}<p class="note">Basée sur le player load GPS (charge mécanique externe).</p></div>`;
@@ -1385,7 +1385,7 @@ function seanceCalendar(){
 }
 VIEWS.seances=()=>{
   const ref=UI.ref;const inC=x=>UI.cat==='Tous'||x.cat===UI.cat;
-  const evs=[...Object.values(DATA.sessions).map(x=>({...x,_m:false,col:'sessions'})),...Object.values(DATA.matches).map(x=>({...x,_m:true,col:'matches',title:x.title||('Match vs '+(x.opponent||'?'))}))]
+  const evs=[...Object.values(DATA.sessions).map(x=>({...x,_m:false,col:'sessions'})),...Object.values(DATA.matches).map(x=>({...x,_m:true,col:'matches',title:x.title||(INDIV?(x.compName||x.opponent||'Compétition'):('Match vs '+(x.opponent||'?')))}))]
     .filter(inC).filter(e=>e.date<=ref).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   if(!evs.length)return `<div class="card"><p class="muted" style="margin:0">Aucune séance enregistrée. Crée une séance dans « Saisie ».</p></div>`;
   const stat=e=>{const ps=Object.values(e.players||{}).filter(x=>num(x.rpe)!=null);const n=ps.length;const rpe=n?mean(ps.map(x=>num(x.rpe))):null;const mrpeArr=Object.values(e.players||{}).map(x=>num(x.mrpe)).filter(v=>v!=null);const mrpe=mrpeArr.length?mean(mrpeArr):null;const dur=e.duration||(n?Math.round(mean(ps.map(x=>num(x.min)||0))):0);const load=rpe!=null?Math.round(rpe*(e.duration||(n?mean(ps.map(x=>num(x.min)||0)):0))):null;return {n,rpe,mrpe,dur,load,np:Object.keys(e.players||{}).length};};
@@ -1411,9 +1411,9 @@ VIEWS.seances=()=>{
     const [dl,dc]=rpeDiff(st.rpe);
     detail=`<div class="card" id="seance-detail"><div class="hrow"><div><div class="eyebrow">${fmtD(selEv.date)} · ${esc(selEv.cat)} · <span class="pill ${selEv._m?'crit':'info'}">${selEv._m?(INDIV?'Compétition':'Match'):(INDIV?'Séance':'Entraînement')}</span></div><h3 style="margin:4px 0 0">${esc(selEv.title||selEv.type)}</h3></div><button class="btn sm" data-act="seanceClose">✕ Fermer</button></div>
       <div class="grid g4" style="margin-bottom:12px">${kpi('RPE moyen',st.rpe!=null?r1(st.rpe):'–','/10',dl,dc==='crit'?'crit':dc==='warn'?'warn':null)}${kpi('Charge',st.load!=null?r0(st.load):'–','UA','sRPE')}${kpi('Durée',st.dur||'–','min')}${kpi('Réponses',st.n+' / '+st.np,'','RPE saisis')}</div>
-      <h3 style="font-size:15px">RPE par joueur</h3>${items.length?hbars(items,{max:10,unit:'/10'}):'<p class="muted small">Aucun RPE saisi pour cette séance.</p>'}</div>`;
+      <h3 style="font-size:15px">RPE par ${PL.one}</h3>${items.length?hbars(items,{max:10,unit:'/10'}):'<p class="muted small">Aucun RPE saisi pour cette séance.</p>'}</div>`;
   }
-  const table=`<div class="card"><h3>Toutes les séances</h3><div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th><th class="n">Joueurs</th><th class="n">Durée</th><th class="n">RPE moyen</th><th>Difficulté</th><th class="n">Charge</th><th></th></tr></thead><tbody>
+  const table=`<div class="card"><h3>Toutes les séances</h3><div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th><th class="n">${PL.Many}</th><th class="n">Durée</th><th class="n">RPE moyen</th><th>Difficulté</th><th class="n">Charge</th><th></th></tr></thead><tbody>
     ${evs.slice(0,50).map(e=>{const st=stat(e);const [dl,dc]=rpeDiff(st.rpe);return `<tr${e.id===selId?' style="background:var(--accent-soft)"':''}><td>${fmtShort(e.date)}</td><td class="wrap">${esc(e.title||e.type)}</td><td><span class="pill ${e._m?'crit':'neutral'}" style="font-size:11px">${e._m?(INDIV?'Compét.':'Match'):esc(e.type||'Entr.')}</span></td><td class="n">${st.n}/${st.np}</td><td class="n">${st.dur||'–'}</td><td class="n"><b>${st.rpe!=null?r1(st.rpe):'–'}</b></td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${st.load!=null?r0(st.load):'–'}</td><td><button class="btn sm" data-act="seanceOpen" data-id="${esc(e.id)}">Détail</button></td></tr>`;}).join('')}
     </tbody></table></div></div>`;
   return `${seanceCalendar()}
@@ -1496,6 +1496,7 @@ VIEWS.programme=()=>{
     ${days}`;
 };
 const COL_TR='var(--accent)',COL_MATCH='var(--s2)',COL_REA='var(--s3)';
+const CHART_LEG=INDIV?[['Séance',COL_TR],['Compétition',COL_MATCH]]:[['Entraînement',COL_TR],['Match',COL_MATCH]];
 function emptyPlayers(){return `<div class="card"><h2>${INDIV?'Aucun·e client·e':'Aucun joueur'+(UI.cat!=='Tous'?' en '+esc(UI.cat):'')}</h2><p class="muted">${INDIV?'Ajoute tes client·es pour que les tableaux se remplissent.':'Ajoute ton effectif pour que les tableaux se remplissent.'}</p><button class="btn pri" data-act="goEntry" data-id="player">${INDIV?'Ajouter des client·es':'Ajouter des joueurs'}</button></div>`;}
 function kpi(label,v,unit,d,cls){return `<div class="card kpi"><div class="eyebrow">${label}</div><div class="v" ${cls?`style="color:var(--${cls})"`:''}>${v}${unit?`<small>${unit}</small>`:''}</div>${d?`<div class="d">${d}</div>`:''}</div>`;}
 function teamDaily(ps,end,n,key='load'){const labels=[],vals=[],isM=[];for(let i=n-1;i>=0;i--){const d=addDays(end,-i);labels.push(d);const v=ps.map(p=>pday(p.id,d)).filter(x=>x&&x[key]>0);vals.push(v.length?mean(v.map(x=>x[key])):0);isM.push(v.some(x=>x.match));}return{labels,vals,isM};}
@@ -1530,7 +1531,7 @@ VIEWS.overview=()=>{
     const noRpe=sess.some(s=>s.players[p.id].rpe==null);
     return {p,noWell,noRpe};
   }).filter(x=>x.noWell||x.noRpe);
-  const toFillCard=`<div class="card"><div class="hrow"><h2>À saisir aujourd'hui</h2><span class="small muted">${toFill.length?toFill.length+' joueur·se(s) sans RPE ou wellness':'Tout est saisi'}</span></div>
+  const toFillCard=`<div class="card"><div class="hrow"><h2>À saisir aujourd'hui</h2><span class="small muted">${toFill.length?toFill.length+' '+PL.one+'(s) sans RPE ou wellness':'Tout est saisi'}</span></div>
     ${toFill.length?`<div class="tw"><table><thead><tr><th>${PL.One}</th><th>Manque</th><th></th></tr></thead><tbody>
       ${toFill.map(x=>`<tr><td>${plinkA(x.p.id)}</td>
         <td>${[x.noWell?'<span class="pill warn">Wellness</span>':'',x.noRpe?'<span class="pill warn">RPE séance</span>':''].filter(Boolean).join(' ')}</td>
@@ -1557,7 +1558,7 @@ VIEWS.overview=()=>{
     ${wellMiss.length?`<div>${wellMiss.map(p=>`<button class="btn sm" data-act="fillPlayer" data-id="${esc(p.id)}" data-tab="sante" style="margin:0 8px 8px 0">${esc(p.name)} →</button>`).join('')}</div>`:'<p class="muted" style="margin:0">Tout le monde a rempli son wellness du jour ✅</p>'}
   </div>`;
   // Séances / matchs des 21 derniers jours avec au moins un RPE manquant — à compléter en un clic.
-  const rpeMiss=[...Object.values(DATA.sessions).map(s=>({e:s,col:'sessions'})),...Object.values(DATA.matches).map(m=>({e:Object.assign({},m,{title:'Match vs '+(m.opponent||''),type:'Match'}),col:'matches'}))]
+  const rpeMiss=[...Object.values(DATA.sessions).map(s=>({e:s,col:'sessions'})),...Object.values(DATA.matches).map(m=>({e:Object.assign({},m,{title:INDIV?(m.compName||m.opponent||'Compétition'):'Match vs '+(m.opponent||''),type:INDIV?'Compétition':'Match'}),col:'matches'}))]
     .filter(x=>inCat(x.e)&&x.e.players&&x.e.date<=ref&&x.e.date>=addDays(ref,-21))
     .map(x=>{const assigned=Object.keys(x.e.players).filter(pid=>DATA.players[pid]);const miss=assigned.filter(pid=>{const pl=x.e.players[pid];return pl&&pl.rpe==null&&!(pl.partRpe&&Object.keys(pl.partRpe).length);});return {col:x.col,id:x.e.id,date:x.e.date,title:x.e.title||x.e.type||'Séance',cat:x.e.cat,names:miss.map(pid=>DATA.players[pid].name)};})
     .filter(x=>x.names.length>0).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20);
@@ -1568,10 +1569,10 @@ VIEWS.overview=()=>{
         <td><button class="btn sm pri" data-act="rpeComplete" data-col="${x.col}" data-id="${esc(x.id)}">Compléter</button></td></tr>`).join('')}
     </tbody></table></div>`:'<p class="muted" style="margin:0">Tous les RPE des 21 derniers jours sont saisis 👍</p>'}</div>`;
   return `${quickstart()}<div class="grid g6">
-    ${kpi('Disponibles',ps.length-unavail,'/'+ps.length,unavail?unavail+' blessé'+(unavail>1?'s':'')+' ou en réathlé':'Tout le groupe est disponible')}
+    ${kpi('Disponibles',ps.length-unavail,'/'+ps.length,unavail?unavail+' blessé'+(unavail>1?'s':'')+(INDIV?' ou en reprise':' ou en réathlé'):(INDIV?'Tout le monde est disponible':'Tout le groupe est disponible'))}
     ${kpi('Alertes',red,'',`<span class="pill crit">${red} rouge${red>1?'s':''}</span> <span class="pill warn">${orange} orange</span>`,red?'crit':null)}
     ${kpi('Wellness du jour',wt.length?r0(mean(wt)):'–',wt.length?'%':'',`${wt.length}/${ps.length} questionnaires remplis`)}
-    ${kpi('Charge 7 jours',r0(l7),'UA',l7&&pa?chgTxt((l7-pa)/pa*100):'Moyenne par joueur (sRPE)')}
+    ${kpi('Charge 7 jours',r0(l7),'UA',l7&&pa?chgTxt((l7-pa)/pa*100):'Moyenne par '+PL.one+' (sRPE)')}
     ${kpi('ACWR moyen',ac!=null?r2(ac):'–','',`Zone cible ${r1(th.acwrLo)}–${r1(th.acwrHi)} (EWMA 7/28 j)`,ac!=null?(acwrCls(ac)==='good'?null:acwrCls(ac)):null)}
     ${INDIV?kpi('Séances (7 j)',Object.values(DATA.sessions).filter(x=>inCat(x)&&x.date>=addDays(ref,-6)&&x.date<=ref).length,'','toutes séances confondues'):kpi('Prochain match',nm?(dayDiff(nm.date,ref)===0?'J':'J-'+dayDiff(nm.date,ref)):'–','',nm?esc(fmtD(nm.date)+' · '+nm.label):'Aucun match planifié')}
   </div>
@@ -1580,8 +1581,8 @@ VIEWS.overview=()=>{
   ${rpeMissCard}
   ${relanceCard}
   <div class="grid g2">
-    <div class="card"><div class="hrow"><h2>Charge d'équipe, 28 jours</h2><span class="small muted">sRPE moyen par joueur présent</span></div>
-      ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:[['Entraînement',COL_TR],['Match',COL_MATCH]],marks:injMarksIn(td.labels)})}</div>
+    <div class="card"><div class="hrow"><h2>${INDIV?"Charge d'entraînement, 28 jours":"Charge d'équipe, 28 jours"}</h2><span class="small muted">sRPE moyen par ${PL.one} présent·e</span></div>
+      ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:CHART_LEG,marks:injMarksIn(td.labels)})}</div>
     <div class="card"><div class="hrow"><h2>Wellness d'équipe, 28 jours</h2><span class="small muted">Score moyen sur 100</span></div>
       ${lineChart({labels:tw.labels,series:[{name:'Wellness',values:tw.vals,color:COL_TR,area:true}],yMin:40,yMax:100,refs:[{v:th.well,label:'Seuil '+th.well+' %'}],fmt:v=>r0(v)})}</div>
   </div>
@@ -1595,9 +1596,9 @@ VIEWS.overview=()=>{
         <td class="wrap small">${s.reasons.filter(r=>r.l>=1).map(r=>esc(r.t)).join(' · ')||'<span class="muted">RAS</span>'}</td></tr>`).join('')}
       </tbody></table></div></div>
     <div class="stack">
-      <div class="card"><div class="hrow"><h2>Au programme</h2><button class="btn sm" data-act="tab" data-id="training">Planning</button></div>
+      <div class="card"><div class="hrow"><h2>Au programme</h2><button class="btn sm" data-act="tab" data-id="${INDIV?'seances':'training'}">${INDIV?'Séances':'Planning'}</button></div>
         ${today.length?today.map(e=>`<div class="ent ${e.type==='Match'?'match':''}"><b>${esc(e.title||e.objective)}</b><span class="muted">${esc(e.cat)} · ${esc(e.type)} · ${r0(e.duration)} min · ${esc(e.intensity||'')}</span></div>`).join(''):'<p class="muted" style="margin:0">Rien de planifié ce jour.</p>'}</div>
-      <div class="card"><div class="hrow"><h2>À retenir</h2><button class="btn sm" data-act="tab" data-id="reco">Toutes les recos</button></div>
+      <div class="card"><div class="hrow"><h2>À retenir</h2>${INDIV?'':'<button class="btn sm" data-act="tab" data-id="reco">Toutes les recos</button>'}</div>
         <div class="stack">${recos.length?recos.map(r=>`<div class="stack" style="gap:2px"><span class="pill ${r.p==='hi'?'crit':r.p==='md'?'warn':'good'}" style="align-self:flex-start">${r.p==='hi'?'Priorité haute':r.p==='md'?'À surveiller':'Info'}</span><b>${esc(r.title)}</b><span class="small muted">${esc(r.action)}</span></div>`).join(''):'<p class="muted">Rien de particulier.</p>'}</div></div>
     </div>
   </div>`;
@@ -1682,10 +1683,10 @@ VIEWS.health=()=>{
   return `<div class="grid g4">
     ${kpi('Questionnaires du jour',filled.length,'/'+ps.length,missing.length?missing.length+' non rempli'+(missing.length>1?'s':''):'Tout le monde a répondu')}
     ${kpi('Score moyen du jour',filled.length?r0(mean(filled.map(x=>x.w.today))):'–','%','Sommeil, fatigue, courbatures, stress, humeur (1 à 5)')}
-    ${kpi('Joueurs à surveiller',low.length,'',low.length?low.map(x=>esc(x.p.name)).slice(0,4).join(', '):'Aucun sous le seuil ou sous son habitude',low.length?'warn':null)}
+    ${kpi(INDIV?'À surveiller':'Joueurs à surveiller',low.length,'',low.length?low.map(x=>esc(x.p.name)).slice(0,4).join(', '):'Aucun sous le seuil ou sous son habitude',low.length?'warn':null)}
     ${kpi('Tendance 3 jours',last3!=null&&base?((last3-base>=0?'+':'')+r1(last3-base)):'–','pts','Moyenne des 3 derniers jours vs les 25 précédents',last3!=null&&base&&last3-base<-5?'crit':null)}
   </div>
-  <div class="card"><div class="hrow"><h2>Wellness d'équipe</h2><button class="btn sm pri" data-act="goEntry" data-id="wellness">Saisir le wellness</button></div>
+  <div class="card"><div class="hrow"><h2>${INDIV?'Forme & wellness':"Wellness d'équipe"}</h2><button class="btn sm pri" data-act="goEntry" data-id="wellness">Saisir le wellness</button></div>
     ${lineChart({labels:tw.labels,series:[{name:'Score',values:tw.vals,color:COL_TR,area:true,dots:true}],yMin:40,yMax:100,refs:[{v:th.well,label:'Seuil '+th.well+' %'}],h:200})}</div>
   <div class="grid g6" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
     ${WK.map(k=>{const s=teamWell(ps,ref,28,k);const inv=s.vals.map(v=>v==null?null:6-v);const lv=inv.filter(v=>v!=null);return `<div class="card"><div class="hrow"><h3>${WL[k]}</h3><b>${lv.length?r1(lv[lv.length-1]):'–'}<span class="muted small">/5</span></b></div>${lineChart({labels:s.labels,series:[{name:WL[k],values:inv,color:COL_TR}],yMin:1,yMax:5,h:120,fmt:v=>r1(v)})}</div>`;}).join('')}
@@ -1712,7 +1713,7 @@ VIEWS.load=()=>{
   const weeks=[];for(let k=9;k>=0;k--){const end=addDays(ref,-7*k);weeks.push({end,v:mean(ps.map(p=>sum(loads(p.id,end,7))).filter(v=>v>0))});}
   const l7=mean(rows.map(r=>r.w.sum).filter(v=>v>0)),pa=mean(rows.map(r=>r.w.prevAvg).filter(v=>v>0));
   const mono=mean(rows.map(r=>r.w.mono).filter(v=>v!=null));const ac=mean(rows.map(r=>r.e.acwr).filter(v=>v!=null));
-  const ev=[...Object.values(DATA.sessions).map(s=>({...s,kind:'session'})),...Object.values(DATA.matches).map(m=>({...m,kind:'match',title:'Match vs '+m.opponent,type:'Match'}))].filter(inCat).filter(e=>e.date<=ref).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,UI.loadMore?80:15);
+  const ev=[...Object.values(DATA.sessions).map(s=>({...s,kind:'session'})),...Object.values(DATA.matches).map(m=>({...m,kind:'match',title:INDIV?(m.compName||m.opponent||'Compétition'):'Match vs '+m.opponent,type:INDIV?'Compétition':'Match'}))].filter(inCat).filter(e=>e.date<=ref).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,UI.loadMore?80:15);
   return `<div class="hrow" style="margin-bottom:10px"><h2 style="margin:0">Suivi de charge</h2><button class="btn sm pri" data-act="loadPdf">📄 Exporter le rapport (PDF)</button></div>
   <div class="grid g4">
     ${kpi('Charge 7 jours',r0(l7),'UA',chgTxt(l7&&pa?(l7-pa)/pa*100:null),l7&&pa&&Math.abs((l7-pa)/pa*100)>th.weekChg?'warn':null)}
@@ -1721,8 +1722,8 @@ VIEWS.load=()=>{
     ${kpi('ACWR moyen',ac!=null?r2(ac):'–','','Aiguë 7 j / chronique 28 j (EWMA)')}
   </div>
   <div class="grid g2">
-    <div class="card"><div class="hrow"><h2>Charge quotidienne</h2><span class="small muted">sRPE = RPE × minutes, moyenne par joueur présent</span></div>
-      ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:[['Entraînement',COL_TR],['Match',COL_MATCH]],marks:injMarksIn(td.labels)})}</div>
+    <div class="card"><div class="hrow"><h2>Charge quotidienne</h2><span class="small muted">sRPE = RPE × minutes, moyenne par ${PL.one} présent·e</span></div>
+      ${barChart({labels:td.labels,values:td.vals,colors:td.isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',legend:CHART_LEG,marks:injMarksIn(td.labels)})}</div>
     <div class="card"><div class="hrow"><h2>Charge hebdomadaire, 10 semaines</h2><span class="small muted">Semaines glissantes se terminant le jour indiqué</span></div>
       ${barChart({labels:weeks.map(w=>w.end),values:weeks.map(w=>w.v||0),colors:weeks.map((w,i)=>i===weeks.length-1?COL_TR:'color-mix(in srgb,var(--accent) 45%,var(--surface))'),unit:'UA',refs:[{v:mean(weeks.slice(-5,-1).map(w=>w.v).filter(Boolean))||0,label:'Moy. 4 sem.'}]})}</div>
   </div>
@@ -1741,11 +1742,11 @@ VIEWS.load=()=>{
       <b>Strain (contrainte)</b> : monotonie × charge hebdo — le stress cumulé de la semaine.<br>
       <b>Aiguë / Chronique</b> : charge moyenne récente (7 j) et de fond (28 j), lissées (EWMA).<br>
       <b>ACWR (ratio aigu/chronique)</b> : aiguë ÷ chronique — <b>zone optimale ${r1(th.acwrLo)}–${r1(th.acwrHi)}</b> ; au-dessus = pic de charge, en dessous = sous-charge.</div>
-    <p class="note">L'ACWR est un indicateur débattu (couplage mathématique, faible pouvoir prédictif). Il sert ici de repère, avec la variation hebdomadaire et le ressenti du joueur.</p></div>
-  <div class="card"><div class="hrow"><h2>Séances et matchs enregistrés</h2><div class="row"><button class="btn sm pri" data-act="goEntry" data-id="session">Nouvelle séance</button></div></div>
-    <div class="tw"><table><thead><tr><th>Date</th><th>Cat.</th><th>Type</th><th>Intitulé</th><th class="n">Durée</th><th class="n">Joueurs</th><th class="n">RPE moy.</th><th class="n">sRPE moy.</th><th></th></tr></thead><tbody>
+    <p class="note">L'ACWR est un indicateur débattu (couplage mathématique, faible pouvoir prédictif). Il sert ici de repère, avec la variation hebdomadaire et le ressenti du/de la ${PL.one}.</p></div>
+  <div class="card"><div class="hrow"><h2>${INDIV?'Séances & compétitions':'Séances et matchs enregistrés'}</h2><div class="row"><button class="btn sm pri" data-act="goEntry" data-id="${INDIV?'simple':'session'}">Nouvelle séance</button></div></div>
+    <div class="tw"><table><thead><tr><th>Date</th>${INDIV?'':'<th>Cat.</th>'}<th>Type</th><th>Intitulé</th><th class="n">Durée</th><th class="n">${PL.Many}</th><th class="n">RPE moy.</th><th class="n">sRPE moy.</th><th></th></tr></thead><tbody>
     ${ev.map(e=>{const pl=Object.values(e.players||{});const rp=mean(pl.map(x=>num(x.rpe)));const sr=mean(pl.map(x=>(num(x.rpe)??0)*(num(x.min)??num(e.duration)??0)).filter(v=>v>0));
-      return `<tr><td>${fmtD(e.date)}</td><td>${esc(e.cat)}</td><td><span class="pill ${e.kind==='match'?'info':'neutral'}">${esc(e.type)}</span></td><td>${esc(e.title||'')}</td><td class="n">${r0(e.duration)} min</td><td class="n">${pl.length}</td><td class="n">${r1(rp)}</td><td class="n">${r0(sr)}</td>
+      return `<tr><td>${fmtD(e.date)}</td>${INDIV?'':`<td>${esc(e.cat)}</td>`}<td><span class="pill ${e.kind==='match'?'info':'neutral'}">${esc(e.type)}</span></td><td>${esc(e.title||'')}</td><td class="n">${r0(e.duration)} min</td><td class="n">${pl.length}</td><td class="n">${r1(rp)}</td><td class="n">${r0(sr)}</td>
       <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="${e.kind==='match'?'matches':'sessions'}" data-id="${esc(e.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="${e.kind==='match'?'matches':'sessions'}" data-id="${esc(e.id)}">Supprimer</button></div></td></tr>`;}).join('')||'<tr><td colspan="9" class="muted">Aucune séance</td></tr>'}
     </tbody></table></div>${!UI.loadMore?'<div class="row" style="margin-top:8px"><button class="btn sm" data-act="loadMore">Afficher plus</button></div>':''}</div>`;
 };
@@ -2189,11 +2190,11 @@ function buildRecos(){
   cs.forEach(cat=>{
     const ps=playersOf(cat);if(!ps.length)return;const pre=UI.cat==='Tous'?cat+' · ':'';const healthy=ps.filter(p=>!activeInjury(p.id,ref));
     const nm=nextMatch(cat,ref);const dm=nm?dayDiff(nm.date,ref):null;
-    // vitesse max
-    const noV=healthy.filter(p=>{const v=lastVmaxExpo(p,ref);return v==null||v>th.vmaxDays;});
+    // vitesse max (football uniquement : exposition sprint / prévention ischios)
+    if(!INDIV){const noV=healthy.filter(p=>{const v=lastVmaxExpo(p,ref);return v==null||v>th.vmaxDays;});
     if(noV.length>=Math.max(2,healthy.length*.25)){out.push({p:'hi',cat,title:pre+`Exposition à la vitesse maximale insuffisante (${noV.length} joueurs)`,why:`Aucune course ≥ ${th.vmaxPct} % de leur Vmax depuis plus de ${th.vmaxDays} jours. L'exposition régulière au sprint est un facteur clé de prévention des lésions des ischio-jambiers.`,
       action:dm!=null&&dm>=2&&dm<=4?`À placer ${dm===2?'aujourd’hui (J-2)':'à J-2'} : 3 à 5 sprints de 30–40 m lancés, récupération complète (2–3 min).`:'Prochaine séance de vitesse : 3 à 5 sprints de 30–40 m lancés, récupération complète, en début de séance après l’échauffement.',players:noV.map(p=>p.id)});}
-    else if(noV.length){out.push({p:'md',cat,title:pre+`${noV.length} joueur${noV.length>1?'s':''} à exposer à la vitesse max`,why:`Pas de sprint ≥ ${th.vmaxPct} % Vmax depuis plus de ${th.vmaxDays} jours.`,action:'Ajouter 2–3 sprints lancés en fin d’échauffement pour ces joueurs.',players:noV.map(p=>p.id)});}
+    else if(noV.length){out.push({p:'md',cat,title:pre+`${noV.length} joueur${noV.length>1?'s':''} à exposer à la vitesse max`,why:`Pas de sprint ≥ ${th.vmaxPct} % Vmax depuis plus de ${th.vmaxDays} jours.`,action:'Ajouter 2–3 sprints lancés en fin d’échauffement pour ces joueurs.',players:noV.map(p=>p.id)});}}
     // variation de charge
     const ws=healthy.map(p=>weekStats(p.id,ref));const l7=mean(ws.map(w=>w.sum).filter(v=>v>0)),pa=mean(ws.map(w=>w.prevAvg).filter(v=>v>0));
     if(l7&&pa){const c=(l7-pa)/pa*100;
@@ -2201,12 +2202,12 @@ function buildRecos(){
       else if(c<-30&&!(dm!=null&&dm<=2))out.push({p:'md',cat,title:pre+`Charge en baisse de ${r0(-c)} %`,why:'Une baisse durable réduit la charge chronique et expose à un pic lors du retour à la normale.',action:'Remonter progressivement le volume (+10 à 15 % par semaine) si le calendrier le permet.'});}
     // ACWR individuels
     const hi=healthy.filter(p=>{const e=ewma(p.id,ref);return e.acwr!=null&&e.days>=21&&e.acwr>th.acwrHi;});
-    if(hi.length)out.push({p:'md',cat,title:pre+`ACWR élevé pour ${hi.length} joueur${hi.length>1?'s':''}`,why:`Charge aiguë supérieure à ${th.acwrHi} fois la charge chronique.`,action:'Individualiser : limiter le temps de jeu en jeux réduits, pas de complément haute intensité.',players:hi.map(p=>p.id)});
+    if(hi.length)out.push({p:'md',cat,title:pre+`ACWR élevé pour ${hi.length} ${hi.length>1?PL.many:PL.one}`,why:`Charge aiguë supérieure à ${th.acwrHi} fois la charge chronique.`,action:INDIV?'Alléger les prochaines séances (volume réduit), garder l’intensité par pics.':'Individualiser : limiter le temps de jeu en jeux réduits, pas de complément haute intensité.',players:hi.map(p=>p.id)});
     const lo=healthy.filter(p=>{const e=ewma(p.id,ref);return e.acwr!=null&&e.days>=21&&e.acwr<th.acwrLo;});
-    if(lo.length)out.push({p:'lo',cat,title:pre+`Sous-charge pour ${lo.length} joueur${lo.length>1?'s':''}`,why:`ACWR inférieur à ${th.acwrLo} : la charge récente est faible par rapport à l'habitude.`,action:'Compléments de charge : jeux réduits additionnels ou intermittent court (15-15) pour maintenir la condition.',players:lo.map(p=>p.id)});
-    // non-joueurs
-    const pm=prevMatch(cat,ref);if(pm&&dayDiff(ref,pm.date)<=3){const nj=healthy.filter(p=>{const e=(pm.players||{})[p.id];return !e||(num(e.min)||0)<45;});
-      if(nj.length)out.push({p:'md',cat,title:pre+`Compensation pour ${nj.length} joueur${nj.length>1?'s':''} (< 45 min au dernier match)`,why:`Match du ${fmtD(pm.date)} contre ${pm.opponent}. Sans compensation, leur charge haute intensité chute.`,action:'Séance de compensation à J+1 ou J+2 : jeu réduit 4c4 + 6 à 8 courses de 60–80 m à haute intensité + 3 sprints.',players:nj.map(p=>p.id)});}
+    if(lo.length)out.push({p:'lo',cat,title:pre+`Sous-charge pour ${lo.length} ${lo.length>1?PL.many:PL.one}`,why:`ACWR inférieur à ${th.acwrLo} : la charge récente est faible par rapport à l'habitude.`,action:INDIV?'Augmenter progressivement le volume (séance supplémentaire ou durée allongée) pour maintenir la condition.':'Compléments de charge : jeux réduits additionnels ou intermittent court (15-15) pour maintenir la condition.',players:lo.map(p=>p.id)});
+    // non-joueurs (football : compensation après match)
+    if(!INDIV){const pm=prevMatch(cat,ref);if(pm&&dayDiff(ref,pm.date)<=3){const nj=healthy.filter(p=>{const e=(pm.players||{})[p.id];return !e||(num(e.min)||0)<45;});
+      if(nj.length)out.push({p:'md',cat,title:pre+`Compensation pour ${nj.length} joueur${nj.length>1?'s':''} (< 45 min au dernier match)`,why:`Match du ${fmtD(pm.date)} contre ${pm.opponent}. Sans compensation, leur charge haute intensité chute.`,action:'Séance de compensation à J+1 ou J+2 : jeu réduit 4c4 + 6 à 8 courses de 60–80 m à haute intensité + 3 sprints.',players:nj.map(p=>p.id)});}}
     // force
     const strength=Object.values(DATA.sessions).filter(s=>s.cat===cat&&s.date<=ref&&dayDiff(ref,s.date)<7&&(s.type==='Salle'||s.objective==='Force'||s.objective==='Puissance / explosivité')).length;
     if(strength<2)out.push({p:strength===0?'hi':'md',cat,title:pre+`${strength} séance${strength>1?'s':''} de force sur 7 jours`,why:'Deux stimulations de force par semaine sont recommandées pour progresser (une seule suffit pour maintenir en période chargée).',action:dm!=null&&dm>=4?'Programmer une séance de force à J-4 (charges lourdes, faible volume) et une à J+2.':'Placer la séance de force à J+2 ou J-4 la semaine prochaine, jamais à J-1.'});
@@ -2215,7 +2216,7 @@ function buildRecos(){
     // wellness
     const tw=teamWell(ps,ref,28);const l3=mean(tw.vals.slice(-3)),b=mean(tw.vals.slice(0,-3));if(l3!=null&&b&&l3-b<-5)out.push({p:'hi',cat,title:pre+`Wellness en baisse (${r1(l3-b)} points sur 3 jours)`,why:`Score moyen ${r0(l3)} % contre ${r0(b)} % habituellement.`,action:'Alléger la prochaine séance, vérifier sommeil et charge scolaire (contrôles, examens), rappel hydratation et nutrition.'});
     const lowW=ps.filter(p=>{const w=wStats(p.id,ref);return w.today!=null&&(w.today<th.well||(w.z!=null&&w.z<th.wz*1.6));});
-    if(lowW.length)out.push({p:'hi',cat,title:pre+`Wellness bas aujourd’hui : ${lowW.map(p=>p.name).join(', ')}`,why:'Score sous le seuil ou très en dessous de l’habitude du joueur.',action:'Échange individuel avant la séance ; séance adaptée (volume réduit) si le ressenti se confirme à l’échauffement.',players:lowW.map(p=>p.id)});
+    if(lowW.length)out.push({p:'hi',cat,title:pre+`Wellness bas aujourd’hui : ${lowW.map(p=>p.name).join(', ')}`,why:'Score sous le seuil ou très en dessous de l’habitude de la personne.',action:'Échange individuel avant la séance ; séance adaptée (volume réduit) si le ressenti se confirme à l’échauffement.',players:lowW.map(p=>p.id)});
     // tests
     const bt=testBatteries(cat);const lastT=bt.length?bt[bt.length-1].date:null;if(!lastT||dayDiff(ref,lastT)>56)out.push({p:'lo',cat,title:pre+'Batterie de tests à programmer',why:lastT?`Dernière batterie le ${fmtD(lastT)}, il y a ${dayDiff(ref,lastT)} jours.`:'Aucune batterie de tests enregistrée.',action:'Programmer CMJ, sprint 10/30 m, 505 et 30-15 IFT sur une semaine sans match en milieu de semaine (J-4 ou J-3). Un CMJ hebdomadaire aide aussi à suivre la fatigue.'});
     // croissance
@@ -2284,7 +2285,7 @@ VIEWS.testing=()=>{
   const evo=testSeries(sp.id,t.id);const tDates=[...new Set(bats.map(b=>b.date))];
   return `<div class="card"><div class="hrow"><div class="row"><h2>Test</h2><select id="testSel" style="width:auto">${tests.map(x=>`<option value="${esc(x.id)}" ${x.id===t.id?'selected':''}>${esc(x.name)} (${esc(x.unit)})</option>`).join('')}</select></div>
     <div class="row"><button class="btn sm pri" data-act="goEntry" data-id="tests">Nouvelle session de tests</button></div></div>
-    <div class="grid g4">${kpi('Moyenne du groupe',fr(m,2),t.unit,lastVals.length+' joueurs testés')}${kpi('Écart-type',fr(sdv,2),t.unit,'Dispersion du groupe')}${kpi('Meilleur',ranked[0]?fr(ranked[0].last.v,2):'–',t.unit,ranked[0]?esc(ranked[0].p.name):'')}${kpi('Sessions',bats.length,'',bats.length?'Dernière : '+fmtD(bats[bats.length-1].date):'')}</div></div>
+    <div class="grid g4">${kpi('Moyenne du groupe',fr(m,2),t.unit,lastVals.length+' '+PL.many+' testé·es')}${kpi('Écart-type',fr(sdv,2),t.unit,'Dispersion du groupe')}${kpi('Meilleur',ranked[0]?fr(ranked[0].last.v,2):'–',t.unit,ranked[0]?esc(ranked[0].p.name):'')}${kpi('Sessions',bats.length,'',bats.length?'Dernière : '+fmtD(bats[bats.length-1].date):'')}</div></div>
   <div class="card"><div class="hrow"><h2>Mesures anthropométriques</h2><span class="small muted">Poids et taille — enregistrés sur la fiche du ${PL.one} · IMC calculé</span></div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th><th class="n">Poids (kg)</th><th class="n">Taille (cm)</th><th class="n">IMC</th></tr></thead><tbody>
     ${ps.map(p=>{const bmi=(num(p.mass)&&num(p.height))?num(p.mass)/Math.pow(num(p.height)/100,2):null;return `<tr><td>${esc(p.name)}</td>
@@ -2299,14 +2300,14 @@ VIEWS.testing=()=>{
       <p class="note" style="margin-top:0">z-score par rapport au groupe, orienté pour que la droite soit toujours meilleure.</p>${zbars(prof)}
       <div style="margin-top:14px">${evo.length?lineChart({labels:evo.map(e=>e.date),series:[{name:t.name,values:evo.map(e=>e.v),color:COL_TR,dots:true}],h:150,fmt:v=>fr(v,t.unit==='s'?2:1)}):'<p class="muted small">Pas encore de valeur pour ce test.</p>'}<div class="small muted" style="text-align:center">Évolution : ${esc(t.name)}</div></div></div>
   </div>
-  <div class="card"><div class="hrow"><h2>Suivi par joueur : ${esc(t.name)}</h2><span class="small muted">Variation vs session précédente</span></div>
+  <div class="card"><div class="hrow"><h2>Suivi par ${PL.one} : ${esc(t.name)}</h2><span class="small muted">Variation vs session précédente</span></div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th>${tDates.map(d=>`<th class="n">${fmtShort(d)}</th>`).join('')}<th class="n">Variation</th><th class="n">z groupe</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td>${plinkA(r.p.id)}</td>${tDates.map(d=>{const b=bats.find(x=>x.date===d&&x.cat===r.p.cat);const v=b?num(b.results[t.id][r.p.id]):null;return `<td class="n">${v!=null?fr(v,2):'–'}</td>`;}).join('')}
       <td class="n">${r.chg==null?'–':`<span class="pill ${(hi?r.chg:-r.chg)>1?'good':(hi?r.chg:-r.chg)<-3?'crit':'neutral'}">${r.chg>0?'+':''}${r1(r.chg)} %</span>`}</td><td class="n">${r.z!=null?r1(r.z):'–'}</td></tr>`).join('')}
     </tbody></table></div></div>
-  <div class="card"><div class="hrow"><h2>Sessions de tests</h2></div><div class="tw"><table><thead><tr><th>Date</th><th>Cat.</th><th>Intitulé</th><th>Tests</th><th class="n">Joueurs</th><th></th></tr></thead><tbody>
+  <div class="card"><div class="hrow"><h2>Sessions de tests</h2></div><div class="tw"><table><thead><tr><th>Date</th>${INDIV?'':'<th>Cat.</th>'}<th>Intitulé</th><th>Tests</th><th class="n">${PL.Many}</th><th></th></tr></thead><tbody>
     ${testBatteries(UI.cat).slice().reverse().map(b=>{const ids=Object.keys(b.results||{}).filter(k=>Object.keys(b.results[k]).length);const np=new Set();ids.forEach(k=>Object.keys(b.results[k]).forEach(p=>np.add(p)));
-      return `<tr><td>${fmtD(b.date)}</td><td>${esc(b.cat)}</td><td>${esc(b.label||'')}</td><td class="wrap small">${ids.map(k=>esc((tests.find(x=>x.id===k)||{name:k}).name)).join(', ')}</td><td class="n">${np.size}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="tests" data-id="${esc(b.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="tests" data-id="${esc(b.id)}">×</button></div></td></tr>`;}).join('')||'<tr><td colspan="6" class="muted">Aucune session</td></tr>'}
+      return `<tr><td>${fmtD(b.date)}</td>${INDIV?'':`<td>${esc(b.cat)}</td>`}<td>${esc(b.label||'')}</td><td class="wrap small">${ids.map(k=>esc((tests.find(x=>x.id===k)||{name:k}).name)).join(', ')}</td><td class="n">${np.size}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="tests" data-id="${esc(b.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="tests" data-id="${esc(b.id)}">×</button></div></td></tr>`;}).join('')||'<tr><td colspan="6" class="muted">Aucune session</td></tr>'}
     </tbody></table></div></div>`;
 };
 POST.testing=()=>{const a=$('#testSel');if(a)a.onchange=()=>{UI.testId=a.value;render();};const b=$('#testPl');if(b)b.onchange=()=>{UI.testPlayer=b.value;render();};
@@ -2327,7 +2328,7 @@ VIEWS.reathle=()=>{
   const list=Object.values(DATA.injuries).filter(i=>i.status!=='apte'&&DATA.players[i.pid]&&inCat(DATA.players[i.pid])).sort((a,b)=>a.date.localeCompare(b.date));
   const inR=list.filter(i=>i.status==='reathle'||i.status==='reprise');const soins=list.filter(i=>i.status==='soins');
   const sel=inR.find(i=>i.id===UI.reaSel)||inR[0];
-  let detail='<div class="empty">Aucun joueur en réathlétisation. Depuis l’onglet Médical, passe un joueur blessé en réathlé.</div>';
+  let detail='<div class="empty">'+(INDIV?'Aucun·e client·e en reprise. Démarre une reprise depuis la liste « En soins ».':'Aucun joueur en réathlétisation. Depuis l’onglet Médical, passe un joueur blessé en réathlé.')+'</div>';
   if(sel){const ph=sel.phase||0;const cr=(sel.criteria&&sel.criteria[ph])||[];const cur=rtp[ph]||{name:'',criteria:[]};const allOk=cur.criteria.every((c,k)=>cr[k]);
     const log=(sel.log||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));const refW=refWeeklyDist(sel.pid,sel.date);
     let w7=0;log.forEach(l=>{if(dayDiff(ref,l.date)<7&&l.date<=ref)w7+=num(l.dist)||0;});const pct=refW?w7/refW*100:null;const p=DATA.players[sel.pid];const pv=vref(p);const vm=Math.max(0,...log.map(l=>num(l.vmax)||0));
@@ -2340,16 +2341,16 @@ VIEWS.reathle=()=>{
     const vmaxOk=tgtVmax<=0||(curVmaxPct!=null&&curVmaxPct>=tgtVmax);
     const numOk=loadOk&&vmaxOk;const readyOk=allOk&&numOk;
     detail=`<div class="row sb"><div><div class="eyebrow">${esc(sel.zone)} · ${esc(sel.type||'')} · ${esc(sel.side||'')}</div><h2 style="margin:2px 0 0;font-size:26px">${plink(sel.pid)}</h2><div class="small muted">Blessé le ${fmtD(sel.date)} · J+${dayDiff(ref,sel.date)} · retour prévu ${fmtD(sel.expectedReturn)}</div></div>
-      <div class="row"><button class="btn sm" data-act="medOpen" data-id="${esc(sel.id)}">Fiche médicale</button>${sel.status==='reprise'?`<button class="btn sm pri" data-act="injStatus" data-id="${esc(sel.id)}" data-v="apte">Déclarer apte</button>`:''}</div></div>
+      <div class="row">${INDIV?'':`<button class="btn sm" data-act="medOpen" data-id="${esc(sel.id)}">Fiche médicale</button>`}${sel.status==='reprise'?`<button class="btn sm pri" data-act="injStatus" data-id="${esc(sel.id)}" data-v="apte">Déclarer apte</button>`:''}</div></div>
     <div class="steps" style="margin:14px 0">${rtp.map((r,k)=>`<div class="${k<ph?'done':k===ph?'cur':''}">${k+1}. ${esc(r.name)}</div>`).join('')}</div>
     <div class="grid g2"><div class="card flat"><h3>Critères de la phase ${ph+1} : ${esc(cur.name)}</h3><div class="stack">
       ${cur.criteria.map((c,k)=>`<label class="chk"><input type="checkbox" data-chg="crit" data-id="${esc(sel.id)}" data-k="${k}" ${cr[k]?'checked':''}> ${esc(c)}</label>`).join('')}</div>
       <div class="row" style="margin-top:12px">${ph>0?`<button class="btn sm" data-act="phase" data-id="${esc(sel.id)}" data-v="-1">Phase précédente</button>`:''}
-      ${ph<rtp.length-1?`<button class="btn sm ${readyOk?'pri':''}" data-act="phase" data-id="${esc(sel.id)}" data-v="1">${readyOk?'Valider et passer en phase '+(ph+2):'Passer en phase '+(ph+2)+' (objectifs incomplets)'}</button>`:`<button class="btn sm pri" data-act="injStatus" data-id="${esc(sel.id)}" data-v="reprise">Passer en reprise collective</button>`}</div></div>
+      ${ph<rtp.length-1?`<button class="btn sm ${readyOk?'pri':''}" data-act="phase" data-id="${esc(sel.id)}" data-v="1">${readyOk?'Valider et passer en phase '+(ph+2):'Passer en phase '+(ph+2)+' (objectifs incomplets)'}</button>`:`<button class="btn sm pri" data-act="injStatus" data-id="${esc(sel.id)}" data-v="reprise">${INDIV?'Passer en reprise complète':'Passer en reprise collective'}</button>`}</div></div>
       <div class="card flat"><div class="hrow"><h3 style="margin:0">Progression de charge terrain</h3><span class="pill ${numOk?'good':'warn'}">${numOk?'Objectifs atteints':'Objectifs à atteindre'}</span></div><p class="small muted" style="margin:4px 0 8px">Cibles chiffrées de la phase ${ph+1} : charge ≥ ${tgtLoad} % · Vmax ≥ ${tgtVmax} %</p><div class="stack small">
         <div><div class="row sb"><span>Distance 7 j / référence habituelle</span><b>${pct!=null?r0(pct)+' %':'–'}</b></div><div class="bar"><i style="width:${clamp(pct||0,0,100)}%;background:${loadOk?'var(--good)':'var(--accent)'}"></i></div><span class="muted">${r0(w7)} m sur 7 j · réf. ${refW?r0(refW)+' m/sem':'n.d.'} · objectif ≥ ${tgtLoad} %${tgtLoad<=0?'':(loadOk?' ✓':' ✗')}</span></div>
         <div><div class="row sb"><span>Vmax atteinte / Vmax de référence</span><b>${curVmaxPct!=null?r0(curVmaxPct)+' %':'–'}</b></div><div class="bar"><i style="width:${curVmaxPct!=null?clamp(curVmaxPct,0,100):0}%;background:${vmaxOk?'var(--good)':'var(--accent)'}"></i></div><span class="muted">${vm?r1(vm)+' km/h':'–'} sur ${r1(pv)} km/h · objectif ≥ ${tgtVmax} %${tgtVmax<=0?'':(vmaxOk?' ✓':' ✗')}</span></div></div></div></div>
-    <div class="card flat" style="margin-top:14px"><div class="hrow"><h3>Séances de réathlétisation</h3></div>
+    <div class="card flat" style="margin-top:14px"><div class="hrow"><h3>${INDIV?'Séances de reprise':'Séances de réathlétisation'}</h3></div>
       ${log.length>1?barChart({labels:log.map(l=>l.date),values:log.map(l=>num(l.dist)||0),unit:'m',h:140}):''}
       <div class="tw" style="margin-top:8px"><table><thead><tr><th>Date</th><th>Contenu</th><th class="n">Min</th><th class="n">RPE</th><th class="n">Distance</th><th class="n">HSR</th><th class="n">Vmax</th><th></th></tr></thead><tbody>
       ${log.slice().reverse().map((l,k)=>`<tr><td>${fmtD(l.date)}</td><td class="wrap">${esc(l.content)}</td><td class="n">${r0(num(l.min))}</td><td class="n">${r0(num(l.rpe))}</td><td class="n">${r0(num(l.dist))}</td><td class="n">${r0(num(l.hsr))}</td><td class="n">${r1(num(l.vmax))}</td><td><button class="btn sm danger" data-act="delLog" data-id="${esc(sel.id)}" data-k="${log.length-1-k}">×</button></td></tr>`).join('')||'<tr><td colspan="8" class="muted">Aucune séance</td></tr>'}</tbody></table></div>
@@ -2360,8 +2361,8 @@ VIEWS.reathle=()=>{
         <div class="f"><label for="rl-dist">Distance (m)</label><input type="number" id="rl-dist" name="dist" min="0"></div><div class="f"><label for="rl-hsr">HSR (m)</label><input type="number" id="rl-hsr" name="hsr" min="0"></div>
         <div class="f"><label for="rl-vmax">Vmax (km/h)</label><input type="number" id="rl-vmax" name="vmax" step="0.1" min="0"></div><div><button class="btn pri">Ajouter la séance</button></div></form></div>`;}
   return `<div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,3fr)">
-    <div class="stack"><div class="card"><h3>En réathlétisation</h3><div class="stack" style="gap:6px">${inR.map(i=>`<button class="btn" style="justify-content:space-between;${sel&&i.id===sel.id?'border-color:var(--accent);color:var(--accent)':''}" data-act="reaSel" data-id="${esc(i.id)}"><span>${esc(pname(i.pid))}</span><span class="pill ${i.status==='reprise'?'warn':'info'}">${i.status==='reprise'?'Reprise':'Ph. '+((i.phase||0)+1)}</span></button>`).join('')||'<p class="muted small">Personne</p>'}</div></div>
-    <div class="card"><h3>En soins</h3><div class="stack" style="gap:8px">${soins.map(i=>`<div class="stack" style="gap:4px"><span>${plink(i.pid)} <span class="muted small">${esc(i.zone)} · J+${dayDiff(ref,i.date)}</span></span><button class="btn sm" data-act="injStatus" data-id="${esc(i.id)}" data-v="reathle">Démarrer la réathlé</button></div>`).join('')||'<p class="muted small">Personne</p>'}</div></div></div>
+    <div class="stack"><div class="card"><h3>${INDIV?'En reprise':'En réathlétisation'}</h3><div class="stack" style="gap:6px">${inR.map(i=>`<button class="btn" style="justify-content:space-between;${sel&&i.id===sel.id?'border-color:var(--accent);color:var(--accent)':''}" data-act="reaSel" data-id="${esc(i.id)}"><span>${esc(pname(i.pid))}</span><span class="pill ${i.status==='reprise'?'warn':'info'}">${i.status==='reprise'?'Reprise':'Ph. '+((i.phase||0)+1)}</span></button>`).join('')||'<p class="muted small">Personne</p>'}</div></div>
+    <div class="card"><h3>En soins</h3><div class="stack" style="gap:8px">${soins.map(i=>`<div class="stack" style="gap:4px"><span>${plink(i.pid)} <span class="muted small">${esc(i.zone)} · J+${dayDiff(ref,i.date)}</span></span><button class="btn sm" data-act="injStatus" data-id="${esc(i.id)}" data-v="reathle">${INDIV?'Démarrer la reprise':'Démarrer la réathlé'}</button></div>`).join('')||'<p class="muted small">Personne</p>'}</div></div></div>
     <div class="card">${detail}</div></div>`;
 };
 
@@ -2384,7 +2385,7 @@ VIEWS.muscu=()=>{
   else if(sel){const cp=playersOf(sel.cat==='Tous'?UI.cat:sel.cat);const withPct=sel.exercises.filter(e=>num(e.pct));
     progHtml=`<div class="row sb"><div><div class="eyebrow">${esc(sel.cat)} · ${esc(sel.phase||'')} · ${esc(sel.freq||'')} séance(s)/sem.</div><h2 style="margin:2px 0 0">${esc(sel.name)}</h2></div><div class="row"><button class="btn sm" data-act="progEdit" data-id="${esc(sel.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="programs" data-id="${esc(sel.id)}">Supprimer</button></div></div>
     <div class="tw" style="margin-top:10px"><table><thead><tr><th>Exercice</th><th class="n">Séries</th><th>Rép.</th><th class="n">% 1RM</th><th>Récup.</th><th>Consignes</th></tr></thead><tbody>${sel.exercises.map(e=>`<tr><td><b>${esc(e.name)}</b></td><td class="n">${esc(e.sets)}</td><td>${esc(e.reps)}</td><td class="n">${num(e.pct)?esc(e.pct)+' %':'–'}</td><td>${esc(e.rest||'')}</td><td class="wrap small">${esc(e.notes||'')}</td></tr>`).join('')}</tbody></table></div>
-    ${withPct.length?`<h3 style="margin-top:16px">Charges individuelles (kg)</h3><p class="note" style="margin-top:0">% 1RM × 1RM du joueur, arrondi à 2,5 kg. Charges indiquées seulement si la technique est au moins « Acquis ».</p>
+    ${withPct.length?`<h3 style="margin-top:16px">Charges individuelles (kg)</h3><p class="note" style="margin-top:0">% 1RM × 1RM du/de la ${PL.one}, arrondi à 2,5 kg. Charges indiquées seulement si la technique est au moins « Acquis ».</p>
     <div class="tw"><table><thead><tr><th>${PL.One}</th>${withPct.map(e=>`<th class="n">${esc(e.name)}<br><span style="text-transform:none">${esc(e.sets)}×${esc(e.reps)} @ ${esc(e.pct)} %</span></th>`).join('')}</tr></thead><tbody>
     ${cp.map(p=>{const mx=(DATA.maxes[p.id]||{}).values||{};const sk=(DATA.maxes[p.id]||{}).skills||{};const minSk=Math.min(...skills.map(s=>num(sk[s])??0));
       return `<tr><td>${plinkA(p.id)}</td>${withPct.map(e=>{const rm=num(mx[e.name]);return `<td class="n">${rm?(minSk>=2?`<b>${fr(Math.round(rm*num(e.pct)/100/2.5)*2.5,1)}</b>`:`<span class="pill warn" data-tip="Technique à valider avant de charger">Technique</span>`):'<span class="muted">1RM ?</span>'}</td>`;}).join('')}</tr>`;}).join('')}</tbody></table></div>`:''}`;}
@@ -2625,13 +2626,13 @@ ENTRY.wellness=()=>{const cat=UI.wCat||defCat();const date=UI.wDate||UI.ref;cons
   </tbody></table></div><div class="row"><button class="btn pri">Enregistrer le wellness</button></div></form>`;};
 ENTRY.injury=()=>{const e=editing('injuries');const ps=playersOf('Tous');
   return `<form data-form="injury" class="stack"><div class="fgrid">
-    ${fld('in-pid','Joueur',`<select id="in-pid" name="pid" required>${opt(ps.map(p=>[p.id,p.name+' ('+p.cat+')']),e?e.pid:UI.prefPid)}</select>`)}
+    ${fld('in-pid',PL.One,`<select id="in-pid" name="pid" required>${opt(ps.map(p=>[p.id,INDIV?p.name:p.name+' ('+p.cat+')']),e?e.pid:UI.prefPid)}</select>`)}
     ${fld('in-date','Date',`<input type="date" id="in-date" name="date" value="${e?e.date:UI.ref}" required>`)}
     ${fld('in-zone','Zone',`<select id="in-zone" name="zone">${opt(ZONES,e&&e.zone)}</select>`)}
     ${fld('in-type','Type / diagnostic',`<input type="text" id="in-type" name="type" value="${esc(e&&e.type||'')}" placeholder="ex. Lésion grade 1">`)}
     ${fld('in-side','Côté',`<select id="in-side" name="side">${opt(['Droit','Gauche','Bilatéral','Non applicable'],e&&e.side)}</select>`)}
     ${fld('in-mech','Mécanisme',`<select id="in-mech" name="mechanism">${opt(['Sans contact','Contact','Surcharge / progressive','Non précisé'],e&&e.mechanism)}</select>`)}
-    ${fld('in-ctx','Contexte',`<select id="in-ctx" name="context">${opt(['Match','Entraînement','Musculation','Hors club'],e&&e.context)}</select>`)}
+    ${fld('in-ctx','Contexte',`<select id="in-ctx" name="context">${opt(INDIV?['Séance','Compétition','Musculation','Vie quotidienne']:['Match','Entraînement','Musculation','Hors club'],e&&e.context)}</select>`)}
     ${fld('in-status','Statut',`<select id="in-status" name="status">${opt(Object.entries(STATUS_LABEL),e?e.status:'soins')}</select>`)}
     ${fld('in-ret','Retour prévu',`<input type="date" id="in-ret" name="expectedReturn" value="${esc(e&&e.expectedReturn||'')}">`)}
     ${fld('in-notes','Notes',`<textarea id="in-notes" name="notes">${esc(e&&e.notes||'')}</textarea>`,3)}
@@ -2694,7 +2695,7 @@ ENTRY.player=()=>{const e=editing('players');const s=S();const all=playersOf('To
   <form data-form="bulk" class="card flat stack"><h3>Ajout rapide</h3><p class="note" style="margin:0">${INDIV?'Un·e client·e par ligne : Nom (une seule colonne suffit).':'Un joueur par ligne : Nom ; poste ; numéro (poste et numéro facultatifs).'}</p>
     ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('bk-cat','Catégorie',`<select id="bk-cat" name="cat">${opt(cats(),defCat())}</select>`)}
     <textarea name="list" aria-label="Liste" style="min-height:140px" placeholder="${INDIV?'Cindy&#10;Marc':'Adam B. ; DC ; 4&#10;Ilyes K. ; MC ; 8'}"></textarea><div class="row"><button class="btn pri">Ajouter la liste</button></div></form></div>
-  <div class="card"><h3>${INDIV?'Mes client·es':'Effectif'} (${all.length})</h3><div class="tw"><table><thead><tr><th>Nom</th>${INDIV?'<th>Sport</th>':'<th>Cat.</th><th>Poste</th><th class="n">N°</th>'}<th class="n">Âge</th><th class="n">Vmax réf.</th><th>Accès (id · mdp)</th><th>Statut</th><th></th></tr></thead><tbody>
+  <div class="card"><h3>${INDIV?'Mes client·es':'Effectif'} (${all.length})</h3><div class="tw"><table><thead><tr><th>Nom</th>${INDIV?'<th>Sport</th>':'<th>Cat.</th><th>Poste</th><th class="n">N°</th>'}<th class="n">Âge</th><th class="n">${INDIV?'VMA réf.':'Vmax réf.'}</th><th>Accès (id · mdp)</th><th>Statut</th><th></th></tr></thead><tbody>
   ${all.map(p=>`<tr><td>${plinkA(p.id)}</td>${INDIV?`<td>${esc(p.sport||'—')}</td>`:`<td>${esc(p.cat)}</td><td>${esc(p.pos||'')}</td><td class="n">${esc(p.number||'')}</td>`}<td class="n">${r1(age(p.birth,UI.ref))}</td><td class="n">${r1(vref(p))}</td><td>${p.login?esc(p.login)+' · '+esc(p.pass||''):'<span class="muted">—</span>'}</td><td>${p.active===false?'<span class="pill neutral">Inactif</span>':'<span class="pill good">Actif</span>'}</td>
     <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="players" data-id="${esc(p.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="players" data-id="${esc(p.id)}">×</button></div></td></tr>`).join('')||`<tr><td colspan="9" class="muted">${INDIV?'Aucun·e client·e':'Aucun joueur'}</td></tr>`}</tbody></table></div></div>`;};
 ENTRY.gps=()=>{const mode=UI.gpsImpMode||'new',typ=UI.gpsImpType||'training';
@@ -2812,8 +2813,10 @@ FORMS.rlog=async f=>{const v=Object.fromEntries(new FormData(f));const i=JSON.pa
 FORMS.program=async f=>{const v=Object.fromEntries(new FormData(f));const id=f.dataset.id==='new'?uid():f.dataset.id;const ex=[];
   $$('#exoRows tr').forEach(tr=>{const g=n=>{const el=tr.querySelector(`[name^="ex-${n}-"]`);return el?el.value:'';};const name=g('name').trim();if(name)ex.push({name,sets:num(g('sets')),reps:g('reps'),pct:num(g('pct')),rest:g('rest'),notes:g('notes')});});
   await put('programs',id,{id,name:v.name,cat:v.cat,phase:v.phase,freq:num(v.freq),exercises:ex});UI.progEdit=null;UI.progSel=id;toast('Programme enregistré');render();};
-FORMS.settingsLists=async f=>{const v=Object.fromEntries(new FormData(f));const L=k=>v[k].split('\n').map(x=>x.trim()).filter(Boolean);
-  await saveSettings({appName:v.appName,categories:L('categories'),positions:L('positions'),sessionTypes:L('sessionTypes'),objectives:L('objectives'),muscuExos:L('muscuExos'),skills:L('skills')});toast('Paramètres enregistrés');};
+FORMS.settingsLists=async f=>{const v=Object.fromEntries(new FormData(f));const L=k=>(v[k]||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  const data={appName:v.appName,sessionTypes:L('sessionTypes'),objectives:L('objectives'),muscuExos:L('muscuExos')};
+  if(!INDIV){data.categories=L('categories');data.positions=L('positions');data.skills=L('skills');}
+  await saveSettings(data);toast('Paramètres enregistrés');};
 FORMS.settingsTh=async f=>{const v=Object.fromEntries(new FormData(f));const th={};Object.keys(DEF.th).forEach(k=>{const x=num(v[k]);th[k]=x??DEF.th[k];});await saveSettings({th});toast('Seuils enregistrés');};
 FORMS.settingsTests=async f=>{const rows=$$('#testRows tr');const tests=rows.map(tr=>({id:tr.dataset.id||('t'+uid()),name:tr.querySelector('[name=tn]').value.trim(),unit:tr.querySelector('[name=tu]').value.trim(),better:tr.querySelector('[name=tb]').value})).filter(t=>t.name);await saveSettings({tests});toast('Tests enregistrés');};
 FORMS.settingsRtp=async f=>{const rtp=$$('[data-rtp]').map(b=>({name:b.querySelector('input').value.trim(),criteria:b.querySelector('textarea').value.split('\n').map(x=>x.trim()).filter(Boolean)})).filter(r=>r.name);await saveSettings({rtp});toast('Protocole enregistré');};
@@ -3110,7 +3113,7 @@ async function reportPrint(r){
   doc.save('Compte-rendu-'+slug+'-'+(r.date||'').replace(/[^\d-]/g,'')+'.pdf');
   toast('PDF enregistré');
 }
-VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['players',INDIV?'Client·es & accès':'Joueur·ses & accès'],['notifs','Rappels'],['tabs','Onglets'],['lists','Club et listes'],['th','Seuils d’alerte'],['tests','Tests'],['rtp','Protocole réathlé'],['data','Données']];
+VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['players',INDIV?'Client·es & accès':'Joueur·ses & accès'],['notifs','Rappels'],['tabs','Onglets'],['lists',INDIV?'Sports & listes':'Club et listes'],['th',INDIV?'Seuils (charge)':'Seuils d’alerte'],['tests','Tests'],['rtp',INDIV?'Protocole de reprise':'Protocole réathlé'],['data','Données']];
   let body='';
   if(t==='notifs'){const who=INDIV?'client·es':'joueur·ses';const one=INDIV?'client·e':'joueur·se';
     body=`<h3>Rappels par notification</h3>
@@ -3123,21 +3126,21 @@ VIEWS.settings=()=>{const s=S();const t=UI.settingsTab;const tabs=[['players',IN
   if(t==='tabs'){body=`<h3>Onglets affichés</h3><p class="note" style="margin-top:0">Masque les onglets que tu n’utilises pas. Les données restent conservées.</p><div class="stack">
     ${TABS.filter(x=>x.id!=='settings').map(x=>`<label class="chk"><input type="checkbox" data-chg="tabOn" data-id="${x.id}" ${s.tabs[x.id]!==false?'checked':''}> ${esc(x.label)}</label>${x.children?`<div class="stack" style="padding-left:26px">${x.children.map(c=>`<label class="chk"><input type="checkbox" data-chg="tabOn" data-id="${c.id}" ${s.tabs[c.id]!==false?'checked':''}> ${esc(c.label)}</label>`).join('')}</div>`:''}`).join('')}</div>`;}
   if(t==='lists'){const ta=(k,l)=>fld('st-'+k,l+' (une par ligne)',`<textarea id="st-${k}" name="${k}" style="min-height:130px">${esc(s[k].join('\n'))}</textarea>`);
-    body=`<form data-form="settingsLists" class="stack"><div class="fgrid">${fld('st-app','Nom affiché',`<input type="text" id="st-app" name="appName" value="${esc(s.appName)}">`)}</div><div class="fgrid">${ta('categories','Catégories')}${ta('positions','Postes')}${ta('sessionTypes','Types de séance')}${ta('objectives','Objectifs de séance')}${ta('muscuExos','Exercices suivis en 1RM')}${ta('skills','Compétences techniques muscu')}</div><div class="row"><button class="btn pri">Enregistrer</button></div></form>`;}
-  if(t==='th'){const L={hsr:['Seuil HSR','km/h'],sprint:['Seuil sprint','km/h'],acwrHi:['ACWR haut',''],acwrLo:['ACWR bas',''],well:['Seuil wellness','%'],wz:['z wellness (alerte)',''],weekChg:['Variation hebdo max','%'],vmaxPct:['Exposition Vmax','% Vmax'],vmaxDays:['Délai max sans exposition','jours'],cmjDrop:['Baisse CMJ alerte','%'],monotony:['Monotonie max','']};
-    body=`<form data-form="settingsTh" class="stack"><div class="fgrid">${Object.keys(DEF.th).map(k=>fld('th-'+k,L[k][0]+(L[k][1]?' ('+L[k][1]+')':''),`<input type="number" step="any" id="th-${k}" name="${k}" value="${esc(s.th[k])}">`)).join('')}</div>
-    <p class="note">Repères : HSR souvent 19,8 km/h (adapter en U15, ex. 17–18 km/h, ou en relatif à la VIFT). Exposition ≥ 90 % Vmax 1 à 2 fois par semaine. Variation hebdo de charge ≤ 10–15 %.</p><div class="row"><button class="btn pri">Enregistrer</button></div></form>`;}
+    body=`<form data-form="settingsLists" class="stack"><div class="fgrid">${fld('st-app','Nom affiché',`<input type="text" id="st-app" name="appName" value="${esc(s.appName)}">`)}</div><div class="fgrid">${INDIV?'':ta('categories','Catégories')+ta('positions','Postes')}${ta('sessionTypes','Types de séance')}${ta('objectives','Objectifs de séance')}${ta('muscuExos','Exercices suivis en 1RM')}${INDIV?'':ta('skills','Compétences techniques muscu')}</div><div class="row"><button class="btn pri">Enregistrer</button></div></form>`;}
+  if(t==='th'){const L={hsr:['Seuil HSR','km/h'],sprint:['Seuil sprint','km/h'],acwrHi:['ACWR haut',''],acwrLo:['ACWR bas',''],well:['Seuil wellness','%'],wz:['z wellness (alerte)',''],weekChg:['Variation hebdo max','%'],vmaxPct:['Exposition Vmax','% Vmax'],vmaxDays:['Délai max sans exposition','jours'],cmjDrop:['Baisse CMJ alerte','%'],monotony:['Monotonie max','']};const thKeys=INDIV?['acwrHi','acwrLo','well','wz','weekChg','monotony']:Object.keys(DEF.th);
+    body=`<form data-form="settingsTh" class="stack"><div class="fgrid">${thKeys.map(k=>fld('th-'+k,L[k][0]+(L[k][1]?' ('+L[k][1]+')':''),`<input type="number" step="any" id="th-${k}" name="${k}" value="${esc(s.th[k])}">`)).join('')}</div>
+    <p class="note">${INDIV?'Zone ACWR cible 0,8–1,3 (charge aiguë ÷ chronique). Variation de charge hebdomadaire ≤ 10–15 %. Seuil wellness sous lequel la fatigue est à surveiller.':'Repères : HSR souvent 19,8 km/h (adapter en U15, ex. 17–18 km/h, ou en relatif à la VIFT). Exposition ≥ 90 % Vmax 1 à 2 fois par semaine. Variation hebdo de charge ≤ 10–15 %.'}</p><div class="row"><button class="btn pri">Enregistrer</button></div></form>`;}
   if(t==='tests'){body=`<form data-form="settingsTests" class="stack"><div class="tw"><table class="gridin"><thead><tr><th>Nom du test</th><th>Unité</th><th>Meilleur si</th><th></th></tr></thead><tbody id="testRows">
     ${s.tests.map(x=>testRow(x)).join('')}</tbody></table></div><div class="row"><button type="button" class="btn sm" data-act="addTest">+ Test</button><span style="flex:1"></span><button class="btn pri">Enregistrer</button></div></form>`;}
-  if(t==='rtp'){body=`<form data-form="settingsRtp" class="stack"><p class="note" style="margin:0">Phases du protocole de retour au jeu et critères de passage (un par ligne). Applicable à toutes les blessures ; adapte-les avec le staff médical.</p>
+  if(t==='rtp'){body=`<form data-form="settingsRtp" class="stack"><p class="note" style="margin:0">${INDIV?'Phases de reprise après blessure et critères de passage (un par ligne). Applicable à tous les pépins ; adapte-les avec le/la kiné.':'Phases du protocole de retour au jeu et critères de passage (un par ligne). Applicable à toutes les blessures ; adapte-les avec le staff médical.'}</p>
     ${s.rtp.map((r,k)=>`<div class="card flat stack" data-rtp="${k}">${fld('rtp-n'+k,'Phase '+(k+1),`<input type="text" id="rtp-n${k}" value="${esc(r.name)}">`)}<textarea aria-label="Critères phase ${k+1}">${esc(r.criteria.join('\n'))}</textarea></div>`).join('')}<div class="row"><button class="btn pri">Enregistrer</button></div></form>`;}
   if(t==='data'){const n=COLS.reduce((a,c)=>a+Object.keys(DATA[c]).length,0);
     body=`<div class="stack"><p>${Store.mode==='db'?'Les données sont enregistrées en ligne et partagées avec les personnes à qui tu donnes accès à cette page.':'Les données sont enregistrées dans ce navigateur uniquement.'} ${n} éléments enregistrés.</p>
     <div class="row"><button class="btn" data-act="export">Exporter (JSON)</button><label class="btn" for="impFile">Importer un fichier JSON</label><input type="file" id="impFile" accept=".json,application/json" hidden data-chg="import"></div>
     <div id="expOut"></div>
-    <div class="card flat"><h3>Tout effacer</h3><p class="note" style="margin-top:0">Supprime définitivement joueurs, séances, matchs, tests, blessures et paramètres. Exporte d’abord une sauvegarde.</p><button class="btn danger" data-act="resetAll">Tout effacer</button> <span id="resetProg" class="small muted"></span></div></div>`;}
+    <div class="card flat"><h3>Tout effacer</h3><p class="note" style="margin-top:0">Supprime définitivement ${INDIV?'client·es, séances, compétitions':'joueurs, séances, matchs'}, tests, blessures et paramètres. Exporte d’abord une sauvegarde.</p><button class="btn danger" data-act="resetAll">Tout effacer</button> <span id="resetProg" class="small muted"></span></div></div>`;}
   const subtabs=`<div class="subtabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="settingsTab" data-id="${k}">${l}</button>`).join('')}</div>`;
-  if(t==='players')return subtabs+`<p class="note">Ajoute tes joueur·ses et donne à chacun·e un <b>identifiant</b> + <b>mot de passe</b> pour son espace perso (RPE + wellness) : <b>/academie/espace.html</b>.</p>`+ENTRY.player();
+  if(t==='players')return subtabs+`<p class="note">Ajoute tes ${INDIV?'client·es':'joueur·ses'} et donne à chacun·e un <b>identifiant</b> + <b>mot de passe</b> pour son espace perso (RPE + wellness) : <b>/academie/espace.html</b>.</p>`+ENTRY.player();
   return subtabs+`<div class="card">${body}</div>`;};
 function testRow(x){return `<tr data-id="${esc(x.id||'')}"><td><input class="w" type="text" name="tn" value="${esc(x.name||'')}" aria-label="Nom"></td><td><input type="text" name="tu" value="${esc(x.unit||'')}" aria-label="Unité"></td><td><select name="tb" style="width:auto" aria-label="Meilleur si">${opt([['high','valeur haute'],['low','valeur basse']],x.better||'high')}</select></td><td><button type="button" class="btn sm danger" data-act="rmRow">×</button></td></tr>`;}
 
@@ -3200,7 +3203,7 @@ function renderDrawer(){
       <div class="card"><div class="hrow"><h3>Dernière séance GPS</h3><span class="small muted">${fmtD(last.date)} · ${esc(last.title||last.type||(last._m?('vs '+(last.opponent||'')):''))}</span></div>
         <div class="stat-row">${tileHtml}</div>
         <p class="note" style="margin-top:10px">Variations calculées par rapport à la moyenne des ${recent.length} dernières séances GPS du/de la ${PL.one}.</p></div>
-      <div class="card"><h3>Distance — évolution</h3>${barChart({labels:dlabels,values:dvals,colors:dm.map(m=>m?COL_MATCH:COL_TR),unit:'m',h:150,legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
+      <div class="card"><h3>Distance — évolution</h3>${barChart({labels:dlabels,values:dvals,colors:dm.map(m=>m?COL_MATCH:COL_TR),unit:'m',h:150,legend:CHART_LEG})}</div>
       <div class="card"><h3>Historique GPS — 10 dernières</h3><div class="tw"><table><thead><tr><th>Date</th><th>Type</th><th>Séance</th><th class="n">Min</th><th class="n">Dist (m)</th><th class="n">HSR (m)</th><th class="n">Sprint (m)</th><th class="n">Vmax</th><th class="n">P.Load</th></tr></thead><tbody>${table}</tbody></table></div></div>`;
   }
 
@@ -3261,7 +3264,7 @@ function renderDrawer(){
 
   const panelProg=`
     <div class="card"><h3>Wellness, 28 jours</h3>${lineChart({labels:days,series:[{name:'Wellness',values:wv,color:COL_TR,dots:true}],yMin:30,yMax:100,refs:[{v:S().th.well,label:'Seuil'}],h:150})}</div>
-    <div class="card"><h3>Charge quotidienne (sRPE)</h3>${barChart({labels:days,values:lv,colors:isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',h:150,legend:[['Entraînement',COL_TR],['Match',COL_MATCH]]})}</div>
+    <div class="card"><h3>Charge quotidienne (sRPE)</h3>${barChart({labels:days,values:lv,colors:isM.map(m=>m?COL_MATCH:COL_TR),unit:'UA',h:150,legend:CHART_LEG})}</div>
     ${mHas?`<div class="card"><h3>🧠 Charge mentale quotidienne (sRPE mentale)</h3>${barChart({labels:days,values:mv,colors:isM.map(m=>m?'#ff9a8b':'#f2617a'),unit:'UA',h:150,legend:[['Entraînement','#f2617a'],['Match','#ff9a8b']]})}<p class="note">Charge mentale = note de contrainte mentale (0→10) × durée, déclarée par le ${PL.one} dans son questionnaire.</p></div>`:''}
     <div class="card"><h3>ACWR</h3>${lineChart({labels:days,series:[{name:'ACWR',values:ac,color:COL_TR}],band:[S().th.acwrLo,S().th.acwrHi],h:140,fmt:v=>r2(v),yMin:0})}<p class="note">Zone verte : ${r1(S().th.acwrLo)} à ${r1(S().th.acwrHi)}.</p></div>`;
 
