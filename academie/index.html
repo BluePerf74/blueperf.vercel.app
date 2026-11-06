@@ -1205,7 +1205,10 @@ function seanceCalendar(){
   const colTmpl=`grid-template-columns:180px repeat(${nd},minmax(108px,1fr))`;
   const head=`<div class="cal2-row cal2-head" style="${colTmpl}"><div class="cal2-name cal2-th2">${PL.One}</div>`+days.map(d=>`<div class="cal2-th${d===ref?' today':''}">${DAYS[wd(d)]} ${fmtShort(d)}</div>`).join('')+`</div>`;
   let maxCharge=1;if(curve==='charge')roster.forEach(p=>days.forEach(d=>{const x=pday(p.id,d);if(x&&x.load>maxCharge)maxCharge=x.load;}));
-  const loadBar=(p,d)=>{if(curve==='off')return '';const x=pday(p.id,d);const v=curve==='charge'?(x?x.load:0):wOf(p.id,d);if(v==null||v<=0)return '';const mx=curve==='charge'?maxCharge:100;const pct=Math.round(Math.max(3,Math.min(mx,v)/mx*100));const col=curve==='charge'?'var(--accent)':'var(--s2)';return `<div class="cal2-load" data-tip="${curve==='charge'?'Charge '+r0(v)+' UA':'Wellness '+r0(v)+' %'}"><i style="width:${pct}%;background:${col}"></i></div>`;};
+  const loadBar=(p,d)=>{if(curve==='off')return '';const x=pday(p.id,d);const v=curve==='charge'?(x?x.load:0):wOf(p.id,d);if(v==null||v<=0)return '';const mx=curve==='charge'?maxCharge:100;const frac=Math.max(0,Math.min(1,v/mx));const pct=Math.round(Math.max(4,frac*100));let col,lvl;
+    if(curve==='charge'){if(frac<0.3){col='var(--good)';lvl='légère';}else if(frac<0.55){col='#d99a00';lvl='modérée';}else if(frac<0.8){col='#e8792b';lvl='élevée';}else{col='var(--crit)';lvl='très élevée';}}
+    else{if(v>=70){col='var(--good)';lvl='bon';}else if(v>=55){col='#d99a00';lvl='moyen';}else{col='var(--crit)';lvl='bas';}}
+    return `<div class="cal2-load" data-tip="${curve==='charge'?'Charge '+r0(v)+' UA — '+lvl:'Wellness '+r0(v)+' % — '+lvl}"><i style="width:${pct}%;background:${col}"></i></div>`;};
   const rows=roster.map(p=>{
     const cells=days.map(d=>{
       const future=d>ref;const inj=injOn(p.id,d);const bar=loadBar(p,d);
@@ -1230,7 +1233,8 @@ function seanceCalendar(){
     <button class="btn sm" data-act="calToday">↺ Autour d'aujourd'hui</button>
     <button class="btn sm${curve!=='off'?' pri':''}" data-act="calCurve">📈 ${curveLabel}</button></div>`;
   const legend=`<div class="cal2-legend">${[['Entraîné','var(--good)'],['Repos','var(--muted)'],['Blessure','var(--crit)'],['Réathlé','var(--s3)'],['Malade','var(--warn)'],['Absent','#8a93a6'],['Planifiée','var(--accent)'],['Validée (RPE saisi)','var(--good)'],['Non validée > 48 h','var(--crit)']].map(([l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>`;
-  return `<div class="card"><div class="hrow"><h2>Calendrier des séances</h2><span class="small muted">${nd} jours · ${roster.length} ${PL.one}s</span></div>${legend}${controls}<div class="cal2">${head}${rows}</div><p class="note" style="margin-top:8px">Pastille verte = séance validée (RPE saisi) · rouge = non validée depuis plus de 48 h · pointillés = séance planifiée. Bouton « Graphique » : superpose la courbe de charge (sRPE) ou de wellness par ${PL.one}.</p></div>`;
+  const barLegend=curve==='off'?'':`<div class="cal2-legend" style="margin:8px 0 0">${(curve==='charge'?[['Charge légère','var(--good)'],['Modérée','#d99a00'],['Élevée','#e8792b'],['Très élevée','var(--crit)']]:[['Wellness bon','var(--good)'],['Moyen','#d99a00'],['Bas','var(--crit)']]).map(([l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join('')}<span class="muted">← barre en bas de chaque case</span></div>`;
+  return `<div class="card"><div class="hrow"><h2>Calendrier des séances</h2><span class="small muted">${nd} jours · ${roster.length} ${PL.one}s</span></div>${legend}${controls}<div class="cal2">${head}${rows}</div>${barLegend}<p class="note" style="margin-top:8px">Pastille verte = séance validée (RPE saisi) · rouge = non validée depuis plus de 48 h · pointillés = séance planifiée. La petite barre en bas de chaque case montre la charge du jour, colorée selon son niveau (vert → rouge).</p></div>`;
 }
 VIEWS.seances=()=>{
   const ref=UI.ref;const inC=x=>UI.cat==='Tous'||x.cat===UI.cat;
