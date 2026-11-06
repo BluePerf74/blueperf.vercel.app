@@ -1424,21 +1424,24 @@ function seanceCalendar(){
     <button class="btn sm${curve!=='off'?' pri':''}" data-act="calCurve">📈 ${curveLabel}</button></div>`;
   const legend=`<div class="cal2-legend">${[['Entraîné','var(--good)'],['Repos','var(--muted)'],['Blessure','var(--crit)'],['Réathlé','var(--s3)'],['Malade','var(--warn)'],['Absent','#8a93a6'],['Planifiée','var(--accent)'],['Validée (RPE saisi)','var(--good)'],['Non validée > 48 h','var(--crit)']].map(([l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>`;
   const barLegend=curve==='off'?'':`<div class="cal2-legend" style="margin:8px 0 0">${(curve==='charge'?[['Charge légère','var(--good)'],['Modérée','#d99a00'],['Élevée','#e8792b'],['Très élevée','var(--crit)']]:[['Wellness bon','var(--good)'],['Moyen','#d99a00'],['Bas','var(--crit)']]).map(([l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join('')}<span class="muted">← barre en bas de chaque case</span></div>`;
-  return `<div class="card"><div class="hrow"><h2>Calendrier des séances</h2><span class="small muted">${nd} jours · ${roster.length} ${PL.one}s</span></div>${legend}${controls}<div class="cal2">${head}${rows}</div>${barLegend}<p class="note" style="margin-top:8px">Pastille verte = séance validée (RPE saisi) · rouge = non validée depuis plus de 48 h · pointillés = séance planifiée. La petite barre en bas de chaque case montre la charge du jour, colorée selon son niveau (vert → rouge).</p></div>`;
+  const selName=INDIV&&UI.indivClient&&UI.indivClient!=='Tous'?indivName(UI.indivClient):null;
+  return `<div class="card"><div class="hrow"><h2>Calendrier des séances</h2><span class="small muted">${selName?'🔎 '+esc(selName)+' · ':''}${nd} jours${selName?'':' · '+roster.length+' '+PL.one+'s'}</span></div>${legend}${controls}<div class="cal2">${head}${rows}</div>${barLegend}<p class="note" style="margin-top:8px">Pastille verte = séance validée (RPE saisi) · rouge = non validée depuis plus de 48 h · pointillés = séance planifiée. La petite barre en bas de chaque case montre la charge du jour, colorée selon son niveau (vert → rouge).</p></div>`;
 }
 VIEWS.seances=()=>{
   const ref=UI.ref;const inC=x=>UI.cat==='Tous'||x.cat===UI.cat;
   const evs=[...Object.values(DATA.sessions).map(x=>({...x,_m:false,col:'sessions'})),...Object.values(DATA.matches).map(x=>({...x,_m:true,col:'matches',title:x.title||(INDIV?(x.compName||x.opponent||'Compétition'):('Match vs '+(x.opponent||'?')))}))]
-    .filter(inC).filter(e=>e.date<=ref).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  if(!evs.length)return `<div class="card"><p class="muted" style="margin:0">Aucune séance enregistrée. Crée une séance dans « Saisie ».</p></div>`;
-  const stat=e=>{const ps=Object.values(e.players||{}).filter(x=>num(x.rpe)!=null);const n=ps.length;const rpe=n?mean(ps.map(x=>num(x.rpe))):null;const mrpeArr=Object.values(e.players||{}).map(x=>num(x.mrpe)).filter(v=>v!=null);const mrpe=mrpeArr.length?mean(mrpeArr):null;const dur=e.duration||(n?Math.round(mean(ps.map(x=>num(x.min)||0))):0);const load=rpe!=null?Math.round(rpe*(e.duration||(n?mean(ps.map(x=>num(x.min)||0)):0))):null;return {n,rpe,mrpe,dur,load,np:Object.keys(e.players||{}).length};};
+    .filter(inC).filter(indivSess).filter(e=>e.date<=ref).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const selPid=INDIV&&UI.indivClient&&UI.indivClient!=='Tous'?UI.indivClient:null;
+  const entriesOf=e=>selPid?((e.players&&e.players[selPid])?[e.players[selPid]]:[]):Object.values(e.players||{});
+  if(!evs.length)return `<div class="card"><p class="muted" style="margin:0">${selPid?'Aucune séance pour '+esc(indivName(selPid))+' sur la période.':'Aucune séance enregistrée. Crée une séance dans « Saisie ».'}</p></div>`;
+  const stat=e=>{const en=entriesOf(e);const ps=en.filter(x=>num(x.rpe)!=null);const n=ps.length;const rpe=n?mean(ps.map(x=>num(x.rpe))):null;const mrpeArr=en.map(x=>num(x.mrpe)).filter(v=>v!=null);const mrpe=mrpeArr.length?mean(mrpeArr):null;const dur=e.duration||(n?Math.round(mean(ps.map(x=>num(x.min)||0))):0);const load=rpe!=null?Math.round(rpe*(e.duration||(n?mean(ps.map(x=>num(x.min)||0)):0))):null;return {n,rpe,mrpe,dur,load,np:selPid?((e.players&&e.players[selPid])?1:0):Object.keys(e.players||{}).length};};
   const chrono=evs.slice(0,24).reverse();
   const labels=chrono.map(e=>e.date);
   const rpeVals=chrono.map(e=>{const st=stat(e);return st.rpe!=null?+st.rpe.toFixed(1):0;});
   const loadVals=chrono.map(e=>{const st=stat(e);return st.load||0;});
   const colM=chrono.map(e=>e._m?COL_MATCH:COL_TR);
   const tips=chrono.map(e=>{const st=stat(e);return (e.title||e.type)+' · '+fmtShort(e.date)+'\nRPE moyen '+(st.rpe!=null?r1(st.rpe):'–')+' · '+st.n+' joueur'+(st.n>1?'s':'');});
-  const last28=evs.filter(e=>e.date>=addDays(ref,-27));const rpeAll=[];last28.forEach(e=>Object.values(e.players||{}).forEach(x=>{if(num(x.rpe)!=null)rpeAll.push(num(x.rpe));}));
+  const last28=evs.filter(e=>e.date>=addDays(ref,-27));const rpeAll=[];last28.forEach(e=>entriesOf(e).forEach(x=>{if(num(x.rpe)!=null)rpeAll.push(num(x.rpe));}));
   const kpis=`<div class="grid g4">
     ${kpi('Séances (28 j)',last28.length,'',last28.filter(e=>e._m).length+' match'+(last28.filter(e=>e._m).length>1?'s':''))}
     ${kpi('RPE moyen',rpeAll.length?r1(mean(rpeAll)):'–','/10','Difficulté ressentie')}
@@ -1449,18 +1452,18 @@ VIEWS.seances=()=>{
     <div class="card"><h3>Charge par séance — sRPE</h3>${barChart({labels,values:loadVals,colors:colM,unit:'UA',h:160,tips})}<p class="note">Charge = RPE moyen × durée. Permet de repérer les grosses séances.</p></div></div>`;
   const selId=UI.seanceSel;const selEv=selId?evs.find(e=>e.id===selId):null;
   let detail='';
-  if(selEv){const st=stat(selEv);const pl=Object.entries(selEv.players||{}).map(([pid,e])=>({p:DATA.players[pid],e})).filter(x=>x.p&&num(x.e.rpe)!=null).sort((a,b)=>num(b.e.rpe)-num(a.e.rpe));
+  if(selEv){const st=stat(selEv);const pl=Object.entries(selEv.players||{}).map(([pid,e])=>({p:DATA.players[pid],e})).filter(x=>x.p&&num(x.e.rpe)!=null&&(!selPid||x.p.id===selPid)).sort((a,b)=>num(b.e.rpe)-num(a.e.rpe));
     const items=pl.map(x=>({label:x.p.name,value:num(x.e.rpe),color:rpeDiff(num(x.e.rpe))[1]==='crit'?'var(--crit)':rpeDiff(num(x.e.rpe))[1]==='warn'?'var(--warn)':rpeDiff(num(x.e.rpe))[1]==='good'?'var(--good)':'var(--accent)',sub:(num(x.e.min)||st.dur||0)+' min'+(num(x.e.mrpe)!=null?' · 🧠 '+num(x.e.mrpe):'')}));
     const [dl,dc]=rpeDiff(st.rpe);
     detail=`<div class="card" id="seance-detail"><div class="hrow"><div><div class="eyebrow">${fmtD(selEv.date)} · ${esc(selEv.cat)} · <span class="pill ${selEv._m?'crit':'info'}">${selEv._m?(INDIV?'Compétition':'Match'):(INDIV?'Séance':'Entraînement')}</span></div><h3 style="margin:4px 0 0">${esc(selEv.title||selEv.type)}</h3></div><button class="btn sm" data-act="seanceClose">✕ Fermer</button></div>
       <div class="grid g4" style="margin-bottom:12px">${kpi('RPE moyen',st.rpe!=null?r1(st.rpe):'–','/10',dl,dc==='crit'?'crit':dc==='warn'?'warn':null)}${kpi('Charge',st.load!=null?r0(st.load):'–','UA','sRPE')}${kpi('Durée',st.dur||'–','min')}${kpi('Réponses',st.n+' / '+st.np,'','RPE saisis')}</div>
       <h3 style="font-size:15px">RPE par ${PL.one}</h3>${items.length?hbars(items,{max:10,unit:'/10'}):'<p class="muted small">Aucun RPE saisi pour cette séance.</p>'}</div>`;
   }
-  const table=`<div class="card"><h3>Toutes les séances</h3><div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th><th class="n">${PL.Many}</th><th class="n">Durée</th><th class="n">RPE moyen</th><th>Difficulté</th><th class="n">Charge</th><th></th></tr></thead><tbody>
-    ${evs.slice(0,50).map(e=>{const st=stat(e);const [dl,dc]=rpeDiff(st.rpe);return `<tr${e.id===selId?' style="background:var(--accent-soft)"':''}><td>${fmtShort(e.date)}</td><td class="wrap">${esc(e.title||e.type)}</td><td><span class="pill ${e._m?'crit':'neutral'}" style="font-size:11px">${e._m?(INDIV?'Compét.':'Match'):esc(e.type||'Entr.')}</span></td><td class="n">${st.n}/${st.np}</td><td class="n">${st.dur||'–'}</td><td class="n"><b>${st.rpe!=null?r1(st.rpe):'–'}</b></td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${st.load!=null?r0(st.load):'–'}</td><td><button class="btn sm" data-act="seanceOpen" data-id="${esc(e.id)}">Détail</button></td></tr>`;}).join('')}
+  const table=`<div class="card"><h3>${selPid?'Séances de '+esc(indivName(selPid)):'Toutes les séances'}</h3><div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th>${selPid?'':`<th class="n">${PL.Many}</th>`}<th class="n">Durée</th><th class="n">RPE${selPid?'':' moyen'}</th><th>Difficulté</th><th class="n">Charge</th><th></th></tr></thead><tbody>
+    ${evs.slice(0,50).map(e=>{const st=stat(e);const [dl,dc]=rpeDiff(st.rpe);return `<tr${e.id===selId?' style="background:var(--accent-soft)"':''}><td>${fmtShort(e.date)}</td><td class="wrap">${esc(e.title||e.type)}</td><td><span class="pill ${e._m?'crit':'neutral'}" style="font-size:11px">${e._m?(INDIV?'Compét.':'Match'):esc(e.type||'Entr.')}</span></td>${selPid?'':`<td class="n">${st.n}/${st.np}</td>`}<td class="n">${st.dur||'–'}</td><td class="n"><b>${st.rpe!=null?r1(st.rpe):'–'}</b></td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${st.load!=null?r0(st.load):'–'}</td><td><button class="btn sm" data-act="seanceOpen" data-id="${esc(e.id)}">Détail</button></td></tr>`;}).join('')}
     </tbody></table></div></div>`;
   return `${seanceCalendar()}
-    <div class="sect-head"><h2 class="sect-title">📊 Analyse des séances <span class="muted" style="font-weight:400;font-size:13px">— difficulté ressentie (RPE) & charge</span></h2></div>
+    <div class="sect-head"><h2 class="sect-title">📊 Analyse des séances ${selPid?`<span class="pill info" style="font-size:12px;vertical-align:middle">${esc(indivName(selPid))}</span>`:'<span class="muted" style="font-weight:400;font-size:13px">— difficulté ressentie (RPE) & charge</span>'}</h2></div>
     ${kpis}${curves}${detail}${table}`;
 };
 POST.seances=()=>{};
