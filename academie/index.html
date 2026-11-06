@@ -171,6 +171,49 @@ a{color:var(--accent)}
 .st-empty{background:var(--surface)}
 .cal2-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--ink-2);margin-bottom:10px}
 .cal2-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+/* SAISIE DE SÉANCE GUIDÉE (coaching) */
+.ns-wrap{max-width:780px;display:flex;flex-direction:column;gap:14px}
+.ns-step{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+.ns-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.ns-num{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:700;font-family:var(--fd);display:flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+.ns-head h3{margin:0;font-size:17px}
+.ns-hint{font-size:12px;color:var(--muted);margin-left:auto}
+.ns-sub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:14px 0 7px}
+.ns-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ns-client{display:inline-flex;align-items:center;gap:7px;padding:5px 13px 5px 5px;border:1.5px solid var(--line-2);border-radius:999px;cursor:pointer;font-weight:600;font-size:13px;transition:border-color .12s,background .12s,color .12s;background:var(--surface)}
+.ns-client input{display:none}
+.ns-client:hover{border-color:var(--accent)}
+.ns-client:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.ns-types{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:9px}
+.ns-type{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border:1.5px solid var(--line-2);border-radius:13px;cursor:pointer;text-align:center;font-weight:600;font-size:12.5px;transition:border-color .12s,background .12s,color .12s}
+.ns-type input{display:none}
+.ns-type:hover{border-color:var(--accent)}
+.ns-type:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ns-ico{font-size:26px;line-height:1}
+.ns-pill{display:inline-flex;align-items:center;gap:4px;padding:9px 15px;border:1.5px solid var(--line-2);border-radius:999px;cursor:pointer;font-weight:600;font-size:13px}
+.ns-pill input[type=radio]{display:none}
+.ns-pill:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.ns-dcustom{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.ns-dcustom input{width:72px}
+.ns-seg2{display:inline-flex;flex-wrap:wrap;gap:6px}
+.ns-segbtn{padding:9px 15px;border:1.5px solid var(--line-2);border-radius:9px;cursor:pointer;font-weight:600;font-size:13px}
+.ns-segbtn input{display:none}
+.ns-segbtn:has(input:checked){border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.ns-mode{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ns-modeopt{display:flex;gap:10px;padding:13px;border:1.5px solid var(--line-2);border-radius:12px;cursor:pointer}
+.ns-modeopt input{margin-top:3px;flex:none}
+.ns-modeopt b{display:block;font-size:13.5px;margin-bottom:3px}
+.ns-modeopt span{font-size:11.5px;color:var(--muted);line-height:1.35}
+.ns-modeopt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.ns-rpe{max-height:0;overflow:hidden;opacity:0;transition:max-height .2s,opacity .2s}
+.ns-mode:has(input[value="coach"]:checked) ~ .ns-rpe{max-height:200px;opacity:1;margin-top:12px}
+.ns-rpescale{display:flex;flex-wrap:wrap;gap:6px}
+.ns-rpebtn{width:42px;height:42px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--line-2);border-radius:10px;cursor:pointer;font-weight:700;font-size:14px}
+.ns-rpebtn input{display:none}
+.ns-rpebtn:has(input:checked){border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.ns-save{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:2px 0 4px}
+.ns-save .btn.pri{font-size:15px;padding:12px 24px}
+@media(max-width:560px){.ns-mode{grid-template-columns:1fr}}
 /* transitions / polish */
 .card{transition:box-shadow .16s,border-color .16s,transform .16s}
 .btn{transition:border-color .14s,color .14s,background .14s,box-shadow .14s}
@@ -2529,7 +2572,35 @@ function simpleForm(kind){ // kind: 'train' (entraînement) ou 'match'
     :`<p class="muted">${INDIV?'Aucun·e client·e. Ajoute-les dans « Saisie › '+PL.Many+' ».':'Aucun·e '+PL.one+' en '+esc(cat)+'.'}</p>`}
   </form>`;
 }
-ENTRY.simple=()=>simpleForm('train');
+/* Saisie de séance guidée (coaching) : étapes visuelles — pour qui, type, détails, ressenti. */
+function coachSessionForm(){
+  const clients=playersOf(INDIV_CAT,true);
+  if(!clients.length)return `<div class="card"><p class="muted" style="margin:0">Ajoute d'abord des client·es dans « Saisie › Client·es ».</p></div>`;
+  const TI={'Course / running':'🏃','Fractionné':'⚡','Renforcement / muscu':'💪','Cardio':'🚴','Mobilité':'🧘','Récupération':'😌','Mixte':'🔀','Salle':'🏋️'};
+  const types=S().sessionTypes;const date=UI.assignDate||UI.ref;
+  return `<form data-form="newsess" class="ns-wrap">
+    <div class="ns-step"><div class="ns-head"><span class="ns-num">1</span><h3>Pour qui ?</h3><span class="ns-hint">clique un·e ou plusieurs client·es</span></div>
+      <div class="ns-chips">${clients.map(p=>`<label class="ns-client"><input type="checkbox" name="pl-${esc(p.id)}" ${clients.length===1?'checked':''}>${pAvatar(p,'xs')}<span>${esc(p.name)}</span></label>`).join('')}</div></div>
+    <div class="ns-step"><div class="ns-head"><span class="ns-num">2</span><h3>Type de séance</h3></div>
+      <div class="ns-types">${types.map((t,i)=>`<label class="ns-type"><input type="radio" name="stype" value="${esc(t)}" ${i===0?'checked':''}><span class="ns-ico">${TI[t]||'🏋️'}</span><span>${esc(t)}</span></label>`).join('')}</div></div>
+    <div class="ns-step"><div class="ns-head"><span class="ns-num">3</span><h3>Détails</h3></div>
+      <div class="fgrid">${fld('ns-date','Date',`<input type="date" id="ns-date" name="date" value="${date}">`)}${fld('ns-title','Intitulé (optionnel)',`<input type="text" id="ns-title" name="title" placeholder="ex. Sortie longue · Haut du corps…">`,2)}</div>
+      <div class="ns-sub">Durée</div>
+      <div class="ns-chips" style="align-items:center">${[30,45,60,75,90].map((d,i)=>`<label class="ns-pill"><input type="radio" name="duration" value="${d}" ${i===2?'checked':''}>${d} min</label>`).join('')}<span class="ns-dcustom">ou <input type="number" name="durationCustom" placeholder="min" min="0"> min</span></div>
+      <div class="ns-sub">Intensité</div>
+      <div class="ns-seg2">${['Légère','Modérée','Soutenue','Intense'].map((x,i)=>`<label class="ns-segbtn"><input type="radio" name="intensity" value="${x}" ${i===1?'checked':''}>${x}</label>`).join('')}</div></div>
+    <div class="ns-step"><div class="ns-head"><span class="ns-num">4</span><h3>Difficulté ressentie (RPE)</h3></div>
+      <div class="ns-mode">
+        <label class="ns-modeopt"><input type="radio" name="mode" value="client" checked><div><b>📲 Le/la client·e le note</b><span>Reçoit la séance dans son espace et note sa difficulté (fenêtre 4 h).</span></div></label>
+        <label class="ns-modeopt"><input type="radio" name="mode" value="coach"><div><b>✍️ Je le note maintenant</b><span>Tu saisis directement le RPE de la séance.</span></div></label>
+      </div>
+      <div class="ns-rpe"><div class="ns-sub">Note de 0 (très facile) à 10 (maximal)</div><div class="ns-rpescale">${range0(11).map(n=>`<label class="ns-rpebtn"><input type="radio" name="rpe" value="${n}">${n}</label>`).join('')}</div></div></div>
+    <div class="ns-step"><div class="ns-head"><span class="ns-num">5</span><h3>Notes <span class="muted" style="font-weight:400;font-size:13px">(optionnel)</span></h3></div>
+      <textarea name="note" placeholder="Contenu de la séance, sensations, consignes pour la prochaine fois…" style="min-height:70px"></textarea></div>
+    <div class="ns-save"><button class="btn pri" type="submit">✓ Enregistrer la séance</button><span class="small muted">Tu peux en enchaîner plusieurs — le formulaire se réinitialise.</span></div>
+  </form>`;
+}
+ENTRY.simple=()=>INDIV?coachSessionForm():simpleForm('train');
 /* Saisie d'une compétition en coaching individuel (course, trail, muscu…) : pas de score/buts, mais résultat, classement, ressenti. */
 function competForm(){
   const e=editing('matches');const clients=playersOf(INDIV_CAT,true);
@@ -2774,6 +2845,14 @@ FORMS.simple=async (f,submitter)=>{const v=Object.fromEntries(new FormData(f));c
   const o={id,date:v.date,cat,type:'Entraînement',title:(v.title||'').trim()||'Séance',duration:num(v.duration)||0,objective:'',content:'',source:'coach',simple:true,players};
   if(act==='send')o.rpeOpenedAt=Date.now();
   await put('sessions',id,o);UI.entryTab='assign';UI.assignDate=v.date;toast(act==='send'?'Séance créée · RPE envoyé (4 h)':'Séance créée');render();};
+FORMS.newsess=async f=>{const v=Object.fromEntries(new FormData(f));const ps=playersOf(INDIV_CAT).filter(p=>v['pl-'+p.id]);
+  if(!ps.length){toast('Choisis au moins un·e client·e');return;}
+  const dur=num(v.durationCustom)||num(v.duration)||0;
+  const players={};ps.forEach(p=>{const e={min:dur};if(v.mode==='coach'&&v.rpe!=null&&v.rpe!=='')e.rpe=num(v.rpe);players[p.id]=e;});
+  const id=uid();const o={id,date:v.date,cat:INDIV_CAT,type:v.stype||'Séance',title:(v.title||'').trim()||v.stype||'Séance',duration:dur,objective:v.stype||'',intensity:v.intensity||'',content:(v.note||'').trim(),source:'coach',simple:true,players};
+  if(v.mode==='client')o.rpeOpenedAt=Date.now();
+  await put('sessions',id,o);UI.assignDate=v.date;
+  toast(v.mode==='client'?('Séance créée · ressenti demandé à '+ps.length+' client·e'+(ps.length>1?'s':'')):'Séance enregistrée');render();};
 FORMS.compet=async f=>{const v=Object.fromEntries(new FormData(f));const id=v.id||uid();const pid=v.pid;const dur=num(v.duration)||0;
   const players={};players[pid]={min:dur||60,rpe:num(v.rpe),perf:num(v.perf),result:(v.result||'').trim(),rank:(v.rank||'').trim(),comment:(v.note||'').trim()};
   await put('matches',id,{id,date:v.date,cat:INDIV_CAT,opponent:(v.ctype||'Compétition'),compName:(v.name||'').trim(),competition:'',venue:'',duration:dur,source:'coach',players});
