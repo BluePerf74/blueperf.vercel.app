@@ -412,14 +412,22 @@ const TABS=[
  {id:'perf',label:'Performance',children:[{id:'testing',label:'Testing'},{id:'reathle',label:'Réathlétisation'},{id:'muscu',label:'Musculation'}]},
  {id:'medical',label:'Médical'},
  {id:'report',label:'Compte rendu'},
- {id:'entry',label:'Saisie',entryGroup:true,children:[
+ {id:'entry',label:'Saisie',entryGroup:true,children:(MODE==='individuel'?[
+   {id:'simple',label:'Séance',icon:'⚡'},
+   {id:'smatch',label:'Compétition',icon:'🏁'},
+   {id:'rpe',label:'Saisie RPE / ressenti',icon:'⭐'},
+   {id:'tests',label:'Test / mesure',icon:'📊'},
+   {id:'season',label:'Planification',icon:'📅',season:true},
+   {id:'player',label:'Client·es',icon:'👥'},
+   {id:'injury',label:'Blessure / pépin',icon:'🩹'}
+ ]:[
    {id:'simple',label:'Séance simple',icon:'⚡'},
    {id:'smatch',label:'Match simple',icon:'🥅'},
    {id:'season',label:"Planification d'une saison",icon:'📅',season:true},
-   {id:'player',label: MODE==='individuel'?'Client·es':'Joueur·ses',icon:'👥'},
+   {id:'player',label:'Joueur·ses',icon:'👥'},
    {id:'injury',label:'Blessure',icon:'🩹'},
    {id:'rpe',label:'Saisie RPE',icon:'⭐'}
- ]},
+ ])},
  {id:'settings',label:'Paramètres'}].filter(t=>!HIDDEN_TABS.includes(t.id));
 const DEF={
  appName:'Académy', categories:['U15','U18'],
@@ -857,6 +865,10 @@ function makeCoachDemo(){
   D.programs.pg1={id:'pg1',name:'Full body — force',cat:CAT,phase:'Force',freq:3,exercises:[{name:'Squat',sets:4,reps:'6',pct:75,rest:'2 min'},{name:'Développé couché',sets:4,reps:'6',pct:75,rest:'2 min'},{name:'Soulevé de terre',sets:3,reps:'5',pct:80,rest:'3 min'},{name:'Tractions',sets:3,reps:'max',pct:null,rest:'2 min'},{name:'Gainage',sets:3,reps:'45 s',pct:null,rest:'45 s'}]};
   D.programs.pg2={id:'pg2',name:'Plan course — 10 km',cat:CAT,phase:'Endurance',freq:3,exercises:[{name:'Footing endurance',sets:1,reps:'45 min',pct:null,rest:''},{name:'Fractionné 30/30',sets:10,reps:'30 s',pct:null,rest:'30 s'},{name:'Sortie longue',sets:1,reps:'70 min',pct:null,rest:''}]};
   D.injuries.i1={id:'i1',pid:'ci-5',date:addDays(TODAY,-6),zone:'Tendon d\'Achille',type:'Tendinopathie',side:'Droit',mechanism:'Surcharge',context:'Course',status:'soins',phase:0,expectedReturn:addDays(TODAY,8),notes:'Réduire le volume de course, renforcement excentrique.',criteria:{},followups:[{date:addDays(TODAY,-6),text:'Douleur à la montée d\'escalier, glaçage + repos relatif.',pain:4}],log:[]};
+  D.matches.m1={id:'m1',date:addDays(TODAY,-14),cat:CAT,opponent:'Course 10 km',compName:'10 km de la ville',duration:48,source:'coach',players:{'ci-1':{min:48,rpe:9,perf:8,result:'47:30',rank:'34e / 410',comment:'Bon rythme, négative split.'}}};
+  D.matches.m2={id:'m2',date:addDays(TODAY,-30),cat:CAT,opponent:'Semi-marathon',compName:'Semi de l\'agglo',duration:112,source:'coach',players:{'ci-1':{min:112,rpe:9,perf:7,result:'1h52',rank:'88e',comment:'Mur au 17e km.'}}};
+  D.matches.m3={id:'m3',date:addDays(TODAY,-9),cat:CAT,opponent:'Trail',compName:'Trail des collines 24 km',duration:168,source:'coach',players:{'ci-3':{min:168,rpe:10,perf:8,result:'2h48 · D+900',rank:'5e F',comment:'Sensations en descente.'}}};
+  D.matches.m4={id:'m4',date:addDays(TODAY,-20),cat:CAT,opponent:'Compétition de force / muscu',compName:'Open de force',duration:120,source:'coach',players:{'ci-6':{min:120,rpe:9,perf:9,result:'Total 465 kg (S160/DC110/SDT195)',rank:'3e -90kg',comment:'Record au squat.'}}};
   return D;
 }
 
@@ -1212,10 +1224,14 @@ function coachDash(){
   const recent=sess.slice(0,8).map(x=>{const e=x.players[pid];const rpe=num(e.rpe);const[dl,dc]=rpeDiff(rpe);return `<tr><td>${fmtShort(x.date)}</td><td class="wrap">${esc(x.title||x.type||'Séance')}</td><td><span class="pill ${/course|run|cardio|fractionn/i.test(x.type||'')?'info':'neutral'}" style="font-size:11px">${esc(x.type||'')}</span></td><td class="n">${e.min||x.duration||'–'}</td><td class="n">${rpe!=null?r1(rpe):'–'}</td><td><span class="pill ${dc}">${dl}</span></td></tr>`;}).join('');
   const sessCard=`<div class="card"><div class="hrow"><h3>Séances récentes</h3><button class="btn sm" data-act="tab" data-id="seances">Calendrier</button></div>
     ${sess.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th><th class="n">Min</th><th class="n">RPE</th><th>Difficulté</th></tr></thead><tbody>${recent}</tbody></table></div>`:'<p class="muted small" style="margin:0">Aucune séance enregistrée.</p>'}</div>`;
+  const comps=Object.values(DATA.matches).filter(m=>m.players&&m.players[pid]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const compCard=`<div class="card"><div class="hrow"><h3>🏁 Compétitions & résultats</h3><button class="btn sm pri" data-act="goEntry" data-id="smatch">+ Ajouter</button></div>
+    ${comps.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Épreuve</th><th>Type</th><th>Résultat</th><th>Classement</th><th class="n">RPE</th><th></th></tr></thead><tbody>${comps.slice(0,10).map(m=>{const e=m.players[pid]||{};return `<tr><td>${fmtShort(m.date)}</td><td class="wrap">${esc(m.compName||m.opponent||'Compétition')}</td><td><span class="pill info" style="font-size:11px">${esc(m.opponent||'')}</span></td><td class="wrap">${esc(e.result||'–')}</td><td>${esc(e.rank||'–')}</td><td class="n">${e.rpe!=null?r1(e.rpe):'–'}</td><td><button class="btn sm" data-act="edit" data-col="matches" data-id="${esc(m.id)}">✎</button></td></tr>`;}).join('')}</tbody></table></div>`:'<p class="muted small" style="margin:0">Aucune compétition enregistrée. Ajoute une course, un trail ou une compétition de force via « Saisie › Compétition ».</p>'}</div>`;
   return `${header}${kpis}
     <div class="grid g2">${chargeCard}${acwrCard}</div>
     <div class="grid g2">${wellCard}${volCard}</div>
     <div class="grid g2">${forceCard}${testsCard}</div>
+    ${compCard}
     <div class="grid g2">${typeCard}${sessCard}</div>`;
 }
 VIEWS.joueur=()=>{
@@ -1326,7 +1342,7 @@ function seanceCalendar(){
   let days=range(from,to);if(days.length>21)days=days.slice(0,21);const nd=days.length;
   const roster=playersOf(UI.cat,true);
   const curve=UI.seanceCurve||'charge';
-  const evAll=[...Object.values(DATA.sessions).map(x=>({...x,_m:false})),...Object.values(DATA.matches).map(x=>({...x,_m:true,title:x.title||('Match vs '+(x.opponent||'?')),type:'Match'}))];
+  const evAll=[...Object.values(DATA.sessions).map(x=>({...x,_m:false})),...Object.values(DATA.matches).map(x=>({...x,_m:true,title:x.title||(INDIV?(x.compName||x.opponent||'Compétition'):('Match vs '+(x.opponent||'?'))),type:INDIV?'Compétition':'Match'}))];
   const byPD={};evAll.forEach(e=>{if(!e.players)return;Object.keys(e.players).forEach(pid=>{const k=pid+'|'+e.date;(byPD[k]=byPD[k]||[]).push(e);});});
   const teamDay={};evAll.forEach(e=>{teamDay[e.cat+'|'+e.date]=true;});
   const planPD={};Object.values(DATA.plan).forEach(pl=>{const k=pl.cat+'|'+pl.date;(planPD[k]=planPD[k]||[]).push(pl);});
@@ -1393,12 +1409,12 @@ VIEWS.seances=()=>{
   if(selEv){const st=stat(selEv);const pl=Object.entries(selEv.players||{}).map(([pid,e])=>({p:DATA.players[pid],e})).filter(x=>x.p&&num(x.e.rpe)!=null).sort((a,b)=>num(b.e.rpe)-num(a.e.rpe));
     const items=pl.map(x=>({label:x.p.name,value:num(x.e.rpe),color:rpeDiff(num(x.e.rpe))[1]==='crit'?'var(--crit)':rpeDiff(num(x.e.rpe))[1]==='warn'?'var(--warn)':rpeDiff(num(x.e.rpe))[1]==='good'?'var(--good)':'var(--accent)',sub:(num(x.e.min)||st.dur||0)+' min'+(num(x.e.mrpe)!=null?' · 🧠 '+num(x.e.mrpe):'')}));
     const [dl,dc]=rpeDiff(st.rpe);
-    detail=`<div class="card" id="seance-detail"><div class="hrow"><div><div class="eyebrow">${fmtD(selEv.date)} · ${esc(selEv.cat)} · <span class="pill ${selEv._m?'crit':'info'}">${selEv._m?'Match':'Entraînement'}</span></div><h3 style="margin:4px 0 0">${esc(selEv.title||selEv.type)}</h3></div><button class="btn sm" data-act="seanceClose">✕ Fermer</button></div>
+    detail=`<div class="card" id="seance-detail"><div class="hrow"><div><div class="eyebrow">${fmtD(selEv.date)} · ${esc(selEv.cat)} · <span class="pill ${selEv._m?'crit':'info'}">${selEv._m?(INDIV?'Compétition':'Match'):(INDIV?'Séance':'Entraînement')}</span></div><h3 style="margin:4px 0 0">${esc(selEv.title||selEv.type)}</h3></div><button class="btn sm" data-act="seanceClose">✕ Fermer</button></div>
       <div class="grid g4" style="margin-bottom:12px">${kpi('RPE moyen',st.rpe!=null?r1(st.rpe):'–','/10',dl,dc==='crit'?'crit':dc==='warn'?'warn':null)}${kpi('Charge',st.load!=null?r0(st.load):'–','UA','sRPE')}${kpi('Durée',st.dur||'–','min')}${kpi('Réponses',st.n+' / '+st.np,'','RPE saisis')}</div>
       <h3 style="font-size:15px">RPE par joueur</h3>${items.length?hbars(items,{max:10,unit:'/10'}):'<p class="muted small">Aucun RPE saisi pour cette séance.</p>'}</div>`;
   }
   const table=`<div class="card"><h3>Toutes les séances</h3><div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th><th class="n">Joueurs</th><th class="n">Durée</th><th class="n">RPE moyen</th><th>Difficulté</th><th class="n">Charge</th><th></th></tr></thead><tbody>
-    ${evs.slice(0,50).map(e=>{const st=stat(e);const [dl,dc]=rpeDiff(st.rpe);return `<tr${e.id===selId?' style="background:var(--accent-soft)"':''}><td>${fmtShort(e.date)}</td><td class="wrap">${esc(e.title||e.type)}</td><td><span class="pill ${e._m?'crit':'neutral'}" style="font-size:11px">${e._m?'Match':esc(e.type||'Entr.')}</span></td><td class="n">${st.n}/${st.np}</td><td class="n">${st.dur||'–'}</td><td class="n"><b>${st.rpe!=null?r1(st.rpe):'–'}</b></td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${st.load!=null?r0(st.load):'–'}</td><td><button class="btn sm" data-act="seanceOpen" data-id="${esc(e.id)}">Détail</button></td></tr>`;}).join('')}
+    ${evs.slice(0,50).map(e=>{const st=stat(e);const [dl,dc]=rpeDiff(st.rpe);return `<tr${e.id===selId?' style="background:var(--accent-soft)"':''}><td>${fmtShort(e.date)}</td><td class="wrap">${esc(e.title||e.type)}</td><td><span class="pill ${e._m?'crit':'neutral'}" style="font-size:11px">${e._m?(INDIV?'Compét.':'Match'):esc(e.type||'Entr.')}</span></td><td class="n">${st.n}/${st.np}</td><td class="n">${st.dur||'–'}</td><td class="n"><b>${st.rpe!=null?r1(st.rpe):'–'}</b></td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${st.load!=null?r0(st.load):'–'}</td><td><button class="btn sm" data-act="seanceOpen" data-id="${esc(e.id)}">Détail</button></td></tr>`;}).join('')}
     </tbody></table></div></div>`;
   return `${seanceCalendar()}
     <div class="sect-head"><h2 class="sect-title">📊 Analyse des séances <span class="muted" style="font-weight:400;font-size:13px">— difficulté ressentie (RPE) & charge</span></h2></div>
@@ -2497,23 +2513,46 @@ function simpleForm(kind){ // kind: 'train' (entraînement) ou 'match'
   const isM=kind==='match';
   const cat=INDIV?INDIV_CAT:(UI.assignCat||defCat());const date=UI.assignDate||UI.ref;const ps=playersOf(cat);
   const titleFld=isM
-    ? fld('si-title','Nom du match',`<input type="text" id="si-title" name="title" placeholder="ex. vs Lyon" required>`,2)
-    : fld('si-title','Intitulé (optionnel)',`<input type="text" id="si-title" name="title" placeholder="ex. Entraînement du jour">`,2);
+    ? fld('si-title',INDIV?'Nom de la compétition':'Nom du match',`<input type="text" id="si-title" name="title" placeholder="${INDIV?'ex. 10 km de Paris · Compétition de force':'ex. vs Lyon'}" required>`,2)
+    : fld('si-title','Intitulé (optionnel)',`<input type="text" id="si-title" name="title" placeholder="${INDIV?'ex. Séance du jour':'ex. Entraînement du jour'}">`,2);
   return `<form data-form="simple" class="stack"><input type="hidden" name="type" value="${isM?'Match':'Entraînement'}"><div class="fgrid">
     ${fld('si-date','Date',`<input type="date" id="si-date" name="date" value="${date}" data-chg="assignDate">`)}
     ${INDIV?`<input type="hidden" name="cat" value="${INDIV_CAT}">`:fld('si-cat','Catégorie',`<select id="si-cat" name="cat" data-chg="assignCat">${opt(cats(),cat)}</select>`)}
-    ${fld('si-dur','Temps (min)',`<input type="number" id="si-dur" name="duration" value="${isM?90:75}" min="0">`)}
+    ${fld('si-dur','Durée (min)',`<input type="number" id="si-dur" name="duration" value="${isM?(INDIV?60:90):(INDIV?45:75)}" min="0">`)}
     ${titleFld}
   </div>
-  ${ps.length?`<div><b>Qui était présent·e ?</b> <span class="small muted">— coche les ${PL.many} concerné·es (${ps.length})</span></div>
+  ${ps.length?`<div><b>${INDIV?'Qui est concerné·e ?':'Qui était présent·e ?'}</b> <span class="small muted">— coche les ${PL.many} concerné·es (${ps.length})</span></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">${ps.map(p=>`<label class="chk"><input type="checkbox" name="pl-${p.id}" checked> ${esc(p.name)}</label>`).join('')}</div>
-    <p class="note" style="margin:0">${isM?'Après « Envoyer RPE », chaque '+PL.one+' coché·e reçoit le match dans son espace et note la difficulté et sa performance (1 → 10).':'Pas besoin de détailler les parties : après « Envoyer RPE », chaque '+PL.one+' coché·e reçoit la séance dans son espace et note simplement son RPE (fenêtre 4 h).'}</p>
+    <p class="note" style="margin:0">${isM?'Après « Envoyer », chaque '+PL.one+' coché·e reçoit '+(INDIV?'la compétition':'le match')+' dans son espace et note '+(INDIV?'sa difficulté (RPE) et son ressenti':'la difficulté et sa performance')+' (1 → 10).':'Après « Envoyer RPE », chaque '+PL.one+' coché·e reçoit la séance dans son espace et note simplement son RPE (fenêtre 4 h).'}</p>
     <div class="row"><button class="btn pri" type="submit" name="act" value="send">Créer et envoyer RPE (4 h)</button><button class="btn" type="submit" name="act" value="draft">Créer sans envoyer</button></div>`
     :`<p class="muted">${INDIV?'Aucun·e client·e. Ajoute-les dans « Saisie › '+PL.Many+' ».':'Aucun·e '+PL.one+' en '+esc(cat)+'.'}</p>`}
   </form>`;
 }
 ENTRY.simple=()=>simpleForm('train');
-ENTRY.smatch=()=>simpleForm('match');
+/* Saisie d'une compétition en coaching individuel (course, trail, muscu…) : pas de score/buts, mais résultat, classement, ressenti. */
+function competForm(){
+  const e=editing('matches');const clients=playersOf(INDIV_CAT,true);
+  if(!clients.length)return `<p class="muted">Ajoute d'abord des client·es dans « Saisie › Client·es ».</p>`;
+  let pid=UI.competPid&&clients.some(c=>c.id===UI.competPid)?UI.competPid:(e?Object.keys(e.players||{})[0]:clients[0].id);
+  const pe=(e&&e.players&&e.players[pid])||{};
+  const TYPES=['Course 5 km','Course 10 km','Semi-marathon','Marathon','Trail','Triathlon','Cyclosportive','Compétition de force / muscu','Cross / piste','Autre'];
+  return `<form data-form="compet" class="stack"><input type="hidden" name="cat" value="${INDIV_CAT}">${e?`<input type="hidden" name="id" value="${esc(e.id)}">`:''}
+    <div class="fgrid">
+      ${fld('cp-pid','Client·e',`<select id="cp-pid" name="pid" data-chg="competPid">${clients.map(c=>`<option value="${esc(c.id)}" ${c.id===pid?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`)}
+      ${fld('cp-date','Date',`<input type="date" id="cp-date" name="date" value="${esc(e&&e.date||UI.ref)}">`)}
+      ${fld('cp-type','Type de compétition',`<select id="cp-type" name="ctype">${opt(TYPES,e&&e.opponent)}</select>`)}
+      ${fld('cp-name',"Nom de l'épreuve",`<input type="text" id="cp-name" name="name" value="${esc(e&&e.compName||'')}" placeholder="ex. Marathon de Paris">`,2)}
+      ${fld('cp-result','Résultat (temps / performance)',`<input type="text" id="cp-result" name="result" value="${esc(pe.result||'')}" placeholder="ex. 1h48 · 44:30 au 10 km · total 420 kg">`,2)}
+      ${fld('cp-rank','Classement (optionnel)',`<input type="text" id="cp-rank" name="rank" value="${esc(pe.rank||'')}" placeholder="ex. 12e / 340">`)}
+      ${fld('cp-dur','Durée (min)',`<input type="number" id="cp-dur" name="duration" value="${esc(e&&e.duration||'')}" min="0">`)}
+      ${fld('cp-rpe','Difficulté (RPE 0–10)',`<input type="number" id="cp-rpe" name="rpe" min="0" max="10" value="${esc(pe.rpe!=null?pe.rpe:'')}">`)}
+      ${fld('cp-perf','Ressenti perf (1–10)',`<input type="number" id="cp-perf" name="perf" min="1" max="10" value="${esc(pe.perf!=null?pe.perf:'')}">`)}
+    </div>
+    ${fld('cp-note','Debrief / sensations',`<textarea id="cp-note" name="note" placeholder="Sensations, météo, allure, points à retenir…">${esc(pe.comment||'')}</textarea>`,3)}
+    <div class="row">${e?'<button type="button" class="btn" data-act="cancelEdit">Annuler</button>':''}<button class="btn pri">${e?'Enregistrer':'Ajouter la compétition'}</button></div>
+  </form>`;
+}
+ENTRY.smatch=()=>INDIV?competForm():simpleForm('match');
 ENTRY.rpe=()=>{
   const cat=UI.assignCat||(cats().find(c=>playersOf(c).length))||defCat();const date=UI.assignDate||UI.ref;
   const sess=Object.values(DATA.sessions).filter(s=>s.date===date&&s.cat===cat).sort((a,b)=>(a.title||a.type||'').localeCompare(b.title||b.type||''));
@@ -2727,13 +2766,17 @@ FORMS.simple=async (f,submitter)=>{const v=Object.fromEntries(new FormData(f));c
   const id=uid();
   if(isMatch){
     // Match simple : stocké comme match → l'espace demande difficulté (RPE) + note de performance (1-10) + commentaire.
-    const o={id,date:v.date,cat,opponent:(v.title||'').trim()||'Match',competition:'',venue:'',gf:0,ga:0,duration:num(v.duration)||90,source:'coach',simple:true,players};
+    const o={id,date:v.date,cat,opponent:(v.title||'').trim()||(INDIV?'Compétition':'Match'),competition:'',venue:'',gf:0,ga:0,duration:num(v.duration)||90,source:'coach',simple:true,players};
     if(act==='send')o.rpeOpenedAt=Date.now();
-    await put('matches',id,o);UI.entryTab='assign';UI.assignDate=v.date;toast(act==='send'?'Match créé · RPE envoyé (4 h)':'Match créé');render();return;
+    await put('matches',id,o);UI.entryTab='assign';UI.assignDate=v.date;toast(act==='send'?(INDIV?'Compétition créée · ressenti envoyé':'Match créé · RPE envoyé (4 h)'):(INDIV?'Compétition créée':'Match créé'));render();return;
   }
   const o={id,date:v.date,cat,type:'Entraînement',title:(v.title||'').trim()||'Séance',duration:num(v.duration)||0,objective:'',content:'',source:'coach',simple:true,players};
   if(act==='send')o.rpeOpenedAt=Date.now();
   await put('sessions',id,o);UI.entryTab='assign';UI.assignDate=v.date;toast(act==='send'?'Séance créée · RPE envoyé (4 h)':'Séance créée');render();};
+FORMS.compet=async f=>{const v=Object.fromEntries(new FormData(f));const id=v.id||uid();const pid=v.pid;const dur=num(v.duration)||0;
+  const players={};players[pid]={min:dur||60,rpe:num(v.rpe),perf:num(v.perf),result:(v.result||'').trim(),rank:(v.rank||'').trim(),comment:(v.note||'').trim()};
+  await put('matches',id,{id,date:v.date,cat:INDIV_CAT,opponent:(v.ctype||'Compétition'),compName:(v.name||'').trim(),competition:'',venue:'',duration:dur,source:'coach',players});
+  UI.edit=null;UI.competPid=null;toast('Compétition enregistrée');go('joueur');};
 FORMS.wellness=async f=>{const v=Object.fromEntries(new FormData(f));const date=v.date;const doc=DATA.wellness[date]?JSON.parse(JSON.stringify(DATA.wellness[date])):{date,entries:{}};doc.entries=doc.entries||{};let n=0;
   playersOf(v.cat).forEach(p=>{const o={};WK.forEach(k=>{const x=num(v[k+'-'+p.id]);if(x!=null)o[k]=6-x;});const note=(v['note-'+p.id]||'').trim();if(note)o.note=note;if(Object.keys(o).length){doc.entries[p.id]=o;n++;}else delete doc.entries[p.id];});
   await put('wellness',date,doc);toast(n+' questionnaire'+(n>1?'s':'')+' enregistré'+(n>1?'s':''));};
@@ -3304,7 +3347,7 @@ const ACT={
   goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
-  edit:b=>{UI.edit={col:b.dataset.col,id:b.dataset.id};UI.entryTab=COL2TAB[b.dataset.col];UI.drawer=null;if(b.dataset.col==='tests')UI.tSel=null;go('entry');},
+  edit:b=>{UI.edit={col:b.dataset.col,id:b.dataset.id};UI.entryTab=(INDIV&&b.dataset.col==='matches')?'smatch':COL2TAB[b.dataset.col];UI.drawer=null;if(b.dataset.col==='tests')UI.tSel=null;go('entry');},
   fillPlayer:b=>{const p=DATA.players[b.dataset.id];if(!p)return;let tab=b.dataset.tab;if(!tab)tab=!wEntry(p.id,UI.ref)?'sante':'rpe';UI.drawer=null;UI.fill={pid:p.id,tab};renderDrawer();},
   closeFill:async()=>{UI.fill=null;renderDrawer();document.body.style.overflow='';await reloadData();},
   del:b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
@@ -3404,6 +3447,7 @@ let PENDING_IMPORT=null;
 const CHG={
   joueurSel:t=>{UI.joueurSel=t.value;saveUI();render();},
   calCat:t=>{UI.cat=t.value;saveUI();render();},
+  competPid:t=>{UI.competPid=t.value;render();},
   calFrom:t=>{UI.seanceFrom=t.value||null;saveUI();render();},
   calTo:t=>{UI.seanceTo=t.value||null;saveUI();render();},
   crit:async t=>{const i=JSON.parse(JSON.stringify(DATA.injuries[t.dataset.id]));const ph=i.phase||0;i.criteria=i.criteria||{};const arr=(i.criteria[ph]||[]).slice();arr[+t.dataset.k]=t.checked;i.criteria[ph]=arr;await put('injuries',i.id,i);},
