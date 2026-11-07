@@ -1365,7 +1365,7 @@ function bindCoachNavbar(stats){
       state.navOpenGroup = null;
       state.section = item.section || 'programme';
       state.tab = id;
-      if(state.section === 'football' || state.section === 'individuel' || state.section === 'apa'){ render(); return; }
+      if(state.section === 'football' || state.section === 'individuel' || state.section === 'apa' || state.section === 'hub'){ render(); return; }
       drawCoachNavbar(stats);
       document.getElementById('dash-page-title').textContent = coachTabLabel();
       renderScreen();
@@ -2116,6 +2116,7 @@ async function render(){
   if(state.manager){ state.section = 'football'; renderFullApp('football'); return; } // gérant·e : Football uniquement
   if(state.spaceCoach){ const s = state.spaceCoach.space || 'apa'; state.section = s; renderFullApp(s); return; } // coach délégué : un seul espace
   if(state.section === 'settings' && state.access === 'coach'){ renderSettingsPage(); return; }
+  if(state.section === 'hub' && state.access === 'coach'){ await renderHubPage(); return; }
   if(state.section === 'football'){ renderFullApp('football'); return; }
   if(state.section === 'individuel'){ renderFullApp('individuel'); return; }
   if(state.section === 'apa' && state.access === 'coach'){ renderFullApp('apa'); return; }
@@ -2361,6 +2362,41 @@ const HUB_STYLE=`<style>
 @media(max-width:620px){.hub-grid2,.hub-grid3{grid-template-columns:1fr}.hub-cal .cd{min-height:66px}}
 </style>`;
 
+const HUBPAGE_STYLE=`<style>
+.hubpage{min-height:100vh;background:var(--app-bg,#eef2f6)}
+.hubpage-head{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--nav,#0E1A2C);color:#fff;padding:11px 22px;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.hubpage-brand{display:flex;align-items:center;gap:10px}
+.hubpage-brand svg,.hubpage-brand img{height:26px;width:auto}
+.hubpage-wm{font-weight:800;font-size:18px;letter-spacing:.01em}
+.hubpage-wm span{color:#ff9a8b}
+.hubpage-tag{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8190a6;border-left:1px solid rgba(255,255,255,.18);padding-left:11px;margin-left:3px}
+.hubpage-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hubpage-ibtn{appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.22);background:transparent;color:#fff;border-radius:9px;padding:7px 11px;font-size:13px;font-weight:600}
+.hubpage-ibtn:hover{background:rgba(255,255,255,.08)}
+.hubpage-user{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 12px}
+.hubpage-logout{appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600}
+.hubpage .screen{padding:26px 22px 60px;max-width:1220px;margin:0 auto}
+.hubpage-title{font-size:27px;font-weight:800;margin:0 0 3px;color:var(--app-text,#0f172a)}
+.hubpage-sub{color:var(--app-muted,#7E90A8);font-size:13.5px;margin:0 0 18px}
+</style>`;
+async function renderHubPage(){
+  const head=`<div class="hubpage-head">
+    <div class="hubpage-brand">${shieldSvg()}<span class="hubpage-wm">Elite<span> Adapt</span></span><span class="hubpage-tag">Organisation</span></div>
+    <div class="hubpage-actions">
+      <button data-fbtheme class="hubpage-ibtn" title="${t('Thème clair / sombre','Light / dark theme')}">${themeIcon()} ${themeLabel()}</button>
+      <button data-fblang class="hubpage-ibtn">🌐 ${LANG==='en'?'EN':'FR'}</button>
+      <button data-fbadmin class="hubpage-ibtn" title="${t('Paramètres','Settings')}">⚙️</button>
+      <span class="hubpage-user">👤 ${admEsc(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>
+      <button data-fblogout class="hubpage-logout">${t('Déconnexion','Log out')}</button>
+    </div></div>`;
+  app.innerHTML=HUBPAGE_STYLE+`<div class="hubpage">${head}<div class="screen" id="screen"></div></div>`;
+  const q=s=>app.querySelector(s);
+  if(q('[data-fbtheme]'))q('[data-fbtheme]').addEventListener('click',cycleTheme);
+  if(q('[data-fblang]'))q('[data-fblang]').addEventListener('click',()=>setLang(LANG==='en'?'fr':'en'));
+  if(q('[data-fblogout]'))q('[data-fblogout]').addEventListener('click',logout);
+  if(q('[data-fbadmin]'))q('[data-fbadmin]').addEventListener('click',()=>{state.prevSection='hub';state.section='settings';render();});
+  await renderHub(document.getElementById('screen'));
+}
 async function renderHub(screen){
   if(!screen)return;
   screen.innerHTML=HUB_STYLE+'<div class="hub-wrap"><p class="hub-muted">Chargement…</p></div>';
@@ -2376,7 +2412,8 @@ async function renderHub(screen){
     else if(tab==='contacts')body=hubContacts();
     else if(tab==='docs')body=hubDocs();
   }catch(e){body='<div class="hub-card">Erreur d\'affichage : '+hubEsc(e.message)+'</div>';}
-  screen.innerHTML=HUB_STYLE+`<div class="hub-wrap">${sub}${body}</div>`;
+  const title=`<div style="margin-bottom:16px"><h1 class="hubpage-title">🗂️ Organisation</h1><p class="hubpage-sub">Ton tableau de bord : inscriptions, événements, dossiers et documents — et l'accès à tes espaces.</p></div>`;
+  screen.innerHTML=HUB_STYLE+`<div class="hub-wrap">${title}${sub}${body}</div>`;
   hubBind(screen);
 }
 
@@ -2386,7 +2423,11 @@ function hubAccueil(){
   const openDoss=h.events.filter(e=>e.steps&&e.steps.length&&e.steps.some(s=>!s.done)&&e.status!=='Annulé').length;
   const prospects=h.contacts.filter(c=>c.status!=='Inscrit'&&c.status!=='Archivé').length;
   const launch=`<div class="hub-card"><div class="hub-h">🚀 Accéder à un espace</div>
-    <div class="hub-launch">${HUB_SPACES.map(([k,l,ic,bg])=>`<button class="hub-space" data-hub-act="launch" data-space="${k}" style="background:${bg}"><span class="ic">${ic}</span><span>${l}<small>Ouvrir l'espace</small></span></button>`).join('')}</div></div>`;
+    <div class="hub-launch">${HUB_SPACES.map(([k,l,ic,bg])=>`<button class="hub-space" data-hub-act="launch" data-space="${k}" style="background:${bg}"><span class="ic">${ic}</span><span>${l}<small>Ouvrir l'espace</small></span></button>`).join('')}</div>
+    <div class="hub-row" style="margin-top:14px"><span class="hub-muted" style="font-size:12px;font-weight:600">Suivi & gestion :</span>
+      <button class="hub-btn sm" data-hub-act="go" data-section="programme" data-tab="apercu">📋 Suivi des clients</button>
+      <button class="hub-btn sm" data-hub-act="go" data-section="programme" data-tab="clients">👥 Mes clients</button>
+      <button class="hub-btn sm" data-hub-act="go" data-section="settings">⚙️ Paramètres</button></div></div>`;
   const kpis=`<div class="hub-kpis">
     <div class="hub-kpi"><div class="v">${upcoming.length}</div><div class="l">Événements à venir</div></div>
     <div class="hub-kpi"><div class="v">${openDoss}</div><div class="l">Dossiers en cours</div></div>
@@ -2520,6 +2561,7 @@ function hubBind(screen){
   wrap.addEventListener('click',async ev=>{
     const el=ev.target.closest('[data-hub-act]');if(!el)return;const act=el.getAttribute('data-hub-act');const id=el.getAttribute('data-id');
     if(act==='launch'){const sp=el.getAttribute('data-space');state.navOpenGroup=null;state.section=sp;if(sp==='nutrition')state.tab='nutri-anamnese';render();return;}
+    if(act==='go'){state.navOpenGroup=null;state.section=el.getAttribute('data-section');const tb=el.getAttribute('data-tab');if(tb)state.tab=tb;render();return;}
     if(act==='newEvent'){state.hubForm={kind:'event',data:{date:hubToday(),status:'À venir',type:'Rendez-vous'}};if(state.hubTab==='accueil')state.hubTab='events';renderHub(screen);}
     if(act==='editEvent'){const e=state.hub.events.find(x=>x.id===id);if(e){state.hubForm={kind:'event',data:JSON.parse(JSON.stringify(e))};if(state.hubTab!=='cal')state.hubTab='events';renderHub(screen);}}
     if(act==='cancelForm'){state.hubForm=null;renderHub(screen);}
