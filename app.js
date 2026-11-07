@@ -702,7 +702,9 @@ const state = {
   nutriDaytypeCache: {},     // clientId -> 'repos' | 'modere' | 'intense'
   nutriJournalEntries: null, // liste des entrées du journal pour la date/le client actuellement affichés
   nutriJournalDate: null,
-  nutriJournalLoadedKey: null // "clientId:date" déjà chargé, pour éviter les rechargements inutiles
+  nutriJournalLoadedKey: null, // "clientId:date" déjà chargé, pour éviter les rechargements inutiles
+  // --- Onglet Organisation (hub principal : calendrier, événements/dossiers, inscriptions, documents) ---
+  hubTab: 'accueil', hub: null, hubForm: null, hubCal: null, hubDocBusy: false
 };
 
 function effectiveClientId(){
@@ -854,6 +856,8 @@ async function bootstrapCoach(){
     : (ids[0] || 'cindy');
   state.viewAs = 'coach';
   state.tab = 'apercu';
+  state.section = 'hub';   // atterrissage par défaut : onglet Organisation (hub principal)
+  state.hubTab = 'accueil';
   state.exerciseLibrary = await loadExerciseLibrary();
 }
 
@@ -1253,6 +1257,7 @@ function tabsFor(section, isCoachView){
   même menu, avec la Nutrition en sous-menu déroulant vu son nombre d'écrans.
 */
 const COACH_NAV_GROUPS = [
+  {id:'hub', label:'Organisation', icon:'🗂️', section:'hub'},
   {id:'apercu', label:"Vue d'ensemble", icon:'📋'},
   {id:'seances', label:'Séances', icon:'🗓️'},
   {id:'sante', label:'Santé', icon:'❤️'},
@@ -1266,6 +1271,7 @@ const COACH_NAV_GROUPS = [
 ];
 
 function coachTabLabel(){
+  if(state.section === 'hub') return 'Organisation';
   if(state.section === 'football') return 'Football';
   return state.section === 'nutrition' ? tabLabel(NUTRI_TABS_COACH, state.tab) : tabLabel(PROGRAMME_TABS_COACH, state.tab);
 }
@@ -1439,6 +1445,7 @@ async function loadAppCfg(){try{const raw=await sGet('appConfig',true);APP_CFG=r
 async function saveAppCfg(){try{await sSet('appConfig',JSON.stringify(APP_CFG||{sections:{}}),true);}catch(e){}}
 loadAppCfg();
 const SPACE_META={
+  hub:{ic:'🗂️',bg:'#5b8cff',sub:()=>t('Accueil & organisation','Home & organisation')},
   football:{ic:'⚽',bg:'#2552d6',sub:()=>t('Équipe & saison','Team & season')},
   individuel:{ic:'🏃',bg:'#f2617a',sub:()=>t('Suivi individuel','One-to-one')},
   apa:{ic:'⚕️',bg:'#2fbf71',sub:()=>t('Activité adaptée','Adapted activity')},
@@ -1476,7 +1483,7 @@ function sectionDropdown(current){
       <span class="ea-sw-left"><span class="ea-sw-ic" style="background:${cm.bg}">${cm.ic}</span><span>${curLbl}</span></span>
       <svg class="ea-sw-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"><path d="M6 9l6 6 6-6"/></svg>
     </button>
-    <div class="ea-sw-menu" data-eassw-menu role="menu"><div class="ea-sw-head">${t('Espaces','Spaces')}</div>${list.map(row).join('')}</div>
+    <div class="ea-sw-menu" data-eassw-menu role="menu"><div class="ea-sw-head">${t('Accueil','Home')}</div>${row(['hub','Organisation'])}<div class="ea-sw-head" style="margin-top:4px">${t('Espaces','Spaces')}</div>${list.map(row).join('')}</div>
   </div>`;
 }
 function renderFullApp(section){
@@ -2252,6 +2259,7 @@ function renderFootball(screen){
 function renderScreen(){
   const screen = document.getElementById('screen');
   const isCoachView = state.viewAs === 'coach';
+  if(state.section === 'hub') return renderHub(screen);
   if(state.section === 'football') return renderFootball(screen);
   if(state.section === 'nutrition'){
     if(state.tab === 'nutri-anamnese') return renderNutriAnamnese(screen);
@@ -2271,6 +2279,300 @@ function renderScreen(){
   if(state.tab === 'entrainement') return isCoachView ? renderEntrainement(screen) : renderMyTraining(screen);
   if(state.tab === 'clients') return renderClientsTab(screen);
   if(state.tab === 'parametres') return renderParametres(screen);
+}
+
+/* =========================================================
+   ONGLET ORGANISATION — hub principal
+   Calendrier · Événements & dossiers · Inscriptions · Documents
+   ========================================================= */
+const HUB_SPACES=[['apa','APA','⚕️','#2fbf71'],['football','Football','⚽','#2552d6'],['individuel','Coaching individuel','🏃','#f2617a'],['nutrition','Nutrition','🥗','#f59e0b']];
+const HUB_EVTYPES=['Rendez-vous','Essai / découverte','Inscription','Cours / séance','Réunion','Relance','Autre'];
+const HUB_EVSTATUS=['À venir','Fait','Annulé'];
+const HUB_CTSTATUS=['Nouveau','Contacté','Essai prévu','Inscrit','Archivé'];
+const HUB_CTCOLORS={'Nouveau':'#64748b','Contacté':'#2552d6','Essai prévu':'#f59e0b','Inscrit':'#2fbf71','Archivé':'#9aa4b2'};
+function hubSafeArr(s){try{const a=JSON.parse(s||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}}
+function hubId(){return 'h'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function hubEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function hubToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function hubFmtDate(iso){if(!iso)return '';const p=iso.split('-');if(p.length!==3)return iso;const M=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];return (+p[2])+' '+M[(+p[1])-1]+' '+p[0];}
+async function hubLoad(force){
+  if(state.hub && !force) return state.hub;
+  const [ev,ct,dc]=await Promise.all([sGet('hubEvents',true),sGet('hubContacts',true),sGet('hubDocsMeta',true)]);
+  state.hub={events:hubSafeArr(ev),contacts:hubSafeArr(ct),docs:hubSafeArr(dc)};
+  return state.hub;
+}
+async function hubSave(which){
+  if(!state.hub)return;
+  if(which==='events')await sSet('hubEvents',JSON.stringify(state.hub.events),true);
+  if(which==='contacts')await sSet('hubContacts',JSON.stringify(state.hub.contacts),true);
+  if(which==='docs')await sSet('hubDocsMeta',JSON.stringify(state.hub.docs),true);
+}
+function hubContactName(id){const c=(state.hub.contacts||[]).find(x=>x.id===id);return c?c.name:'';}
+function hubSpaceMeta(k){return HUB_SPACES.find(s=>s[0]===k);}
+
+const HUB_STYLE=`<style>
+.hub-wrap{max-width:1180px;margin:0 auto}
+.hub-subtabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:2px}
+.hub-subtab{border:0;background:none;padding:9px 15px;border-radius:9px 9px 0 0;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted,#7E90A8)}
+.hub-subtab.on{color:var(--accent,#2552d6);box-shadow:inset 0 -2px 0 var(--accent,#2552d6)}
+.hub-card{background:var(--surface,#fff);border:1px solid var(--line,#e2e8f0);border-radius:14px;padding:18px;margin-bottom:16px}
+.hub-h{font-size:17px;font-weight:700;margin:0 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hub-launch{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.hub-space{display:flex;align-items:center;gap:12px;padding:15px;border-radius:14px;color:#fff;cursor:pointer;border:0;text-align:left;font-weight:700;font-size:15px;transition:transform .12s,filter .12s}
+.hub-space:hover{transform:translateY(-2px);filter:brightness(1.07)}
+.hub-space .ic{font-size:26px}
+.hub-space small{display:block;font-weight:500;font-size:11.5px;opacity:.9;margin-top:2px}
+.hub-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.hub-kpi{background:var(--surface,#fff);border:1px solid var(--line,#e2e8f0);border-radius:13px;padding:14px 16px;position:relative;overflow:hidden}
+.hub-kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent,#2552d6)}
+.hub-kpi .v{font-size:28px;font-weight:800;line-height:1}
+.hub-kpi .l{font-size:12px;color:var(--muted,#7E90A8);margin-top:3px}
+.hub-btn{border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--ink,#0f172a);padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:600;font-size:13px}
+.hub-btn:hover{border-color:var(--accent,#2552d6);color:var(--accent,#2552d6)}
+.hub-btn.pri{background:var(--accent,#2552d6);border-color:var(--accent,#2552d6);color:#fff}
+.hub-btn.sm{padding:5px 10px;font-size:12px}
+.hub-btn.danger{color:#d64545;border-color:#edc0c0}
+.hub-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.hub-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#7E90A8);padding:7px 10px;border-bottom:1px solid var(--line,#e2e8f0)}
+.hub-table td{padding:9px 10px;border-bottom:1px solid var(--line,#eef2f7);vertical-align:middle}
+.hub-pill{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px;color:#fff}
+.hub-tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--surface-2,#f1f5f9);color:var(--ink-2,#334155)}
+.hub-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.hub-field label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#7E90A8);font-weight:700}
+.hub-field input,.hub-field select,.hub-field textarea{padding:9px 11px;border:1px solid var(--line-2,#cbd5e1);border-radius:9px;background:var(--surface,#fff);color:var(--ink,#0f172a);font:inherit;width:100%}
+.hub-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hub-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.hub-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.hub-cal .dh{font-size:11px;text-transform:uppercase;color:var(--muted,#7E90A8);text-align:center;font-weight:700;padding:4px}
+.hub-cal .cd{min-height:92px;border:1px solid var(--line,#e2e8f0);border-radius:9px;padding:5px;cursor:pointer;background:var(--surface,#fff);display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.hub-cal .cd:hover{border-color:var(--accent,#2552d6)}
+.hub-cal .cd.out{opacity:.4}
+.hub-cal .cd.today{border-color:var(--accent,#2552d6);box-shadow:inset 0 0 0 1px var(--accent,#2552d6)}
+.hub-cal .cd .dn{font-size:12px;font-weight:700}
+.hub-cal .ev{font-size:10.5px;font-weight:600;padding:2px 5px;border-radius:5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hub-step{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13.5px;cursor:pointer}
+.hub-step input{width:17px;height:17px}
+.hub-bar{height:6px;border-radius:4px;background:var(--surface-2,#eef2f7);overflow:hidden;margin-top:4px}
+.hub-bar i{display:block;height:100%;background:#2fbf71}
+.hub-ev{border:1px solid var(--line,#e2e8f0);border-left:4px solid var(--accent,#2552d6);border-radius:11px;padding:13px 15px;margin-bottom:11px;background:var(--surface,#fff)}
+.hub-muted{color:var(--muted,#7E90A8)}
+.hub-empty{text-align:center;color:var(--muted,#7E90A8);padding:26px;font-size:14px}
+.hub-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+@media(max-width:620px){.hub-grid2,.hub-grid3{grid-template-columns:1fr}.hub-cal .cd{min-height:66px}}
+</style>`;
+
+async function renderHub(screen){
+  if(!screen)return;
+  screen.innerHTML=HUB_STYLE+'<div class="hub-wrap"><p class="hub-muted">Chargement…</p></div>';
+  await hubLoad();
+  const tab=state.hubTab||'accueil';
+  const TABS=[['accueil','🏠 Accueil'],['cal','🗓️ Calendrier'],['events','📌 Événements & dossiers'],['contacts','👥 Inscriptions'],['docs','📁 Documents']];
+  const sub=`<div class="hub-subtabs">${TABS.map(([k,l])=>`<button class="hub-subtab ${tab===k?'on':''}" data-hubtab="${k}">${l}</button>`).join('')}</div>`;
+  let body='';
+  try{
+    if(tab==='accueil')body=hubAccueil();
+    else if(tab==='cal')body=hubCalendar();
+    else if(tab==='events')body=hubEvents();
+    else if(tab==='contacts')body=hubContacts();
+    else if(tab==='docs')body=hubDocs();
+  }catch(e){body='<div class="hub-card">Erreur d\'affichage : '+hubEsc(e.message)+'</div>';}
+  screen.innerHTML=HUB_STYLE+`<div class="hub-wrap">${sub}${body}</div>`;
+  hubBind(screen);
+}
+
+function hubAccueil(){
+  const h=state.hub;const today=hubToday();
+  const upcoming=h.events.filter(e=>e.status!=='Annulé'&&(e.date||'')>=today).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||''))).slice(0,6);
+  const openDoss=h.events.filter(e=>e.steps&&e.steps.length&&e.steps.some(s=>!s.done)&&e.status!=='Annulé').length;
+  const prospects=h.contacts.filter(c=>c.status!=='Inscrit'&&c.status!=='Archivé').length;
+  const launch=`<div class="hub-card"><div class="hub-h">🚀 Accéder à un espace</div>
+    <div class="hub-launch">${HUB_SPACES.map(([k,l,ic,bg])=>`<button class="hub-space" data-hub-act="launch" data-space="${k}" style="background:${bg}"><span class="ic">${ic}</span><span>${l}<small>Ouvrir l'espace</small></span></button>`).join('')}</div></div>`;
+  const kpis=`<div class="hub-kpis">
+    <div class="hub-kpi"><div class="v">${upcoming.length}</div><div class="l">Événements à venir</div></div>
+    <div class="hub-kpi"><div class="v">${openDoss}</div><div class="l">Dossiers en cours</div></div>
+    <div class="hub-kpi"><div class="v">${prospects}</div><div class="l">Inscriptions à suivre</div></div>
+    <div class="hub-kpi"><div class="v">${h.contacts.filter(c=>c.status==='Inscrit').length}</div><div class="l">Clients inscrits</div></div>
+    <div class="hub-kpi"><div class="v">${h.docs.length}</div><div class="l">Documents</div></div></div>`;
+  const nextCard=`<div class="hub-card"><div class="hub-h">📅 Prochains événements <button class="hub-btn sm" data-hubtab="cal">Voir le calendrier</button></div>
+    ${upcoming.length?upcoming.map(e=>hubEventRow(e)).join(''):'<div class="hub-empty">Aucun événement à venir. <br><button class="hub-btn pri" data-hub-act="newEvent" style="margin-top:10px">+ Créer un événement</button></div>'}</div>`;
+  const recentCt=h.contacts.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,5);
+  const ctCard=`<div class="hub-card"><div class="hub-h">👥 Dernières inscriptions <button class="hub-btn sm" data-hubtab="contacts">Gérer</button></div>
+    ${recentCt.length?`<table class="hub-table"><tbody>${recentCt.map(c=>`<tr><td><b>${hubEsc(c.name)}</b></td><td>${c.space?`<span class="hub-tag">${hubEsc((hubSpaceMeta(c.space)||[])[1]||c.space)}</span>`:''}</td><td><span class="hub-pill" style="background:${HUB_CTCOLORS[c.status]||'#64748b'}">${hubEsc(c.status)}</span></td></tr>`).join('')}</tbody></table>`:'<div class="hub-empty">Aucune inscription pour le moment.</div>'}</div>`;
+  return launch+kpis+`<div class="hub-grid2">${nextCard}${ctCard}</div>`;
+}
+
+function hubEventRow(e){
+  const sp=hubSpaceMeta(e.space);const col=sp?sp[3]:'#2552d6';
+  const done=e.steps?e.steps.filter(s=>s.done).length:0,tot=e.steps?e.steps.length:0;
+  return `<div class="hub-ev" style="border-left-color:${e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':col}">
+    <div class="hub-row" style="justify-content:space-between">
+      <div><b>${hubEsc(e.title||'Événement')}</b> ${e.type?`<span class="hub-tag">${hubEsc(e.type)}</span>`:''} ${sp?`<span class="hub-tag" style="background:${col}22;color:${col}">${hubEsc(sp[1])}</span>`:''}</div>
+      <div class="hub-row"><span class="hub-pill" style="background:${e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':'#2552d6'}">${hubEsc(e.status||'À venir')}</span>
+        <button class="hub-btn sm" data-hub-act="editEvent" data-id="${e.id}">Ouvrir</button></div></div>
+    <div class="hub-muted" style="font-size:12.5px;margin-top:4px">🗓️ ${hubFmtDate(e.date)}${e.time?' · '+hubEsc(e.time):''}${e.contactId?' · '+hubEsc(hubContactName(e.contactId)):''}</div>
+    ${tot?`<div class="hub-bar"><i style="width:${Math.round(done/tot*100)}%"></i></div><div class="hub-muted" style="font-size:11.5px;margin-top:3px">Dossier : ${done}/${tot} étape${tot>1?'s':''}</div>`:''}
+  </div>`;
+}
+
+function hubCalendar(){
+  const h=state.hub;const now=new Date();
+  if(!state.hubCal)state.hubCal={y:now.getFullYear(),m:now.getMonth()};
+  const {y,m}=state.hubCal;const first=new Date(y,m,1);const startDow=(first.getDay()+6)%7;// lundi=0
+  const daysInM=new Date(y,m+1,0).getDate();const MN=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const today=hubToday();const byDate={};h.events.forEach(e=>{if(!e.date)return;(byDate[e.date]=byDate[e.date]||[]).push(e);});
+  const cells=[];const prevDays=new Date(y,m,0).getDate();
+  for(let i=0;i<startDow;i++){cells.push({out:true});}
+  for(let d=1;d<=daysInM;d++){const iso=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');cells.push({d,iso,evs:byDate[iso]||[]});}
+  while(cells.length%7)cells.push({out:true});
+  const DOW=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  const grid=`<div class="hub-cal">${DOW.map(x=>`<div class="dh">${x}</div>`).join('')}${cells.map(c=>{
+    if(c.out)return '<div class="cd out"></div>';
+    const sp0=c.evs[0]&&hubSpaceMeta(c.evs[0].space);
+    return `<div class="cd${c.iso===today?' today':''}" data-hub-act="calDay" data-date="${c.iso}"><div class="dn">${c.d}</div>${c.evs.slice(0,3).map(e=>{const sp=hubSpaceMeta(e.space);const col=e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':(sp?sp[3]:'#2552d6');return `<div class="ev" style="background:${col}" data-hub-act="editEvent" data-id="${e.id}" title="${hubEsc(e.title)}">${e.time?hubEsc(e.time)+' ':''}${hubEsc(e.title||'')}</div>`;}).join('')}${c.evs.length>3?`<div class="hub-muted" style="font-size:10px">+${c.evs.length-3}</div>`:''}</div>`;
+  }).join('')}</div>`;
+  return `<div class="hub-card"><div class="hub-h"><div class="hub-row"><button class="hub-btn sm" data-hub-act="calPrev">‹</button><span style="font-size:17px;font-weight:700;min-width:170px;text-align:center">${MN[m]} ${y}</span><button class="hub-btn sm" data-hub-act="calNext">›</button></div><button class="hub-btn pri" data-hub-act="newEvent">+ Événement</button></div>${grid}<p class="hub-muted" style="font-size:12px;margin:12px 0 0">Clique un jour pour ajouter un événement, ou une pastille pour l'ouvrir.</p></div>`+ (state.hubForm&&state.hubForm.kind==='event'?hubEventForm():'');
+}
+
+function hubEvents(){
+  const h=state.hub;const list=h.events.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const head=`<div class="hub-card"><div class="hub-h">📌 Événements & dossiers <button class="hub-btn pri" data-hub-act="newEvent">+ Nouvel événement</button></div>
+    <p class="hub-muted" style="margin:0;font-size:13px">Crée des rendez-vous, essais, inscriptions… et suis l'avancement de chaque dossier (cases à cocher).</p></div>`;
+  if(state.hubForm&&state.hubForm.kind==='event')return head+hubEventForm();
+  const body=list.length?list.map(e=>hubEventRow(e)).join(''):'<div class="hub-card"><div class="hub-empty">Aucun événement. Clique « + Nouvel événement » pour commencer.</div></div>';
+  return head+body;
+}
+
+function hubEventForm(){
+  const f=state.hubForm.data||{};const e=f;const h=state.hub;
+  const stepsText=(e.steps||[]).map(s=>s.label).join('\n');
+  return `<div class="hub-card"><div class="hub-h">${e.id?'✎ Modifier l\'événement':'➕ Nouvel événement'}</div>
+    <div class="hub-field"><label>Titre</label><input id="hf-title" value="${hubEsc(e.title||'')}" placeholder="ex. Essai découverte · Rendez-vous inscription"></div>
+    <div class="hub-grid3">
+      <div class="hub-field"><label>Date</label><input id="hf-date" type="date" value="${hubEsc(e.date||hubToday())}"></div>
+      <div class="hub-field"><label>Heure</label><input id="hf-time" type="time" value="${hubEsc(e.time||'')}"></div>
+      <div class="hub-field"><label>Type</label><select id="hf-type">${HUB_EVTYPES.map(x=>`<option ${e.type===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    </div>
+    <div class="hub-grid3">
+      <div class="hub-field"><label>Espace concerné</label><select id="hf-space"><option value="">—</option>${HUB_SPACES.map(s=>`<option value="${s[0]}" ${e.space===s[0]?'selected':''}>${s[1]}</option>`).join('')}</select></div>
+      <div class="hub-field"><label>Personne / inscription</label><select id="hf-contact"><option value="">—</option>${h.contacts.map(c=>`<option value="${c.id}" ${e.contactId===c.id?'selected':''}>${hubEsc(c.name)}</option>`).join('')}</select></div>
+      <div class="hub-field"><label>Statut</label><select id="hf-status">${HUB_EVSTATUS.map(x=>`<option ${e.status===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    </div>
+    <div class="hub-field"><label>Étapes du dossier (une par ligne — cochables ensuite)</label><textarea id="hf-steps" rows="4" placeholder="ex.\nAppel de prise de contact\nEnvoi du devis\nDossier d'inscription signé\nPremier rendez-vous planifié">${hubEsc(stepsText)}</textarea></div>
+    <div class="hub-field"><label>Notes</label><textarea id="hf-note" rows="2" placeholder="Infos utiles, à faire…">${hubEsc(e.note||'')}</textarea></div>
+    ${e.id&&e.steps&&e.steps.length?`<div class="hub-field"><label>Suivi du dossier</label><div>${e.steps.map((s,i)=>`<label class="hub-step"><input type="checkbox" data-hub-act="toggleStep" data-id="${e.id}" data-i="${i}" ${s.done?'checked':''}> <span style="${s.done?'text-decoration:line-through;color:var(--muted,#7E90A8)':''}">${hubEsc(s.label)}</span></label>`).join('')}</div></div>`:''}
+    <div class="hub-row" style="margin-top:6px">${e.id?`<button class="hub-btn danger" data-hub-act="delEvent" data-id="${e.id}">Supprimer</button>`:''}<span style="flex:1"></span><button class="hub-btn" data-hub-act="cancelForm">Annuler</button><button class="hub-btn pri" data-hub-act="saveEvent">${e.id?'Enregistrer':'Créer l\'événement'}</button></div>
+  </div>`;
+}
+
+function hubContacts(){
+  const h=state.hub;
+  const head=`<div class="hub-card"><div class="hub-h">👥 Inscriptions & clients <button class="hub-btn pri" data-hub-act="newContact">+ Nouvelle inscription</button></div>
+    <p class="hub-muted" style="margin:0;font-size:13px">Suis chaque prospect du premier contact à l'inscription.</p></div>`;
+  if(state.hubForm&&state.hubForm.kind==='contact')return head+hubContactForm();
+  const list=h.contacts.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const counts=HUB_CTSTATUS.map(s=>`<span class="hub-tag" style="background:${HUB_CTCOLORS[s]}22;color:${HUB_CTCOLORS[s]}">${s} · ${h.contacts.filter(c=>c.status===s).length}</span>`).join(' ');
+  const table=list.length?`<table class="hub-table"><thead><tr><th>Nom</th><th>Contact</th><th>Espace</th><th>Statut</th><th>Ajouté le</th><th></th></tr></thead><tbody>
+    ${list.map(c=>`<tr><td><b>${hubEsc(c.name)}</b>${c.note?`<div class="hub-muted" style="font-size:11.5px">${hubEsc(c.note).slice(0,60)}</div>`:''}</td>
+      <td class="hub-muted" style="font-size:12.5px">${c.email?hubEsc(c.email)+'<br>':''}${hubEsc(c.phone||'')}</td>
+      <td>${c.space?`<span class="hub-tag">${hubEsc((hubSpaceMeta(c.space)||[])[1]||c.space)}</span>`:'—'}</td>
+      <td><span class="hub-pill" style="background:${HUB_CTCOLORS[c.status]||'#64748b'}">${hubEsc(c.status)}</span></td>
+      <td class="hub-muted" style="font-size:12px">${hubFmtDate(c.date)}</td>
+      <td><button class="hub-btn sm" data-hub-act="editContact" data-id="${c.id}">Ouvrir</button></td></tr>`).join('')}</tbody></table>`:'<div class="hub-empty">Aucune inscription. Clique « + Nouvelle inscription ».</div>';
+  return head+`<div class="hub-card"><div class="hub-row" style="margin-bottom:12px">${counts}</div>${table}</div>`;
+}
+
+function hubContactForm(){
+  const c=state.hubForm.data||{};
+  return `<div class="hub-card"><div class="hub-h">${c.id?'✎ Modifier l\'inscription':'➕ Nouvelle inscription'}</div>
+    <div class="hub-grid2">
+      <div class="hub-field"><label>Nom complet</label><input id="hc-name" value="${hubEsc(c.name||'')}" placeholder="Prénom Nom"></div>
+      <div class="hub-field"><label>Statut</label><select id="hc-status">${HUB_CTSTATUS.map(x=>`<option ${c.status===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    </div>
+    <div class="hub-grid3">
+      <div class="hub-field"><label>Email</label><input id="hc-email" type="email" value="${hubEsc(c.email||'')}" placeholder="email@exemple.com"></div>
+      <div class="hub-field"><label>Téléphone</label><input id="hc-phone" value="${hubEsc(c.phone||'')}" placeholder="06 12 34 56 78"></div>
+      <div class="hub-field"><label>Espace souhaité</label><select id="hc-space"><option value="">—</option>${HUB_SPACES.map(s=>`<option value="${s[0]}" ${c.space===s[0]?'selected':''}>${s[1]}</option>`).join('')}</select></div>
+    </div>
+    <div class="hub-field"><label>Notes</label><textarea id="hc-note" rows="3" placeholder="Objectif, provenance, remarques…">${hubEsc(c.note||'')}</textarea></div>
+    <div class="hub-row" style="margin-top:6px">${c.id?`<button class="hub-btn danger" data-hub-act="delContact" data-id="${c.id}">Supprimer</button>`:''}<span style="flex:1"></span><button class="hub-btn" data-hub-act="cancelForm">Annuler</button><button class="hub-btn pri" data-hub-act="saveContact">${c.id?'Enregistrer':'Ajouter'}</button></div>
+  </div>`;
+}
+
+function hubDocs(){
+  const h=state.hub;const list=h.docs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const head=`<div class="hub-card"><div class="hub-h">📁 Documents <label class="hub-btn pri" style="cursor:pointer">+ Ajouter un document<input type="file" id="hub-file" style="display:none" data-hub-act="uploadDoc"></label></div>
+    <p class="hub-muted" style="margin:0;font-size:13px">Stocke devis, attestations, certificats médicaux, fiches d'inscription… (jusqu'à ~2 Mo par fichier).</p>${state.hubDocBusy?'<p class="hub-muted" style="margin:8px 0 0">⏳ Enregistrement…</p>':''}</div>`;
+  const table=list.length?`<div class="hub-card"><table class="hub-table"><thead><tr><th>Document</th><th>Type</th><th>Taille</th><th>Lié à</th><th>Ajouté le</th><th></th></tr></thead><tbody>
+    ${list.map(d=>`<tr><td><b>${hubEsc(d.name)}</b></td><td><span class="hub-tag">${hubEsc((d.ext||'').toUpperCase()||'FICHIER')}</span></td><td class="hub-muted">${hubDocSize(d.size)}</td><td>${d.contactId?hubEsc(hubContactName(d.contactId)):'—'}</td><td class="hub-muted" style="font-size:12px">${hubFmtDate(d.date)}</td>
+      <td class="hub-row"><button class="hub-btn sm" data-hub-act="viewDoc" data-id="${d.id}">Ouvrir</button><button class="hub-btn sm danger" data-hub-act="delDoc" data-id="${d.id}">×</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="hub-card"><div class="hub-empty">Aucun document stocké.</div></div>';
+  return head+table;
+}
+function hubDocSize(n){n=+n||0;return n>1048576?(n/1048576).toFixed(1)+' Mo':n>1024?Math.round(n/1024)+' Ko':n+' o';}
+
+function hubBind(screen){
+  const wrap=screen.querySelector('.hub-wrap');if(!wrap)return;
+  wrap.querySelectorAll('[data-hubtab]').forEach(b=>b.addEventListener('click',()=>{state.hubTab=b.getAttribute('data-hubtab');state.hubForm=null;renderHub(screen);}));
+  wrap.addEventListener('change',async ev=>{
+    const el=ev.target.closest('[data-hub-act]');if(!el)return;const act=el.getAttribute('data-hub-act');
+    if(act==='toggleStep'){const id=el.getAttribute('data-id'),i=+el.getAttribute('data-i');const e=state.hub.events.find(x=>x.id===id);if(e&&e.steps&&e.steps[i]){e.steps[i].done=el.checked;await hubSave('events');renderHub(screen);}}
+    if(act==='uploadDoc'){await hubUpload(el.files&&el.files[0],screen);}
+  });
+  wrap.addEventListener('click',async ev=>{
+    const el=ev.target.closest('[data-hub-act]');if(!el)return;const act=el.getAttribute('data-hub-act');const id=el.getAttribute('data-id');
+    if(act==='launch'){const sp=el.getAttribute('data-space');state.navOpenGroup=null;state.section=sp;if(sp==='nutrition')state.tab='nutri-anamnese';render();return;}
+    if(act==='newEvent'){state.hubForm={kind:'event',data:{date:hubToday(),status:'À venir',type:'Rendez-vous'}};if(state.hubTab==='accueil')state.hubTab='events';renderHub(screen);}
+    if(act==='editEvent'){const e=state.hub.events.find(x=>x.id===id);if(e){state.hubForm={kind:'event',data:JSON.parse(JSON.stringify(e))};if(state.hubTab!=='cal')state.hubTab='events';renderHub(screen);}}
+    if(act==='cancelForm'){state.hubForm=null;renderHub(screen);}
+    if(act==='saveEvent'){await hubSaveEventForm(screen);}
+    if(act==='delEvent'){state.hub.events=state.hub.events.filter(x=>x.id!==id);await hubSave('events');state.hubForm=null;renderHub(screen);}
+    if(act==='newContact'){state.hubForm={kind:'contact',data:{status:'Nouveau',date:hubToday()}};state.hubTab='contacts';renderHub(screen);}
+    if(act==='editContact'){const c=state.hub.contacts.find(x=>x.id===id);if(c){state.hubForm={kind:'contact',data:JSON.parse(JSON.stringify(c))};renderHub(screen);}}
+    if(act==='saveContact'){await hubSaveContactForm(screen);}
+    if(act==='delContact'){state.hub.contacts=state.hub.contacts.filter(x=>x.id!==id);await hubSave('contacts');state.hubForm=null;renderHub(screen);}
+    if(act==='calPrev'){let {y,m}=state.hubCal;m--;if(m<0){m=11;y--;}state.hubCal={y,m};renderHub(screen);}
+    if(act==='calNext'){let {y,m}=state.hubCal;m++;if(m>11){m=0;y++;}state.hubCal={y,m};renderHub(screen);}
+    if(act==='calDay'){const d=el.getAttribute('data-date');state.hubForm={kind:'event',data:{date:d,status:'À venir',type:'Rendez-vous'}};renderHub(screen);}
+    if(act==='delDoc'){const d=state.hub.docs.find(x=>x.id===id);if(d){await sDelete('hubDoc:'+id,true).catch(()=>{});state.hub.docs=state.hub.docs.filter(x=>x.id!==id);await hubSave('docs');renderHub(screen);}}
+    if(act==='viewDoc'){await hubViewDoc(id);}
+  });
+}
+
+function hubField(screen,id){const el=screen.querySelector('#'+id);return el?el.value:'';}
+async function hubSaveEventForm(screen){
+  const f=state.hubForm.data||{};const id=f.id||hubId();
+  const title=hubField(screen,'hf-title').trim();
+  const stepsLines=hubField(screen,'hf-steps').split('\n').map(s=>s.trim()).filter(Boolean);
+  const prev=f.steps||[];const steps=stepsLines.map((label,i)=>({label,done:(prev[i]&&prev[i].label===label)?!!prev[i].done:(prev.find(p=>p.label===label)||{}).done||false}));
+  const ev={id,title:title||'Événement',date:hubField(screen,'hf-date'),time:hubField(screen,'hf-time'),type:hubField(screen,'hf-type'),space:hubField(screen,'hf-space'),contactId:hubField(screen,'hf-contact'),status:hubField(screen,'hf-status'),steps,note:hubField(screen,'hf-note').trim(),createdAt:f.createdAt||new Date().toISOString()};
+  const idx=state.hub.events.findIndex(x=>x.id===id);if(idx>=0)state.hub.events[idx]=ev;else state.hub.events.push(ev);
+  await hubSave('events');state.hubForm=null;renderHub(screen);
+}
+async function hubSaveContactForm(screen){
+  const f=state.hubForm.data||{};const id=f.id||hubId();
+  const name=hubField(screen,'hc-name').trim();if(!name){alert('Indique un nom.');return;}
+  const ct={id,name,email:hubField(screen,'hc-email').trim(),phone:hubField(screen,'hc-phone').trim(),space:hubField(screen,'hc-space'),status:hubField(screen,'hc-status'),note:hubField(screen,'hc-note').trim(),date:f.date||hubToday(),createdAt:f.createdAt||new Date().toISOString()};
+  const idx=state.hub.contacts.findIndex(x=>x.id===id);if(idx>=0)state.hub.contacts[idx]=ct;else state.hub.contacts.push(ct);
+  await hubSave('contacts');state.hubForm=null;renderHub(screen);
+}
+async function hubUpload(file,screen){
+  if(!file)return;
+  if(file.size>2200000){alert('Fichier trop lourd (max ~2 Mo).');return;}
+  state.hubDocBusy=true;renderHub(screen);
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    const id=hubId();const name=file.name||'document';const ext=(name.split('.').pop()||'').toLowerCase();
+    const ok=await sSet('hubDoc:'+id,reader.result,true);
+    if(ok){state.hub.docs.push({id,name,ext,size:file.size,type:file.type,date:hubToday(),createdAt:new Date().toISOString()});await hubSave('docs');}
+    else alert('Enregistrement impossible (fichier trop lourd ?).');
+    state.hubDocBusy=false;renderHub(screen);
+  };
+  reader.onerror=()=>{state.hubDocBusy=false;alert('Lecture du fichier impossible.');renderHub(screen);};
+  reader.readAsDataURL(file);
+}
+async function hubViewDoc(id){
+  const d=state.hub.docs.find(x=>x.id===id);if(!d)return;
+  const data=await sGet('hubDoc:'+id,true);if(!data){alert('Document introuvable.');return;}
+  try{const a=document.createElement('a');a.href=data;a.download=d.name;a.target='_blank';document.body.appendChild(a);a.click();a.remove();}catch(e){window.open(data,'_blank');}
 }
 
 /* =========================================================
