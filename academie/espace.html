@@ -33,7 +33,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     radial-gradient(120% 60% at 0% 0%, color-mix(in srgb,var(--accent) 16%,transparent), transparent 55%);
 }
 /* padding adapté aux encoches / barre d'état du téléphone (heure, batterie) grâce à viewport-fit=cover */
-.wrap{max-width:640px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(96px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))}
+.wrap{max-width:640px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(108px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))}
 body.coach-fill .wrap{max-width:1180px}
 .qgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;align-items:start}
 h1{font-family:var(--fd);font-weight:700;font-size:22px;margin:0 0 2px}
@@ -109,11 +109,11 @@ input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px
 .tabbtn{flex:1;min-width:max-content;appearance:none;cursor:pointer;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);border-radius:10px;padding:10px 12px;font-weight:600;font-size:13.5px;white-space:nowrap;font-family:inherit}
 .tabbtn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 /* Barre de navigation fixe en bas (comme une app mobile) : on sait toujours dans quelle catégorie on est */
-.botnav{position:fixed;left:0;right:0;bottom:0;z-index:950;background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-top:1px solid var(--line);box-shadow:0 -6px 26px rgba(0,0,0,.30);padding-bottom:env(safe-area-inset-bottom,0px)}
-.botnav-inner{max-width:640px;margin:0 auto;display:flex;align-items:stretch;gap:2px;padding:7px 8px 6px}
-body.coach-fill .botnav-inner{max-width:1180px}
+.botnav{position:fixed;left:0;right:0;bottom:0;z-index:950;pointer-events:none;padding:16px 14px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 48%,color-mix(in srgb,var(--bg) 55%,transparent) 76%,transparent)}
+.botnav-inner{pointer-events:auto;max-width:540px;margin:0 auto;display:flex;align-items:stretch;gap:2px;padding:9px 10px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:saturate(1.5) blur(18px);-webkit-backdrop-filter:saturate(1.5) blur(18px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:30px;box-shadow:0 14px 34px -10px rgba(0,0,0,.55),0 1px 0 color-mix(in srgb,#fff 8%,transparent) inset}
+body.coach-fill .botnav-inner{max-width:720px}
 .botnav-item{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px 2px 0;font-size:11px;font-weight:600;letter-spacing:.005em;transition:color .16s}
-.botnav-item .ic{width:52px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:12px;transition:background .16s}
+.botnav-item .ic{width:50px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:15px;transition:background .16s}
 .botnav-item span{line-height:1;white-space:nowrap}
 .botnav-item.on{color:var(--accent)}
 .botnav-item.on .ic{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 26%,transparent),color-mix(in srgb,var(--accent-2) 26%,transparent));box-shadow:0 5px 16px -5px color-mix(in srgb,var(--accent) 60%,transparent)}
