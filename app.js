@@ -2311,55 +2311,89 @@ async function hubSave(which){
 function hubContactName(id){const c=(state.hub.contacts||[]).find(x=>x.id===id);return c?c.name:'';}
 function hubSpaceMeta(k){return HUB_SPACES.find(s=>s[0]===k);}
 
+const HUB_ICONS={
+ home:'<path d="M3 11.4 12 4l9 7.4"/><path d="M5.5 10v9.5h13V10"/>',
+ calendar:'<rect x="3" y="4.5" width="18" height="16" rx="2.2"/><path d="M3 9.2h18M8 2.6v3.6M16 2.6v3.6"/>',
+ pin:'<path d="M12 21s-6-5.1-6-10a6 6 0 1 1 12 0c0 4.9-6 10-6 10Z"/><circle cx="12" cy="11" r="2.1"/>',
+ users:'<circle cx="9" cy="8" r="3.1"/><path d="M3.2 20c0-3.2 2.6-5.3 5.8-5.3S14.8 16.8 14.8 20"/><path d="M16 5.3a3.1 3.1 0 0 1 0 5.9M20.8 20c0-2.5-1.3-4.2-3.4-5"/>',
+ folder:'<path d="M3 7.6A2 2 0 0 1 5 5.6h3.3l2 2.1H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
+ rocket:'<path d="M5 15c-1.5 1-2 4-2 4s3-.5 4-2a2.1 2.1 0 0 0-2-2Z"/><path d="M8.5 13.5 6 11l2-4a9 9 0 0 1 8-5c.5 3-.6 6-3 8l-4 2-2.5-2.5Z"/><circle cx="14.5" cy="7.5" r="1.3"/>',
+ pulse:'<path d="M3 12h3.5l1.8 4.5 3.4-10 2 5.5H21"/>',
+ ball:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5l3.3 2.4-1.3 3.9h-4l-1.3-3.9L12 7.5Z"/><path d="M12 3.5v4M19.6 9.3l-3.3 2.4M18 18.5l-3.3-2.3M6 18.5l3.3-2.3M4.4 9.3l3.3 2.4"/>',
+ run:'<circle cx="14.5" cy="5.2" r="1.7"/><path d="M6 21l2.5-4 2-2.2-1-3.3L7 13l-2 .6M12.5 9.2 15 7l2.7 1.3 1.8 1.4M11.5 14.8l2.3 1.1 1.4 3.6"/>',
+ leaf:'<path d="M5 19C5 10 11 6 19 6c0 9-6 13-14 13Z"/><path d="M5 19C8 15.5 12 12.5 16 10.5"/>',
+ plus:'<path d="M12 5.5v13M5.5 12h13"/>',
+ chevron:'<path d="M9 5.5 15.5 12 9 18.5"/>',
+ settings:'<circle cx="12" cy="12" r="3"/><path d="M19.2 13.1a1.4 1.4 0 0 0 .3 1.5l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.4 1.4 0 0 0-2.4 1v.2a2 2 0 1 1-4 0v-.1a1.4 1.4 0 0 0-2.4-1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.4 1.4 0 0 0-1-2.4H4a2 2 0 1 1 0-4h.2a1.4 1.4 0 0 0 1-2.4l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.4 1.4 0 0 0 2.4-1V4a2 2 0 1 1 4 0v.2a1.4 1.4 0 0 0 2.4 1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.4 1.4 0 0 0-.3 1.5Z"/>',
+ clipboard:'<rect x="5" y="4.2" width="14" height="16.6" rx="2.2"/><path d="M9 4.6A1.5 1.5 0 0 1 10.5 3.1h3A1.5 1.5 0 0 1 15 4.6v1.3H9Z"/>',
+ doc:'<path d="M7 3.2h7l4 4V20a1.6 1.6 0 0 1-1.6 1.6H7A1.6 1.6 0 0 1 5.4 20V4.8A1.6 1.6 0 0 1 7 3.2Z"/><path d="M14 3.2V7.2h4"/>',
+ clock:'<circle cx="12" cy="12" r="8.4"/><path d="M12 7.5V12l3 2"/>',
+ upload:'<path d="M12 15.5V4M8 7.5 12 3.5l4 4"/><path d="M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15"/>'
+};
+function hubIco(n,sz){return `<svg viewBox="0 0 24 24" width="${sz||18}" height="${sz||18}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none">${HUB_ICONS[n]||''}</svg>`;}
 const HUB_STYLE=`<style>
-.hub-wrap{max-width:1180px;margin:0 auto}
-.hub-subtabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:2px}
-.hub-subtab{border:0;background:none;padding:9px 15px;border-radius:9px 9px 0 0;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted,#7E90A8)}
-.hub-subtab.on{color:var(--accent,#2552d6);box-shadow:inset 0 -2px 0 var(--accent,#2552d6)}
-.hub-card{background:var(--surface,#fff);border:1px solid var(--line,#e2e8f0);border-radius:14px;padding:18px;margin-bottom:16px}
-.hub-h{font-size:17px;font-weight:700;margin:0 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
-.hub-launch{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-.hub-space{display:flex;align-items:center;gap:12px;padding:15px;border-radius:14px;color:#fff;cursor:pointer;border:0;text-align:left;font-weight:700;font-size:15px;transition:transform .12s,filter .12s}
-.hub-space:hover{transform:translateY(-2px);filter:brightness(1.07)}
-.hub-space .ic{font-size:26px}
-.hub-space small{display:block;font-weight:500;font-size:11.5px;opacity:.9;margin-top:2px}
-.hub-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.hub-kpi{background:var(--surface,#fff);border:1px solid var(--line,#e2e8f0);border-radius:13px;padding:14px 16px;position:relative;overflow:hidden}
-.hub-kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent,#2552d6)}
-.hub-kpi .v{font-size:28px;font-weight:800;line-height:1}
-.hub-kpi .l{font-size:12px;color:var(--muted,#7E90A8);margin-top:3px}
-.hub-btn{border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--ink,#0f172a);padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:600;font-size:13px}
-.hub-btn:hover{border-color:var(--accent,#2552d6);color:var(--accent,#2552d6)}
-.hub-btn.pri{background:var(--accent,#2552d6);border-color:var(--accent,#2552d6);color:#fff}
-.hub-btn.sm{padding:5px 10px;font-size:12px}
-.hub-btn.danger{color:#d64545;border-color:#edc0c0}
+.hub-wrap{max-width:1180px;margin:0 auto;color:var(--app-text,#1a2232)}
+.hub-wrap h1{letter-spacing:-.015em}
+.hub-subtabs{display:flex;flex-wrap:wrap;gap:1px;margin-bottom:24px;border-bottom:1px solid var(--app-border,#e6eaf0)}
+.hub-subtab{display:inline-flex;align-items:center;gap:8px;border:0;background:none;padding:11px 16px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--app-muted,#6b7688);border-bottom:2px solid transparent;margin-bottom:-1px}
+.hub-subtab:hover{color:var(--app-text,#1a2232)}
+.hub-subtab.on{color:var(--app-accent,#2552d6);border-bottom-color:var(--app-accent,#2552d6)}
+.hub-subtab svg{opacity:.9}
+.hub-card{background:var(--app-surface,#fff);border:1px solid var(--app-border,#e6eaf0);border-radius:16px;padding:20px 22px;margin-bottom:18px;box-shadow:var(--app-shadow,0 1px 2px rgba(16,24,40,.04))}
+.hub-h{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--app-muted,#6b7688);margin:0 0 17px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hub-h .lft{display:inline-flex;align-items:center;gap:8px}
+.hub-launch{display:grid;grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:13px}
+.hub-space{display:flex;align-items:center;gap:14px;padding:16px;border-radius:14px;cursor:pointer;border:1px solid var(--app-border,#e6eaf0);background:var(--app-surface,#fff);text-align:left;transition:transform .14s,box-shadow .14s,border-color .14s}
+.hub-space:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(16,24,40,.1)}
+.hub-space .chip{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;color:#fff;flex:none}
+.hub-space .tt{flex:1;min-width:0}
+.hub-space .tt b{display:block;font-size:14.5px;font-weight:700;color:var(--app-text,#1a2232)}
+.hub-space .tt span{font-size:12px;color:var(--app-muted,#6b7688);margin-top:2px;display:block}
+.hub-space .arw{color:var(--app-muted,#9aa4b2);flex:none}
+.hub-tools{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:17px;padding-top:16px;border-top:1px solid var(--app-border,#eef1f6)}
+.hub-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:13px;margin-bottom:18px}
+.hub-kpi{background:var(--app-surface,#fff);border:1px solid var(--app-border,#e6eaf0);border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;box-shadow:var(--app-shadow,0 1px 2px rgba(16,24,40,.04))}
+.hub-kpi .ki{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--app-accent,#2552d6) 12%,transparent);color:var(--app-accent,#2552d6);flex:none}
+.hub-kpi .v{font-size:25px;font-weight:800;line-height:1;color:var(--app-text,#1a2232);font-variant-numeric:tabular-nums}
+.hub-kpi .l{font-size:12px;color:var(--app-muted,#6b7688);margin-top:3px}
+.hub-btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--app-border-strong,#d4dae3);background:var(--app-surface,#fff);color:var(--app-text,#1a2232);padding:9px 15px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px;transition:border-color .12s,color .12s,background .12s}
+.hub-btn:hover{border-color:var(--app-accent,#2552d6);color:var(--app-accent,#2552d6)}
+.hub-btn.pri{background:var(--app-accent,#2552d6);border-color:var(--app-accent,#2552d6);color:var(--app-accent-ink,#fff)}
+.hub-btn.pri:hover{filter:brightness(1.08);color:var(--app-accent-ink,#fff)}
+.hub-btn.sm{padding:6px 11px;font-size:12.5px}
+.hub-btn.danger{color:var(--app-danger,#d64545);border-color:color-mix(in srgb,var(--app-danger,#d64545) 35%,transparent)}
 .hub-table{width:100%;border-collapse:collapse;font-size:13.5px}
-.hub-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#7E90A8);padding:7px 10px;border-bottom:1px solid var(--line,#e2e8f0)}
-.hub-table td{padding:9px 10px;border-bottom:1px solid var(--line,#eef2f7);vertical-align:middle}
-.hub-pill{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px;color:#fff}
-.hub-tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--surface-2,#f1f5f9);color:var(--ink-2,#334155)}
-.hub-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
-.hub-field label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#7E90A8);font-weight:700}
-.hub-field input,.hub-field select,.hub-field textarea{padding:9px 11px;border:1px solid var(--line-2,#cbd5e1);border-radius:9px;background:var(--surface,#fff);color:var(--ink,#0f172a);font:inherit;width:100%}
-.hub-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.hub-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.hub-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
-.hub-cal .dh{font-size:11px;text-transform:uppercase;color:var(--muted,#7E90A8);text-align:center;font-weight:700;padding:4px}
-.hub-cal .cd{min-height:92px;border:1px solid var(--line,#e2e8f0);border-radius:9px;padding:5px;cursor:pointer;background:var(--surface,#fff);display:flex;flex-direction:column;gap:3px;overflow:hidden}
-.hub-cal .cd:hover{border-color:var(--accent,#2552d6)}
-.hub-cal .cd.out{opacity:.4}
-.hub-cal .cd.today{border-color:var(--accent,#2552d6);box-shadow:inset 0 0 0 1px var(--accent,#2552d6)}
-.hub-cal .cd .dn{font-size:12px;font-weight:700}
-.hub-cal .ev{font-size:10.5px;font-weight:600;padding:2px 5px;border-radius:5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hub-step{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13.5px;cursor:pointer}
-.hub-step input{width:17px;height:17px}
-.hub-bar{height:6px;border-radius:4px;background:var(--surface-2,#eef2f7);overflow:hidden;margin-top:4px}
-.hub-bar i{display:block;height:100%;background:#2fbf71}
-.hub-ev{border:1px solid var(--line,#e2e8f0);border-left:4px solid var(--accent,#2552d6);border-radius:11px;padding:13px 15px;margin-bottom:11px;background:var(--surface,#fff)}
-.hub-muted{color:var(--muted,#7E90A8)}
-.hub-empty{text-align:center;color:var(--muted,#7E90A8);padding:26px;font-size:14px}
+.hub-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--app-muted,#6b7688);padding:9px 12px;border-bottom:1px solid var(--app-border,#e6eaf0);font-weight:700}
+.hub-table td{padding:11px 12px;border-bottom:1px solid var(--app-border,#f0f3f7);vertical-align:middle}
+.hub-table tr:last-child td{border-bottom:0}
+.hub-table tbody tr:hover td{background:color-mix(in srgb,var(--app-accent,#2552d6) 5%,transparent)}
+.hub-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;color:#fff}
+.hub-tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px;background:var(--app-surface-2,#f1f4f9);color:var(--app-text,#3a4557)}
+.hub-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.hub-field label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--app-muted,#6b7688);font-weight:700}
+.hub-field input,.hub-field select,.hub-field textarea{padding:10px 12px;border:1px solid var(--app-border-strong,#d4dae3);border-radius:10px;background:var(--app-input-bg,#fff);color:var(--app-text,#1a2232);font:inherit;width:100%}
+.hub-field input:focus,.hub-field select:focus,.hub-field textarea:focus{outline:2px solid var(--app-accent,#2552d6);outline-offset:1px;border-color:transparent}
+.hub-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.hub-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.hub-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.hub-cal .dh{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--app-muted,#9aa4b2);text-align:center;font-weight:700;padding:4px}
+.hub-cal .cd{min-height:98px;border:1px solid var(--app-border,#e9edf3);border-radius:11px;padding:7px;cursor:pointer;background:var(--app-surface,#fff);display:flex;flex-direction:column;gap:3px;overflow:hidden;transition:border-color .12s}
+.hub-cal .cd:hover{border-color:var(--app-accent,#2552d6)}
+.hub-cal .cd.out{opacity:.4;background:transparent;border-color:transparent;cursor:default}
+.hub-cal .cd.today{border-color:var(--app-accent,#2552d6);box-shadow:inset 0 0 0 1px var(--app-accent,#2552d6)}
+.hub-cal .cd .dn{font-size:12px;font-weight:700;color:var(--app-text,#1a2232)}
+.hub-cal .cd.today .dn{color:var(--app-accent,#2552d6)}
+.hub-cal .ev{font-size:10.5px;font-weight:600;padding:3px 6px;border-radius:6px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hub-step{display:flex;align-items:center;gap:9px;padding:6px 0;font-size:13.5px;cursor:pointer}
+.hub-step input{width:17px;height:17px;accent-color:var(--app-accent,#2552d6)}
+.hub-bar{height:6px;border-radius:4px;background:var(--app-surface-2,#eef1f6);overflow:hidden;margin-top:6px}
+.hub-bar i{display:block;height:100%;background:var(--app-ok,#2fbf71)}
+.hub-ev{border:1px solid var(--app-border,#e6eaf0);border-radius:13px;padding:15px 17px;margin-bottom:12px;background:var(--app-surface,#fff);box-shadow:var(--app-shadow,0 1px 2px rgba(16,24,40,.03))}
+.hub-ev .evb{width:9px;height:9px;border-radius:50%;flex:none}
+.hub-muted{color:var(--app-muted,#6b7688)}
+.hub-empty{text-align:center;color:var(--app-muted,#9aa4b2);padding:30px 20px;font-size:14px}
 .hub-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-@media(max-width:620px){.hub-grid2,.hub-grid3{grid-template-columns:1fr}.hub-cal .cd{min-height:66px}}
+@media(max-width:620px){.hub-grid2,.hub-grid3{grid-template-columns:1fr}.hub-cal .cd{min-height:62px}}
 </style>`;
 
 const HUBPAGE_STYLE=`<style>
@@ -2402,8 +2436,8 @@ async function renderHub(screen){
   screen.innerHTML=HUB_STYLE+'<div class="hub-wrap"><p class="hub-muted">Chargement…</p></div>';
   await hubLoad();
   const tab=state.hubTab||'accueil';
-  const TABS=[['accueil','🏠 Accueil'],['cal','🗓️ Calendrier'],['events','📌 Événements & dossiers'],['contacts','👥 Inscriptions'],['docs','📁 Documents']];
-  const sub=`<div class="hub-subtabs">${TABS.map(([k,l])=>`<button class="hub-subtab ${tab===k?'on':''}" data-hubtab="${k}">${l}</button>`).join('')}</div>`;
+  const TABS=[['accueil','Accueil','home'],['cal','Calendrier','calendar'],['events','Événements & dossiers','pin'],['contacts','Inscriptions','users'],['docs','Documents','folder']];
+  const sub=`<div class="hub-subtabs">${TABS.map(([k,l,ic])=>`<button class="hub-subtab ${tab===k?'on':''}" data-hubtab="${k}">${hubIco(ic)}${l}</button>`).join('')}</div>`;
   let body='';
   try{
     if(tab==='accueil')body=hubAccueil();
@@ -2412,7 +2446,7 @@ async function renderHub(screen){
     else if(tab==='contacts')body=hubContacts();
     else if(tab==='docs')body=hubDocs();
   }catch(e){body='<div class="hub-card">Erreur d\'affichage : '+hubEsc(e.message)+'</div>';}
-  const title=`<div style="margin-bottom:16px"><h1 class="hubpage-title">🗂️ Organisation</h1><p class="hubpage-sub">Ton tableau de bord : inscriptions, événements, dossiers et documents — et l'accès à tes espaces.</p></div>`;
+  const title=`<div style="margin-bottom:18px"><h1 class="hubpage-title">Organisation</h1><p class="hubpage-sub">Tableau de bord — inscriptions, événements, dossiers et documents, et accès à vos espaces.</p></div>`;
   screen.innerHTML=HUB_STYLE+`<div class="hub-wrap">${title}${sub}${body}</div>`;
   hubBind(screen);
 }
@@ -2422,36 +2456,39 @@ function hubAccueil(){
   const upcoming=h.events.filter(e=>e.status!=='Annulé'&&(e.date||'')>=today).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||''))).slice(0,6);
   const openDoss=h.events.filter(e=>e.steps&&e.steps.length&&e.steps.some(s=>!s.done)&&e.status!=='Annulé').length;
   const prospects=h.contacts.filter(c=>c.status!=='Inscrit'&&c.status!=='Archivé').length;
-  const launch=`<div class="hub-card"><div class="hub-h">🚀 Accéder à un espace</div>
-    <div class="hub-launch">${HUB_SPACES.map(([k,l,ic,bg])=>`<button class="hub-space" data-hub-act="launch" data-space="${k}" style="background:${bg}"><span class="ic">${ic}</span><span>${l}<small>Ouvrir l'espace</small></span></button>`).join('')}</div>
-    <div class="hub-row" style="margin-top:14px"><span class="hub-muted" style="font-size:12px;font-weight:600">Suivi & gestion :</span>
-      <button class="hub-btn sm" data-hub-act="go" data-section="programme" data-tab="apercu">📋 Suivi des clients</button>
-      <button class="hub-btn sm" data-hub-act="go" data-section="programme" data-tab="clients">👥 Mes clients</button>
-      <button class="hub-btn sm" data-hub-act="go" data-section="settings">⚙️ Paramètres</button></div></div>`;
+  const SPIC={apa:'pulse',football:'ball',individuel:'run',nutrition:'leaf'};
+  const launch=`<div class="hub-card"><div class="hub-h"><span class="lft">${hubIco('rocket')}Accéder à un espace</span></div>
+    <div class="hub-launch">${HUB_SPACES.map(([k,l,ic,bg])=>`<button class="hub-space" data-hub-act="launch" data-space="${k}"><span class="chip" style="background:${bg}">${hubIco(SPIC[k]||'grid',22)}</span><span class="tt"><b>${l}</b><span>Ouvrir l'espace</span></span><span class="arw">${hubIco('chevron',18)}</span></button>`).join('')}</div>
+    <div class="hub-tools"><span class="hub-muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Suivi &amp; gestion</span>
+      <button class="hub-btn sm" data-hub-act="go" data-section="programme" data-tab="apercu">${hubIco('clipboard',15)} Suivi des clients</button>
+      <button class="hub-btn sm" data-hub-act="go" data-section="programme" data-tab="clients">${hubIco('users',15)} Mes clients</button>
+      <button class="hub-btn sm" data-hub-act="go" data-section="settings">${hubIco('settings',15)} Paramètres</button></div></div>`;
+  const kpiC=(ic,v,l)=>`<div class="hub-kpi"><span class="ki">${hubIco(ic,20)}</span><div><div class="v">${v}</div><div class="l">${l}</div></div></div>`;
   const kpis=`<div class="hub-kpis">
-    <div class="hub-kpi"><div class="v">${upcoming.length}</div><div class="l">Événements à venir</div></div>
-    <div class="hub-kpi"><div class="v">${openDoss}</div><div class="l">Dossiers en cours</div></div>
-    <div class="hub-kpi"><div class="v">${prospects}</div><div class="l">Inscriptions à suivre</div></div>
-    <div class="hub-kpi"><div class="v">${h.contacts.filter(c=>c.status==='Inscrit').length}</div><div class="l">Clients inscrits</div></div>
-    <div class="hub-kpi"><div class="v">${h.docs.length}</div><div class="l">Documents</div></div></div>`;
-  const nextCard=`<div class="hub-card"><div class="hub-h">📅 Prochains événements <button class="hub-btn sm" data-hubtab="cal">Voir le calendrier</button></div>
-    ${upcoming.length?upcoming.map(e=>hubEventRow(e)).join(''):'<div class="hub-empty">Aucun événement à venir. <br><button class="hub-btn pri" data-hub-act="newEvent" style="margin-top:10px">+ Créer un événement</button></div>'}</div>`;
+    ${kpiC('calendar',upcoming.length,'Événements à venir')}
+    ${kpiC('clipboard',openDoss,'Dossiers en cours')}
+    ${kpiC('users',prospects,'Inscriptions à suivre')}
+    ${kpiC('pulse',h.contacts.filter(c=>c.status==='Inscrit').length,'Clients inscrits')}
+    ${kpiC('folder',h.docs.length,'Documents')}</div>`;
+  const nextCard=`<div class="hub-card"><div class="hub-h"><span class="lft">${hubIco('calendar')}Prochains événements</span><button class="hub-btn sm" data-hubtab="cal">Calendrier ${hubIco('chevron',14)}</button></div>
+    ${upcoming.length?upcoming.map(e=>hubEventRow(e)).join(''):'<div class="hub-empty">Aucun événement à venir.<br><button class="hub-btn pri" data-hub-act="newEvent" style="margin-top:12px">'+hubIco('plus',15)+' Créer un événement</button></div>'}</div>`;
   const recentCt=h.contacts.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,5);
-  const ctCard=`<div class="hub-card"><div class="hub-h">👥 Dernières inscriptions <button class="hub-btn sm" data-hubtab="contacts">Gérer</button></div>
-    ${recentCt.length?`<table class="hub-table"><tbody>${recentCt.map(c=>`<tr><td><b>${hubEsc(c.name)}</b></td><td>${c.space?`<span class="hub-tag">${hubEsc((hubSpaceMeta(c.space)||[])[1]||c.space)}</span>`:''}</td><td><span class="hub-pill" style="background:${HUB_CTCOLORS[c.status]||'#64748b'}">${hubEsc(c.status)}</span></td></tr>`).join('')}</tbody></table>`:'<div class="hub-empty">Aucune inscription pour le moment.</div>'}</div>`;
+  const ctCard=`<div class="hub-card"><div class="hub-h"><span class="lft">${hubIco('users')}Dernières inscriptions</span><button class="hub-btn sm" data-hubtab="contacts">Gérer ${hubIco('chevron',14)}</button></div>
+    ${recentCt.length?`<table class="hub-table"><tbody>${recentCt.map(c=>`<tr><td><b>${hubEsc(c.name)}</b></td><td>${c.space?`<span class="hub-tag">${hubEsc((hubSpaceMeta(c.space)||[])[1]||c.space)}</span>`:''}</td><td style="text-align:right"><span class="hub-pill" style="background:${HUB_CTCOLORS[c.status]||'#64748b'}">${hubEsc(c.status)}</span></td></tr>`).join('')}</tbody></table>`:'<div class="hub-empty">Aucune inscription pour le moment.</div>'}</div>`;
   return launch+kpis+`<div class="hub-grid2">${nextCard}${ctCard}</div>`;
 }
 
 function hubEventRow(e){
-  const sp=hubSpaceMeta(e.space);const col=sp?sp[3]:'#2552d6';
+  const sp=hubSpaceMeta(e.space);const col=sp?sp[3]:'var(--app-accent,#2552d6)';
   const done=e.steps?e.steps.filter(s=>s.done).length:0,tot=e.steps?e.steps.length:0;
-  return `<div class="hub-ev" style="border-left-color:${e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':col}">
+  const stCol=e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':col;
+  return `<div class="hub-ev">
     <div class="hub-row" style="justify-content:space-between">
-      <div><b>${hubEsc(e.title||'Événement')}</b> ${e.type?`<span class="hub-tag">${hubEsc(e.type)}</span>`:''} ${sp?`<span class="hub-tag" style="background:${col}22;color:${col}">${hubEsc(sp[1])}</span>`:''}</div>
-      <div class="hub-row"><span class="hub-pill" style="background:${e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':'#2552d6'}">${hubEsc(e.status||'À venir')}</span>
+      <div class="hub-row" style="gap:10px"><span class="evb" style="background:${stCol}"></span><b style="font-size:14.5px">${hubEsc(e.title||'Événement')}</b> ${e.type?`<span class="hub-tag">${hubEsc(e.type)}</span>`:''} ${sp?`<span class="hub-tag" style="background:color-mix(in srgb,${col} 14%,transparent);color:${col}">${hubEsc(sp[1])}</span>`:''}</div>
+      <div class="hub-row"><span class="hub-pill" style="background:${e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':'var(--app-accent,#2552d6)'}">${hubEsc(e.status||'À venir')}</span>
         <button class="hub-btn sm" data-hub-act="editEvent" data-id="${e.id}">Ouvrir</button></div></div>
-    <div class="hub-muted" style="font-size:12.5px;margin-top:4px">🗓️ ${hubFmtDate(e.date)}${e.time?' · '+hubEsc(e.time):''}${e.contactId?' · '+hubEsc(hubContactName(e.contactId)):''}</div>
-    ${tot?`<div class="hub-bar"><i style="width:${Math.round(done/tot*100)}%"></i></div><div class="hub-muted" style="font-size:11.5px;margin-top:3px">Dossier : ${done}/${tot} étape${tot>1?'s':''}</div>`:''}
+    <div class="hub-muted" style="font-size:12.5px;margin-top:6px;display:inline-flex;align-items:center;gap:6px">${hubIco('clock',14)} ${hubFmtDate(e.date)}${e.time?' · '+hubEsc(e.time):''}${e.contactId?' · '+hubEsc(hubContactName(e.contactId)):''}</div>
+    ${tot?`<div class="hub-bar"><i style="width:${Math.round(done/tot*100)}%"></i></div><div class="hub-muted" style="font-size:11.5px;margin-top:4px">Dossier · ${done}/${tot} étape${tot>1?'s':''} ${done===tot?'· complété':''}</div>`:''}
   </div>`;
 }
 
@@ -2471,12 +2508,12 @@ function hubCalendar(){
     const sp0=c.evs[0]&&hubSpaceMeta(c.evs[0].space);
     return `<div class="cd${c.iso===today?' today':''}" data-hub-act="calDay" data-date="${c.iso}"><div class="dn">${c.d}</div>${c.evs.slice(0,3).map(e=>{const sp=hubSpaceMeta(e.space);const col=e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':(sp?sp[3]:'#2552d6');return `<div class="ev" style="background:${col}" data-hub-act="editEvent" data-id="${e.id}" title="${hubEsc(e.title)}">${e.time?hubEsc(e.time)+' ':''}${hubEsc(e.title||'')}</div>`;}).join('')}${c.evs.length>3?`<div class="hub-muted" style="font-size:10px">+${c.evs.length-3}</div>`:''}</div>`;
   }).join('')}</div>`;
-  return `<div class="hub-card"><div class="hub-h"><div class="hub-row"><button class="hub-btn sm" data-hub-act="calPrev">‹</button><span style="font-size:17px;font-weight:700;min-width:170px;text-align:center">${MN[m]} ${y}</span><button class="hub-btn sm" data-hub-act="calNext">›</button></div><button class="hub-btn pri" data-hub-act="newEvent">+ Événement</button></div>${grid}<p class="hub-muted" style="font-size:12px;margin:12px 0 0">Clique un jour pour ajouter un événement, ou une pastille pour l'ouvrir.</p></div>`+ (state.hubForm&&state.hubForm.kind==='event'?hubEventForm():'');
+  return `<div class="hub-card"><div class="hub-h" style="margin-bottom:14px"><div class="hub-row"><button class="hub-btn sm" data-hub-act="calPrev" aria-label="Mois précédent">${hubIco('chevron',16)}</button><span style="font-size:16px;font-weight:700;min-width:180px;text-align:center;text-transform:none;letter-spacing:0;color:var(--app-text,#1a2232)">${MN[m]} ${y}</span><button class="hub-btn sm" data-hub-act="calNext" aria-label="Mois suivant" style="transform:scaleX(-1)">${hubIco('chevron',16)}</button></div><button class="hub-btn pri" data-hub-act="newEvent">${hubIco('plus',15)} Événement</button></div>${grid}<p class="hub-muted" style="font-size:12px;margin:14px 0 0">Cliquez un jour pour ajouter un événement, ou une pastille pour l'ouvrir.</p></div>`+ (state.hubForm&&state.hubForm.kind==='event'?hubEventForm():'');
 }
 
 function hubEvents(){
   const h=state.hub;const list=h.events.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const head=`<div class="hub-card"><div class="hub-h">📌 Événements & dossiers <button class="hub-btn pri" data-hub-act="newEvent">+ Nouvel événement</button></div>
+  const head=`<div class="hub-card"><div class="hub-h"><span class="lft">${hubIco('pin')}Événements & dossiers</span> <button class="hub-btn pri" data-hub-act="newEvent">${hubIco('plus',15)} Nouvel événement</button></div>
     <p class="hub-muted" style="margin:0;font-size:13px">Crée des rendez-vous, essais, inscriptions… et suis l'avancement de chaque dossier (cases à cocher).</p></div>`;
   if(state.hubForm&&state.hubForm.kind==='event')return head+hubEventForm();
   const body=list.length?list.map(e=>hubEventRow(e)).join(''):'<div class="hub-card"><div class="hub-empty">Aucun événement. Clique « + Nouvel événement » pour commencer.</div></div>';
@@ -2486,7 +2523,7 @@ function hubEvents(){
 function hubEventForm(){
   const f=state.hubForm.data||{};const e=f;const h=state.hub;
   const stepsText=(e.steps||[]).map(s=>s.label).join('\n');
-  return `<div class="hub-card"><div class="hub-h">${e.id?'✎ Modifier l\'événement':'➕ Nouvel événement'}</div>
+  return `<div class="hub-card"><div class="hub-h"><span class="lft">${hubIco('pin')}${e.id?'Modifier l\'événement':'Nouvel événement'}</span></div>
     <div class="hub-field"><label>Titre</label><input id="hf-title" value="${hubEsc(e.title||'')}" placeholder="ex. Essai découverte · Rendez-vous inscription"></div>
     <div class="hub-grid3">
       <div class="hub-field"><label>Date</label><input id="hf-date" type="date" value="${hubEsc(e.date||hubToday())}"></div>
@@ -2507,7 +2544,7 @@ function hubEventForm(){
 
 function hubContacts(){
   const h=state.hub;
-  const head=`<div class="hub-card"><div class="hub-h">👥 Inscriptions & clients <button class="hub-btn pri" data-hub-act="newContact">+ Nouvelle inscription</button></div>
+  const head=`<div class="hub-card"><div class="hub-h"><span class="lft">${hubIco('users')}Inscriptions &amp; clients</span> <button class="hub-btn pri" data-hub-act="newContact">${hubIco('plus',15)} Nouvelle inscription</button></div>
     <p class="hub-muted" style="margin:0;font-size:13px">Suis chaque prospect du premier contact à l'inscription.</p></div>`;
   if(state.hubForm&&state.hubForm.kind==='contact')return head+hubContactForm();
   const list=h.contacts.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
@@ -2524,7 +2561,7 @@ function hubContacts(){
 
 function hubContactForm(){
   const c=state.hubForm.data||{};
-  return `<div class="hub-card"><div class="hub-h">${c.id?'✎ Modifier l\'inscription':'➕ Nouvelle inscription'}</div>
+  return `<div class="hub-card"><div class="hub-h"><span class="lft">${hubIco('users')}${c.id?'Modifier l\'inscription':'Nouvelle inscription'}</span></div>
     <div class="hub-grid2">
       <div class="hub-field"><label>Nom complet</label><input id="hc-name" value="${hubEsc(c.name||'')}" placeholder="Prénom Nom"></div>
       <div class="hub-field"><label>Statut</label><select id="hc-status">${HUB_CTSTATUS.map(x=>`<option ${c.status===x?'selected':''}>${x}</option>`).join('')}</select></div>
@@ -2541,7 +2578,7 @@ function hubContactForm(){
 
 function hubDocs(){
   const h=state.hub;const list=h.docs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const head=`<div class="hub-card"><div class="hub-h">📁 Documents <label class="hub-btn pri" style="cursor:pointer">+ Ajouter un document<input type="file" id="hub-file" style="display:none" data-hub-act="uploadDoc"></label></div>
+  const head=`<div class="hub-card"><div class="hub-h"><span class="lft">${hubIco('folder')}Documents</span> <label class="hub-btn pri" style="cursor:pointer">${hubIco('upload',15)} Ajouter un document<input type="file" id="hub-file" style="display:none" data-hub-act="uploadDoc"></label></div>
     <p class="hub-muted" style="margin:0;font-size:13px">Stocke devis, attestations, certificats médicaux, fiches d'inscription… (jusqu'à ~2 Mo par fichier).</p>${state.hubDocBusy?'<p class="hub-muted" style="margin:8px 0 0">⏳ Enregistrement…</p>':''}</div>`;
   const table=list.length?`<div class="hub-card"><table class="hub-table"><thead><tr><th>Document</th><th>Type</th><th>Taille</th><th>Lié à</th><th>Ajouté le</th><th></th></tr></thead><tbody>
     ${list.map(d=>`<tr><td><b>${hubEsc(d.name)}</b></td><td><span class="hub-tag">${hubEsc((d.ext||'').toUpperCase()||'FICHIER')}</span></td><td class="hub-muted">${hubDocSize(d.size)}</td><td>${d.contactId?hubEsc(hubContactName(d.contactId)):'—'}</td><td class="hub-muted" style="font-size:12px">${hubFmtDate(d.date)}</td>
