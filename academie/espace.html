@@ -40,6 +40,18 @@ h1{font-family:var(--fd);font-weight:700;font-size:22px;margin:0 0 2px}
 h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
 .card{position:relative;background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 96%,#fff 4%),var(--surface));border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 color-mix(in srgb,#fff 6%,transparent) inset,0 10px 26px -18px rgba(0,0,0,.65)}
+/* Accordéon (historique repliable) : fermé par défaut, s'ouvre au clic */
+details.acc{border:0}
+summary.acc-sum{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
+summary.acc-sum::-webkit-details-marker{display:none}
+.acc-sum .acc-ttl{font-family:var(--fd);font-weight:600;font-size:16px;color:var(--ink);display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.acc-sum .acc-cnt{font-size:11px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent);border-radius:999px;padding:2px 9px;letter-spacing:.01em}
+.acc-sum .chev{color:var(--muted);transition:transform .22s ease;flex:none}
+details.acc[open] .acc-sum .chev{transform:rotate(180deg)}
+details.acc[open] .acc-sum .chev{color:var(--accent)}
+.acc-body{margin-top:13px;animation:accIn .22s ease}
+@keyframes accIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+summary.acc-sum:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
 label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin:0 0 5px;letter-spacing:.02em}
 input,select{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px 11px;font:inherit;font-size:15px}
 input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
@@ -1004,6 +1016,7 @@ async function saveMatchRating(mid,rpe,perf,comment,mrpe){
 }
 /* ---------- Historique des séances (RPE manquants à compléter) ---------- */
 let HIST_OPEN=null;
+let HIST_ACC_OPEN=false; // mémorise si l'historique (Charge) est déplié
 function historyCard(){
   const items=MY_SESSIONS.slice(0,40);
   if(!items.length)return `<div class="card"><h2>Historique des séances</h2><p class="muted" style="font-size:13px;margin:0">Aucune séance pour l'instant.</p></div>`;
@@ -1022,9 +1035,11 @@ function historyCard(){
       :`<button class="btn" data-histtoggle="${esc(s.id)}" style="padding:5px 12px">${open?'Fermer':'Saisir le RPE'}</button>`;
     return `<div class="hist" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span>${meta}</span><span style="white-space:nowrap">${right}</span></div>${form}</div>`;
   }).join('');
-  return `<div class="card"><h2>Historique des séances</h2>${miss?`<p class="muted" style="font-size:12.5px;margin:0 0 8px">⚠️ ${miss} séance(s) sans RPE — clique « Saisir le RPE » pour compléter.</p>`:''}${rows}</div>`;
+  const openAcc=(HIST_OPEN||HIST_ACC_OPEN||miss)?' open':'';
+  return `<div class="card"><details class="acc rpe-hist-acc"${openAcc}><summary class="acc-sum"><span class="acc-ttl">Historique des séances${miss?`<span class="acc-cnt">${miss} à compléter</span>`:''}</span><svg class="chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="acc-body">${miss?`<p class="muted" style="font-size:12.5px;margin:0 0 8px">⚠️ ${miss} séance(s) sans RPE — clique « Saisir le RPE » pour compléter.</p>`:''}${rows}</div></details></div>`;
 }
 function bindHistory(){
+  const acc=document.querySelector('.rpe-hist-acc');if(acc)acc.addEventListener('toggle',()=>{HIST_ACC_OPEN=acc.open;});
   document.querySelectorAll('[data-histtoggle]').forEach(b=>b.onclick=()=>{const id=b.getAttribute('data-histtoggle');HIST_OPEN=HIST_OPEN===id?null:id;renderRpeTab();});
   const o=MY_SESSIONS.find(s=>s.id===HIST_OPEN);
   if(o){const isMatch=o.isMatch||o.type==='Match';
@@ -1445,7 +1460,7 @@ async function renderTab(){
       return;
     }
     const done=await hasWellnessEntry(FEEL_DATE);
-    c.innerHTML=(done?wellnessLockedCard():wellnessCard())+`<div class="card"><h2>Mes derniers wellness</h2><div id="hist"></div></div>`+(menstruAllowed(PLAYER)?menstruSectionHtml():'');
+    c.innerHTML=(done?wellnessLockedCard():wellnessCard())+`<div class="card"><details class="acc"><summary class="acc-sum"><span class="acc-ttl">Mon historique wellness</span><svg class="chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="acc-body"><div id="hist"></div></div></details></div>`+(menstruAllowed(PLAYER)?menstruSectionHtml():'');
     bindWellness();loadHistory();if(menstruAllowed(PLAYER))bindMenstruSection();
   }else if(ESPACE_TAB==='rpe'){
     await renderRpeTab();
