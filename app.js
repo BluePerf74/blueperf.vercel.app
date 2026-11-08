@@ -1258,14 +1258,10 @@ function tabsFor(section, isCoachView){
 */
 const COACH_NAV_GROUPS = [
   {id:'hub', label:'Organisation', icon:'🗂️', section:'hub'},
-  {id:'apercu', label:"Vue d'ensemble", icon:'📋'},
-  {id:'seances', label:'Séances', icon:'🗓️'},
-  {id:'sante', label:'Santé', icon:'❤️'},
-  {id:'entrainement', label:'Entraînement', icon:'💪'},
-  {id:'nutrition', label:'Nutrition', icon:'🥗', section:'nutrition', children: NUTRI_TABS_COACH},
+  {id:'apa', label:'APA', icon:'🤸', section:'apa'},
   {id:'football', label:'Football', icon:'⚽', section:'football'},
   {id:'individuel', label:'Coaching individuel', icon:'🧍', section:'individuel'},
-  {id:'apa', label:'APA', icon:'🤸', section:'apa'},
+  {id:'nutrition', label:'Nutrition', icon:'🥗', section:'nutrition', children: NUTRI_TABS_COACH},
   {id:'clients', label:'Mes clients', icon:'👥'},
   {id:'parametres', label:'Paramètres', icon:'⚙️'}
 ];
@@ -1356,6 +1352,7 @@ function bindCoachNavbar(stats){
     btn.addEventListener('click', (ev) => {
       ev.stopPropagation();
       const id = btn.getAttribute('data-nav');
+      if(id==='parametres'){ state.navOpenGroup=null; state.prevSection=state.section; state.section='settings'; render(); return; }
       const item = COACH_NAV_GROUPS.find(g => g.id === id);
       if(item.children){
         state.navOpenGroup = state.navOpenGroup === id ? null : id;
@@ -1560,83 +1557,75 @@ function renderFullApp(section){
   if(ad) ad.addEventListener('click', () => { state.prevSection = state.section; state.section = 'settings'; render(); });
 }
 /* ----- Page Paramètres (plein écran, hors menu déroulant) ----- */
+const SET_STYLE=`<style>
+.set-layout{display:grid;grid-template-columns:238px 1fr;gap:26px;align-items:start}
+.set-side{position:sticky;top:12px;display:flex;flex-direction:column;gap:2px;background:var(--app-surface);border:1px solid var(--app-border);border-radius:16px;padding:8px;box-shadow:var(--app-shadow)}
+.set-nav{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;border:0;background:none;cursor:pointer;font:600 13.5px inherit;color:var(--app-text);text-align:left;width:100%}
+.set-nav:hover{background:color-mix(in srgb,var(--app-accent) 7%,transparent)}
+.set-nav.on{background:color-mix(in srgb,var(--app-accent) 13%,transparent);color:var(--app-accent)}
+.set-nav svg{opacity:.85;flex:none}
+.set-panel{display:none}
+.set-panel.on{display:block}
+.set-ptitle{font-size:21px;font-weight:800;margin:0 0 2px;color:var(--app-text);letter-spacing:-.01em}
+.set-psub{color:var(--app-muted);font-size:13px;margin:0 0 20px}
+.set-card{border:1px solid var(--app-border);border-radius:14px;padding:18px 20px;margin-bottom:16px;background:var(--app-surface);box-shadow:var(--app-shadow)}
+.set-card h3{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;color:var(--app-text);margin:0 0 5px}
+.set-card h3 svg{color:var(--app-accent)}
+.set-card .desc{color:var(--app-muted);font-size:12.5px;margin:0 0 14px;line-height:1.55}
+.set-seg{display:inline-flex;background:var(--app-surface-2);border:1px solid var(--app-border);border-radius:10px;padding:3px;gap:2px}
+.set-seg button{appearance:none;cursor:pointer;border:0;border-radius:8px;padding:7px 14px;font:600 12.5px inherit;background:transparent;color:var(--app-text)}
+.set-seg button.on{background:var(--app-accent);color:var(--app-accent-ink)}
+.set-field{display:flex;flex-direction:column;gap:5px;margin-bottom:13px;max-width:430px}
+.set-field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--app-muted)}
+.set-field input{padding:10px 12px;border:1px solid var(--app-border-strong);border-radius:10px;background:var(--app-input-bg,#fff);color:var(--app-text);font:inherit}
+.set-field input:focus{outline:2px solid var(--app-accent);outline-offset:1px;border-color:transparent}
+.set-btn{display:inline-flex;align-items:center;gap:7px;appearance:none;cursor:pointer;border:1px solid var(--app-border-strong);background:var(--app-surface);color:var(--app-text);border-radius:10px;padding:9px 16px;font:600 13px inherit}
+.set-btn.pri{background:var(--app-accent);border-color:var(--app-accent);color:var(--app-accent-ink)}
+.set-ok{color:var(--app-ok);font-size:12.5px;font-weight:600;margin-top:8px}
+@media(max-width:820px){.set-layout{grid-template-columns:1fr}.set-side{position:static;flex-direction:row;overflow-x:auto}.set-nav{white-space:nowrap}}
+</style>`;
 function settingsBodyHtml(){
-  const CARD='border:1px solid var(--app-border);border-radius:12px;padding:16px;margin-bottom:12px;background:var(--app-surface);box-shadow:var(--app-shadow)';
-  const CARD2='border:1px solid var(--app-border-strong);border-radius:12px;padding:16px;margin-bottom:12px;background:var(--app-surface-2);box-shadow:var(--app-shadow)';
-  const TTL='font-size:15px;font-weight:700;color:var(--app-text);margin:0';
-  const DESC='color:var(--app-muted);font-size:12.5px;margin:5px 0 10px;line-height:1.5';
-  const GRP='font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--app-muted);margin:22px 2px 10px';
-  const SEG='display:inline-flex;background:var(--app-surface-2);border:1px solid var(--app-border);border-radius:9px;padding:3px;gap:2px';
+  const active=state.settingsTab||'general';
   const th=themePref();
-  const seg=(grp,val,lbl,cur)=>`<button type="button" data-set-${grp}="${val}" style="appearance:none;cursor:pointer;border:0;border-radius:7px;padding:6px 13px;font:600 12.5px inherit;${cur===val?'background:var(--app-accent);color:var(--app-accent-ink)':'background:transparent;color:var(--app-text)'}">${lbl}</button>`;
-  return `
-    <div style="${GRP}">${admEsc(t('Préférences','Preferences'))}</div>
-    <div style="${CARD}">
-      <p style="${TTL}">🎨 ${admEsc(t('Apparence & langue','Appearance & language'))}</p>
-      <p style="${DESC}">${admEsc(t('Choix mémorisé sur cet appareil. « Auto » suit le réglage clair / sombre du système.','Saved on this device. “Auto” follows your system light / dark setting.'))}</p>
-      <div style="display:flex;gap:24px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:6px">${admEsc(t('Thème','Theme'))}</div>
-          <div style="${SEG}">${seg('theme','auto',t('Auto','Auto'),th)}${seg('theme','light',t('Clair','Light'),th)}${seg('theme','dark',t('Sombre','Dark'),th)}</div>
-        </div>
-        <div>
-          <div style="font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:6px">${admEsc(t('Langue','Language'))}</div>
-          <div style="${SEG}">${seg('lang','fr','Français',LANG)}${seg('lang','en','English',LANG)}</div>
-        </div>
-      </div>
-    </div>
-
-    <div style="${GRP}">${admEsc(t('Affichage','Display'))}</div>
-    <div id="bp-sections" style="${CARD}">
-      <p style="${TTL}">🧭 ${admEsc(t('Onglets affichés','Visible tabs'))}</p>
-      <p style="${DESC}">${admEsc(t('Affiche ou masque chaque espace dans le menu déroulant en haut.','Show or hide each space in the top dropdown.'))}</p>
-      <div id="bp-sections-body"></div>
-    </div>
-
-    <div style="${GRP}">${admEsc(t('Plateforme APA','APA platform'))}</div>
-    <div id="bp-apateachers" style="${CARD2}">
-      <p style="${TTL}">🏫 ${admEsc(t('Enseignants APA','APA teachers'))}</p>
-      <p style="${DESC}">${admEsc(t('Crée un espace cloisonné par enseignant·e : chacun·e gère ses propres patient·es, avec sa propre base de données, isolée des autres. Active ou suspends l’accès (abonnement), réinitialise le mot de passe, ou connecte-toi « à sa place » pour le·la dépanner.','Create one isolated space per teacher: each manages their own patients, with their own database, isolated from the others. Activate or suspend access (subscription), reset the password, or log in “as them” to troubleshoot.'))}</p>
-      <div id="bp-apateachers-body">${admEsc(t('Chargement…','Loading…'))}</div>
-    </div>
-
-    <div style="${GRP}">${admEsc(t('Comptes & accès','Accounts & access'))}</div>
-    <div id="bp-allclients" style="${CARD}">
-      <p style="${TTL}">👥 ${admEsc(t('Tous les comptes clients','All client accounts'))}</p>
-      <p style="${DESC}">${admEsc(t('Tous les clients, regroupés par espace. Renomme, change le mot de passe, désactive ou supprime.','All clients, grouped by space. Rename, change password, deactivate or delete.'))}</p>
-      <div id="bp-allclients-body">${admEsc(t('Chargement…','Loading…'))}</div>
-    </div>
-    <div id="bp-coaches" style="${CARD}">
-      <p style="${TTL}">🧑‍🏫 ${admEsc(t('Coachs par espace','Coaches by space'))}</p>
-      <p style="${DESC}">${admEsc(t('Ajoute un coach pour un espace (ex. APA). Il se connecte avec son identifiant et accède uniquement à cet espace. La personne peut aussi être cliente ou joueuse ailleurs : utilise les mêmes identifiants et un choix du rôle apparaîtra à la connexion.','Add a coach for a space (e.g. APA). They log in and only access that space. The person can also be a client/player elsewhere: reuse the same login and a role picker appears at sign-in.'))}</p>
-      <div id="bp-coaches-body">${admEsc(t('Chargement…','Loading…'))}</div>
-    </div>
-
-    <div style="${GRP}">Football</div>
-    <div style="${CARD}">
-      <p style="${TTL}">➕ ${admEsc(t('Équipe U18F','U18F team'))}</p>
-      <p style="${DESC}">${admEsc(t("Crée l'équipe U18F et ajoute les 31 joueuses avec leurs identifiants (prénom@aca.com / 3 premières lettres du prénom + 123).","Creates the U18F team and adds the 31 players with their logins (firstname@aca.com / first 3 letters + 123)."))}</p>
-      <button id="bp-import-u18f" style="appearance:none;cursor:pointer;border:0;background:var(--app-accent);color:var(--app-accent-ink);border-radius:9px;padding:9px 14px;font-weight:700;font-size:13.5px">${admEsc(t('Importer l’équipe U18F (31 joueuses)','Import U18F team (31 players)'))}</button>
-      <div id="bp-import-status" style="font-size:12.5px;color:var(--app-ok);margin-top:8px;line-height:1.5"></div>
-    </div>
-    <div id="bp-mgr" style="${CARD}">
-      <p style="${TTL}">🧑‍🏫 ${admEsc(t("Gérant·es d'équipe","Team managers"))}</p>
-      <p style="${DESC}">${admEsc(t("Accès coach restreint (Football uniquement) : choisis l'équipe et les onglets accessibles.","Restricted coach access (Football only): pick the team and which tabs the person can open."))}</p>
-      <div id="bp-mgr-list"></div>
-      <div id="bp-mgr-form"></div>
-    </div>
-
-    <div style="${GRP}">${admEsc(t('Coaching individuel','Individual coaching'))}</div>
-    <div id="bp-store" style="${CARD}">
-      <p style="${TTL}">📦 ${admEsc(t('Programmes achetés — suivi','Purchased programs — tracking'))}</p>
-      <p style="${DESC}">${admEsc(t('Programmes de la boutique débloqués par tes client·es de Coaching individuel, avec leur avancement. Après un paiement, clique « Débloquer » pour activer un programme.','Store programs unlocked by your Individual-coaching clients, with progress. After a payment, click “Unlock” to activate a program.'))}</p>
-      <div id="bp-store-body">${admEsc(t('Chargement…','Loading…'))}</div>
-    </div>
-    <div style="${CARD}">
-      <p style="${TTL}">🔗 ${admEsc(t('Accès inter-espaces','Cross-space access'))}</p>
-      <p style="${DESC}">${admEsc(t("Autorise un·e joueur·se Football à accéder aussi au Coaching individuel, avec les mêmes identifiants.","Allow a Football player to also access Individual coaching, with the same login."))}</p>
-      <div id="bp-admin-body" style="font-size:14px">${admEsc(t('Chargement…','Loading…'))}</div>
-    </div>`;
+  const seg=(grp,val,lbl,cur)=>`<button type="button" data-set-${grp}="${val}" class="${cur===val?'on':''}">${lbl}</button>`;
+  const NAV=[['general','Général','settings'],['admin','Identifiants admin','clipboard'],['clients','Comptes clients','users'],['staff','Coachs & gérants','users'],['apa','Plateforme APA','pulse'],['football','Football','ball'],['indiv','Coaching individuel','run']];
+  const side=`<nav class="set-side">${NAV.map(([k,l,ic])=>`<button class="set-nav ${active===k?'on':''}" data-settab="${k}">${hubIco(ic,17)}${l}</button>`).join('')}</nav>`;
+  const panel=(k,title,sub,body)=>`<div class="set-panel ${active===k?'on':''}" data-setpanel="${k}"><h2 class="set-ptitle">${title}</h2><p class="set-psub">${sub}</p>${body}</div>`;
+  const general=panel('general','Général','Apparence, langue et espaces affichés.',
+    `<div class="set-card"><h3>${hubIco('settings',17)}Apparence &amp; langue</h3><p class="desc">Choix mémorisé sur cet appareil. « Auto » suit le réglage clair / sombre du système.</p>
+      <div style="display:flex;gap:30px;flex-wrap:wrap"><div><div style="font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:7px">Thème</div><div class="set-seg">${seg('theme','auto','Auto',th)}${seg('theme','light','Clair',th)}${seg('theme','dark','Sombre',th)}</div></div>
+      <div><div style="font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:7px">Langue</div><div class="set-seg">${seg('lang','fr','Français',LANG)}${seg('lang','en','English',LANG)}</div></div></div></div>
+     <div class="set-card" id="bp-sections"><h3>${hubIco('grid',17)}Espaces affichés</h3><p class="desc">Affiche ou masque chaque espace dans la navigation et le sélecteur.</p><div id="bp-sections-body">${admEsc(t('Chargement…','Loading…'))}</div></div>`);
+  const admin=panel('admin','Identifiants administrateur','Ton accès principal (STAFF) à toute la plateforme.',
+    `<div class="set-card"><h3>${hubIco('settings',17)}Mon identifiant &amp; mot de passe</h3><p class="desc">Sert à te connecter à l'espace d'organisation et à tous les espaces. Garde-les confidentiels.</p><div id="bp-admincreds-body">${admEsc(t('Chargement…','Loading…'))}</div></div>`);
+  const clients=panel('clients','Comptes clients','Tous les clients, par espace : renommer, mot de passe, désactiver, supprimer.',
+    `<div class="set-card" id="bp-allclients"><h3>${hubIco('users',17)}Tous les comptes clients</h3><p class="desc">Regroupés par espace. Renomme, change le mot de passe, désactive ou supprime un accès.</p><div id="bp-allclients-body">${admEsc(t('Chargement…','Loading…'))}</div></div>`);
+  const staff=panel('staff','Coachs &amp; gérants','Donne un accès restreint à un coach ou un·e gérant·e d\'équipe.',
+    `<div class="set-card" id="bp-coaches"><h3>${hubIco('clipboard',17)}Coachs par espace</h3><p class="desc">Un coach se connecte avec son identifiant et accède uniquement à son espace (ex. APA). Réutilise les mêmes identifiants pour cumuler les rôles.</p><div id="bp-coaches-body">${admEsc(t('Chargement…','Loading…'))}</div></div>
+     <div class="set-card" id="bp-mgr"><h3>${hubIco('ball',17)}Gérant·es d'équipe (Football)</h3><p class="desc">Accès coach restreint au Football : choisis l'équipe et les onglets accessibles.</p><div id="bp-mgr-list"></div><div id="bp-mgr-form"></div></div>`);
+  const apa=panel('apa','Plateforme APA','Un espace cloisonné par enseignant·e APA.',
+    `<div class="set-card" id="bp-apateachers"><h3>${hubIco('pulse',17)}Enseignants APA</h3><p class="desc">Chaque enseignant·e gère ses patient·es avec sa propre base isolée. Active ou suspends l'accès, réinitialise le mot de passe, ou connecte-toi « à sa place » pour le·la dépanner.</p><div id="bp-apateachers-body">${admEsc(t('Chargement…','Loading…'))}</div></div>`);
+  const football=panel('football','Football','Outils de l\'espace Football.',
+    `<div class="set-card"><h3>${hubIco('ball',17)}Importer l'équipe U18F</h3><p class="desc">Crée l'équipe U18F et ajoute les 31 joueuses avec leurs identifiants (prénom@aca.com / 3 premières lettres du prénom + 123).</p><button class="set-btn pri" id="bp-import-u18f">Importer l'équipe U18F (31 joueuses)</button><div id="bp-import-status" style="font-size:12.5px;color:var(--app-ok);margin-top:9px;line-height:1.5"></div></div>`);
+  const indiv=panel('indiv','Coaching individuel','Programmes boutique et accès inter-espaces.',
+    `<div class="set-card" id="bp-store"><h3>${hubIco('folder',17)}Programmes achetés — suivi</h3><p class="desc">Programmes de la boutique débloqués par tes client·es, avec leur avancement. Après un paiement, clique « Débloquer » pour activer un programme.</p><div id="bp-store-body">${admEsc(t('Chargement…','Loading…'))}</div></div>
+     <div class="set-card"><h3>${hubIco('run',17)}Accès inter-espaces</h3><p class="desc">Autorise un·e joueur·se Football à accéder aussi au Coaching individuel, avec les mêmes identifiants.</p><div id="bp-admin-body" style="font-size:14px">${admEsc(t('Chargement…','Loading…'))}</div></div>`);
+  return SET_STYLE+`<div class="set-layout">${side}<div class="set-main">${general}${admin}${clients}${staff}${apa}${football}${indiv}</div></div>`;
+}
+async function renderAdminCreds(){
+  const el=document.getElementById('bp-admincreds-body'); if(!el) return;
+  const creds=await loadCoachCredentials();
+  el.innerHTML=`<div class="set-field"><label>Identifiant</label><input type="text" id="bp-adm-user" value="${admEsc(creds.username||'')}"></div>
+    <div class="set-field"><label>Nouveau mot de passe <span style="text-transform:none;font-weight:500;color:var(--app-muted)">(laisser vide pour garder l'actuel)</span></label><input type="password" id="bp-adm-pass" placeholder="••••••••"></div>
+    <button class="set-btn pri" id="bp-adm-save">Enregistrer</button><span id="bp-adm-ok" class="set-ok" style="display:none">Identifiants mis à jour ✓</span>`;
+  document.getElementById('bp-adm-save').onclick=async()=>{
+    const u=document.getElementById('bp-adm-user').value.trim(); if(!u){alert('Indique un identifiant.');return;}
+    const p=document.getElementById('bp-adm-pass').value.trim();
+    const ok=await saveCoachCredentials(u, p||creds.password);
+    if(!ok){alert('Enregistrement impossible.');return;}
+    state.coachUsername=u;document.getElementById('bp-adm-pass').value='';
+    const okEl=document.getElementById('bp-adm-ok');okEl.style.display='inline';setTimeout(()=>{if(okEl)okEl.style.display='none';},2500);
+  };
 }
 function renderSettingsPage(){
   const chevronBtn='appearance:none;cursor:pointer;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600';
@@ -1653,9 +1642,9 @@ function renderSettingsPage(){
         </div>
       </div>
       <div style="flex:1;overflow:auto">
-        <div style="max-width:720px;margin:0 auto;padding:22px 16px 80px;color:var(--app-text);font-family:'Inter',system-ui,-apple-system,sans-serif">
+        <div style="max-width:1020px;margin:0 auto;padding:24px 20px 90px;color:var(--app-text);font-family:'Inter',system-ui,-apple-system,sans-serif">
           <h1 style="font-family:'Space Grotesk',system-ui,sans-serif;font-size:25px;margin:0 0 4px;color:var(--app-text)">${t('Paramètres','Settings')}</h1>
-          <p style="color:var(--app-muted);font-size:13px;margin:0 0 6px">${t('Gère l’apparence, les accès, les comptes de tous les espaces et les onglets affichés.','Manage appearance, access, accounts across all spaces and visible tabs.')}</p>
+          <p style="color:var(--app-muted);font-size:13px;margin:0 0 22px">${t('Gère l’apparence, les accès, les comptes de tous les espaces et les onglets affichés.','Manage appearance, access, accounts across all spaces and visible tabs.')}</p>
           ${settingsBodyHtml()}
         </div>
       </div>
@@ -1670,6 +1659,12 @@ function renderSettingsPage(){
   if(lo) lo.addEventListener('click', logout);
   app.querySelectorAll('[data-set-theme]').forEach(b=>b.onclick=()=>setTheme(b.getAttribute('data-set-theme')));
   app.querySelectorAll('[data-set-lang]').forEach(b=>b.onclick=()=>setLang(b.getAttribute('data-set-lang')));
+  app.querySelectorAll('[data-settab]').forEach(b=>b.onclick=()=>{
+    const k=b.getAttribute('data-settab'); state.settingsTab=k;
+    app.querySelectorAll('.set-nav').forEach(n=>n.classList.toggle('on', n.getAttribute('data-settab')===k));
+    app.querySelectorAll('.set-panel').forEach(p=>p.classList.toggle('on', p.getAttribute('data-setpanel')===k));
+    const main=app.querySelector('.set-layout'); if(main) main.scrollIntoView({block:'start'});
+  });
   const imp = app.querySelector('#bp-import-u18f');
   if(imp) imp.onclick = () => importU18F(imp, app.querySelector('#bp-import-status'));
   renderSectionsCfg();
@@ -1679,6 +1674,7 @@ function renderSettingsPage(){
   renderApaTeachers();
   renderManagers();
   renderAdminBody();
+  renderAdminCreds();
 }
 let COACH_EDIT_ID = null;
 async function renderCoaches(){
@@ -2328,7 +2324,8 @@ const HUB_ICONS={
  clipboard:'<rect x="5" y="4.2" width="14" height="16.6" rx="2.2"/><path d="M9 4.6A1.5 1.5 0 0 1 10.5 3.1h3A1.5 1.5 0 0 1 15 4.6v1.3H9Z"/>',
  doc:'<path d="M7 3.2h7l4 4V20a1.6 1.6 0 0 1-1.6 1.6H7A1.6 1.6 0 0 1 5.4 20V4.8A1.6 1.6 0 0 1 7 3.2Z"/><path d="M14 3.2V7.2h4"/>',
  clock:'<circle cx="12" cy="12" r="8.4"/><path d="M12 7.5V12l3 2"/>',
- upload:'<path d="M12 15.5V4M8 7.5 12 3.5l4 4"/><path d="M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15"/>'
+ upload:'<path d="M12 15.5V4M8 7.5 12 3.5l4 4"/><path d="M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15"/>',
+ grid:'<rect x="3.5" y="3.5" width="7" height="7" rx="1.4"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.4"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.4"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.4"/>'
 };
 function hubIco(n,sz){return `<svg viewBox="0 0 24 24" width="${sz||18}" height="${sz||18}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none">${HUB_ICONS[n]||''}</svg>`;}
 const HUB_STYLE=`<style>
@@ -2459,8 +2456,7 @@ function hubAccueil(){
   const SPIC={apa:'pulse',football:'ball',individuel:'run',nutrition:'leaf'};
   const launch=`<div class="hub-card"><div class="hub-h"><span class="lft">${hubIco('rocket')}Accéder à un espace</span></div>
     <div class="hub-launch">${HUB_SPACES.map(([k,l,ic,bg])=>`<button class="hub-space" data-hub-act="launch" data-space="${k}"><span class="chip" style="background:${bg}">${hubIco(SPIC[k]||'grid',22)}</span><span class="tt"><b>${l}</b><span>Ouvrir l'espace</span></span><span class="arw">${hubIco('chevron',18)}</span></button>`).join('')}</div>
-    <div class="hub-tools"><span class="hub-muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Suivi &amp; gestion</span>
-      <button class="hub-btn sm" data-hub-act="go" data-section="programme" data-tab="apercu">${hubIco('clipboard',15)} Suivi des clients</button>
+    <div class="hub-tools"><span class="hub-muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Gestion</span>
       <button class="hub-btn sm" data-hub-act="go" data-section="programme" data-tab="clients">${hubIco('users',15)} Mes clients</button>
       <button class="hub-btn sm" data-hub-act="go" data-section="settings">${hubIco('settings',15)} Paramètres</button></div></div>`;
   const kpiC=(ic,v,l)=>`<div class="hub-kpi"><span class="ki">${hubIco(ic,20)}</span><div><div class="v">${v}</div><div class="l">${l}</div></div></div>`;
