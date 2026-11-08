@@ -25,7 +25,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:15px;line-height:1.5}
 /* padding adapté aux encoches / barre d'état du téléphone (heure, batterie) grâce à viewport-fit=cover */
-.wrap{max-width:640px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(60px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))}
+.wrap{max-width:640px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(96px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))}
 body.coach-fill .wrap{max-width:1180px}
 .qgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;align-items:start}
 h1{font-family:var(--fd);font-weight:700;font-size:22px;margin:0 0 2px}
@@ -98,6 +98,17 @@ input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px
 .tabbar{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .tabbtn{flex:1;min-width:max-content;appearance:none;cursor:pointer;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);border-radius:10px;padding:10px 12px;font-weight:600;font-size:13.5px;white-space:nowrap;font-family:inherit}
 .tabbtn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+/* Barre de navigation fixe en bas (comme une app mobile) : on sait toujours dans quelle catégorie on est */
+.botnav{position:fixed;left:0;right:0;bottom:0;z-index:950;background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-top:1px solid var(--line);box-shadow:0 -6px 26px rgba(0,0,0,.30);padding-bottom:env(safe-area-inset-bottom,0px)}
+.botnav-inner{max-width:640px;margin:0 auto;display:flex;align-items:stretch;gap:2px;padding:7px 8px 6px}
+body.coach-fill .botnav-inner{max-width:1180px}
+.botnav-item{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px 2px 0;font-size:11px;font-weight:600;letter-spacing:.005em;transition:color .16s}
+.botnav-item .ic{width:52px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:12px;transition:background .16s}
+.botnav-item span{line-height:1;white-space:nowrap}
+.botnav-item.on{color:var(--accent)}
+.botnav-item.on .ic{background:color-mix(in srgb,var(--accent) 17%,transparent)}
+.botnav-item:active{transform:translateY(1px)}
+.botnav-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .kpi{background:var(--kpi-bg);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
 .kpi .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--kpi-muted);font-weight:700}
@@ -1362,12 +1373,22 @@ function bindBoutique(){
   document.querySelectorAll('[data-bunvalidate]').forEach(b=>b.onclick=async()=>{b.disabled=true;await boutiqueDone(BOUTIQUE_OPEN,b.getAttribute('data-bunvalidate'),null);renderTab();});
   document.querySelectorAll('[data-bprpe]').forEach(inp=>inp.onchange=async()=>{const v=inp.value===''?null:Math.max(0,Math.min(10,+inp.value));await boutiqueDone(BOUTIQUE_OPEN,inp.getAttribute('data-bprpe'),{rpe:v});});
 }
-function tabbar(){
-  const tabs=[['apercu',"Vue d'ensemble"]];
-  if(MY_PLAN)tabs.push(['programme','Mon programme']);
-  tabs.push(['sante','Santé & forme'],['rpe','RPE & charge']);
-  if(NUTRI_CID)tabs.push(['nutrition','🥗 Nutrition']);
-  return `<div class="tabbar">${tabs.map(([k,l])=>`<button class="tabbtn ${ESPACE_TAB===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
+function navIco(n){
+  const I={
+    apercu:'<path d="M3 11.2 12 4l9 7.2"/><path d="M5.6 9.9V20h12.8V9.9"/><path d="M9.8 20v-5.2h4.4V20"/>',
+    programme:'<rect x="5" y="4.3" width="14" height="16.4" rx="2.3"/><path d="M9 4.7A1.5 1.5 0 0 1 10.5 3.2h3A1.5 1.5 0 0 1 15 4.7v1.3H9Z"/><path d="M8.6 10.6h6.8M8.6 14h6.8M8.6 17.3h4"/>',
+    sante:'<path d="M12 20.4s-6.6-4.5-8.7-9A4.65 4.65 0 0 1 12 6.3a4.65 4.65 0 0 1 8.7 5.1c-2.1 4.5-8.7 9-8.7 9Z"/><path d="M7.5 12.2h2.2l1.1-2.3 1.6 4 1.1-1.7h2.5"/>',
+    rpe:'<path d="M3 12h3.3l1.8 5.2 3.4-12 2.2 8.3 1.6-3.1h4.4"/>',
+    nutrition:'<path d="M5 19C5 10.4 11 6.4 19.2 6.4c0 8.6-6 12.6-14.2 12.6Z"/><path d="M5 19C8.2 15.3 12.2 12.2 16.4 10.4"/>'
+  };
+  return `<span class="ic"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]||''}</svg></span>`;
+}
+function bottomNav(){
+  const items=[['apercu','Accueil']];
+  if(MY_PLAN)items.push(['programme','Programme']);
+  items.push(['sante','Santé'],['rpe','Charge']);
+  if(NUTRI_CID)items.push(['nutrition','Nutrition']);
+  return `<nav class="botnav" role="tablist" aria-label="Catégories"><div class="botnav-inner">${items.map(([k,l])=>`<button class="botnav-item ${ESPACE_TAB===k?'on':''}" data-nav="${k}" role="tab" aria-selected="${ESPACE_TAB===k?'true':'false'}">${navIco(k)}<span>${l}</span></button>`).join('')}</div></nav>`;
 }
 async function renderSpace(skipLoad){
   applyTheme(loadTheme());
@@ -1393,17 +1414,17 @@ async function renderSpace(skipLoad){
         <button class="btn sec" id="logout">Déconnexion</button>
       </div>`}
     </div>
-    ${tabbar()}
-    <div id="tabc"></div>`;
+    <div id="tabc"></div>
+    ${bottomNav()}`;
   const lo=$('#logout');if(lo)lo.onclick=()=>{clearSession();PLAYER=null;renderLogin();};
   const tb=$('#settingsbtn');if(tb)tb.onclick=openSettings;
   const bq=$('#boutiquebtn');if(bq)bq.onclick=()=>{ESPACE_TAB='boutique';BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;renderTab();};
-  document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-tab');renderTab();});
+  document.querySelectorAll('.botnav-item').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-nav');BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();});
   await renderTab();
   hideBoot();
 }
 async function renderTab(){
-  document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('on',b.getAttribute('data-tab')===ESPACE_TAB));
+  document.querySelectorAll('.botnav-item').forEach(b=>{const on=b.getAttribute('data-nav')===ESPACE_TAB;b.classList.toggle('on',on);b.setAttribute('aria-selected',on?'true':'false');});
   const c=$('#tabc');if(!c)return;
   if(ESPACE_TAB==='sante'){
     if(COACH_MODE){
