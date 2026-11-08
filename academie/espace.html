@@ -18,12 +18,20 @@
 :root{
   --bg:#0E1A2C; --surface:#152439; --surface-2:#0f1d30; --line:#25344b; --line-2:#33465f;
   --ink:#EAF1FB; --ink-2:#B7C4D6; --muted:#7E90A8; --accent:#5b8cff; --accent-ink:#04121f;
-  --good:#2FBF71; --warn:#E7A13B; --crit:#E5604D; --r:12px;
+  --accent-2:#9b7cff; /* violet complémentaire, pour un rendu légèrement futuriste */
+  --good:#2FBF71; --warn:#E7A13B; --crit:#E5604D; --r:14px;
   --fd:"Space Grotesk",system-ui,sans-serif; --fb:system-ui,-apple-system,"Segoe UI",sans-serif;
   --kpi-bg:var(--surface); --kpi-ink:var(--ink); --kpi-muted:var(--muted); --onbg:var(--ink);
+  --grad:linear-gradient(135deg,var(--accent),var(--accent-2));
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:15px;line-height:1.5}
+/* Lueur d'ambiance subtile en fond (fixe), pour une profondeur moderne sans surcharge */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(130% 70% at 85% -8%, color-mix(in srgb,var(--accent-2) 20%,transparent), transparent 60%),
+    radial-gradient(120% 60% at 0% 0%, color-mix(in srgb,var(--accent) 16%,transparent), transparent 55%);
+}
 /* padding adapté aux encoches / barre d'état du téléphone (heure, batterie) grâce à viewport-fit=cover */
 .wrap{max-width:640px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(96px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))}
 body.coach-fill .wrap{max-width:1180px}
@@ -31,12 +39,14 @@ body.coach-fill .wrap{max-width:1180px}
 h1{font-family:var(--fd);font-weight:700;font-size:22px;margin:0 0 2px}
 h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.card{position:relative;background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 96%,#fff 4%),var(--surface));border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 color-mix(in srgb,#fff 6%,transparent) inset,0 10px 26px -18px rgba(0,0,0,.65)}
 label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin:0 0 5px;letter-spacing:.02em}
 input,select{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px 11px;font:inherit;font-size:15px}
 input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
-.btn{appearance:none;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:11px 16px;font-weight:700;font-size:15px}
-.btn.sec{background:transparent;color:var(--ink);border-color:var(--line-2)}
+.btn{appearance:none;cursor:pointer;border:0;background:var(--grad);color:#fff;border-radius:12px;padding:11px 16px;font-weight:700;font-size:15px;box-shadow:0 8px 20px -8px color-mix(in srgb,var(--accent) 70%,transparent);transition:transform .12s,box-shadow .16s}
+.btn:active{transform:translateY(1px)}
+.btn.sec{box-shadow:none}
+.btn.sec{background:transparent;color:var(--ink);border:1px solid var(--line-2)}
 .btn.block{width:100%}
 .btn:disabled{opacity:.5;cursor:default}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -48,7 +58,7 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .muted{color:var(--muted)}
 .scale{display:flex;gap:6px;flex-wrap:wrap}
 .scale button{flex:1;min-width:42px;appearance:none;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);border-radius:9px;padding:9px 0;font-weight:700;font-size:15px}
-.scale button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.scale button.on{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 6px 16px -8px color-mix(in srgb,var(--accent) 70%,transparent)}
 .scale.big{gap:10px}
 .scale.big button{min-width:52px;padding:16px 0;font-size:17px;border-radius:12px}
 .staff-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(90deg,rgba(91,140,255,.18),rgba(91,140,255,.04));border:1px solid var(--line);border-radius:12px;padding:9px 14px;margin-bottom:14px;font-size:13px;color:var(--accent);font-weight:600}
@@ -106,11 +116,12 @@ body.coach-fill .botnav-inner{max-width:1180px}
 .botnav-item .ic{width:52px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:12px;transition:background .16s}
 .botnav-item span{line-height:1;white-space:nowrap}
 .botnav-item.on{color:var(--accent)}
-.botnav-item.on .ic{background:color-mix(in srgb,var(--accent) 17%,transparent)}
+.botnav-item.on .ic{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 26%,transparent),color-mix(in srgb,var(--accent-2) 26%,transparent));box-shadow:0 5px 16px -5px color-mix(in srgb,var(--accent) 60%,transparent)}
 .botnav-item:active{transform:translateY(1px)}
 .botnav-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.kpi{background:var(--kpi-bg);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
+.kpi{position:relative;overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb,var(--kpi-bg) 94%,#fff 6%),var(--kpi-bg));border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;box-shadow:0 1px 0 color-mix(in srgb,#fff 6%,transparent) inset}
+.kpi::after{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--grad);opacity:.9}
 .kpi .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--kpi-muted);font-weight:700}
 .kpi .val{font-family:var(--fd);font-weight:700;font-size:22px;margin-top:3px;color:var(--kpi-ink)}
 .kpi .val small{font-size:13px;color:var(--kpi-muted);font-weight:600}
