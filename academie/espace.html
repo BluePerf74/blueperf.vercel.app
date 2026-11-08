@@ -111,6 +111,22 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .numwrap{position:relative}
 .numwrap input{padding-right:46px}
 .numwrap .unit{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12.5px;font-weight:600;color:var(--muted);pointer-events:none}
+/* Saisie d'activité guidée, une question à la fois */
+.wizard{border-top:1px dashed var(--line);margin-top:12px;padding-top:14px}
+.wz-prog{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.wz-count{font-size:12px;color:var(--muted);font-weight:600}
+.wz-count b{color:var(--accent)}
+.wz-dots{display:flex;gap:6px;align-items:center}
+.wz-dots i{width:8px;height:8px;border-radius:999px;background:var(--line-2);transition:background .22s,width .22s}
+.wz-dots i.on{background:var(--grad);width:22px}
+.wz-step{display:none}
+.wz-step.on{display:block;animation:accIn .24s ease}
+.wz-q{font-family:var(--fd);font-weight:600;font-size:17px;color:var(--ink);margin:0 0 13px;line-height:1.35}
+.wz-q .muted{font-weight:500;font-size:13px}
+.wz-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:18px}
+.wz-nav .btn{min-width:118px}
+.wz-nav .sp{flex:1}
+.wz-msg{color:#ffb4a8;font-size:12.5px;margin-top:10px;min-height:16px;text-align:center}
 .field{margin-bottom:14px}
 .hint{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between}
 .bodywrap{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px}
@@ -850,17 +866,40 @@ function activityForm(d){
   const ed=ACT_EDIT?MY_SESSIONS.find(s=>s.id===ACT_EDIT):null;
   const km=ed&&ed.distance!=null?ed.distance:'';
   const min=ed?((ed.players[PLAYER.id]||{}).min||''):'';
-  return `<div style="border-top:1px dashed var(--line);margin-top:12px;padding-top:14px">
-    <label>Type de séance</label>
-    <div class="sportgrid">${SPORTS_ESPACE.map(s=>`<button type="button" class="sportbtn ${ACT_SPORT===s.k?'on':''}" data-sport="${s.k}"><span class="se">${s.e}</span>${s.l}</button>`).join('')}</div>
-    <div class="row" style="margin-top:14px;align-items:flex-end">
-      <div style="flex:1;min-width:110px"><label>Distance <span class="muted" style="font-weight:500">· si applicable</span></label><div class="numwrap"><input id="act-km" type="number" step="any" min="0" placeholder="ex : 8" value="${esc(km)}"><span class="unit">km</span></div></div>
-      <div style="flex:1;min-width:90px"><label>Durée</label><div class="numwrap"><input id="act-min" type="number" min="0" placeholder="ex : 45" value="${esc(min)}"><span class="unit">min</span></div></div>
+  const TXT='width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:72px';
+  return `<div class="wizard" data-day="${d}">
+    <div class="wz-prog"><span class="wz-count">Étape <b class="wz-cur">1</b> / 4</span><div class="wz-dots">${[1,2,3,4].map(n=>`<i data-dot="${n}" class="${n===1?'on':''}"></i>`).join('')}</div></div>
+
+    <div class="wz-step on" data-step="1">
+      <div class="wz-q">Quelle activité as-tu faite&nbsp;?</div>
+      <div class="sportgrid">${SPORTS_ESPACE.map(s=>`<button type="button" class="sportbtn ${ACT_SPORT===s.k?'on':''}" data-sport="${s.k}"><span class="se">${s.e}</span>${s.l}</button>`).join('')}</div>
+      <div class="wz-msg"></div>
+      <div class="wz-nav"><span class="sp"></span><button type="button" class="btn" data-wznext="1">Suivant →</button></div>
     </div>
-    <div class="field" style="margin-top:14px"><label>RPE — intensité ressentie (0 très facile → 10 maximal)</label>${rpeScale('act-rpe',ACT_RPE)}</div>
-    <div class="field" style="margin-top:12px"><label>Détail de la séance (optionnel)</label><textarea id="act-detail" placeholder="ex : 3×1000m récup 2', sensations, contenu travaillé…" style="width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px;font:inherit;font-size:14px;min-height:64px">${ed?esc(ed.detail||''):''}</textarea></div>
-    <button class="btn block" data-saveact="${d}">${ed?'Enregistrer les modifications':'Enregistrer l\'activité'}</button>
-    <div class="ok" id="act-ok"></div>
+
+    <div class="wz-step" data-step="2">
+      <div class="wz-q">Combien de temps&nbsp;? <span class="muted">(et la distance si ça s'y prête)</span></div>
+      <div class="row" style="align-items:flex-end">
+        <div style="flex:1;min-width:120px"><label>Durée</label><div class="numwrap"><input id="act-min" type="number" min="0" inputmode="numeric" placeholder="ex : 45" value="${esc(min)}"><span class="unit">min</span></div></div>
+        <div style="flex:1;min-width:120px"><label>Distance <span class="muted" style="font-weight:500">· facultatif</span></label><div class="numwrap"><input id="act-km" type="number" step="any" min="0" inputmode="decimal" placeholder="ex : 8" value="${esc(km)}"><span class="unit">km</span></div></div>
+      </div>
+      <div class="wz-msg"></div>
+      <div class="wz-nav"><button type="button" class="btn sec" data-wzprev="2">← Retour</button><button type="button" class="btn" data-wznext="2">Suivant →</button></div>
+    </div>
+
+    <div class="wz-step" data-step="3">
+      <div class="wz-q">Quelle intensité as-tu ressentie&nbsp;? <span class="muted">(0 très facile → 10 maximal)</span></div>
+      ${rpeScale('act-rpe',ACT_RPE)}
+      <div class="wz-msg"></div>
+      <div class="wz-nav"><button type="button" class="btn sec" data-wzprev="3">← Retour</button><button type="button" class="btn" data-wznext="3">Suivant →</button></div>
+    </div>
+
+    <div class="wz-step" data-step="4">
+      <div class="wz-q">Un détail à ajouter&nbsp;? <span class="muted">(optionnel)</span></div>
+      <textarea id="act-detail" placeholder="ex : 3×1000m récup 2', sensations, contenu travaillé…" style="${TXT}">${ed?esc(ed.detail||''):''}</textarea>
+      <div class="wz-nav"><button type="button" class="btn sec" data-wzprev="4">← Retour</button><button type="button" class="btn" data-saveact="${d}" style="flex:1">${ed?'Enregistrer les modifications':'Enregistrer l\'activité'}</button></div>
+      <div class="ok" id="act-ok"></div>
+    </div>
   </div>`;
 }
 async function addActivity(date,sportK,km,min,rpe,detail){
@@ -898,8 +937,9 @@ function bindActivityWeek(){
   document.querySelectorAll('[data-addday]').forEach(b=>b.onclick=()=>{const d=b.getAttribute('data-addday');ACT_DAY=(ACT_DAY===d)?null:d;ACT_SPORT=null;ACT_RPE=null;ACT_EDIT=null;renderRpeTab();});
   document.querySelectorAll('[data-editact]').forEach(b=>b.onclick=()=>{const id=b.getAttribute('data-editact');const s=MY_SESSIONS.find(x=>x.id===id);if(!s)return;ACT_EDIT=id;ACT_DAY=s.date;ACT_SPORT=s.sport||null;ACT_RPE=(s.players[PLAYER.id]||{}).rpe;renderRpeTab();});
   document.querySelectorAll('[data-delact]').forEach(b=>b.onclick=async()=>{b.disabled=true;await delActivity(b.getAttribute('data-delact'));if(ACT_EDIT===b.getAttribute('data-delact')){ACT_EDIT=null;ACT_DAY=null;}await loadMySessions();renderRpeTab();});
-  document.querySelectorAll('[data-sport]').forEach(b=>b.onclick=()=>{ACT_SPORT=b.getAttribute('data-sport');document.querySelectorAll('[data-sport]').forEach(x=>x.classList.toggle('on',x.getAttribute('data-sport')===ACT_SPORT));});
-  bindRpeScale('act-rpe',v=>ACT_RPE=v);
+  document.querySelectorAll('[data-sport]').forEach(b=>b.onclick=()=>{ACT_SPORT=b.getAttribute('data-sport');document.querySelectorAll('[data-sport]').forEach(x=>x.classList.toggle('on',x.getAttribute('data-sport')===ACT_SPORT));const w=document.querySelector('.wz-msg');if(w)w.textContent='';setTimeout(()=>wzGo(2),150);});
+  bindRpeScale('act-rpe',v=>{ACT_RPE=v;const wiz=document.querySelector('.wizard');if(wiz){const m=wiz.querySelector('.wz-step[data-step="3"] .wz-msg');if(m)m.textContent='';}});
+  wzBind();
   document.querySelectorAll('[data-saveact]').forEach(b=>b.onclick=async()=>{
     const d=b.getAttribute('data-saveact');const ok=$('#act-ok');
     if(!ACT_SPORT){if(ok)ok.textContent='⚠️ Choisis un type de séance.';return;}
@@ -911,6 +951,26 @@ function bindActivityWeek(){
     try{if(ACT_EDIT)await updateActivity(ACT_EDIT,ACT_SPORT,km,min,ACT_RPE,detail);else await addActivity(d,ACT_SPORT,km,min,ACT_RPE,detail);await loadMySessions();ACT_DAY=null;ACT_SPORT=null;ACT_RPE=null;ACT_EDIT=null;renderRpeTab();}
     catch(e){if(ok)ok.textContent='échec';b.disabled=false;}
   });
+}
+// Navigation de l'assistant de saisie d'activité (étape par étape)
+function wzGo(n){
+  const wiz=document.querySelector('.wizard');if(!wiz)return;
+  const steps=wiz.querySelectorAll('.wz-step');const max=steps.length;
+  n=Math.max(1,Math.min(max,n));
+  steps.forEach(s=>s.classList.toggle('on',+s.getAttribute('data-step')===n));
+  const cur=wiz.querySelector('.wz-cur');if(cur)cur.textContent=n;
+  wiz.querySelectorAll('[data-dot]').forEach(d=>d.classList.toggle('on',+d.getAttribute('data-dot')<=n));
+  const active=wiz.querySelector('.wz-step.on');if(active){const inp=active.querySelector('input,textarea');if(inp)setTimeout(()=>{try{inp.focus({preventScroll:true});}catch(e){}},60);}
+}
+function wzWarn(step,msg){const wiz=document.querySelector('.wizard');if(!wiz)return;const m=wiz.querySelector('.wz-step[data-step="'+step+'"] .wz-msg');if(m)m.textContent=msg;}
+function wzBind(){
+  document.querySelectorAll('[data-wznext]').forEach(b=>b.onclick=()=>{
+    const step=+b.getAttribute('data-wznext');
+    if(step===1&&!ACT_SPORT){wzWarn(1,'Choisis d\'abord une activité.');return;}
+    if(step===3&&ACT_RPE==null){wzWarn(3,'Indique ton intensité ressentie (RPE).');return;}
+    wzWarn(step,'');wzGo(step+1);
+  });
+  document.querySelectorAll('[data-wzprev]').forEach(b=>b.onclick=()=>{wzGo(+b.getAttribute('data-wzprev')-1);});
 }
 let PS_RPE=null;
 function rpeScale(id,val){
