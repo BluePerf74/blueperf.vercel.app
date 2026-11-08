@@ -68,11 +68,23 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .err{color:#ffb4a8;font-size:13px;min-height:18px;margin-top:8px}
 .ok{color:var(--good);font-size:13px;min-height:18px}
 .muted{color:var(--muted)}
-.scale{display:flex;gap:6px;flex-wrap:wrap}
-.scale button{flex:1;min-width:42px;appearance:none;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);border-radius:9px;padding:9px 0;font-weight:700;font-size:15px}
-.scale button.on{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 6px 16px -8px color-mix(in srgb,var(--accent) 70%,transparent)}
+.scale{display:flex;gap:7px;flex-wrap:wrap}
+.scale button{flex:1;min-width:42px;appearance:none;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);border-radius:12px;padding:12px 0;font-weight:700;font-size:16px;font-family:var(--fd);transition:transform .12s ease,background .15s,color .15s,border-color .15s,box-shadow .16s}
+.scale button:hover{border-color:var(--line-2);color:var(--ink)}
+.scale button.on{background:var(--grad);border-color:transparent;color:#fff;transform:translateY(-2px);box-shadow:0 9px 18px -8px color-mix(in srgb,var(--accent) 75%,transparent)}
+.scale button:active{transform:translateY(0)}
 .scale.big{gap:10px}
-.scale.big button{min-width:52px;padding:16px 0;font-size:17px;border-radius:12px}
+.scale.big button{min-width:52px;padding:17px 0;font-size:18px;border-radius:14px}
+/* Wellness : couleur du choix selon la sévérité (1 = au top → 5 = difficile), plus parlant */
+.scale[data-scale] button.on:nth-child(1){background:linear-gradient(135deg,#34c97a,#1fa862)}
+.scale[data-scale] button.on:nth-child(2){background:linear-gradient(135deg,#8bcf63,#49a858)}
+.scale[data-scale] button.on:nth-child(3){background:linear-gradient(135deg,#f0b24a,#e0912c)}
+.scale[data-scale] button.on:nth-child(4){background:linear-gradient(135deg,#f58a52,#e8694a)}
+.scale[data-scale] button.on:nth-child(5){background:linear-gradient(135deg,#ec5f4c,#d33f3f)}
+.scale[data-scale] button.on{box-shadow:0 9px 18px -8px rgba(0,0,0,.55)}
+/* RPE (0→10) : grille régulière pour un alignement net */
+.scale[data-rpe]{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+.scale[data-rpe] button{min-width:0;padding:11px 0}
 .staff-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(90deg,rgba(91,140,255,.18),rgba(91,140,255,.04));border:1px solid var(--line);border-radius:12px;padding:9px 14px;margin-bottom:14px;font-size:13px;color:var(--accent);font-weight:600}
 .staff-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .staff-chip{appearance:none;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:20px;padding:7px 14px;font-size:13px;font-weight:600}
@@ -82,6 +94,23 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .qcard h3{margin:0 0 2px;font-size:16px}
 .qcard .qsub{color:var(--muted);font-size:12.5px;margin:0 0 12px}
 .scale-help{font-size:11.5px;color:var(--muted);text-align:center;margin-top:8px}
+/* Wellness : chaque critère dans sa propre carte, avec icône */
+.well-item{background:color-mix(in srgb,var(--surface-2) 70%,transparent);border:1px solid var(--line);border-radius:14px;padding:13px 14px 12px;margin-bottom:12px}
+.well-head{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.well-ic{width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);border-radius:11px}
+.well-lab{font-family:var(--fd);font-weight:600;font-size:15.5px;color:var(--ink)}
+.well-hint{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:11px;color:var(--muted)}
+.well-hint span:last-child{text-align:right}
+/* Sélecteur d'activité : grille de belles pastilles */
+.sportgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.sportbtn{appearance:none;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);border-radius:13px;padding:11px 8px;font:inherit;font-weight:600;font-size:12.5px;display:flex;flex-direction:column;align-items:center;gap:6px;transition:transform .12s,border-color .15s,background .15s,color .15s,box-shadow .16s}
+.sportbtn .se{font-size:22px;line-height:1}
+.sportbtn:hover{border-color:var(--line-2);color:var(--ink)}
+.sportbtn.on{background:var(--grad);border-color:transparent;color:#fff;transform:translateY(-2px);box-shadow:0 9px 20px -9px color-mix(in srgb,var(--accent) 75%,transparent)}
+/* Champs chiffrés avec unité */
+.numwrap{position:relative}
+.numwrap input{padding-right:46px}
+.numwrap .unit{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12.5px;font-weight:600;color:var(--muted);pointer-events:none}
 .field{margin-bottom:14px}
 .hint{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between}
 .bodywrap{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px}
@@ -578,10 +607,10 @@ function wellnessCard(){
   return `<div class="card">
     <h2>Mon wellness du jour</h2>
     <div class="field" style="text-align:center"><label>Date</label><input type="date" id="w-date" value="${FEEL_DATE}" style="max-width:210px;margin:0 auto;text-align:center"></div>
-    ${WELL.map(w=>`<div class="field">
-        <label>${w.label}</label>
+    ${WELL.map(w=>`<div class="well-item">
+        <div class="well-head"><span class="well-ic">${(WELL_META[w.k]||{}).icon||''}</span><span class="well-lab">${w.label}</span></div>
         ${scaleHtml(w.k)}
-        <div class="hint"><span>${w.lo}</span><span>${w.hi}</span></div>
+        <div class="well-hint"><span>${w.lo}</span><span>${w.hi}</span></div>
         ${w.body?`<div id="bodymap" ${WVAL.soreness>=2?'':'hidden'}>
            <p class="muted" style="font-size:12.5px;margin:10px 0 4px">Indique où tu as mal :</p>
            <div class="bodywrap">
@@ -821,14 +850,14 @@ function activityForm(d){
   const ed=ACT_EDIT?MY_SESSIONS.find(s=>s.id===ACT_EDIT):null;
   const km=ed&&ed.distance!=null?ed.distance:'';
   const min=ed?((ed.players[PLAYER.id]||{}).min||''):'';
-  return `<div style="border-top:1px dashed var(--line);margin-top:10px;padding-top:12px">
+  return `<div style="border-top:1px dashed var(--line);margin-top:12px;padding-top:14px">
     <label>Type de séance</label>
-    <div class="row" style="gap:6px;flex-wrap:wrap">${SPORTS_ESPACE.map(s=>`<button type="button" class="tabbtn ${ACT_SPORT===s.k?'on':''}" data-sport="${s.k}" style="flex:none;min-width:auto;padding:8px 11px;font-size:13px">${s.e} ${s.l}</button>`).join('')}</div>
-    <div class="row" style="margin-top:12px;align-items:flex-end">
-      <div style="flex:1;min-width:110px"><label>Distance (km, si applicable)</label><input id="act-km" type="number" step="any" min="0" placeholder="ex : 8" value="${esc(km)}"></div>
-      <div style="flex:1;min-width:90px"><label>Temps (min)</label><input id="act-min" type="number" min="0" placeholder="ex : 45" value="${esc(min)}"></div>
+    <div class="sportgrid">${SPORTS_ESPACE.map(s=>`<button type="button" class="sportbtn ${ACT_SPORT===s.k?'on':''}" data-sport="${s.k}"><span class="se">${s.e}</span>${s.l}</button>`).join('')}</div>
+    <div class="row" style="margin-top:14px;align-items:flex-end">
+      <div style="flex:1;min-width:110px"><label>Distance <span class="muted" style="font-weight:500">· si applicable</span></label><div class="numwrap"><input id="act-km" type="number" step="any" min="0" placeholder="ex : 8" value="${esc(km)}"><span class="unit">km</span></div></div>
+      <div style="flex:1;min-width:90px"><label>Durée</label><div class="numwrap"><input id="act-min" type="number" min="0" placeholder="ex : 45" value="${esc(min)}"><span class="unit">min</span></div></div>
     </div>
-    <div class="field" style="margin-top:12px"><label>RPE (0 très facile → 10 maximal)</label>${rpeScale('act-rpe',ACT_RPE)}</div>
+    <div class="field" style="margin-top:14px"><label>RPE — intensité ressentie (0 très facile → 10 maximal)</label>${rpeScale('act-rpe',ACT_RPE)}</div>
     <div class="field" style="margin-top:12px"><label>Détail de la séance (optionnel)</label><textarea id="act-detail" placeholder="ex : 3×1000m récup 2', sensations, contenu travaillé…" style="width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px;font:inherit;font-size:14px;min-height:64px">${ed?esc(ed.detail||''):''}</textarea></div>
     <button class="btn block" data-saveact="${d}">${ed?'Enregistrer les modifications':'Enregistrer l\'activité'}</button>
     <div class="ok" id="act-ok"></div>
@@ -885,10 +914,10 @@ function bindActivityWeek(){
 }
 let PS_RPE=null;
 function rpeScale(id,val){
-  return `<div class="scale" data-rpe="${id}">${[0,1,2,3,4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" style="min-width:30px;padding:8px 0" class="${val===v?'on':''}">${v}</button>`).join('')}</div>`;
+  return `<div class="scale" data-rpe="${id}">${[0,1,2,3,4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" class="${val===v?'on':''}">${v}</button>`).join('')}</div>`;
 }
 function scaleTen(id,val){ // échelle 1 → 10 (difficulté & performance des matchs)
-  return `<div class="scale" data-rpe="${id}">${[1,2,3,4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" style="min-width:30px;padding:8px 0" class="${val===v?'on':''}">${v}</button>`).join('')}</div>`;
+  return `<div class="scale" data-rpe="${id}">${[1,2,3,4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" class="${val===v?'on':''}">${v}</button>`).join('')}</div>`;
 }
 
 const RPE_WINDOW_MS=4*3600*1000;
