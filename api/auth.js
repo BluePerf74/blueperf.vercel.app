@@ -88,6 +88,13 @@ async function matchRole(db, user, pass) {
   // 1. Coach principal (identifiants personnalisés ou défaut)
   const creds = (await getJSON(db, 'coachCredentials')) || { username: COACH_USERNAME, password: COACH_CODE };
   if ((norm(creds.username) === U && norm(creds.password) === PN) || (norm(COACH_USERNAME) === U && norm(COACH_CODE) === PN)) return { r: 'coach', s: 'all' };
+  // 1b. Co-administrateurs : comptes « tous les espaces » supplémentaires, chacun ses identifiants.
+  const admins = (await getJSON(db, 'staffAdmins')) || {};
+  for (const a of Object.values(admins)) {
+    if (!a || a.active === false) continue;
+    const au = (a.username || '').trim().toLowerCase(), aus = au.replace(/[^a-z0-9]/g, '');
+    if ((a.password || '').trim() === P && (au === L || aus === Ls)) return { r: 'coach', s: 'all' };
+  }
   // 2. Gérant·es d'équipe (Football)
   const mgrs = (await getJSON(db, 'aca:managers')) || {};
   for (const x of Object.values(mgrs)) {

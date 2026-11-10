@@ -1118,12 +1118,21 @@ async function collectRoles(userRaw, passRaw, user, pass){
   const roles = [];
   const creds = await loadCoachCredentials();
   const coachOk = (u, p) => user === normalizeCode(u) && pass === normalizeCode(p);
+  const enterStaff = async()=>{
+    await sSet('access','coach',false); await sSet('accessStamp',AUTH_VERSION,false); await sSet('managerId','',false); await sSet('spaceCoachId','',false);
+    state.manager=null; state.spaceCoach=null; await bootstrapCoach(); if(state.section==='settings')state.section='football'; render();
+  };
   if(coachOk(creds.username, creds.password) || coachOk(COACH_USERNAME, COACH_CODE)){
-    roles.push({label:t('Coach — tous les espaces','Coach — all spaces'), sub:'STAFF', icon:'🛡️', enter:async()=>{
-      await sSet('access','coach',false); await sSet('accessStamp',AUTH_VERSION,false); await sSet('managerId','',false); await sSet('spaceCoachId','',false);
-      state.manager=null; state.spaceCoach=null; await bootstrapCoach(); if(state.section==='settings')state.section='football'; render();
-    }});
+    roles.push({label:t('Coach — tous les espaces','Coach — all spaces'), sub:'STAFF', icon:'🛡️', enter:enterStaff});
   }
+  // Co-administrateurs : comptes « tous les espaces » supplémentaires (mêmes droits), identifiants propres.
+  const admins = await loadStaffAdmins();
+  Object.values(admins).forEach(a=>{
+    if(!a || a.active===false) return;
+    if(coachOk(a.username, a.password)){
+      roles.push({label:t('Coach — tous les espaces','Coach — all spaces'), sub:(a.name||a.username)+' · co-admin', icon:'🛡️', enter:enterStaff});
+    }
+  });
   const mgr = await findManager(userRaw, passRaw);
   if(mgr) roles.push({label:t('Coach Football','Football coach'), sub:(mgr.label||mgr.username)+(mgr.team?' · '+mgr.team:''), icon:'⚽', enter:async()=>{
     await sSet('access','coach',false); await sSet('accessStamp',AUTH_VERSION,false); await sSet('managerId',mgr.id,false); await sSet('spaceCoachId','',false);
@@ -1166,6 +1175,9 @@ const SPACE_LABELS = {football:'Football', individuel:'Coaching individuel', apa
 /* ----- Comptes coach par espace (coachs délégués) ----- */
 async function loadCoaches(){const raw=await sGet('coaches',true);try{return raw?JSON.parse(raw):{};}catch(e){return {};}}
 async function saveCoaches(obj){await sSet('coaches',JSON.stringify(obj),true);}
+/* ----- Co-administrateurs : comptes « tous les espaces » supplémentaires ----- */
+async function loadStaffAdmins(){const raw=await sGet('staffAdmins',true);try{return raw?JSON.parse(raw):{};}catch(e){return {};}}
+async function saveStaffAdmins(obj){await sSet('staffAdmins',JSON.stringify(obj),true);}
 /* Registre des enseignants APA (plateforme multi-comptes). Clé non cloisonnée (propriétaire). */
 async function loadApaTeachers(){const raw=await sGet('apaTeachers',true);try{return raw?JSON.parse(raw):{};}catch(e){return {};}}
 async function saveApaTeachers(obj){await sSet('apaTeachers',JSON.stringify(obj),true);}
@@ -1597,7 +1609,8 @@ function settingsBodyHtml(){
       <div><div style="font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:7px">Langue</div><div class="set-seg">${seg('lang','fr','Français',LANG)}${seg('lang','en','English',LANG)}</div></div></div></div>
      <div class="set-card" id="bp-sections"><h3>${hubIco('grid',17)}Espaces affichés</h3><p class="desc">Affiche ou masque chaque espace dans la navigation et le sélecteur.</p><div id="bp-sections-body">${admEsc(t('Chargement…','Loading…'))}</div></div>`);
   const admin=panel('admin','Identifiants administrateur','Ton accès principal (STAFF) à toute la plateforme.',
-    `<div class="set-card"><h3>${hubIco('settings',17)}Mon identifiant &amp; mot de passe</h3><p class="desc">Sert à te connecter à l'espace d'organisation et à tous les espaces. Garde-les confidentiels.</p><div id="bp-admincreds-body">${admEsc(t('Chargement…','Loading…'))}</div></div>`);
+    `<div class="set-card"><h3>${hubIco('settings',17)}Mon identifiant &amp; mot de passe</h3><p class="desc">Sert à te connecter à l'espace d'organisation et à tous les espaces. Garde-les confidentiels.</p><div id="bp-admincreds-body">${admEsc(t('Chargement…','Loading…'))}</div></div>
+     <div class="set-card" id="bp-admins"><h3>${hubIco('users',17)}Co-administrateurs</h3><p class="desc">Des personnes qui ont accès à <b>tous les espaces</b> et aux réglages, exactement comme toi, mais avec leurs propres identifiants. À la connexion, elles arrivent directement sur l'organisation.</p><div id="bp-admins-body">${admEsc(t('Chargement…','Loading…'))}</div></div>`);
   const clients=panel('clients','Comptes clients','Tous les clients, par espace : renommer, mot de passe, désactiver, supprimer.',
     `<div class="set-card" id="bp-allclients"><h3>${hubIco('users',17)}Tous les comptes clients</h3><p class="desc">Regroupés par espace. Renomme, change le mot de passe, désactive ou supprime un accès.</p><div id="bp-allclients-body">${admEsc(t('Chargement…','Loading…'))}</div></div>`);
   const staff=panel('staff','Coachs &amp; gérants','Donne un accès restreint à un coach ou un·e gérant·e d\'équipe.',
@@ -1625,6 +1638,39 @@ async function renderAdminCreds(){
     if(!ok){alert('Enregistrement impossible.');return;}
     state.coachUsername=u;document.getElementById('bp-adm-pass').value='';
     const okEl=document.getElementById('bp-adm-ok');okEl.style.display='inline';setTimeout(()=>{if(okEl)okEl.style.display='none';},2500);
+  };
+}
+async function renderStaffAdmins(){
+  const el=document.getElementById('bp-admins-body'); if(!el) return;
+  const admins=await loadStaffAdmins();
+  const arr=Object.values(admins).filter(a=>a&&a.id);
+  const list=arr.length?arr.map(a=>`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--app-border);border-radius:11px;margin-bottom:8px;${a.active===false?'opacity:.55':''}">
+      <div style="flex:1;min-width:150px"><b>${admEsc(a.name||a.username)}</b> <span style="display:inline-block;font-size:10.5px;font-weight:700;color:var(--app-accent);background:color-mix(in srgb,var(--app-accent) 15%,transparent);border-radius:20px;padding:2px 9px">tous les espaces</span><div style="font-size:11.5px;color:var(--app-muted);margin-top:2px">🔑 ${admEsc(a.username)}</div></div>
+      <button class="set-btn" data-admin-del="${admEsc(a.id)}" style="color:var(--app-danger);border-color:color-mix(in srgb,var(--app-danger) 45%,transparent);padding:6px 11px">Retirer</button>
+    </div>`).join(''):`<p style="color:var(--app-muted);font-size:12.5px;margin:0 0 10px">Aucun co-administrateur pour l'instant.</p>`;
+  el.innerHTML=list+`<div style="border-top:1px dashed var(--app-border);margin-top:8px;padding-top:12px">
+      <div class="set-field"><label>Nom</label><input type="text" id="bp-adm-n" placeholder="ex : Sarah Pollari"></div>
+      <div class="set-field"><label>Identifiant</label><input type="text" id="bp-adm-u" placeholder="ex : sarah ou sarah@elite-adapt.com"></div>
+      <div class="set-field"><label>Mot de passe</label><input type="text" id="bp-adm-p" placeholder="choisis un mot de passe"></div>
+      <button class="set-btn pri" id="bp-adm-add">Ajouter ce co-administrateur</button><span id="bp-adm-addok" class="set-ok" style="display:none">Ajouté ✓</span>
+    </div>`;
+  el.querySelectorAll('[data-admin-del]').forEach(b=>b.onclick=async()=>{
+    const id=b.getAttribute('data-admin-del'); if(!confirm('Retirer ce co-administrateur ? Il n’aura plus accès.'))return;
+    const m=await loadStaffAdmins(); delete m[id]; await saveStaffAdmins(m); renderStaffAdmins();
+  });
+  document.getElementById('bp-adm-add').onclick=async()=>{
+    const n=document.getElementById('bp-adm-n').value.trim();
+    const u=document.getElementById('bp-adm-u').value.trim();
+    const p=document.getElementById('bp-adm-p').value.trim();
+    if(!u||!p){alert('Indique au moins un identifiant et un mot de passe.');return;}
+    const m=await loadStaffAdmins();
+    const dup=Object.values(m).find(a=>a&&(a.username||'').trim().toLowerCase()===u.toLowerCase());
+    if(dup){alert('Un co-administrateur utilise déjà cet identifiant.');return;}
+    const id='sa'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+    m[id]={id,name:n||u,username:u,password:p,active:true,createdAt:new Date().toISOString()};
+    await saveStaffAdmins(m);
+    const ok=document.getElementById('bp-adm-addok');if(ok){ok.style.display='inline';setTimeout(()=>{if(ok)ok.style.display='none';},2000);}
+    renderStaffAdmins();
   };
 }
 function renderSettingsPage(){
@@ -1675,6 +1721,7 @@ function renderSettingsPage(){
   renderManagers();
   renderAdminBody();
   renderAdminCreds();
+  renderStaffAdmins();
 }
 let COACH_EDIT_ID = null;
 async function renderCoaches(){
