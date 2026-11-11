@@ -500,6 +500,20 @@ table.cmp th{background:var(--card2);font:600 11px var(--f-body);letter-spacing:
  #printdoc ul.plist{margin:4px 0;padding-left:16px}#printdoc ul.plist li{margin:1px 0}
  #printdoc .pfoot{margin-top:6px;padding-top:9px;border-top:1px solid #e3e8ef;color:#8a97a8;font-size:9.5px;display:flex;justify-content:space-between}
 }
+/* Barre de navigation fixe en bas (coach APA) — repère constant quelle que soit la partie */
+#apanav{position:fixed;left:0;right:0;bottom:0;z-index:60;pointer-events:none;padding:16px 12px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 48%,color-mix(in srgb,var(--bg) 55%,transparent) 76%,transparent)}
+#apanav:empty{display:none}
+.apanav-in{pointer-events:auto;max-width:560px;margin:0 auto;display:flex;gap:2px;padding:8px 8px;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.5)}
+.apanav-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 2px;font-size:10.5px;font-weight:600;line-height:1.12;text-align:center;transition:color .15s}
+.apanav-b .ic{width:48px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:14px;transition:background .15s}
+.apanav-b .ic svg{width:22px;height:22px}
+.apanav-b span{display:block;max-width:76px}
+.apanav-b.on{color:var(--accent)}
+.apanav-b.on .ic{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.apanav-b:active{transform:translateY(1px)}
+.apanav-b:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+body.apacoach #tabs{display:none}
+body.apacoach .shell{padding-bottom:calc(116px + env(safe-area-inset-bottom,0px))}
 </style>
 <div class="topbar">
   <div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt"><span class="wm">Elite <span class="ad">Adapt</span></span><span class="sub">Activité physique adaptée</span></div>
@@ -510,6 +524,7 @@ table.cmp th{background:var(--card2);font:600 11px var(--f-body);letter-spacing:
   <div class="pagehead" id="head"></div>
   <main id="view"></main>
 </div>
+<nav id="apanav" aria-label="Navigation"></nav>
 <div class="toast" id="toast" hidden></div>
 <div id="printdoc" aria-hidden="true"></div>
 <script>
@@ -865,11 +880,21 @@ const hasSel=()=>!!(ctx.sel&&ctx.sel!=='_new'&&ctx.cache.clients[ctx.sel]);
 const setRole=h=>{$('#role').innerHTML=h};
 const today=()=>new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
 function head(title,sub,ctl=''){$('#head').innerHTML=`<div><h1>${title}</h1><p>${sub}</p></div><div class="ctl">${ctl}</div>`}
-function loginRender(){$('#tabs').innerHTML='';setRole('');$('#saved').hidden=true;head(T('Activité physique adaptée','Adapted physical activity'),T('Choisissez votre espace pour continuer.','Choose your space to continue.'));
+function loginRender(){document.body.classList.remove('apacoach');{const an=$('#apanav');if(an)an.innerHTML='';}$('#tabs').innerHTML='';setRole('');$('#saved').hidden=true;head(T('Activité physique adaptée','Adapted physical activity'),T('Choisissez votre espace pour continuer.','Choose your space to continue.'));
  $('#view').innerHTML=`<div class="login"><div class="card"><h2>${T('Espace coach','Coach area')}</h2><p class="note">${T('Créer les fiches clients, conduire l’anamnèse, placer chaque client dans son groupe, saisir les tests et lire les réponses.','Create client files, run the history interview, assign each client to their group, enter tests and read answers.')}</p>${ctx.canEdit?'<button class="btn pri" data-act="logcoach">'+T('Entrer en tant que coach','Enter as coach')+'</button>':`<button class="btn" disabled>${T('Entrer en tant que coach','Enter as coach')}</button><p class="note">${T('Réservé au compte du coach. Un accès Éditeur sur ce dossier est nécessaire.','Restricted to the coach account. Editor access to this file is required.')}</p>`}</div>
  <div class="card"><h2>${T('Espace client','Client area')}</h2><p class="note">${T('Saisissez le code reçu de votre coach pour remplir vos questionnaires.','Enter the code from your coach to fill in your questionnaires.')}</p><label class="f"><span>${T('Code d’accès','Access code')}</span><span class="inp"><input class="codein" id="codein" maxlength="12" autocomplete="off" placeholder="ex. K7M2QX9A"></span></label><p class="err" id="loginerr">${esc(ctx.err)}</p><button class="btn pri" data-act="logclient">${T('Accéder à mes questionnaires','Open my questionnaires')}</button><p class="note">${T('Pour un aperçu, saisissez le code','For a preview, enter code')} <b>${DEMO}</b>${T(' : rien n’est enregistré.',': nothing is saved.')}</p></div></div>`+(ctx.db?'':'<div class="banner">'+T('Connexion au stockage impossible : seul l’aperçu avec le code ','Storage connection failed: only the preview with code ')+DEMO+T(' est disponible.</div>',' is available.</div>'))}
-function coachRender(){setRole('<button class="iconbtn'+(S.ui.tab==='planning'?' on':'')+'" data-tab="planning" title="'+T('Planning','Schedule')+'" aria-label="'+T('Planning','Schedule')+'">📅</button>');$('#saved').hidden=true;
+const APAICO={
+ groupes:'<path d="M3 11.2 12 4l9 7.2"/><path d="M5.6 9.9V20h12.8V9.9"/><path d="M9.8 20v-5.2h4.4V20"/>',
+ agenda:'<rect x="3" y="4.5" width="18" height="16" rx="2.2"/><path d="M3 9.2h18M8 2.6v3.6M16 2.6v3.6"/>',
+ m2:'<path d="M3 7.6A2 2 0 0 1 5 5.6h3.3l2 2.1H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
+ anamnese:'<rect x="5" y="4.2" width="14" height="16.6" rx="2.2"/><path d="M9 4.6A1.5 1.5 0 0 1 10.5 3.1h3A1.5 1.5 0 0 1 15 4.6v1.3H9Z"/><path d="M8.6 10.6h6.8M8.6 14h6.8M8.6 17.3h4"/>'};
+const apaIco=n=>`<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${APAICO[n]||''}</svg></span>`;
+function renderApaNav(){const an=$('#apanav');if(!an)return;
+ const B=[['groupes',T('Vue d’ensemble','Overview')],['agenda',T('Séances','Sessions')],['m2',T('Dossier','File')],['anamnese',T('Anamnèse','History')]];
+ an.innerHTML=`<div class="apanav-in">${B.map(([k,l])=>`<button class="apanav-b${S.ui.tab===k?' on':''}" data-tab="${k}" role="tab" aria-selected="${S.ui.tab===k?'true':'false'}">${apaIco(k)}<span>${l}</span></button>`).join('')}</div>`;}
+function coachRender(){document.body.classList.add('apacoach');setRole('<button class="iconbtn'+(S.ui.tab==='planning'?' on':'')+'" data-tab="planning" title="'+T('Planning','Schedule')+'" aria-label="'+T('Planning','Schedule')+'">📅</button>');$('#saved').hidden=true;
  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.ui.tab===k}">${l}</button>`).join('');
+ renderApaNav();
  const cl=Object.entries(ctx.cache.clients).sort((a,b)=>cname(a[1]).localeCompare(cname(b[1]),'fr'));
  const clientSelect=`<select class="sel" id="clientsel" aria-label="Client"><option value="">${T('Choisir un client','Choose a client')}</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select>`;
  const newClientBtn=`<button class="btn pri" data-act="newc">+ ${T('Nouveau client','New client')}</button>`;
@@ -907,7 +932,7 @@ function clientObjView(){const code=clientCode();const objs=code&&typeof objecti
 function clientQuestView(){const l=MODS.filter(m=>m.kind==='q'&&act(m)),d=l.filter(complete).length;
  return `<p class="lead">${d===l.length&&l.length?T('Merci, tout est rempli. Votre coach consultera vos réponses.','Thanks, everything is filled in. Your coach will review your answers.'):T('Répondez à votre rythme.','Answer at your own pace.')} <b>${d}/${l.length}</b> ${T('questionnaire(s) complété(s).','questionnaire(s) completed.')}</p>`
   +(l.length?l.map(m=>card(m,{client:true})).join(''):`<p class="empty">${T('Aucun questionnaire à remplir pour le moment.','No questionnaire to fill in right now.')}</p>`);}
-function clientRender(){if(!S.ui.ctab)S.ui.ctab='seances';
+function clientRender(){document.body.classList.remove('apacoach');{const an=$('#apanav');if(an)an.innerHTML='';}if(!S.ui.ctab)S.ui.ctab='seances';
  $('#tabs').innerHTML=CTABS.map(([k,l])=>`<button role="tab" data-ctab="${k}" aria-selected="${S.ui.ctab===k}">${l}</button>`).join('');
  $('#saved').hidden=ctx.preview;setRole(`<span class="pill">${T('Espace client','Client area')}</span>`);
  const H={seances:[T('Mes séances','My sessions'),T('Vos créneaux à venir','Your upcoming slots')],questionnaires:[T('Mes questionnaires','My questionnaires'),T('Vos réponses sont enregistrées automatiquement et visibles par votre coach.','Your answers are saved automatically and visible to your coach.')],objectifs:[T('Mes objectifs','My goals'),T('Ce vers quoi vous avancez','What you are working towards')]}[S.ui.ctab];
