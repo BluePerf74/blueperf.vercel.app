@@ -899,7 +899,7 @@ function coachRender(){document.body.classList.add('apacoach');setRole('<button 
  const clientSelect=`<select class="sel" id="clientsel" aria-label="Client"><option value="">${T('Choisir un client','Choose a client')}</option>${cl.map(([c,v])=>`<option value="${esc(c)}" ${ctx.sel===c?'selected':''}>${esc(cname(v))}</option>`).join('')}</select>`;
  const newClientBtn=`<button class="btn pri" data-act="newc">+ ${T('Nouveau client','New client')}</button>`;
  const planBtn=`<button class="btn pri" data-act="planNew">+ ${T('Programmer une séance','Schedule a session')}</button>`;
- const ctl=S.ui.tab==='groupes'?newClientBtn:S.ui.tab==='planning'?'':S.ui.tab==='agenda'?planBtn:(clientSelect+newClientBtn);
+ const ctl=S.ui.tab==='groupes'?'':S.ui.tab==='planning'?'':S.ui.tab==='agenda'?planBtn:S.ui.tab==='anamnese'?clientSelect:(clientSelect+newClientBtn);
  const nm=hasSel()?cname(ctx.cache.clients[ctx.sel]):'';
  const sub={groupes:today()+T(' · vue d’ensemble',' · overview'),agenda:T('Programmer, retrouver et faire le compte rendu de vos séances','Schedule, find and report on your sessions'),planning:T('Séances planifiées et réalisées','Scheduled and completed sessions'),anamnese:nm||T('Aucun client sélectionné','No client selected'),m2:nm||T('Aucun client sélectionné','No client selected')}[S.ui.tab];
  head({groupes:T('Vue d’ensemble','Overview'),agenda:T('Séances','Sessions'),planning:T('Planning','Schedule'),anamnese:T('Anamnèse','History'),m2:T('Dossier bénéficiaire','Beneficiary file')}[S.ui.tab],sub,ctl);
@@ -1892,7 +1892,7 @@ function individualSection(){
  const card=code=>{const c=(ctx.cache.clients||{})[code]||{};const gi=grpInfoOf(code);const ns=seancesOf(code).length;const g=gi&&gi.fin?gget(gi.fin):null;
   const meta=(g?`<span style="color:var(--g${g[3]})">●</span> ${esc(g[1])}`:`<span style="color:var(--muted)">●</span> ${T('Sans pathologie','No condition')}`)+` · ${ns} ${T('séance(s)','session(s)')}`;
   return `<div class="card icard clk" data-open-page="${esc(code)}"><div class="iav">${esc(ini(c))}</div><div class="iinfo"><b>${esc(cname(c))}</b><div class="imeta">${meta}</div></div><span class="open">${T('Ouvrir','Open')} →</span></div>`};
- return `<div class="card sect mesg" style="margin-bottom:16px"><div class="hd"><div><h2>${T('Prise en charge individuelle','Individual care')}</h2><p class="note" style="margin:3px 0 0">${T('Bénéficiaires suivis en individuel (hors groupe). Cliquez pour ouvrir la fiche.','Beneficiaries followed one-to-one (outside a group). Click to open the file.')}</p></div><button class="btn pri" data-act="newc">+ ${T('Nouveau client','New client')}</button></div>`
+ return `<div class="card sect mesg" style="margin-bottom:16px"><div class="hd"><div><h2>${T('Prise en charge individuelle','Individual care')}</h2><p class="note" style="margin:3px 0 0">${T('Bénéficiaires suivis en individuel (hors groupe). Cliquez pour ouvrir la fiche.','Beneficiaries followed one-to-one (outside a group). Click to open the file.')}</p></div></div>`
   +(indiv.length?`<div class="igrid">${indiv.map(card).join('')}</div>`:`<p class="empty">${T('Aucun bénéficiaire en individuel pour l’instant. Ajoutez-en un avec « Nouveau client ».','No one-to-one beneficiary yet. Add one with “New client”.')}</p>`)+`</div>`}
 
 /* --- vue d'ensemble simplifiée : Mes groupes · individuel · stats compactes · à traiter · pathologie (repliable) --- */
@@ -1907,10 +1907,16 @@ groupesView=function(){const st=Object.keys(ctx.cache.clients||{}).map(statOf);
  const grp=G.map(g=>{const l=st.filter(s=>s.gi.fin===g[0]);if(!l.length)return'';return`<div class="card gcard" style="--gc:var(--g${g[3]})"><div class="gh"><div><h3>${g[1]}</h3><p class="desc">${g[2]}</p></div><span class="cnt">${l.length}</span></div>${l.map(s=>row(s,'m2')).join('')}</div>`}).filter(Boolean).join('');
  const sg=st.filter(s=>!s.gi.fin);
  const sgCard=sg.length?`<div class="card gcard" style="--gc:var(--g8)"><div class="gh"><div><h3>${T('Sans pathologie','No condition')}</h3><p class="desc">${T('Anamnèse à compléter pour classer le client.','History to complete to classify the client.')}</p></div><span class="cnt">${sg.length}</span></div>${sg.map(s=>row(s,'anamnese')).join('')}</div>`:'';
- const pathCount=G.filter(g=>st.some(s=>s.gi.fin===g[0])).length+(sg.length?1:0);
- const pathology=(grp||sgCard)?`<details class="card pathwrap" ${S.ui.pathOpen?'open':''}><summary><span class="psum"><b>${T('Par pathologie','By condition')}</b> <span class="note">${T('classement automatique','automatic classification')}</span></span><span class="cnt2">${pathCount}</span></summary><div class="groups" style="margin-top:14px">${grp}${sgCard}</div></details>`:'';
+ const pathoPanel=(grp||sgCard)?`<div class="groups">${grp}${sgCard}</div>`:`<p class="empty">${T('Renseignez la pathologie principale à l’anamnèse pour classer les bénéficiaires.','Set the main condition in the history interview to classify beneficiaries.')}</p>`;
  const nextSessions=(typeof upcomingRecap==='function')?upcomingRecap():'';
- return hero+individualSection()+strip+nextSessions+todoCard+pathology};
+ // 4 stats + prochaines séances restent en tête ; les sections deviennent des sous-onglets.
+ const OS=S.ui.osub||'groupes';
+ const OSUBS=[['groupes',T('Mes groupes','My groups')],['indiv',T('Suivi individuel','One-to-one')],['todo',T('Dossier à compléter','To complete')],['patho',T('Par pathologie','By condition')]];
+ const osubBar=`<div class="sub osub" role="tablist" style="margin:20px 0 14px">${OSUBS.map(([k,l])=>`<button role="tab" data-osub="${k}" aria-selected="${OS===k?'true':'false'}">${l}</button>`).join('')}</div>`;
+ const panel=OS==='indiv'?individualSection():OS==='todo'?todoCard:OS==='patho'?pathoPanel:hero;
+ return strip+nextSessions+osubBar+panel};
+/* Sous-onglets de la vue d'ensemble (Mes groupes · Suivi individuel · Dossier à compléter · Par pathologie) */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-osub]');if(b){S.ui.osub=b.dataset.osub;render();}});
 /* mémorise l'état déplié/replié de « Par pathologie » pour qu'un rafraîchissement
    automatique (synchro toutes les 8 s) ne le referme pas tout seul. */
 V.addEventListener('toggle',e=>{const d=e.target;if(d&&d.classList&&d.classList.contains('pathwrap'))S.ui.pathOpen=!!d.open},true);
