@@ -33,7 +33,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     radial-gradient(120% 60% at 0% 0%, color-mix(in srgb,var(--accent) 16%,transparent), transparent 55%);
 }
 /* padding adapté aux encoches / barre d'état du téléphone (heure, batterie) grâce à viewport-fit=cover */
-.wrap{max-width:640px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(108px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))}
+.wrap{max-width:640px;margin:0 auto;padding:calc(32px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(108px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))}
 body.coach-fill .wrap{max-width:1180px}
 .qgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;align-items:start}
 h1{font-family:var(--fd);font-weight:700;font-size:22px;margin:0 0 2px}

@@ -1518,7 +1518,7 @@ function renderFullApp(section){
   };
   app.innerHTML = `
     <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--nav,#0E1A2C)">
-      <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
+      <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 8px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">Elite<span style="color:#ff9a8b"> Adapt</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${label}</span></div>
           <span title="${t('Toutes les saisies sont enregistrées en ligne automatiquement','All entries are saved online automatically')}" style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8fe0b0;background:rgba(47,191,113,.14);border:1px solid rgba(47,191,113,.4);border-radius:20px;padding:5px 11px"><span style="width:7px;height:7px;border-radius:50%;background:#2FBF71;display:inline-block"></span>${t('Données enregistrées','Data saved')}</span>
@@ -1677,7 +1677,7 @@ function renderSettingsPage(){
   const chevronBtn='appearance:none;cursor:pointer;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600';
   app.innerHTML = `
     <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--app-bg);color:var(--app-text)">
-      <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 16px;background:var(--app-nav);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
+      <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 8px;background:var(--app-nav);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">Elite<span style="color:#ff9a8b"> Adapt</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${t('PARAMÈTRES','SETTINGS')}</span></div>
         </div>
@@ -2442,7 +2442,7 @@ const HUB_STYLE=`<style>
 
 const HUBPAGE_STYLE=`<style>
 .hubpage{min-height:100vh;background:var(--app-bg,#eef2f6)}
-.hubpage-head{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--nav,#0E1A2C);color:#fff;padding:11px 22px;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.hubpage-head{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--nav,#0E1A2C);color:#fff;padding:calc(env(safe-area-inset-top,0px) + 14px) 22px 11px;box-shadow:0 1px 0 rgba(255,255,255,.06)}
 .hubpage-brand{display:flex;align-items:center;gap:10px}
 .hubpage-brand svg,.hubpage-brand img{height:26px;width:auto}
 .hubpage-wm{font-weight:800;font-size:18px;letter-spacing:.01em}
