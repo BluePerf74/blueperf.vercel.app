@@ -212,6 +212,7 @@ a{color:var(--accent)}
 .ns-rpebtn input{display:none}
 .ns-rpebtn:has(input:checked){border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
 .ns-save{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:2px 0 4px}
+.ns-editbar{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--accent-soft);border:1px solid var(--accent);color:var(--accent);border-radius:12px;padding:9px 14px;font-weight:600;font-size:13.5px}
 .ns-save .btn.pri{font-size:15px;padding:12px 24px}
 @media(max-width:560px){.ns-mode{grid-template-columns:1fr}}
 /* transitions / polish */
@@ -1513,12 +1514,12 @@ VIEWS.seances=()=>{
   if(selEv){const st=stat(selEv);const pl=Object.entries(selEv.players||{}).map(([pid,e])=>({p:DATA.players[pid],e})).filter(x=>x.p&&num(x.e.rpe)!=null&&(!selPid||x.p.id===selPid)).sort((a,b)=>num(b.e.rpe)-num(a.e.rpe));
     const items=pl.map(x=>({label:x.p.name,value:num(x.e.rpe),color:rpeDiff(num(x.e.rpe))[1]==='crit'?'var(--crit)':rpeDiff(num(x.e.rpe))[1]==='warn'?'var(--warn)':rpeDiff(num(x.e.rpe))[1]==='good'?'var(--good)':'var(--accent)',sub:(num(x.e.min)||st.dur||0)+' min'+(num(x.e.mrpe)!=null?' · 🧠 '+num(x.e.mrpe):'')}));
     const [dl,dc]=rpeDiff(st.rpe);
-    detail=`<div class="card" id="seance-detail"><div class="hrow"><div><div class="eyebrow">${fmtD(selEv.date)} · ${esc(selEv.cat)} · <span class="pill ${selEv._m?'crit':'info'}">${selEv._m?(INDIV?'Compétition':'Match'):(INDIV?'Séance':'Entraînement')}</span></div><h3 style="margin:4px 0 0">${esc(selEv.title||selEv.type)}</h3></div><button class="btn sm" data-act="seanceClose">✕ Fermer</button></div>
+    detail=`<div class="card" id="seance-detail"><div class="hrow"><div><div class="eyebrow">${fmtD(selEv.date)} · ${esc(selEv.cat)} · <span class="pill ${selEv._m?'crit':'info'}">${selEv._m?(INDIV?'Compétition':'Match'):(INDIV?'Séance':'Entraînement')}</span></div><h3 style="margin:4px 0 0">${esc(selEv.title||selEv.type)}</h3></div><div class="row" style="flex-wrap:nowrap;gap:6px"><button class="btn sm" data-act="edit" data-col="${esc(selEv.col)}" data-id="${esc(selEv.id)}">✏️ Modifier</button><button class="btn sm danger" data-act="del" data-col="${esc(selEv.col)}" data-id="${esc(selEv.id)}">🗑 Supprimer</button><button class="btn sm" data-act="seanceClose">✕ Fermer</button></div></div>
       <div class="grid g4" style="margin-bottom:12px">${kpi('RPE moyen',st.rpe!=null?r1(st.rpe):'–','/10',dl,dc==='crit'?'crit':dc==='warn'?'warn':null)}${kpi('Charge',st.load!=null?r0(st.load):'–','UA','sRPE')}${kpi('Durée',st.dur||'–','min')}${kpi('Réponses',st.n+' / '+st.np,'','RPE saisis')}</div>
       <h3 style="font-size:15px">RPE par ${PL.one}</h3>${items.length?hbars(items,{max:10,unit:'/10'}):'<p class="muted small">Aucun RPE saisi pour cette séance.</p>'}</div>`;
   }
   const table=`<div class="card"><h3>${selPid?'Séances de '+esc(indivName(selPid)):'Toutes les séances'}</h3><div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th>${selPid?'':`<th class="n">${PL.Many}</th>`}<th class="n">Durée</th><th class="n">RPE${selPid?'':' moyen'}</th><th>Difficulté</th><th class="n">Charge</th><th></th></tr></thead><tbody>
-    ${evs.slice(0,50).map(e=>{const st=stat(e);const [dl,dc]=rpeDiff(st.rpe);return `<tr${e.id===selId?' style="background:var(--accent-soft)"':''}><td>${fmtShort(e.date)}</td><td class="wrap">${esc(e.title||e.type)}</td><td><span class="pill ${e._m?'crit':'neutral'}" style="font-size:11px">${e._m?(INDIV?'Compét.':'Match'):esc(e.type||'Entr.')}</span></td>${selPid?'':`<td class="n">${st.n}/${st.np}</td>`}<td class="n">${st.dur||'–'}</td><td class="n"><b>${st.rpe!=null?r1(st.rpe):'–'}</b></td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${st.load!=null?r0(st.load):'–'}</td><td><button class="btn sm" data-act="seanceOpen" data-id="${esc(e.id)}">Détail</button></td></tr>`;}).join('')}
+    ${evs.slice(0,50).map(e=>{const st=stat(e);const [dl,dc]=rpeDiff(st.rpe);return `<tr${e.id===selId?' style="background:var(--accent-soft)"':''}><td>${fmtShort(e.date)}</td><td class="wrap">${esc(e.title||e.type)}</td><td><span class="pill ${e._m?'crit':'neutral'}" style="font-size:11px">${e._m?(INDIV?'Compét.':'Match'):esc(e.type||'Entr.')}</span></td>${selPid?'':`<td class="n">${st.n}/${st.np}</td>`}<td class="n">${st.dur||'–'}</td><td class="n"><b>${st.rpe!=null?r1(st.rpe):'–'}</b></td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${st.load!=null?r0(st.load):'–'}</td><td><div class="row" style="flex-wrap:nowrap;gap:5px;justify-content:flex-end"><button class="btn sm" data-act="seanceOpen" data-id="${esc(e.id)}">Détail</button><button class="btn sm" data-act="edit" data-col="${esc(e.col)}" data-id="${esc(e.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="${esc(e.col)}" data-id="${esc(e.id)}">Supprimer</button></div></td></tr>`;}).join('')}
     </tbody></table></div></div>`;
   return `${seanceCalendar()}
     <div class="sect-head"><h2 class="sect-title">📊 Analyse des séances ${selPid?`<span class="pill info" style="font-size:12px;vertical-align:middle">${esc(indivName(selPid))}</span>`:'<span class="muted" style="font-weight:400;font-size:13px">— difficulté ressentie (RPE) & charge</span>'}</h2></div>
@@ -2727,26 +2728,33 @@ function coachSessionForm(){
   if(!clients.length)return `<div class="card"><p class="muted" style="margin:0">Ajoute d'abord des client·es dans « Saisie › Client·es ».</p></div>`;
   const TI={'Course / running':'🏃','Fractionné':'⚡','Renforcement / muscu':'💪','Cardio':'🚴','Mobilité':'🧘','Récupération':'😌','Mixte':'🔀','Salle':'🏋️'};
   const types=S().sessionTypes;const date=UI.assignDate||UI.ref;
+  const e=editing('sessions'); // mode édition d'une séance existante
+  const edur=e?num(e.duration):null;const pills=[30,45,60,75,90];
+  const durCustom=(e&&edur!=null&&!pills.includes(edur))?edur:'';
+  const rpeVals=e?Object.values(e.players||{}).map(x=>num(x.rpe)).filter(v=>v!=null):[];
+  const rpeVal=rpeVals.length?rpeVals[0]:null;const modeCoach=rpeVal!=null;
+  const ck=c=>c?'checked':'';
   return `<form data-form="newsess" class="ns-wrap">
+    ${e?`<div class="ns-editbar">✏️ Modification d'une séance <button type="button" class="btn sm" data-act="cancelEdit">Annuler</button></div>`:''}
     <div class="ns-step"><div class="ns-head"><span class="ns-num">1</span><h3>Pour qui ?</h3><span class="ns-hint">clique un·e ou plusieurs client·es</span></div>
-      <div class="ns-chips">${clients.map(p=>`<label class="ns-client"><input type="checkbox" name="pl-${esc(p.id)}" ${clients.length===1?'checked':''}>${pAvatar(p,'xs')}<span>${esc(p.name)}</span></label>`).join('')}</div></div>
+      <div class="ns-chips">${clients.map(p=>`<label class="ns-client"><input type="checkbox" name="pl-${esc(p.id)}" ${ck(e?(e.players&&e.players[p.id]):clients.length===1)}>${pAvatar(p,'xs')}<span>${esc(p.name)}</span></label>`).join('')}</div></div>
     <div class="ns-step"><div class="ns-head"><span class="ns-num">2</span><h3>Type de séance</h3></div>
-      <div class="ns-types">${types.map((t,i)=>`<label class="ns-type"><input type="radio" name="stype" value="${esc(t)}" ${i===0?'checked':''}><span class="ns-ico">${TI[t]||'🏋️'}</span><span>${esc(t)}</span></label>`).join('')}</div></div>
+      <div class="ns-types">${types.map((t,i)=>`<label class="ns-type"><input type="radio" name="stype" value="${esc(t)}" ${ck(e?e.type===t:i===0)}><span class="ns-ico">${TI[t]||'🏋️'}</span><span>${esc(t)}</span></label>`).join('')}</div></div>
     <div class="ns-step"><div class="ns-head"><span class="ns-num">3</span><h3>Détails</h3></div>
-      <div class="fgrid">${fld('ns-date','Date',`<input type="date" id="ns-date" name="date" value="${date}">`)}${fld('ns-title','Intitulé (optionnel)',`<input type="text" id="ns-title" name="title" placeholder="ex. Sortie longue · Haut du corps…">`,2)}</div>
+      <div class="fgrid">${fld('ns-date','Date',`<input type="date" id="ns-date" name="date" value="${e?esc(e.date):date}">`)}${fld('ns-title','Intitulé (optionnel)',`<input type="text" id="ns-title" name="title" value="${e&&e.title&&e.title!==e.type?esc(e.title):''}" placeholder="ex. Sortie longue · Haut du corps…">`,2)}</div>
       <div class="ns-sub">Durée</div>
-      <div class="ns-chips" style="align-items:center">${[30,45,60,75,90].map((d,i)=>`<label class="ns-pill"><input type="radio" name="duration" value="${d}" ${i===2?'checked':''}>${d} min</label>`).join('')}<span class="ns-dcustom">ou <input type="number" name="durationCustom" placeholder="min" min="0"> min</span></div>
+      <div class="ns-chips" style="align-items:center">${pills.map((d,i)=>`<label class="ns-pill"><input type="radio" name="duration" value="${d}" ${ck(e?edur===d:i===2)}>${d} min</label>`).join('')}<span class="ns-dcustom">ou <input type="number" name="durationCustom" value="${durCustom}" placeholder="min" min="0"> min</span></div>
       <div class="ns-sub">Intensité</div>
-      <div class="ns-seg2">${['Légère','Modérée','Soutenue','Intense'].map((x,i)=>`<label class="ns-segbtn"><input type="radio" name="intensity" value="${x}" ${i===1?'checked':''}>${x}</label>`).join('')}</div></div>
+      <div class="ns-seg2">${['Légère','Modérée','Soutenue','Intense'].map((x,i)=>`<label class="ns-segbtn"><input type="radio" name="intensity" value="${x}" ${ck(e?e.intensity===x:i===1)}>${x}</label>`).join('')}</div></div>
     <div class="ns-step"><div class="ns-head"><span class="ns-num">4</span><h3>Difficulté ressentie (RPE)</h3></div>
       <div class="ns-mode">
-        <label class="ns-modeopt"><input type="radio" name="mode" value="client" checked><div><b>📲 Le/la client·e le note</b><span>Reçoit la séance dans son espace et note sa difficulté (fenêtre 4 h).</span></div></label>
-        <label class="ns-modeopt"><input type="radio" name="mode" value="coach"><div><b>✍️ Je le note maintenant</b><span>Tu saisis directement le RPE de la séance.</span></div></label>
+        <label class="ns-modeopt"><input type="radio" name="mode" value="client" ${ck(!modeCoach)}><div><b>📲 Le/la client·e le note</b><span>Reçoit la séance dans son espace et note sa difficulté (fenêtre 4 h).</span></div></label>
+        <label class="ns-modeopt"><input type="radio" name="mode" value="coach" ${ck(modeCoach)}><div><b>✍️ Je le note maintenant</b><span>Tu saisis directement le RPE de la séance.</span></div></label>
       </div>
-      <div class="ns-rpe"><div class="ns-sub">Note de 0 (très facile) à 10 (maximal)</div><div class="ns-rpescale">${range0(11).map(n=>`<label class="ns-rpebtn"><input type="radio" name="rpe" value="${n}">${n}</label>`).join('')}</div></div></div>
+      <div class="ns-rpe"><div class="ns-sub">Note de 0 (très facile) à 10 (maximal)</div><div class="ns-rpescale">${range0(11).map(n=>`<label class="ns-rpebtn"><input type="radio" name="rpe" value="${n}" ${ck(rpeVal===n)}>${n}</label>`).join('')}</div></div></div>
     <div class="ns-step"><div class="ns-head"><span class="ns-num">5</span><h3>Notes <span class="muted" style="font-weight:400;font-size:13px">(optionnel)</span></h3></div>
-      <textarea name="note" placeholder="Contenu de la séance, sensations, consignes pour la prochaine fois…" style="min-height:70px"></textarea></div>
-    <div class="ns-save"><button class="btn pri" type="submit">✓ Enregistrer la séance</button><span class="small muted">Tu peux en enchaîner plusieurs — le formulaire se réinitialise.</span></div>
+      <textarea name="note" placeholder="Contenu de la séance, sensations, consignes pour la prochaine fois…" style="min-height:70px">${e?esc(e.content||''):''}</textarea></div>
+    <div class="ns-save"><button class="btn pri" type="submit">${e?'✓ Enregistrer les modifications':'✓ Enregistrer la séance'}</button><span class="small muted">${e?'':'Tu peux en enchaîner plusieurs — le formulaire se réinitialise.'}</span></div>
   </form>`;
 }
 ENTRY.simple=()=>INDIV?coachSessionForm():simpleForm('train');
@@ -2994,13 +3002,14 @@ FORMS.simple=async (f,submitter)=>{const v=Object.fromEntries(new FormData(f));c
   const o={id,date:v.date,cat,type:'Entraînement',title:(v.title||'').trim()||'Séance',duration:num(v.duration)||0,objective:'',content:'',source:'coach',simple:true,players};
   if(act==='send')o.rpeOpenedAt=Date.now();
   await put('sessions',id,o);UI.entryTab='assign';UI.assignDate=v.date;toast(act==='send'?'Séance créée · RPE envoyé (4 h)':'Séance créée');render();};
-FORMS.newsess=async f=>{const v=Object.fromEntries(new FormData(f));const ps=playersOf(INDIV_CAT).filter(p=>v['pl-'+p.id]);
+FORMS.newsess=async f=>{const ed=editing('sessions');const v=Object.fromEntries(new FormData(f));const ps=playersOf(INDIV_CAT).filter(p=>v['pl-'+p.id]);
   if(!ps.length){toast('Choisis au moins un·e client·e');return;}
   const dur=num(v.durationCustom)||num(v.duration)||0;
-  const players={};ps.forEach(p=>{const e={min:dur};if(v.mode==='coach'&&v.rpe!=null&&v.rpe!=='')e.rpe=num(v.rpe);players[p.id]=e;});
-  const id=uid();const o={id,date:v.date,cat:INDIV_CAT,type:v.stype||'Séance',title:(v.title||'').trim()||v.stype||'Séance',duration:dur,objective:v.stype||'',intensity:v.intensity||'',content:(v.note||'').trim(),source:'coach',simple:true,players};
-  if(v.mode==='client')o.rpeOpenedAt=Date.now();
+  const players={};ps.forEach(p=>{const prev=(ed&&ed.players&&ed.players[p.id])||{};const e=Object.assign({},prev,{min:dur});if(v.mode==='coach'&&v.rpe!=null&&v.rpe!=='')e.rpe=num(v.rpe);players[p.id]=e;});
+  const id=ed?ed.id:uid();const o=Object.assign({},ed||{},{id,date:v.date,cat:INDIV_CAT,type:v.stype||'Séance',title:(v.title||'').trim()||v.stype||'Séance',duration:dur,objective:v.stype||'',intensity:v.intensity||'',content:(v.note||'').trim(),source:'coach',simple:true,players});
+  if(!ed&&v.mode==='client')o.rpeOpenedAt=Date.now();
   await put('sessions',id,o);UI.assignDate=v.date;
+  if(ed){UI.edit=null;toast('Séance modifiée');go('seances');return;}
   toast(v.mode==='client'?('Séance créée · ressenti demandé à '+ps.length+' client·e'+(ps.length>1?'s':'')):'Séance enregistrée');render();};
 FORMS.compet=async f=>{const v=Object.fromEntries(new FormData(f));const id=v.id||uid();const pid=v.pid;const dur=num(v.duration)||0;
   const players={};players[pid]={min:dur||60,rpe:num(v.rpe),perf:num(v.perf),result:(v.result||'').trim(),rank:(v.rank||'').trim(),comment:(v.note||'').trim()};
@@ -3581,7 +3590,7 @@ const ACT={
   goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.drawer=null;if(b.dataset.id==='tests'){UI.sheet=null;go('testing');return;}UI.entryTab=b.dataset.id;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
-  edit:b=>{UI.edit={col:b.dataset.col,id:b.dataset.id};UI.entryTab=(INDIV&&b.dataset.col==='matches')?'smatch':COL2TAB[b.dataset.col];UI.drawer=null;if(b.dataset.col==='tests')UI.tSel=null;go('entry');},
+  edit:b=>{UI.edit={col:b.dataset.col,id:b.dataset.id};UI.entryTab=(INDIV&&b.dataset.col==='matches')?'smatch':(INDIV&&b.dataset.col==='sessions')?'simple':COL2TAB[b.dataset.col];UI.drawer=null;if(b.dataset.col==='tests')UI.tSel=null;go('entry');},
   fillPlayer:b=>{const p=DATA.players[b.dataset.id];if(!p)return;let tab=b.dataset.tab;if(!tab)tab=!wEntry(p.id,UI.ref)?'sante':'rpe';UI.drawer=null;UI.fill={pid:p.id,tab};renderDrawer();},
   closeFill:async()=>{UI.fill=null;renderDrawer();document.body.style.overflow='';await reloadData();},
   del:b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
