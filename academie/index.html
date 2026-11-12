@@ -2378,6 +2378,13 @@ DONNÉES :${aiSummary()}`;
 /* Série complète d'un test pour un joueur (avec notes). */
 function testSeriesFull(pid,tid){const o=[];Object.values(DATA.tests).sort((a,b)=>a.date.localeCompare(b.date)).forEach(b=>{const v=b.results&&b.results[tid]?num(b.results[tid][pid]):null;if(v!=null)o.push({date:b.date,v,note:(b.notes&&b.notes[tid]&&b.notes[tid][pid])||''});});return o;}
 function testedOn(pid,tid,date){return Object.values(DATA.tests).some(b=>b.date===date&&b.results&&b.results[tid]&&b.results[tid][pid]!=null);}
+/* Mesures anthropométriques traitées comme des tests (Poids, Taille) — valeur courante aussi sur la fiche. */
+const MEAS=[{id:'__mass',name:'Poids',unit:'kg',better:'any',field:'mass'},{id:'__height',name:'Taille',unit:'cm',better:'any',field:'height'}];
+function measField(tid){const m=MEAS.find(x=>x.id===tid);return m?m.field:null;}
+function allTests(){return MEAS.concat(S().tests);}
+function tdef(id){return allTests().find(t=>t.id===id)||{id,name:id,unit:'',better:'high'};}
+/* Dernière valeur d'une mesure/test : historique des sessions, sinon valeur courante de la fiche. */
+function measLast(pid,tid){const sf=testSeriesFull(pid,tid);if(sf.length)return sf[sf.length-1];const f=measField(tid);if(f){const p=DATA.players[pid];if(p&&p[f]!=null)return{date:null,v:num(p[f])};}return null;}
 /* Enregistre des valeurs (un seul test, une date) pour plusieurs joueurs ; fusionne dans la session du jour. */
 async function saveTestValues(testId,date,list){ // list:[{pid,value,note}]
   const byCat={};list.forEach(r=>{const raw=(r.value==null?'':String(r.value)).trim();if(raw==='')return;const n=parseFloat(raw.replace(',','.'));if(isNaN(n))return;const p=DATA.players[r.pid];if(!p)return;const c=p.cat||'Tous';(byCat[c]=byCat[c]||[]).push({pid:r.pid,n,note:(r.note||'').trim()});});
@@ -2391,12 +2398,15 @@ async function saveTestValues(testId,date,list){ // list:[{pid,value,note}]
     byCat[cat].forEach(r=>{results[testId][r.pid]=r.n;if(r.note)notes[testId][r.pid]=r.note;else delete notes[testId][r.pid];count++;});
     await put('tests',id,{id,date,cat,label:bat?bat.label:'Saisie',results,notes},true);
   }
+  // Poids / Taille : on met aussi à jour la valeur courante sur la fiche du joueur (IMC, etc.).
+  const field=measField(testId);
+  if(field)for(const cat of Object.keys(byCat))for(const r of byCat[cat]){const p=DATA.players[r.pid];if(!p)continue;const np=Object.assign({},p);np[field]=field==='height'?Math.round(r.n):Math.round(r.n*10)/10;await put('players',r.pid,np,true);}
   return count;
 }
 const TCOLORS=['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f87171','#22d3ee','#fb923c','#4ade80','#e879f9','#38bdf8','#facc15','#fca5a5','#2dd4bf','#c084fc','#f59e0b','#93c5fd','#6ee7b7'];
 VIEWS.testing=()=>{
   const all=playersOf('Tous');if(!all.length)return emptyPlayers();
-  const tests=S().tests;if(!tests.length)return '<div class="empty">Aucun test défini : ajoute-en dans Paramètres.</div>';
+  const tests=allTests();  // Poids + Taille + tests athlétiques
   const groups=cats();
   if(UI.tgTest==null)UI.tgTest=tests[0].id;if(UI.tgDate==null)UI.tgDate=TODAY;if(UI.tgGroup==null)UI.tgGroup='Tous';
   if(UI.vGroup==null)UI.vGroup='Tous';if(UI.vPlayer==null)UI.vPlayer='all';
@@ -2433,8 +2443,8 @@ VIEWS.testing=()=>{
     </div>
     <div class="small muted" style="margin:8px 0 4px">Unité : ${esc(gt.unit||'')}</div>
     <div class="tw"><table><thead><tr><th>${PL.One}</th>${INDIV?'':'<th>Groupe</th>'}<th class="n">Dernière valeur</th><th>Déjà noté (${fmtShort(UI.tgDate)})</th><th class="n">Valeur</th><th>Notes</th></tr></thead><tbody>
-    ${gps.map(p=>{const sf=testSeriesFull(p.id,gt.id);const last=sf[sf.length-1];const done=testedOn(p.id,gt.id,UI.tgDate);
-      return `<tr><td><b>${esc(p.name)}</b></td>${INDIV?'':`<td class="small muted">${esc(p.cat||'')}</td>`}<td class="n">${last?`<b>${fr(last.v,2)}</b><div class="small muted">${fmtShort(last.date)}</div>`:'<span class="muted">—</span>'}</td><td>${done?'<span class="pill good">✓</span>':'<span class="muted">—</span>'}</td><td class="n"><input type="number" step="any" inputmode="decimal" class="tg-v" data-pid="${esc(p.id)}" placeholder="0" style="width:92px;text-align:right"></td><td><input type="text" class="tg-n" data-pid="${esc(p.id)}" placeholder="Notes" style="width:100%;min-width:140px"></td></tr>`;}).join('')||`<tr><td colspan="${INDIV?5:6}" class="muted">Aucun ${PL.one} dans ce groupe.</td></tr>`}
+    ${gps.map(p=>{const last=measLast(p.id,gt.id);const done=testedOn(p.id,gt.id,UI.tgDate);
+      return `<tr><td><b>${esc(p.name)}</b></td>${INDIV?'':`<td class="small muted">${esc(p.cat||'')}</td>`}<td class="n">${last?`<b>${fr(last.v,2)}</b><div class="small muted">${last.date?fmtShort(last.date):'actuel'}</div>`:'<span class="muted">—</span>'}</td><td>${done?'<span class="pill good">✓</span>':'<span class="muted">—</span>'}</td><td class="n"><input type="number" step="any" inputmode="decimal" class="tg-v" data-pid="${esc(p.id)}" placeholder="0" style="width:92px;text-align:right"></td><td><input type="text" class="tg-n" data-pid="${esc(p.id)}" placeholder="Notes" style="width:100%;min-width:140px"></td></tr>`;}).join('')||`<tr><td colspan="${INDIV?5:6}" class="muted">Aucun ${PL.one} dans ce groupe.</td></tr>`}
     </tbody></table></div></div>`;
 
   /* ===== 3) Visualisation & comparaison ===== */
@@ -2442,8 +2452,8 @@ VIEWS.testing=()=>{
   const hi=vTest.better!=='low';
   let vizBody='';
   if(UI.vPlayer==='all'){
-    const ranked=vGps.map(p=>{const sf=testSeriesFull(p.id,vTest.id);return{p,last:sf[sf.length-1]};}).filter(r=>r.last).sort((a,b)=>hi?b.last.v-a.last.v:a.last.v-b.last.v);
-    const bars=ranked.length?hbars(ranked.map(r=>({label:r.p.name,value:r.last.v,color:'var(--accent)',tip:r.p.name+' : '+fr(r.last.v,2)+' '+vTest.unit+' ('+fmtD(r.last.date)+')'})),{fmt:v=>fr(v,2),max:Math.max(...ranked.map(r=>r.last.v),0)*1.03}):'<p class="muted small">Aucune valeur enregistrée pour ce test.</p>';
+    const ranked=vGps.map(p=>({p,last:measLast(p.id,vTest.id)})).filter(r=>r.last).sort((a,b)=>hi?b.last.v-a.last.v:a.last.v-b.last.v);
+    const bars=ranked.length?hbars(ranked.map(r=>({label:r.p.name,value:r.last.v,color:'var(--accent)',tip:r.p.name+' : '+fr(r.last.v,2)+' '+vTest.unit+(r.last.date?' ('+fmtD(r.last.date)+')':'')})),{fmt:v=>fr(v,2),max:Math.max(...ranked.map(r=>r.last.v),0)*1.03}):'<p class="muted small">Aucune valeur enregistrée pour ce test.</p>';
     const dates=[...new Set(Object.values(DATA.tests).filter(b=>b.results&&b.results[vTest.id]).map(b=>b.date))].sort();
     const series=vGps.map((p,i)=>{const map={};testSeriesFull(p.id,vTest.id).forEach(e=>map[e.date]=e.v);return{name:p.name,color:TCOLORS[i%TCOLORS.length],values:dates.map(d=>map[d]!=null?map[d]:null)};}).filter(s=>s.values.some(v=>v!=null));
     const evoAll=(dates.length&&series.length)?lineChart({labels:dates,series,h:300,fmt:v=>fr(v,vTest.unit==='s'?2:1)}):'<p class="muted small">Pas encore de données dans le temps.</p>';
