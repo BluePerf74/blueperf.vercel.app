@@ -386,6 +386,29 @@ details summary{cursor:pointer;font-weight:600}
 @media (max-width:640px){.sp-row{grid-template-columns:repeat(2,1fr)}}
 #updbar{position:fixed;top:0;left:0;right:0;z-index:100000;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
 #updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
+/* Barre de navigation fixe en bas (comme APA / espace client) */
+.nav ul{display:none}
+.content{padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+#spacenav{position:fixed;left:0;right:0;bottom:0;z-index:60;pointer-events:none;padding:16px 12px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 48%,color-mix(in srgb,var(--bg) 55%,transparent) 76%,transparent)}
+.spn-in{pointer-events:auto;max-width:560px;margin:0 auto;display:flex;gap:2px;padding:8px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.4)}
+.spn-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font:600 10.5px/1.12 inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 2px;text-align:center;transition:color .15s}
+.spn-b .ic{width:46px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:14px;transition:background .15s}
+.spn-b .ic svg{width:22px;height:22px}
+.spn-b span{display:block;max-width:76px}
+.spn-b.on{color:var(--accent)}
+.spn-b.on .ic{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.spn-b:active{transform:translateY(1px)}
+#spacesheet[hidden]{display:none}
+#spacesheet{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center}
+.spsheet-bg{position:absolute;inset:0;background:rgba(0,0,0,.42)}
+.spsheet{position:relative;width:100%;max-width:560px;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;box-shadow:0 -14px 40px rgba(0,0,0,.4);padding:14px 14px calc(18px + env(safe-area-inset-bottom,0px));max-height:72vh;overflow:auto}
+.spsheet-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.spsheet-h b{font-size:16px;color:var(--ink);font-family:var(--fd,inherit)}
+.spsheet-x{appearance:none;border:0;background:var(--surface-2);color:var(--ink);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:15px}
+.spsheet-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.spsheet-i{appearance:none;cursor:pointer;text-align:left;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 14px;font:600 13.5px inherit}
+.spsheet-i.on{background:var(--accent-soft);border-color:var(--accent)}
+.spsheet-i:active{transform:translateY(1px)}
 </style>
 <body>
 <div class="splash" id="splash" aria-hidden="true"><div class="sp-top"><div class="sp-brand">Elite<span> Adapt</span></div></div><div class="sp-body"><div class="sp-hero sk"></div><div class="sp-row"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sp-card sk"></div><div class="sp-card sk"></div></div></div>
@@ -397,6 +420,8 @@ details summary{cursor:pointer;font-weight:600}
     <main class="content" id="content"></main>
   </div>
 </div>
+<nav id="spacenav" aria-label="Navigation"></nav>
+<div id="spacesheet" hidden></div>
 <div id="tip" role="tooltip"></div>
 <div id="drawerHost"></div>
 
@@ -1145,6 +1170,39 @@ function renderNav(){
     h+=`<li><button class="ni ${UI.tab===t.id?'on':''}" data-act="tab" data-id="${t.id}"><span>${t.label}</span>${badge[t.id]||''}</button></li>`;});
   h+=`</ul><div class="navfoot" id="navfoot"></div>`;
   $('#nav').innerHTML=h;renderNavFoot();
+  renderSpaceNav();
+}
+/* ===== Barre de navigation fixe en bas (toutes les sections) ===== */
+const SPNICO={
+ overview:'<path d="M3 11.2 12 4l9 7.2"/><path d="M5.6 9.9V20h12.8V9.9"/><path d="M9.8 20v-5.2h4.4V20"/>',
+ joueur:'<circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c0-3.5 3-5.6 7.5-5.6S19.5 16.5 19.5 20"/>',
+ seances:'<rect x="3" y="4.5" width="18" height="16" rx="2.2"/><path d="M3 9.2h18M8 2.6v3.6M16 2.6v3.6"/>',
+ entry:'<path d="M13 3 4 14h6l-1 7 9-11h-6z"/>',
+ load:'<path d="M3 12h3.3l1.8 5.2 3.4-12 2.2 8.3 1.6-3.1h4.4"/>',
+ more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'};
+const spnIco=n=>`<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SPNICO[n]||''}</svg></span>`;
+function spaceEntryItems(){const g=TABS.find(t=>t.entryGroup);if(!g||!tabOn('entry'))return [];return g.children.map(k=>({act:k.season?'goSeason':'goEntry',id:k.id,label:(k.icon?k.icon+' ':'')+k.label,on:(UI.tab==='entry'&&UI.entryTab===k.id)||(k.season&&UI.tab==='seasonplan')}));}
+function spaceMoreItems(){const skip=['overview','joueur','seances'];const out=[];TABS.forEach(t=>{
+  if(t.entryGroup)return;
+  if(t.children){t.children.filter(k=>tabOn(k.id)).forEach(k=>out.push({act:'goPerf',id:k.id,label:t.label+' · '+k.label,on:UI.tab===k.id}));return;}
+  if(skip.includes(t.id))return;
+  if(!tabOn(t.id)&&(t.id!=='settings'||RESTRICT.tabs))return;
+  out.push({act:'tab',id:t.id,label:t.label,on:UI.tab===t.id});});
+ return out;}
+function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
+ const items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'joueur',ic:'joueur',label:INDIV?'Client·e':'Joueur'},{type:'tab',id:'seances',ic:'seances',label:'Séances'}];
+ if(tabOn('entry'))items.push({type:'entry',ic:'entry',label:'Saisie'});
+ else if(tabOn('load'))items.push({type:'tab',id:'load',ic:'load',label:'Charges'});
+ items.push({type:'more',ic:'more',label:'Plus'});
+ bar.innerHTML=`<div class="spn-in">${items.map(it=>{
+   const on=it.type==='tab'?UI.tab===it.id:it.type==='entry'?(UI.tab==='entry'||UI.sheet==='entry'):(UI.sheet==='more');
+   const act=it.type==='tab'?`data-act="tab" data-id="${it.id}"`:it.type==='entry'?'data-act="spEntry"':'data-act="spMore"';
+   return `<button class="spn-b${on?' on':''}" ${act}>${spnIco(it.ic)}<span>${it.label}</span></button>`;}).join('')}</div>`;
+ const sheet=$('#spacesheet');if(!sheet)return;
+ if(UI.sheet){const list=UI.sheet==='entry'?spaceEntryItems():spaceMoreItems();const title=UI.sheet==='entry'?'Saisie':'Plus';
+  sheet.innerHTML=`<div class="spsheet-bg" data-act="spClose"></div><div class="spsheet"><div class="spsheet-h"><b>${title}</b><button class="spsheet-x" data-act="spClose" aria-label="Fermer">✕</button></div><div class="spsheet-list">${list.map(i=>`<button class="spsheet-i${i.on?' on':''}" data-act="${i.act}" data-id="${i.id||''}">${i.label}</button>`).join('')}</div></div>`;
+  sheet.hidden=false;}
+ else{sheet.innerHTML='';sheet.hidden=true;}
 }
 function renderNavFoot(){const f=$('#navfoot');if(!f)return;
   if(Store.mode==='db'&&Store.syncPending){f.innerHTML='<span class="dot" style="background:var(--warn)"></span>Hors-ligne — '+Store.syncPending+' modif. en attente, synchro auto';return;}
@@ -1197,7 +1255,7 @@ function render(){
   renderDrawer();
   if(POST[UI.tab])POST[UI.tab]();
 }
-function go(tab){UI.tab=tab;UI.edit=UI.edit&&tab==='entry'?UI.edit:null;UI.spMicro=null;formDirty=false;saveUI();render();window.scrollTo(0,0);}
+function go(tab){UI.sheet=null;UI.tab=tab;UI.edit=UI.edit&&tab==='entry'?UI.edit:null;UI.spMicro=null;formDirty=false;saveUI();render();window.scrollTo(0,0);}
 </script>
 
 <script>
@@ -3374,6 +3432,9 @@ function renderDrawer(){
 /* ---------- ACTIONS ---------- */
 const ACT={
   tab:b=>{UI.drawer=null;markSeen(b.dataset.id);go(b.dataset.id);},
+  spMore:()=>{UI.sheet=UI.sheet==='more'?null:'more';renderSpaceNav();},
+  spEntry:()=>{UI.sheet=UI.sheet==='entry'?null:'entry';renderSpaceNav();},
+  spClose:()=>{UI.sheet=null;renderSpaceNav();},
   saveTemplate:async()=>{const f=$('form[data-form="session"]');if(!f)return;const v=Object.fromEntries(new FormData(f));
     const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
     if(!procedes.length){toast('Ajoute au moins un procédé avant d\'enregistrer un modèle');return;}
