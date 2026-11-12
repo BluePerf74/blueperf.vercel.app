@@ -2375,55 +2375,133 @@ DONNÉES :${aiSummary()}`;
 }
 
 /* ---------- PERFORMANCE : TESTING ---------- */
+/* Série complète d'un test pour un joueur (avec notes). */
+function testSeriesFull(pid,tid){const o=[];Object.values(DATA.tests).sort((a,b)=>a.date.localeCompare(b.date)).forEach(b=>{const v=b.results&&b.results[tid]?num(b.results[tid][pid]):null;if(v!=null)o.push({date:b.date,v,note:(b.notes&&b.notes[tid]&&b.notes[tid][pid])||''});});return o;}
+function testedOn(pid,tid,date){return Object.values(DATA.tests).some(b=>b.date===date&&b.results&&b.results[tid]&&b.results[tid][pid]!=null);}
+/* Enregistre des valeurs (un seul test, une date) pour plusieurs joueurs ; fusionne dans la session du jour. */
+async function saveTestValues(testId,date,list){ // list:[{pid,value,note}]
+  const byCat={};list.forEach(r=>{const raw=(r.value==null?'':String(r.value)).trim();if(raw==='')return;const n=parseFloat(raw.replace(',','.'));if(isNaN(n))return;const p=DATA.players[r.pid];if(!p)return;const c=p.cat||'Tous';(byCat[c]=byCat[c]||[]).push({pid:r.pid,n,note:(r.note||'').trim()});});
+  let count=0;
+  for(const cat of Object.keys(byCat)){
+    const bat=Object.values(DATA.tests).find(b=>b.date===date&&b.cat===cat);
+    const id=bat?bat.id:uid();
+    const results=bat?JSON.parse(JSON.stringify(bat.results||{})):{};
+    const notes=bat?JSON.parse(JSON.stringify(bat.notes||{})):{};
+    results[testId]=results[testId]||{};notes[testId]=notes[testId]||{};
+    byCat[cat].forEach(r=>{results[testId][r.pid]=r.n;if(r.note)notes[testId][r.pid]=r.note;else delete notes[testId][r.pid];count++;});
+    await put('tests',id,{id,date,cat,label:bat?bat.label:'Saisie',results,notes},true);
+  }
+  return count;
+}
+const TCOLORS=['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f87171','#22d3ee','#fb923c','#4ade80','#e879f9','#38bdf8','#facc15','#fca5a5','#2dd4bf','#c084fc','#f59e0b','#93c5fd','#6ee7b7'];
 VIEWS.testing=()=>{
-  const ps=playersOf(UI.cat);if(!ps.length)return emptyPlayers();const tests=S().tests;if(!tests.length)return '<div class="empty">Aucun test défini : ajoute-en dans Paramètres.</div>';
-  const t=tests.find(x=>x.id===UI.testId)||tests[0];const hi=t.better!=='low';
-  const bats=testBatteries(UI.cat).filter(b=>b.results&&b.results[t.id]&&Object.keys(b.results[t.id]).length);
-  const rows=ps.map(p=>{const s=testSeries(p.id,t.id);const last=s[s.length-1],prev=s[s.length-2];return{p,last,prev,chg:last&&prev?(last.v-prev.v)/prev.v*100:null};});
-  const lastVals=rows.map(r=>r.last&&r.last.v).filter(v=>v!=null);const m=mean(lastVals),sdv=sd(lastVals);
-  rows.forEach(r=>{r.z=r.last&&m!=null&&sdv?((r.last.v-m)/sdv)*(hi?1:-1):null;});
-  const ranked=rows.filter(r=>r.last).sort((a,b)=>hi?b.last.v-a.last.v:a.last.v-b.last.v);
-  const sp=DATA.players[UI.testPlayer]&&inCat(DATA.players[UI.testPlayer])?DATA.players[UI.testPlayer]:ps[0];
-  const prof=tests.map(tt=>{const vals=ps.map(p=>{const s=testSeries(p.id,tt.id);return s.length?s[s.length-1].v:null;}).filter(v=>v!=null);const mm=mean(vals),ss=sd(vals);const s=testSeries(sp.id,tt.id);const v=s.length?s[s.length-1].v:null;
-    return{label:tt.name,value:v!=null&&mm!=null&&ss?((v-mm)/ss)*(tt.better==='low'?-1:1):null,tip:tt.name+' : '+(v!=null?fr(v,2)+' '+tt.unit:'–')+' (moy. groupe '+fr(mm,2)+')'};});
-  const evo=testSeries(sp.id,t.id);const tDates=[...new Set(bats.map(b=>b.date))];
-  return `<div class="card"><div class="hrow"><div class="row"><h2>Test</h2><select id="testSel" style="width:auto">${tests.map(x=>`<option value="${esc(x.id)}" ${x.id===t.id?'selected':''}>${esc(x.name)} (${esc(x.unit)})</option>`).join('')}</select></div>
-    <div class="row"><button class="btn sm pri" data-act="goEntry" data-id="tests">Nouvelle session de tests</button></div></div>
-    <div class="grid g4">${kpi('Moyenne du groupe',fr(m,2),t.unit,lastVals.length+' '+PL.many+' testé·es')}${kpi('Écart-type',fr(sdv,2),t.unit,'Dispersion du groupe')}${kpi('Meilleur',ranked[0]?fr(ranked[0].last.v,2):'–',t.unit,ranked[0]?esc(ranked[0].p.name):'')}${kpi('Sessions',bats.length,'',bats.length?'Dernière : '+fmtD(bats[bats.length-1].date):'')}</div></div>
-  <div class="card"><div class="hrow"><h2>Mesures anthropométriques</h2><span class="small muted">Poids et taille — enregistrés sur la fiche du ${PL.one} · IMC calculé</span></div>
-    <div class="tw"><table><thead><tr><th>${PL.One}</th><th class="n">Poids (kg)</th><th class="n">Taille (cm)</th><th class="n">IMC</th></tr></thead><tbody>
-    ${ps.map(p=>{const bmi=(num(p.mass)&&num(p.height))?num(p.mass)/Math.pow(num(p.height)/100,2):null;return `<tr><td>${esc(p.name)}</td>
-      <td class="n"><input type="number" inputmode="decimal" step="0.1" min="0" max="200" data-anthro="mass" data-id="${esc(p.id)}" value="${p.mass!=null?esc(p.mass):''}" aria-label="Poids ${esc(p.name)}" style="width:86px;text-align:right"></td>
-      <td class="n"><input type="number" inputmode="numeric" step="1" min="0" max="250" data-anthro="height" data-id="${esc(p.id)}" value="${p.height!=null?esc(p.height):''}" aria-label="Taille ${esc(p.name)}" style="width:86px;text-align:right"></td>
-      <td class="n" data-bmi>${bmi!=null?fr(bmi,1):'–'}</td></tr>`;}).join('')}
-    </tbody></table></div></div>
-  <div class="grid g2">
-    <div class="card"><div class="hrow"><h2>Classement</h2><span class="small muted">${hi?'Plus haut = meilleur':'Plus bas = meilleur'}</span></div>
-      ${hbars(ranked.map(r=>({label:r.p.name,value:r.last.v,color:r.z!=null&&r.z<-1?'var(--warn)':'var(--accent)',tip:r.p.name+' : '+fr(r.last.v,2)+' '+t.unit+' ('+fmtD(r.last.date)+')'})),{fmt:v=>fr(v,2),max:Math.max(...lastVals,0)*1.02})}</div>
-    <div class="card"><div class="hrow"><h2>Profil de ${esc(sp.name)}</h2><select id="testPl" style="width:auto">${ps.map(p=>`<option value="${esc(p.id)}" ${p.id===sp.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div>
-      <p class="note" style="margin-top:0">z-score par rapport au groupe, orienté pour que la droite soit toujours meilleure.</p>${zbars(prof)}
-      <div style="margin-top:14px">${evo.length?lineChart({labels:evo.map(e=>e.date),series:[{name:t.name,values:evo.map(e=>e.v),color:COL_TR,dots:true}],h:150,fmt:v=>fr(v,t.unit==='s'?2:1)}):'<p class="muted small">Pas encore de valeur pour ce test.</p>'}<div class="small muted" style="text-align:center">Évolution : ${esc(t.name)}</div></div></div>
-  </div>
-  <div class="card"><div class="hrow"><h2>Suivi par ${PL.one} : ${esc(t.name)}</h2><span class="small muted">Variation vs session précédente</span></div>
-    <div class="tw"><table><thead><tr><th>${PL.One}</th>${tDates.map(d=>`<th class="n">${fmtShort(d)}</th>`).join('')}<th class="n">Variation</th><th class="n">z groupe</th></tr></thead><tbody>
-    ${rows.map(r=>`<tr><td>${plinkA(r.p.id)}</td>${tDates.map(d=>{const b=bats.find(x=>x.date===d&&x.cat===r.p.cat);const v=b?num(b.results[t.id][r.p.id]):null;return `<td class="n">${v!=null?fr(v,2):'–'}</td>`;}).join('')}
-      <td class="n">${r.chg==null?'–':`<span class="pill ${(hi?r.chg:-r.chg)>1?'good':(hi?r.chg:-r.chg)<-3?'crit':'neutral'}">${r.chg>0?'+':''}${r1(r.chg)} %</span>`}</td><td class="n">${r.z!=null?r1(r.z):'–'}</td></tr>`).join('')}
-    </tbody></table></div></div>
-  <div class="card"><div class="hrow"><h2>Sessions de tests</h2></div><div class="tw"><table><thead><tr><th>Date</th>${INDIV?'':'<th>Cat.</th>'}<th>Intitulé</th><th>Tests</th><th class="n">${PL.Many}</th><th></th></tr></thead><tbody>
-    ${testBatteries(UI.cat).slice().reverse().map(b=>{const ids=Object.keys(b.results||{}).filter(k=>Object.keys(b.results[k]).length);const np=new Set();ids.forEach(k=>Object.keys(b.results[k]).forEach(p=>np.add(p)));
-      return `<tr><td>${fmtD(b.date)}</td>${INDIV?'':`<td>${esc(b.cat)}</td>`}<td>${esc(b.label||'')}</td><td class="wrap small">${ids.map(k=>esc((tests.find(x=>x.id===k)||{name:k}).name)).join(', ')}</td><td class="n">${np.size}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="tests" data-id="${esc(b.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="tests" data-id="${esc(b.id)}">×</button></div></td></tr>`;}).join('')||'<tr><td colspan="6" class="muted">Aucune session</td></tr>'}
+  const all=playersOf('Tous');if(!all.length)return emptyPlayers();
+  const tests=S().tests;if(!tests.length)return '<div class="empty">Aucun test défini : ajoute-en dans Paramètres.</div>';
+  const groups=cats();
+  if(UI.tgTest==null)UI.tgTest=tests[0].id;if(UI.tgDate==null)UI.tgDate=TODAY;if(UI.tgGroup==null)UI.tgGroup='Tous';
+  if(UI.vGroup==null)UI.vGroup='Tous';if(UI.vPlayer==null)UI.vPlayer='all';
+  const vTest=tests.find(x=>x.id===UI.testId)||tests[0];UI.testId=vTest.id;
+  const opt=(id,cur)=>`${id===cur?'selected':''}`;
+  const pOpts=(list,sel,head)=>(head?`<option value="all" ${sel==='all'?'selected':''}>${head}</option>`:'')+list.map(p=>`<option value="${esc(p.id)}" ${p.id===sel?'selected':''}>${esc(p.name)}</option>`).join('');
+  const testOpts=(sel)=>tests.map(x=>`<option value="${esc(x.id)}" ${x.id===sel?'selected':''}>${esc(x.name)} (${esc(x.unit)})</option>`).join('');
+  const groupOpts=(sel,head)=>`<option value="Tous" ${sel==='Tous'?'selected':''}>${head||'Tous les groupes'}</option>`+groups.filter(g=>g!=='Tous').map(g=>`<option value="${esc(g)}" ${g===sel?'selected':''}>${esc(g)}</option>`).join('');
+  const sortByName=l=>l.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
+
+  /* ===== 1) Saisir un résultat (simple) ===== */
+  const single=`<div class="card">
+    <div class="hrow"><h2>📝 Saisir un résultat</h2></div>
+    <div class="fgrid" style="align-items:end">
+      <label class="f"><span>Test</span><select id="ts-test">${testOpts(UI.tgTest)}</select></label>
+      <label class="f"><span>${PL.One}</span><select id="ts-player">${pOpts(sortByName(all),'')}</select></label>
+      <label class="f"><span>Date</span><input type="date" id="ts-date" value="${UI.tgDate}"></label>
+      <label class="f"><span>Valeur</span><input type="number" step="any" inputmode="decimal" id="ts-val" placeholder="0"></label>
+      <label class="f"><span>Notes (optionnel)</span><input type="text" id="ts-note" placeholder="Remarque…"></label>
+      <div class="f"><button class="btn pri" id="ts-save">💾 Enregistrer</button></div>
+    </div><div id="ts-msg" class="small good" style="margin-top:6px"></div></div>`;
+
+  /* ===== 2) Saisie groupée (tableau) ===== */
+  const gt=tests.find(x=>x.id===UI.tgTest)||tests[0];
+  const gps=sortByName(playersOf(UI.tgGroup==='Tous'?'Tous':UI.tgGroup));
+  const grouped=`<div class="card">
+    <div class="hrow"><h2>📋 Saisie groupée (tableau)</h2></div>
+    <p class="note" style="margin:2px 0 10px">Renseigne le même test pour plusieurs ${PL.many} à la suite. Laisse vide ceux que tu ne veux pas enregistrer. Un clic « Enregistrer » sauve toutes les lignes remplies d'un coup.</p>
+    <div class="fgrid" style="align-items:end">
+      <label class="f"><span>Test</span><select id="tg-test">${testOpts(UI.tgTest)}</select></label>
+      <label class="f"><span>Date</span><input type="date" id="tg-date" value="${UI.tgDate}"></label>
+      <label class="f"><span>Filtrer par groupe</span><select id="tg-group">${groupOpts(UI.tgGroup)}</select></label>
+      <div class="f" style="flex-direction:row;gap:8px"><button class="btn pri" id="tg-save">💾 Enregistrer les valeurs remplies</button><button class="btn sm" id="tg-reset" title="Vider">↺</button></div>
+    </div>
+    <div class="small muted" style="margin:8px 0 4px">Unité : ${esc(gt.unit||'')}</div>
+    <div class="tw"><table><thead><tr><th>${PL.One}</th>${INDIV?'':'<th>Groupe</th>'}<th class="n">Dernière valeur</th><th>Déjà noté (${fmtShort(UI.tgDate)})</th><th class="n">Valeur</th><th>Notes</th></tr></thead><tbody>
+    ${gps.map(p=>{const sf=testSeriesFull(p.id,gt.id);const last=sf[sf.length-1];const done=testedOn(p.id,gt.id,UI.tgDate);
+      return `<tr><td><b>${esc(p.name)}</b></td>${INDIV?'':`<td class="small muted">${esc(p.cat||'')}</td>`}<td class="n">${last?`<b>${fr(last.v,2)}</b><div class="small muted">${fmtShort(last.date)}</div>`:'<span class="muted">—</span>'}</td><td>${done?'<span class="pill good">✓</span>':'<span class="muted">—</span>'}</td><td class="n"><input type="number" step="any" inputmode="decimal" class="tg-v" data-pid="${esc(p.id)}" placeholder="0" style="width:92px;text-align:right"></td><td><input type="text" class="tg-n" data-pid="${esc(p.id)}" placeholder="Notes" style="width:100%;min-width:140px"></td></tr>`;}).join('')||`<tr><td colspan="${INDIV?5:6}" class="muted">Aucun ${PL.one} dans ce groupe.</td></tr>`}
     </tbody></table></div></div>`;
+
+  /* ===== 3) Visualisation & comparaison ===== */
+  const vGps=sortByName(playersOf(UI.vGroup==='Tous'?'Tous':UI.vGroup));
+  const hi=vTest.better!=='low';
+  let vizBody='';
+  if(UI.vPlayer==='all'){
+    const ranked=vGps.map(p=>{const sf=testSeriesFull(p.id,vTest.id);return{p,last:sf[sf.length-1]};}).filter(r=>r.last).sort((a,b)=>hi?b.last.v-a.last.v:a.last.v-b.last.v);
+    const bars=ranked.length?hbars(ranked.map(r=>({label:r.p.name,value:r.last.v,color:'var(--accent)',tip:r.p.name+' : '+fr(r.last.v,2)+' '+vTest.unit+' ('+fmtD(r.last.date)+')'})),{fmt:v=>fr(v,2),max:Math.max(...ranked.map(r=>r.last.v),0)*1.03}):'<p class="muted small">Aucune valeur enregistrée pour ce test.</p>';
+    const dates=[...new Set(Object.values(DATA.tests).filter(b=>b.results&&b.results[vTest.id]).map(b=>b.date))].sort();
+    const series=vGps.map((p,i)=>{const map={};testSeriesFull(p.id,vTest.id).forEach(e=>map[e.date]=e.v);return{name:p.name,color:TCOLORS[i%TCOLORS.length],values:dates.map(d=>map[d]!=null?map[d]:null)};}).filter(s=>s.values.some(v=>v!=null));
+    const evoAll=(dates.length&&series.length)?lineChart({labels:dates,series,h:300,fmt:v=>fr(v,vTest.unit==='s'?2:1)}):'<p class="muted small">Pas encore de données dans le temps.</p>';
+    vizBody=`<div class="eyebrow" style="margin-bottom:6px">Comparaison — dernier résultat par ${PL.one}</div>${bars}
+      <div class="eyebrow" style="margin:22px 0 6px">Évolution dans le temps</div><p class="small muted" style="margin:0 0 8px">Une courbe par ${PL.one} — survole un point pour la valeur exacte.</p>${evoAll}`;
+  } else {
+    const p=DATA.players[UI.vPlayer]||vGps[0];
+    const sf=p?testSeriesFull(p.id,vTest.id):[];
+    const meta=p?[esc(p.cat||''),p.pos?esc(p.pos):'',p.number?'n°'+esc(p.number):'',p.birth?r1(age(p.birth,TODAY))+' ans':'',p.height?r0(p.height)+' cm':'',p.mass?r1(p.mass)+' kg':''].filter(Boolean).join(' · '):'';
+    const chart=sf.length?lineChart({labels:sf.map(e=>e.date),series:[{name:vTest.name,values:sf.map(e=>e.v),color:'#e6ecf4',dots:true}],h:300,fmt:v=>fr(v,vTest.unit==='s'?2:1)}):'<p class="muted small">Pas encore de valeur pour ce test.</p>';
+    const detail=sf.length?`<div class="eyebrow" style="margin:22px 0 6px">Détail des résultats</div><div class="tw"><table><thead><tr><th>Date</th><th class="n">Valeur</th><th class="n">Évolution</th><th>Notes</th></tr></thead><tbody>
+      ${sf.slice().reverse().map((e,i,arr)=>{const prev=arr[i+1];const d=prev?e.v-prev.v:null;const pc=prev&&prev.v?((e.v-prev.v)/prev.v*100):null;const good=d==null?0:(hi?d:-d);return `<tr><td>${fmtD(e.date)}</td><td class="n"><b style="color:var(--accent)">${fr(e.v,2)}</b> <span class="small muted">${esc(vTest.unit||'')}</span></td><td class="n">${d==null?'—':`<span class="pill ${good>0?'good':good<0?'crit':'neutral'}">${d>0?'+':''}${fr(d,2)}${pc!=null?' ('+(pc>0?'+':'')+r1(pc)+'%)':''}</span>`}</td><td class="small">${esc(e.note||'')||'<span class="muted">—</span>'}</td></tr>`;}).join('')}
+      </tbody></table></div>`:'';
+    vizBody=p?`<div class="row sb" style="align-items:flex-start"><div><h2 style="margin:0">${esc(p.name)}</h2><div class="small muted">${sf.length} résultat(s) sur ce test</div><div class="eyebrow" style="margin-top:6px">${meta}</div></div></div>
+      <div class="eyebrow" style="margin:16px 0 6px">Évolution — ${esc(vTest.name)}</div>${chart}${detail}`:'<p class="muted">Sélectionne un '+PL.one+'.</p>';
+  }
+  const viz=`<div class="card">
+    <div class="hrow"><h2>📊 Visualisation &amp; comparaison</h2>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <label class="f" style="min-width:150px"><span>Test</span><select id="v-test">${testOpts(vTest.id)}</select></label>
+        ${INDIV?'':`<label class="f"><span>Groupe</span><select id="v-group">${groupOpts(UI.vGroup,'Tous')}</select></label>`}
+        <label class="f" style="min-width:170px"><span>${PL.One}</span><select id="v-player">${pOpts(vGps,UI.vPlayer,'Tous (équipe)')}</select></label>
+      </div></div>
+    ${vizBody}</div>`;
+
+  /* ===== Sessions de tests (gestion) ===== */
+  const sessions=`<details class="card" style="padding:14px 16px"><summary style="cursor:pointer;font-weight:600;color:var(--ink)">Sessions de tests enregistrées</summary>
+    <div class="tw" style="margin-top:10px"><table><thead><tr><th>Date</th>${INDIV?'':'<th>Groupe</th>'}<th>Tests</th><th class="n">${PL.Many}</th><th></th></tr></thead><tbody>
+    ${testBatteries('Tous').slice().reverse().map(b=>{const ids=Object.keys(b.results||{}).filter(k=>Object.keys(b.results[k]).length);const np=new Set();ids.forEach(k=>Object.keys(b.results[k]).forEach(pid=>np.add(pid)));
+      return `<tr><td>${fmtD(b.date)}</td>${INDIV?'':`<td>${esc(b.cat)}</td>`}<td class="wrap small">${ids.map(k=>esc((tests.find(x=>x.id===k)||{name:k}).name)).join(', ')}</td><td class="n">${np.size}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="edit" data-col="tests" data-id="${esc(b.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="tests" data-id="${esc(b.id)}">×</button></div></td></tr>`;}).join('')||`<tr><td colspan="${INDIV?4:5}" class="muted">Aucune session</td></tr>`}
+    </tbody></table></div></details>`;
+
+  return single+grouped+viz+sessions;
 };
-POST.testing=()=>{const a=$('#testSel');if(a)a.onchange=()=>{UI.testId=a.value;render();};const b=$('#testPl');if(b)b.onchange=()=>{UI.testPlayer=b.value;render();};
-  document.querySelectorAll('[data-anthro]').forEach(inp=>{inp.onchange=async()=>{
-    const id=inp.dataset.id,field=inp.dataset.anthro,p=DATA.players[id];if(!p)return;
-    const v=(inp.value||'').trim(),n=v===''?null:parseFloat(v.replace(',','.'));
-    const np=Object.assign({},p);
-    if(n==null||isNaN(n)||n<=0)delete np[field];else np[field]=field==='height'?Math.round(n):Math.round(n*10)/10;
-    await put('players',id,np,true); // silencieux : ne pas re-render pendant la saisie
-    const cur=DATA.players[id]||{},mv=num(cur.mass),hv=num(cur.height),bmi=(mv&&hv)?mv/Math.pow(hv/100,2):null;
-    const tr=inp.closest('tr'),cell=tr&&tr.querySelector('[data-bmi]');if(cell)cell.textContent=bmi!=null?fr(bmi,1):'–';
-  };});};
+POST.testing=()=>{
+  // Visualisation
+  const vt=$('#v-test');if(vt)vt.onchange=()=>{UI.testId=vt.value;render();};
+  const vg=$('#v-group');if(vg)vg.onchange=()=>{UI.vGroup=vg.value;UI.vPlayer='all';render();};
+  const vp=$('#v-player');if(vp)vp.onchange=()=>{UI.vPlayer=vp.value;render();};
+  // Saisie groupée : changer test/date/groupe recharge le tableau
+  const gt=$('#tg-test');if(gt)gt.onchange=()=>{UI.tgTest=gt.value;render();};
+  const gd=$('#tg-date');if(gd)gd.onchange=()=>{UI.tgDate=gd.value;render();};
+  const gg=$('#tg-group');if(gg)gg.onchange=()=>{UI.tgGroup=gg.value;render();};
+  const greset=$('#tg-reset');if(greset)greset.onclick=()=>{document.querySelectorAll('.tg-v,.tg-n').forEach(i=>i.value='');};
+  const gsave=$('#tg-save');if(gsave)gsave.onclick=async()=>{
+    const list=[];document.querySelectorAll('.tg-v').forEach(i=>{const pid=i.dataset.pid;const note=(document.querySelector('.tg-n[data-pid="'+pid+'"]')||{}).value||'';if((i.value||'').trim()!=='')list.push({pid,value:i.value,note});});
+    if(!list.length){toast('Renseigne au moins une valeur');return;}
+    gsave.disabled=true;const n=await saveTestValues(UI.tgTest,UI.tgDate,list);toast(n+' valeur(s) enregistrée(s)');render();
+  };
+  // Saisie simple
+  const ss=$('#ts-save');if(ss)ss.onclick=async()=>{
+    const tid=$('#ts-test').value,pid=$('#ts-player').value,date=$('#ts-date').value||TODAY,val=$('#ts-val').value,note=$('#ts-note').value;
+    const msg=$('#ts-msg');
+    if((val||'').trim()===''){if(msg){msg.className='small crit';msg.textContent='Indique une valeur.';}return;}
+    ss.disabled=true;const n=await saveTestValues(tid,date,[{pid,value:val,note}]);
+    UI.tgTest=tid;UI.tgDate=date;toast(n?'Résultat enregistré':'Valeur invalide');render();
+  };
+};
 
 /* ---------- PERFORMANCE : RÉATHLÉTISATION ---------- */
 function refWeeklyDist(pid,before){const w=[1,2,3,4].map(k=>{let s=0;for(let i=0;i<7;i++){const x=pday(pid,addDays(before,-(k-1)*7-i-1));if(x&&!x.reathle)s+=x.dist;}return s;}).filter(v=>v>0);return mean(w);}
