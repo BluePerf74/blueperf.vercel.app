@@ -487,6 +487,7 @@ const TABS=[
    {id:'rpe',label:'Saisie RPE / ressenti',icon:'⭐'},
    {id:'wellness',label:'Wellness / forme',icon:'💤'},
    {id:'tests',label:'Test / mesure',icon:'📊'},
+   {id:'pdfprog',label:'Programme (PDF)',icon:'📄'},
    {id:'season',label:'Planification',icon:'📅',season:true},
    {id:'player',label:'Client·es',icon:'👥'},
    {id:'injury',label:'Blessure / pépin',icon:'🩹'}
@@ -546,7 +547,7 @@ function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assig
 const tabOn=id=>{ if(RESTRICT.tabs){ if(id!=='overview'&&!RESTRICT.tabs.includes(id))return false; } return S().tabs[id]!==false; };
 
 /* ===================== STORE ===================== */
-const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans','seasonplan','menstru','reports'];
+const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans','seasonplan','menstru','reports','pdfprograms'];
 const LSKEY='blueperf-'+MODE+'-v1';
 const empty=()=>{const o={};COLS.forEach(c=>o[c]={});return o;};
 let DATA=empty();
@@ -2853,6 +2854,33 @@ ENTRY.wellness=()=>{const cat=UI.wCat||defCat();const date=UI.wDate||UI.ref;cons
   <div class="tw"><table class="gridin"><thead><tr><th>${PL.One}</th>${WK.map(k=>`<th>${WL[k]}</th>`).join('')}<th>Commentaire</th></tr></thead><tbody>
   ${ps.map(p=>{const x=doc&&doc.entries&&doc.entries[p.id]||{};const disp=k=>num(x[k])!=null?6-num(x[k]):null;return `<tr><td>${esc(p.name)}</td>${WK.map(k=>`<td><select name="${k}-${p.id}" aria-label="${WL[k]} ${esc(p.name)}" style="width:60px"><option value="">–</option>${[1,2,3,4,5].map(v=>`<option ${disp(k)===v?'selected':''}>${v}</option>`).join('')}</select></td>`).join('')}<td><input class="w" type="text" name="note-${p.id}" value="${esc(x.note||'')}" aria-label="Commentaire ${esc(p.name)}"></td></tr>`;}).join('')||'<tr><td class="muted">Aucun joueur</td></tr>'}
   </tbody></table></div><div class="row"><button class="btn pri">Enregistrer le wellness</button></div></form>`;};
+/* ---- Programme PDF : importer un PDF dans l'application, par client·e ---- */
+const PDF_MAX=2.6*1024*1024; // ~2,6 Mo max par PDF (limite de stockage)
+async function pdfPut(id,dataUrl){const r=await fetch('/api/storage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set',key:DB_PREFIX+':pdf:'+id,value:dataUrl})});if(!r||!r.ok)throw new Error('save');}
+async function pdfGet(id){try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(DB_PREFIX+':pdf:'+id)+'&_='+Date.now(),{cache:'no-store'});const j=await r.json();return j&&j.value?j.value:null;}catch(e){return null;}}
+async function pdfDelKey(id){try{await fetch('/api/storage?key='+encodeURIComponent(DB_PREFIX+':pdf:'+id),{method:'DELETE'});}catch(e){}}
+ENTRY.pdfprog=()=>{
+  const clients=playersOf(INDIV_CAT,true);
+  if(!clients.length)return `<div class="card"><p class="muted" style="margin:0">Ajoute d'abord des client·es dans « Saisie › Client·es ».</p></div>`;
+  const cid=(UI.pdfClient&&clients.some(c=>c.id===UI.pdfClient))?UI.pdfClient:clients[0].id;
+  const cname=(DATA.players[cid]||{}).name||'';
+  const list=Object.values(DATA.pdfprograms||{}).filter(x=>x&&x.cid===cid).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  return `<div class="card">
+    <div class="hrow"><h2>📄 Programme PDF</h2></div>
+    <p class="note" style="margin:2px 0 12px">Importe un programme au format <b>PDF</b> directement dans l'application, pour un·e client·e. Tu pourras l'ouvrir ou le supprimer à tout moment. (Taille max ~2,5 Mo par fichier.)</p>
+    <div class="fgrid" style="align-items:end">
+      <label class="f"><span>Client·e</span><select id="pdf-client" data-chg="pdfClient">${clients.map(c=>`<option value="${esc(c.id)}" ${c.id===cid?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+      <label class="f"><span>Nom du programme (optionnel)</span><input type="text" id="pdf-name" placeholder="ex. Programme 12 semaines"></label>
+      <label class="f"><span>Fichier PDF</span><input type="file" id="pdf-file" accept="application/pdf,.pdf"></label>
+      <div class="f"><button class="btn pri" type="button" data-act="pdfSave">⬆ Importer le PDF</button></div>
+    </div>
+    <div id="pdf-msg" class="small" style="margin-top:6px"></div>
+    <h3 style="font-size:15px;margin-top:16px">Programmes de ${esc(cname)}</h3>
+    ${list.length?`<div class="tw"><table><thead><tr><th>Nom</th><th>Importé le</th><th class="n">Taille</th><th></th></tr></thead><tbody>
+      ${list.map(x=>`<tr><td class="wrap">📄 ${esc(x.name||'Programme')}</td><td>${fmtShort(x.date)}</td><td class="n">${x.size?Math.round(x.size/1024)+' Ko':'–'}</td><td><div class="row" style="flex-wrap:nowrap;gap:5px;justify-content:flex-end"><button class="btn sm" data-act="pdfOpen" data-id="${esc(x.id)}">Ouvrir</button><button class="btn sm danger" data-act="pdfDel" data-id="${esc(x.id)}">Supprimer</button></div></td></tr>`).join('')}
+      </tbody></table></div>`:'<p class="muted small" style="margin:0">Aucun programme PDF pour l\'instant.</p>'}
+  </div>`;
+};
 ENTRY.injury=()=>{const e=editing('injuries');const ps=playersOf('Tous');
   return `<form data-form="injury" class="stack"><div class="fgrid">
     ${fld('in-pid',PL.One,`<select id="in-pid" name="pid" required>${opt(ps.map(p=>[p.id,INDIV?p.name:p.name+' ('+p.cat+')']),e?e.pid:UI.prefPid)}</select>`)}
@@ -3530,6 +3558,27 @@ function renderDrawer(){
 /* ---------- ACTIONS ---------- */
 const ACT={
   tab:b=>{UI.drawer=null;markSeen(b.dataset.id);go(b.dataset.id);},
+  pdfSave:async b=>{
+    const fileEl=$('#pdf-file');const msg=$('#pdf-msg');const setMsg=(t,ok)=>{if(msg){msg.className='small '+(ok?'good':'crit');msg.textContent=t;}};
+    const f=fileEl&&fileEl.files&&fileEl.files[0];
+    if(!f){setMsg('Choisis un fichier PDF.');return;}
+    if(f.type!=='application/pdf'&&!/\.pdf$/i.test(f.name)){setMsg('Le fichier doit être un PDF.');return;}
+    if(f.size>PDF_MAX){setMsg('PDF trop lourd ('+Math.round(f.size/1024/1024*10)/10+' Mo). Maximum ~2,5 Mo.');return;}
+    const cid=($('#pdf-client')&&$('#pdf-client').value)||UI.pdfClient;const name=(($('#pdf-name')&&$('#pdf-name').value)||f.name.replace(/\.pdf$/i,'')).trim()||'Programme';
+    b.disabled=true;setMsg('Import en cours…',true);
+    try{
+      const dataUrl=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('read'));r.readAsDataURL(f);});
+      const id='pdf-'+uid();await pdfPut(id,dataUrl);
+      await put('pdfprograms',id,{id,cid,name,date:TODAY,size:f.size});
+      UI.pdfClient=cid;toast('Programme PDF importé');render();
+    }catch(e){setMsg('Échec de l\'import (fichier peut-être trop lourd). Réessaie avec un PDF plus léger.');b.disabled=false;}
+  },
+  pdfOpen:async b=>{const id=b.dataset.id;const old=b.textContent;b.disabled=true;b.textContent='…';const data=await pdfGet(id);b.disabled=false;b.textContent=old;
+    if(!data){toast('PDF introuvable');return;}
+    try{const parts=data.split(',');const bin=atob(parts[1]||'');const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);const blob=new Blob([arr],{type:'application/pdf'});const url=URL.createObjectURL(blob);window.open(url,'_blank');setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){window.open(data,'_blank');}
+  },
+  pdfDel:async b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
+    const id=b.dataset.id;await pdfDelKey(id);await del('pdfprograms',id);toast('Programme supprimé');render();},
   spMore:()=>{UI.sheet=UI.sheet==='more'?null:'more';renderSpaceNav();},
   spEntry:()=>{UI.sheet=UI.sheet==='entry'?null:'entry';renderSpaceNav();},
   spClose:()=>{UI.sheet=null;renderSpaceNav();},
@@ -3690,6 +3739,7 @@ const ACT={
 let PENDING_IMPORT=null;
 const CHG={
   joueurSel:t=>{UI.joueurSel=t.value;saveUI();render();},
+  pdfClient:t=>{UI.pdfClient=t.value;render();},
   calCat:t=>{UI.cat=t.value;saveUI();render();},
   competPid:t=>{UI.competPid=t.value;render();},
   calFrom:t=>{UI.seanceFrom=t.value||null;saveUI();render();},
