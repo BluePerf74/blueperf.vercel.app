@@ -466,7 +466,7 @@ const MODE=(function(){try{return new URLSearchParams(location.search).get('mode
 // Restriction « gérant·e d'équipe » : équipe imposée + onglets autorisés (passés en paramètres d'URL par l'app de base).
 const RESTRICT=(function(){try{const q=new URLSearchParams(location.search);const team=q.get('team');const tabs=q.get('tabs');return {team:(team&&team.trim())||null,tabs:tabs?tabs.split(',').map(s=>s.trim()).filter(Boolean):null};}catch(e){return {team:null,tabs:null};}})();
 const DB_PREFIX=MODE==='individuel'?'ci':'aca';               // espace de données séparé pour le coaching individuel
-const HIDDEN_TABS=MODE==='individuel'?['gps','comp','reco','medical','report','training']:['programme'];  // coaching: on garde l'essentiel (client, séances, programmes, charges, progrès) ; football: pas de programme perso
+const HIDDEN_TABS=MODE==='individuel'?['gps','comp','reco','medical','report','training','load','health']:['programme'];  // coaching : « Charges » et « Santé & forme » sont déjà sur la fiche Client·e → on les masque du menu pour éviter les doublons ; la saisie wellness passe dans « Saisie »
 const TABS=[
  {id:'overview',label:"Vue d'ensemble"},
  {id:'joueur',label:MODE==='individuel'?'Client·e':'Joueur'},
@@ -485,6 +485,7 @@ const TABS=[
    {id:'simple',label:'Séance',icon:'⚡'},
    {id:'smatch',label:'Compétition',icon:'🏁'},
    {id:'rpe',label:'Saisie RPE / ressenti',icon:'⭐'},
+   {id:'wellness',label:'Wellness / forme',icon:'💤'},
    {id:'tests',label:'Test / mesure',icon:'📊'},
    {id:'season',label:'Planification',icon:'📅',season:true},
    {id:'player',label:'Client·es',icon:'👥'},
