@@ -3568,7 +3568,7 @@ const ACT={
   gpsSplitPick:b=>{const el=$('#gp-split');if(el)el.value=b.dataset.v;},
   gpsDelSplit:b=>{const c=b.dataset.col,id=b.dataset.id,sid=b.dataset.sid;const ev=DATA[c]&&DATA[c][id];if(!ev||!ev.splits)return;const e2=JSON.parse(JSON.stringify(ev));e2.splits=(e2.splits||[]).filter(s=>s.id!==sid);Object.values(e2.players||{}).forEach(x=>{if(x.sp){delete x.sp[sid];gpsRecalc(x);}});
     if(!e2.splits.length&&e2.gpsImport){del(c,id);if(UI.gpsEvent===id)UI.gpsEvent=null;}else{put(c,id,e2);}render();},
-  goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.entryTab=b.dataset.id;UI.drawer=null;go('entry');},
+  goEntry:b=>{UI.edit=null;UI.entryOpen=false;UI.drawer=null;if(b.dataset.id==='tests'){UI.sheet=null;go('testing');return;}UI.entryTab=b.dataset.id;go('entry');},
   entryTab:b=>{UI.edit=null;UI.entryTab=b.dataset.id;formDirty=false;render();},
   cancelEdit:()=>{UI.edit=null;formDirty=false;render();},
   edit:b=>{UI.edit={col:b.dataset.col,id:b.dataset.id};UI.entryTab=(INDIV&&b.dataset.col==='matches')?'smatch':COL2TAB[b.dataset.col];UI.drawer=null;if(b.dataset.col==='tests')UI.tSel=null;go('entry');},
