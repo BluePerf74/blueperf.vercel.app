@@ -995,6 +995,30 @@ function wStats(pid,end){const hist=[];for(let i=1;i<=28;i++){const v=wOf(pid,ad
 function activeInjury(pid,ref){return Object.values(DATA.injuries).filter(i=>i.pid===pid&&i.date<=ref&&i.status!=='apte').sort((a,b)=>b.date.localeCompare(a.date))[0]||null;}
 function testBatteries(cat){return Object.values(DATA.tests).filter(t=>cat==='Tous'||t.cat===cat).sort((a,b)=>a.date.localeCompare(b.date));}
 function testSeries(pid,tid){const o=[];Object.values(DATA.tests).sort((a,b)=>a.date.localeCompare(b.date)).forEach(b=>{const v=b.results&&b.results[tid]?num(b.results[tid][pid]):null;if(v!=null)o.push({date:b.date,v});});return o;}
+// Carte « Tests » du joueur : sélecteur de test + courbe d'évolution du test choisi.
+function playerTestsCard(pid,tests,isRun){
+  const title=isRun?'🏃 Tests & chronos':'📊 Tests physiques';
+  const head=`<div class="hrow"><h3>${title}</h3><button class="btn sm" data-act="tab" data-id="testing">Saisir un test</button></div>`;
+  if(!tests.length)return `<div class="card">${head}<p class="muted small" style="margin:0">Aucun test enregistré. Ajoute VMA, sprint, 1RM, chronos… dans « Performance → Testing ».</p></div>`;
+  let tid=UI.joueurTestSel;let cur=tests.find(x=>x.t.id===tid);if(!cur)cur=tests[0];tid=cur.t.id;
+  const sr=cur.sr;
+  const d=cur.prev?cur.last.v-cur.prev.v:null;const flat=d===0;
+  const up=d!=null&&!flat&&((cur.t.better==='high'&&d>0)||(cur.t.better==='low'&&d<0));
+  const col=(d==null||flat)?'var(--muted)':(up?'var(--good)':'var(--crit)');
+  const arrow=d==null?'':(flat?'→':(d>0?'▲':'▼'));
+  const opts=tests.map(x=>`<option value="${esc(x.t.id)}" ${x.t.id===tid?'selected':''}>${esc(x.t.name)}${x.t.unit?' ('+esc(x.t.unit)+')':''}</option>`).join('');
+  const best=cur.t.better==='low'?Math.min(...sr.map(e=>e.v)):Math.max(...sr.map(e=>e.v));
+  const chart=sr.length>=2
+    ?lineChart({labels:sr.map(e=>e.date),series:[{name:cur.t.name,values:sr.map(e=>e.v),color:'var(--accent)',dots:true,area:true}],h:180,fmt:v=>fr(v,2)})
+    :`<p class="muted small" style="margin:10px 0 0">Une seule mesure enregistrée pour « ${esc(cur.t.name)} » — enregistre d'autres sessions de test pour voir la courbe d'évolution.</p>`;
+  return `<div class="card">${head}
+    <div class="row" style="gap:8px;align-items:center;margin:0 0 10px"><span class="small muted" style="white-space:nowrap">Test&nbsp;:</span><select data-chg="joueurTestSel" style="flex:1;min-width:0;font-weight:600">${opts}</select></div>
+    <div class="stat-row" style="margin-bottom:10px">
+      <div class="stat"><div class="sv">${fr(cur.last.v,2)}${cur.t.unit?`<small>${esc(cur.t.unit)}</small>`:''}</div><div class="sl">Dernière valeur · ${fmtShort(cur.last.date)}</div>${d!=null?`<div class="sd" style="color:${col}">${arrow} ${fr(Math.abs(d),2)} vs préc.</div>`:''}</div>
+      <div class="stat"><div class="sv">${fr(best,2)}${cur.t.unit?`<small>${esc(cur.t.unit)}</small>`:''}</div><div class="sl">Record · ${sr.length} mesure${sr.length>1?'s':''}</div></div>
+    </div>
+    ${chart}</div>`;
+}
 function lastVmaxExpo(p,ref){const v=vref(p);if(!v)return null;const th=S().th.vmaxPct/100*v;for(let i=0;i<60;i++){const d=addDays(ref,-i);const x=pday(p.id,d);if(x&&x.vmax>=th&&d<=ref)return i;}return null;}
 const STATUS_LABEL=MODE==='individuel'?{soins:'Soins',reathle:'Reprise progressive',reprise:'Reprise complète',apte:'Apte'}:{soins:'Soins',reathle:'Réathlétisation',reprise:'Reprise collective',apte:'Apte'};
 function playerStatus(p,ref){
@@ -1347,10 +1371,7 @@ function coachDash(){
   const volCard=`<div class="card"><h3>Volume hebdomadaire (min)</h3>${barChart({labels:wkLabels,values:wkMin,colors:wkMin.map(()=>'var(--s2)'),unit:'min',h:150,xfmt:d=>'S'+isoWeekNum(d)})}<p class="note">Durée totale d'entraînement par semaine sur 8 semaines.</p></div>`;
   const typeCard=`<div class="card"><h3>Répartition des séances (28 j)</h3>${typeItems.length?hbars(typeItems,{unit:''}):'<p class="muted small" style="margin:0">Aucune séance sur la période.</p>'}</div>`;
   const forceCard=`<div class="card"><h3>💪 Force — charges max (1RM)</h3>${lifts.length?hbars(lifts,{unit:'kg'}):`<p class="muted small" style="margin:0">Aucune charge max saisie. Renseigne-les dans « Performance → Musculation ».</p>`}</div>`;
-  const tileStyle='class="card flat" style="text-align:center;padding:10px 8px"';
-  const testTiles=tests.map(x=>{const d=x.prev?x.last.v-x.prev.v:null;const flat=d===0;const up=d!=null&&!flat&&((x.t.better==='high'&&d>0)||(x.t.better==='low'&&d<0));const col=(d==null||flat)?'var(--muted)':(up?'var(--good)':'var(--crit)');const arrow=d==null?'':(flat?'→':(d>0?'▲':'▼'));return `<div ${tileStyle}><div style="font-size:19px;font-weight:700;font-family:var(--fd)">${fr(x.last.v,2)}<span class="small muted"> ${esc(x.t.unit)}</span></div><div class="small muted">${esc(x.t.name)}</div>${d!=null?`<div class="small" style="color:${col}">${arrow} ${fr(Math.abs(d),2)}</div>`:''}</div>`;}).join('');
-  const testsCard=`<div class="card"><div class="hrow"><h3>${isRun?'🏃 Tests & chronos':'📊 Tests physiques'}</h3><button class="btn sm" data-act="tab" data-id="testing">Saisir un test</button></div>
-    ${tests.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">${testTiles}</div>`:'<p class="muted small" style="margin:0">Aucun test enregistré. Ajoute VMA, 5 km, 1RM… dans « Performance → Testing ».</p>'}</div>`;
+  const testsCard=playerTestsCard(pid,tests,isRun);
   // séances récentes
   const recent=sess.slice(0,8).map(x=>{const e=x.players[pid];const rpe=num(e.rpe);const[dl,dc]=rpeDiff(rpe);return `<tr><td>${fmtShort(x.date)}</td><td class="wrap">${esc(x.title||x.type||'Séance')}</td><td><span class="pill ${/course|run|cardio|fractionn/i.test(x.type||'')?'info':'neutral'}" style="font-size:11px">${esc(x.type||'')}</span></td><td class="n">${e.min||x.duration||'–'}</td><td class="n">${rpe!=null?r1(rpe):'–'}</td><td><span class="pill ${dc}">${dl}</span></td></tr>`;}).join('');
   const sessCard=`<div class="card"><div class="hrow"><h3>Séances récentes</h3><button class="btn sm" data-act="tab" data-id="seances">Calendrier</button></div>
@@ -1454,6 +1475,8 @@ VIEWS.joueur=()=>{
         <div><div class="flabel" style="color:var(--good)">✓ Points forts</div>${forts.length?`<ul class="pf-list good">${forts.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:'<p class="small muted" style="margin:4px 0 0">Profil dans la moyenne de l\'effectif.</p>'}</div>
         <div><div class="flabel" style="color:var(--warn)">◼ Axes d'amélioration</div>${axes.length?`<ul class="pf-list warn">${axes.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:'<p class="small muted" style="margin:4px 0 0">Aucun point de vigilance particulier.</p>'}</div>
       </div></div></div>`;
+  const tests=S().tests.map(t=>{const sr=testSeries(pid,t.id);return{t,sr,last:sr[sr.length-1],prev:sr[sr.length-2]};}).filter(x=>x.last);
+  const testsCard=playerTestsCard(pid,tests,false);
   return `${header}${kpis}
     <div class="sect-head"><h2 class="sect-title">🫀 Charge interne & fatigue <span class="muted" style="font-weight:400;font-size:13px">— effort perçu (RPE) et récupération</span></h2></div>
     <div class="grid g2">${chargeInt}${fatigue}</div>
@@ -1462,6 +1485,8 @@ VIEWS.joueur=()=>{
     ${gpsCard}
     ${tempsJeu}
     <div class="card"><h3>Statistiques de la saison</h3><div class="grid g6">${kpi('Matchs',nMatch,'')}${kpi('Minutes',r0(totMin),'')}${kpi('Titul.',nStart,'')}${kpi('Buts',gg,'')}${kpi('Passes déc.',aa,'')}${kpi('Note moy.',ratings.length?r1(mean(ratings)):'–','/10')}</div></div>
+    <div class="sect-head"><h2 class="sect-title">📊 Tests physiques & chronos <span class="muted" style="font-weight:400;font-size:13px">— choisis un test pour voir sa courbe d'évolution</span></h2></div>
+    ${testsCard}
     ${profil}`;
 };
 POST.joueur=()=>{};
@@ -3862,6 +3887,7 @@ const ACT={
 let PENDING_IMPORT=null;
 const CHG={
   joueurSel:t=>{UI.joueurSel=t.value;saveUI();render();},
+  joueurTestSel:t=>{UI.joueurTestSel=t.value;render();},
   pdfClient:t=>{UI.pdfClient=t.value;render();},
   chargePid:t=>{UI.chargePid=t.value;render();},
   calCat:t=>{UI.cat=t.value;saveUI();render();},
