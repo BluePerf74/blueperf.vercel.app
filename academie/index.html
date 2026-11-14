@@ -116,6 +116,36 @@ a{color:var(--accent)}
 .avatar.xs{width:26px;height:26px;font-size:11px}
 .avatar.lg{width:76px;height:76px;font-size:28px}
 .avatar.xl{width:104px;height:104px;font-size:38px;border-radius:22px}
+/* Messagerie */
+.conv-item{padding:10px 12px;border:1px solid var(--line);transition:border-color .15s,background .15s}
+.conv-item.on{border-color:var(--accent);background:var(--accent-soft)}
+.conv-item:hover{border-color:var(--accent)}
+.chatwrap{display:flex;flex-direction:column;max-height:calc(100vh - 230px)}
+.chat-thread{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:6px 2px 10px;min-height:220px}
+.msg-row{display:flex}
+.msg-row.me{justify-content:flex-end}
+.msg-row.them{justify-content:flex-start}
+.msg-bub{max-width:78%;padding:8px 12px;border-radius:16px;font-size:14px;line-height:1.4;position:relative;word-wrap:break-word;white-space:pre-wrap}
+.msg-bub.me{background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:5px}
+.msg-bub.them{background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:5px}
+.msg-t{display:block;font-size:10.5px;opacity:.7;margin-top:3px;text-align:right}
+.chat-input{display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+.chat-input textarea{flex:1;resize:none;min-height:40px;max-height:120px;border-radius:14px;padding:10px 12px}
+/* Mini-calendrier semaine (vue d'ensemble coaching individuel) */
+.ovweek{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+.ovday{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:7px;min-height:86px;display:flex;flex-direction:column}
+.ovday.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.ovday-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px}
+.ovday-h span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.ovday-h b{font-family:var(--fd);font-size:16px}
+.ovday.today .ovday-h b{color:var(--accent)}
+.ovday-b{display:flex;flex-direction:column;gap:4px}
+.ovday-empty{color:var(--line-2);font-size:13px;text-align:center;padding:4px 0}
+.ovchip{display:block;width:100%;text-align:left;border:0;cursor:pointer;background:var(--accent-soft);color:var(--ink);border-radius:8px;padding:5px 7px;font-size:11.5px;line-height:1.22;border-left:3px solid var(--accent)}
+.ovchip.comp{background:var(--crit-soft);border-left-color:var(--crit)}
+.ovchip-n{display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ovchip-t{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:720px){.ovweek{display:flex;overflow-x:auto;gap:8px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:4px}.ovday{flex:0 0 46%;scroll-snap-align:start}}
 .nmcell{display:inline-flex;align-items:center;gap:9px}
 /* PROFILE HEADER (fiche joueur) */
 .pfhead{display:flex;gap:18px;align-items:center;background:linear-gradient(135deg,var(--surface),var(--surface-2));border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
@@ -396,6 +426,8 @@ details summary{cursor:pointer;font-weight:600}
 .spn-b .ic{width:46px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:14px;transition:background .15s}
 .spn-b .ic svg{width:22px;height:22px}
 .spn-b span{display:block;max-width:76px}
+.spn-b{position:relative}
+.spn-badge{position:absolute;top:-1px;right:calc(50% - 24px);min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--crit);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
 .spn-b.on{color:var(--accent)}
 .spn-b.on .ic{background:color-mix(in srgb,var(--accent) 16%,transparent)}
 .spn-b:active{transform:translateY(1px)}
@@ -550,7 +582,7 @@ function S(){const s=(DATA.config&&DATA.config.settings)||{};return Object.assig
 const tabOn=id=>{ if(RESTRICT.tabs){ if(id!=='overview'&&!RESTRICT.tabs.includes(id))return false; } return S().tabs[id]!==false; };
 
 /* ===================== STORE ===================== */
-const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans','seasonplan','menstru','reports','pdfprograms'];
+const COLS=['config','players','wellness','sessions','matches','plan','phases','tests','injuries','programs','maxes','templates','seanceplans','seasonplan','menstru','reports','pdfprograms','messages'];
 const LSKEY='blueperf-'+MODE+'-v1';
 const empty=()=>{const o={};COLS.forEach(c=>o[c]={});return o;};
 let DATA=empty();
@@ -1019,6 +1051,49 @@ function playerTestsCard(pid,tests,isRun){
     </div>
     ${chart}</div>`;
 }
+/* ===================== MESSAGERIE (coach ↔ client·e) ===================== */
+function msgsAll(){return Object.values(DATA.messages||{}).filter(m=>m&&m.text).sort((a,b)=>(a.ts||0)-(b.ts||0));}
+function msgsOf(pid){return msgsAll().filter(m=>m.pid===pid);}
+function unreadOf(pid){return msgsOf(pid).filter(m=>m.from==='client'&&!m.readCoach).length;}
+function unreadTotal(){return msgsAll().filter(m=>m.from==='client'&&!m.readCoach).length;}
+function msgTime(ts){try{const d=new Date(ts);const now=new Date();const y=new Date(now);y.setDate(y.getDate()-1);const hm=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});if(d.toDateString()===now.toDateString())return hm;if(d.toDateString()===y.toDateString())return 'hier '+hm;return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+hm;}catch(e){return '';}}
+let _markReadBusy=null;
+async function markCoachRead(pid){
+  const ms=msgsOf(pid).filter(m=>m.from==='client'&&!m.readCoach);
+  if(!ms.length||_markReadBusy===pid)return;
+  _markReadBusy=pid;
+  ms.forEach(m=>{DATA.messages[m.id]=Object.assign({},m,{readCoach:true});});
+  try{await put('messages',ms[ms.length-1].id,DATA.messages[ms[ms.length-1].id],true);}catch(e){}
+  _markReadBusy=null;renderNav();
+}
+async function coachSendMsg(pid,text){
+  text=(text||'').trim();if(!text||!pid)return;
+  const id='m'+uid();
+  await put('messages',id,{id,pid,from:'coach',text,ts:Date.now(),readCoach:true,readClient:false});
+}
+function viewMessages(){
+  const clients=Object.values(DATA.players).filter(p=>p.active!==false).sort((a,b)=>{
+    const u=unreadOf(b.id)-unreadOf(a.id);if(u)return u;
+    const la=msgsOf(a.id),lb=msgsOf(b.id);const ta=la.length?la[la.length-1].ts:0,tb=lb.length?lb[lb.length-1].ts:0;return tb-ta;});
+  let pid=UI.chatPid;if(pid&&!DATA.players[pid])pid=null;
+  if(!pid){
+    const convList=clients.map(c=>{const ms=msgsOf(c.id);const last=ms[ms.length-1];const u=unreadOf(c.id);
+      return `<button class="card flat conv-item" data-act="openChat" data-id="${esc(c.id)}" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;cursor:pointer;margin:0">${pAvatar(c,'')}<div style="flex:1;min-width:0"><div class="row sb" style="gap:6px"><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)}</b>${last?`<span class="small muted" style="white-space:nowrap">${msgTime(last.ts)}</span>`:''}</div><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${last?(last.from==='coach'?'Vous : ':'')+esc(last.text):'Pas encore de message'}</div></div>${u?`<span class="pill crit" style="min-width:22px;text-align:center">${u}</span>`:''}</button>`;}).join('');
+    return `<div class="card"><div class="hrow"><h2 style="margin:0">💬 Messagerie</h2><span class="small muted">${unreadTotal()?unreadTotal()+' message'+(unreadTotal()>1?'s':'')+' non lu'+(unreadTotal()>1?'s':''):'Tout est lu'}</span></div>
+      <p class="small muted" style="margin:4px 0 12px">Échange directement avec tes client·es depuis l'application. Choisis une conversation.</p>
+      ${clients.length?`<div class="stack" style="gap:8px">${convList}</div>`:'<p class="muted" style="margin:0">Aucun·e client·e pour le moment.</p>'}</div>`;
+  }
+  const c=DATA.players[pid];const ms=msgsOf(pid);
+  if(unreadOf(pid))markCoachRead(pid);
+  const bubbles=ms.length?ms.map(m=>{const me=m.from==='coach';return `<div class="msg-row ${me?'me':'them'}"><div class="msg-bub ${me?'me':'them'}">${esc(m.text)}<span class="msg-t">${msgTime(m.ts)}</span></div></div>`;}).join('')
+    :`<p class="muted small" style="text-align:center;padding:24px 0;margin:0">Démarre la conversation avec ${esc(c.name)}.</p>`;
+  return `<div class="card chatwrap">
+    <div class="hrow" style="margin-bottom:8px"><div class="row" style="gap:8px;align-items:center;flex-wrap:nowrap">${clients.length>1?'<button class="btn sm" data-act="chatBack" aria-label="Retour">‹</button>':''}${pAvatar(c,'xs')}<b>${esc(c.name)}</b></div><button class="btn sm" data-act="player" data-id="${esc(pid)}">Fiche ↗</button></div>
+    <div class="chat-thread" id="chatThread">${bubbles}</div>
+    <form class="chat-input" data-form="chatSend"><input type="hidden" name="pid" value="${esc(pid)}"><textarea name="text" rows="1" placeholder="Écris un message à ${esc((c.name||'').split(' ')[0])}…" required></textarea><button class="btn pri" type="submit">Envoyer</button></form>
+  </div>`;
+}
+function postMessages(){const t=$('#chatThread');if(t)t.scrollTop=t.scrollHeight;const ta=document.querySelector('.chat-input textarea');if(ta){const grow=()=>{ta.style.height='auto';ta.style.height=Math.min(120,ta.scrollHeight)+'px';};ta.addEventListener('input',grow);ta.focus();}}
 function lastVmaxExpo(p,ref){const v=vref(p);if(!v)return null;const th=S().th.vmaxPct/100*v;for(let i=0;i<60;i++){const d=addDays(ref,-i);const x=pday(p.id,d);if(x&&x.vmax>=th&&d<=ref)return i;}return null;}
 const STATUS_LABEL=MODE==='individuel'?{soins:'Soins',reathle:'Reprise progressive',reprise:'Reprise complète',apte:'Apte'}:{soins:'Soins',reathle:'Réathlétisation',reprise:'Reprise collective',apte:'Apte'};
 function playerStatus(p,ref){
@@ -1151,7 +1226,7 @@ function zbars(items){ // diverging, value = z (−3..3)
 
 /* ===================== UI STATE ===================== */
 const UI={tab:'overview',cat:'Tous',ref:TODAY,drawer:null,entryTab:'assign',edit:null,planView:'week',planWeek:mondayOf(TODAY),planMonth:TODAY.slice(0,7),
-  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null,indivClient:'Tous',seen:{},fill:null};
+  gpsEvent:null,compMatch:null,compPlayer:null,testId:'cmj',testPlayer:null,medSel:null,progSel:null,reaSel:null,settingsTab:'players',ai:null,indivClient:'Tous',seen:{},fill:null,chatPid:null,joueurTestSel:null,ovWeek:null};
 try{const t=JSON.parse(localStorage.getItem(LSKEY+'-ui')||'{}');if(t.tab)UI.tab=t.tab;if(t.cat)UI.cat=t.cat;if(t.seen)UI.seen=t.seen;}catch(e){}
 if(RESTRICT.team)UI.cat=RESTRICT.team; // gérant·e : équipe imposée
 if(RESTRICT.tabs&&!tabOn(UI.tab))UI.tab='overview';
@@ -1221,10 +1296,11 @@ const SPNICO={
  entry:'<path d="M13 3 4 14h6l-1 7 9-11h-6z"/>',
  load:'<path d="M3 12h3.3l1.8 5.2 3.4-12 2.2 8.3 1.6-3.1h4.4"/>',
  more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
- perf:'<path d="M7 4h10v4a5 5 0 0 1-10 0Z"/><path d="M7 5H4.5v1.5A2.5 2.5 0 0 0 7 9M17 5h2.5v1.5A2.5 2.5 0 0 1 17 9"/><path d="M10 13h4M12 13v4M8.5 20h7"/>'};
+ perf:'<path d="M7 4h10v4a5 5 0 0 1-10 0Z"/><path d="M7 5H4.5v1.5A2.5 2.5 0 0 0 7 9M17 5h2.5v1.5A2.5 2.5 0 0 1 17 9"/><path d="M10 13h4M12 13v4M8.5 20h7"/>',
+ messages:'<path d="M21 11.5a8.4 8.4 0 0 1-9 8.3 9.3 9.3 0 0 1-3.6-.7L3 20.5l1.4-4.3A8.3 8.3 0 0 1 3.6 11.5 8.4 8.4 0 0 1 12 3.2a8.4 8.4 0 0 1 9 8.3Z"/>'};
 const spnIco=n=>`<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SPNICO[n]||''}</svg></span>`;
 function spaceEntryItems(){const g=TABS.find(t=>t.entryGroup);if(!g||!tabOn('entry'))return [];return g.children.map(k=>({act:k.season?'goSeason':'goEntry',id:k.id,label:(k.icon?k.icon+' ':'')+k.label,on:(UI.tab==='entry'&&UI.entryTab===k.id)||(k.season&&UI.tab==='seasonplan')}));}
-function spaceMoreItems(){const skip=['overview','joueur','seances'];const out=[];TABS.forEach(t=>{
+function spaceMoreItems(){const skip=INDIV?['overview','joueur']:['overview','joueur','seances'];const out=[];TABS.forEach(t=>{
   if(t.entryGroup)return;
   if(t.children){t.children.filter(k=>tabOn(k.id)).forEach(k=>out.push({act:'goPerf',id:k.id,label:t.label+' · '+k.label,on:UI.tab===k.id}));return;}
   if(skip.includes(t.id))return;
@@ -1239,7 +1315,7 @@ function spaceSaisieItems(){const out=spaceEntryItems();if(tabOn('settings')||!R
 function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
  let items;
  if(INDIV){
-   items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'joueur',ic:'joueur',label:'Client·e'},{type:'tab',id:'seances',ic:'seances',label:'Séances'}];
+   items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'joueur',ic:'joueur',label:'Client·e'},{type:'tab',id:'messages',ic:'messages',label:'Messages',badge:unreadTotal()}];
    if(tabOn('entry'))items.push({type:'entry',ic:'entry',label:'Saisie'});
    items.push({type:'more',ic:'more',label:'Plus'});
  } else {
@@ -1248,8 +1324,9 @@ function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
  const PERFIDS=['testing','charge','reco','recovery','nutrition','reathle','muscu','medical','report'];
  bar.innerHTML=`<div class="spn-in">${items.map(it=>{
    const on=it.type==='tab'?UI.tab===it.id:it.type==='entry'?(UI.tab==='entry'||UI.sheet==='entry'):it.type==='perf'?(PERFIDS.includes(UI.tab)||UI.sheet==='perf'):(UI.sheet==='more');
-   const act=it.type==='tab'?`data-act="tab" data-id="${it.id}"`:it.type==='entry'?'data-act="spEntry"':it.type==='perf'?'data-act="spPerf"':'data-act="spMore"';
-   return `<button class="spn-b${on?' on':''}" ${act}>${spnIco(it.ic)}<span>${it.label}</span></button>`;}).join('')}</div>`;
+   const act=it.id==='messages'?'data-act="openMsgs"':it.type==='tab'?`data-act="tab" data-id="${it.id}"`:it.type==='entry'?'data-act="spEntry"':it.type==='perf'?'data-act="spPerf"':'data-act="spMore"';
+   const bdg=it.badge?`<span class="spn-badge">${it.badge>9?'9+':it.badge}</span>`:'';
+   return `<button class="spn-b${on?' on':''}" ${act}>${spnIco(it.ic)}${bdg}<span>${it.label}</span></button>`;}).join('')}</div>`;
  const sheet=$('#spacesheet');if(!sheet)return;
  if(UI.sheet){
    const list=UI.sheet==='entry'?(INDIV?spaceEntryItems():spaceSaisieItems()):UI.sheet==='perf'?spacePerfItems():spaceMoreItems();
@@ -1263,7 +1340,7 @@ function renderNavFoot(){const f=$('#navfoot');if(!f)return;
   f.innerHTML=Store.mode==='db'?'<span class="dot ok"></span>Données partagées, enregistrées en ligne':Store.mode==='local'?'<span class="dot loc"></span>Enregistrement dans ce navigateur uniquement':'<span class="dot"></span>Connexion à la base…';}
 // Avertit avant de fermer si des écritures ne sont pas encore synchronisées (saisie terrain hors-ligne).
 try{window.addEventListener('beforeunload',e=>{if(Store.mode==='db'&&Store.syncPending){e.preventDefault();e.returnValue='';}});}catch(e){}
-function tabLabel(id){for(const t of TABS){if(t.id===id)return t.label;if(t.children)for(const k of t.children)if(k.id===id)return (t.label+' · '+k.label);}return '';}
+function tabLabel(id){if(id==='messages')return 'Messagerie';for(const t of TABS){if(t.id===id)return t.label;if(t.children)for(const k of t.children)if(k.id===id)return (t.label+' · '+k.label);}return '';}
 function renderTop(){
   const cs=RESTRICT.team?[RESTRICT.team]:['Tous',...cats()];const ph=curPhase(UI.cat,UI.ref);const nm=nextMatch(UI.cat,UI.ref);
   let ctx=[fmtD(UI.ref,{weekday:'long',day:'numeric',month:'long'})];if(ph)ctx.push(ph.name);if(nm){const d=dayDiff(nm.date,UI.ref);ctx.push((d===0?'Jour de match':'J-'+d)+' · '+(UI.cat==='Tous'?nm.cat+' ':'')+nm.label);}
@@ -1300,7 +1377,7 @@ function quickstart(){
 }
 function render(){
   buildIndex();
-  if(!tabOn(UI.tab)&&(UI.tab!=='settings'||RESTRICT.tabs)){UI.tab=allTabIds().find(t=>tabOn(t))||'overview';}
+  if(UI.tab!=='messages'&&!tabOn(UI.tab)&&(UI.tab!=='settings'||RESTRICT.tabs)){UI.tab=allTabIds().find(t=>tabOn(t))||'overview';}
   if(['testing','reathle','muscu'].includes(UI.tab)&&!tabOn('perf'))UI.tab='overview';
   renderNav();renderTop();
   const v=VIEWS[UI.tab]||VIEWS.overview;let html='';
@@ -1314,6 +1391,7 @@ function go(tab){UI.sheet=null;UI.tab=tab;UI.edit=UI.edit&&tab==='entry'?UI.edit
 
 <script>
 const VIEWS={},POST={};
+VIEWS.messages=viewMessages;POST.messages=postMessages;
 /* ===================== ONGLET JOUEUR (tableau de bord individuel) ===================== */
 /* ===================== TABLEAU DE BORD CLIENT (coaching salle & running) ===================== */
 function coachDash(){
@@ -1373,18 +1451,27 @@ function coachDash(){
   const forceCard=`<div class="card"><h3>💪 Force — charges max (1RM)</h3>${lifts.length?hbars(lifts,{unit:'kg'}):`<p class="muted small" style="margin:0">Aucune charge max saisie. Renseigne-les dans « Performance → Musculation ».</p>`}</div>`;
   const testsCard=playerTestsCard(pid,tests,isRun);
   // séances récentes
-  const recent=sess.slice(0,8).map(x=>{const e=x.players[pid];const rpe=num(e.rpe);const[dl,dc]=rpeDiff(rpe);return `<tr><td>${fmtShort(x.date)}</td><td class="wrap">${esc(x.title||x.type||'Séance')}</td><td><span class="pill ${/course|run|cardio|fractionn/i.test(x.type||'')?'info':'neutral'}" style="font-size:11px">${esc(x.type||'')}</span></td><td class="n">${e.min||x.duration||'–'}</td><td class="n">${rpe!=null?r1(rpe):'–'}</td><td><span class="pill ${dc}">${dl}</span></td></tr>`;}).join('');
-  const sessCard=`<div class="card"><div class="hrow"><h3>Séances récentes</h3><button class="btn sm" data-act="tab" data-id="seances">Calendrier</button></div>
-    ${sess.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th><th class="n">Min</th><th class="n">RPE</th><th>Difficulté</th></tr></thead><tbody>${recent}</tbody></table></div>`:'<p class="muted small" style="margin:0">Aucune séance enregistrée.</p>'}</div>`;
+  // Objectifs du/de la client·e
+  const fn=(p.name||'').split(' ')[0];
+  const objCard=`<div class="card"><div class="hrow"><h3>🎯 Objectifs</h3><button class="btn sm" data-act="edit" data-col="players" data-id="${esc(pid)}">✎ Modifier</button></div>
+    ${p.goal?`<p style="margin:0;font-size:15px;line-height:1.5">${esc(p.goal)}</p>`:`<p class="muted small" style="margin:0">Aucun objectif renseigné. Clique « Modifier » pour définir l'objectif de ${esc(fn)}.</p>`}
+    ${(p.sport||p.notes)?`<div class="pftags" style="margin-top:10px">${p.sport?`<span class="pill info">🏅 ${esc(p.sport)}</span>`:''}${p.notes?`<span class="pill neutral">📝 ${esc(p.notes)}</span>`:''}</div>`:''}</div>`;
+  // Historique des séances — déroulé (repliable)
+  const histRows=sess.map(x=>{const e=x.players[pid]||{};const rpe=num(e.rpe);const[dl,dc]=rpeDiff(rpe);const load=(rpe!=null&&(e.min||x.duration))?Math.round(rpe*(num(e.min)||num(x.duration)||0)):null;return `<tr><td>${fmtShort(x.date)}</td><td class="wrap">${esc(x.title||x.type||'Séance')}</td><td><span class="pill ${/course|run|cardio|fractionn/i.test(x.type||'')?'info':'neutral'}" style="font-size:11px">${esc(x.type||'')}</span></td><td class="n">${e.min||x.duration||'–'}</td><td class="n">${rpe!=null?r1(rpe):'–'}</td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${load!=null?load:'–'}</td></tr>`;}).join('');
+  const sessCard=`<div class="card"><div class="hrow"><h3>📖 Historique des séances <span class="muted" style="font-weight:400;font-size:13px">(${sess.length})</span></h3><button class="btn sm" data-act="tab" data-id="seances">Calendrier</button></div>
+    ${sess.length?`<details><summary style="cursor:pointer;font-weight:600;color:var(--accent);font-size:13.5px">Afficher / masquer le déroulé des séances</summary>
+    <div style="margin-top:12px"><div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th><th class="n">Min</th><th class="n">RPE</th><th>Ressenti</th><th class="n">Charge</th></tr></thead><tbody>${histRows}</tbody></table></div></div></details>`:'<p class="muted small" style="margin:0">Aucune séance enregistrée.</p>'}</div>`;
   const comps=Object.values(DATA.matches).filter(m=>m.players&&m.players[pid]).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const compCard=`<div class="card"><div class="hrow"><h3>🏁 Compétitions & résultats</h3><button class="btn sm pri" data-act="goEntry" data-id="smatch">+ Ajouter</button></div>
     ${comps.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Épreuve</th><th>Type</th><th>Résultat</th><th>Classement</th><th class="n">RPE</th><th></th></tr></thead><tbody>${comps.slice(0,10).map(m=>{const e=m.players[pid]||{};return `<tr><td>${fmtShort(m.date)}</td><td class="wrap">${esc(m.compName||m.opponent||'Compétition')}</td><td><span class="pill info" style="font-size:11px">${esc(m.opponent||'')}</span></td><td class="wrap">${esc(e.result||'–')}</td><td>${esc(e.rank||'–')}</td><td class="n">${e.rpe!=null?r1(e.rpe):'–'}</td><td><div class="row" style="flex-wrap:nowrap;gap:4px;justify-content:flex-end"><button class="btn sm" data-act="edit" data-col="matches" data-id="${esc(m.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="matches" data-id="${esc(m.id)}">Supprimer</button></div></td></tr>`;}).join('')}</tbody></table></div>`:'<p class="muted small" style="margin:0">Aucune compétition enregistrée. Ajoute une course, un trail ou une compétition de force via « Saisie › Compétition ».</p>'}</div>`;
   return `${header}${kpis}
+    ${objCard}
     <div class="grid g2">${chargeCard}${acwrCard}</div>
     <div class="grid g2">${wellCard}${volCard}</div>
     <div class="grid g2">${forceCard}${testsCard}</div>
     ${compCard}
-    <div class="grid g2">${typeCard}${sessCard}</div>`;
+    ${sessCard}
+    ${typeCard}`;
 }
 VIEWS.joueur=()=>{
   if(INDIV)return coachDash();
@@ -1752,7 +1839,42 @@ function teamWell(ps,end,n,key){const labels=[],vals=[];for(let i=n-1;i>=0;i--){
 function chgTxt(c){if(c==null)return 'Pas encore d’historique';const s=(c>0?'+':'')+r0(c)+' % vs moyenne des 3 semaines précédentes';return s;}
 
 /* ---------- VUE D'ENSEMBLE ---------- */
+function indivOverview(){
+  const ref=UI.ref;const clients=Object.values(DATA.players).filter(p=>p.active!==false);
+  if(!clients.length)return emptyPlayers();
+  const mon=UI.ovWeek||mondayOf(ref);const wdays=range(mon,addDays(mon,6));
+  const evForDay=d=>{const out=[];
+    Object.values(DATA.sessions).forEach(s=>{if(s.date===d&&s.players)Object.keys(s.players).forEach(pid=>{if(DATA.players[pid])out.push({pid,title:s.title||s.type||'Séance',comp:false});});});
+    Object.values(DATA.matches).forEach(m=>{if(m.date===d&&m.players)Object.keys(m.players).forEach(pid=>{if(DATA.players[pid])out.push({pid,title:m.compName||m.opponent||'Compétition',comp:true});});});
+    return out;};
+  const DOW=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  const cells=wdays.map((d,i)=>{const evs=evForDay(d);const isToday=d===TODAY;const dd=new Date(d+'T12:00:00').getDate();
+    return `<div class="ovday${isToday?' today':''}"><div class="ovday-h"><span>${DOW[i]}</span><b>${dd}</b></div>
+      <div class="ovday-b">${evs.length?evs.map(e=>`<button class="ovchip${e.comp?' comp':''}" data-act="openChat" data-id="${esc(e.pid)}" title="${esc(pname(e.pid))} · ${esc(e.title)}"><span class="ovchip-n">${esc((pname(e.pid)||'').split(' ')[0])}</span><span class="ovchip-t">${esc(e.title)}</span></button>`).join(''):'<span class="ovday-empty">—</span>'}</div></div>`;}).join('');
+  const weekLabel=fmtD(mon,{day:'numeric',month:'short'})+' – '+fmtD(addDays(mon,6),{day:'numeric',month:'short'});
+  const nSess=wdays.reduce((a,d)=>a+evForDay(d).length,0);
+  const calCard=`<div class="card"><div class="hrow"><h2 style="margin:0">🗓️ Semaine — séances programmées</h2><div class="row" style="gap:6px;flex-wrap:nowrap;align-items:center"><button class="btn sm" data-act="ovWeekNav" data-d="-1" aria-label="Semaine précédente">‹</button><span class="small muted" style="min-width:140px;text-align:center">${esc(weekLabel)}</span><button class="btn sm" data-act="ovWeekNav" data-d="1" aria-label="Semaine suivante">›</button></div></div>
+    <div class="ovweek">${cells}</div>
+    <p class="note" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${nSess?'<span>'+nSess+' séance'+(nSess>1?'s':'')+' cette semaine · clique une séance pour écrire au/à la client·e.</span>':'<span>Aucune séance programmée cette semaine.</span>'}<button class="btn sm" data-act="tab" data-id="seances">Voir les séances</button></p></div>`;
+  // messagerie — derniers messages par client·e
+  const recent=msgsAll().slice(-40).reverse();const byClient={};recent.forEach(m=>{if(!byClient[m.pid])byClient[m.pid]=m;});
+  const notifs=Object.values(byClient).sort((a,b)=>b.ts-a.ts).slice(0,6);const unread=unreadTotal();
+  const msgList=notifs.length?notifs.map(m=>{const c=DATA.players[m.pid];if(!c)return '';const u=unreadOf(m.pid);
+    return `<button class="card flat conv-item" data-act="openChat" data-id="${esc(m.pid)}" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;margin:0;cursor:pointer">${pAvatar(c,'')}<div style="flex:1;min-width:0"><div class="row sb" style="gap:6px"><b>${esc(c.name)}</b><span class="small muted" style="white-space:nowrap">${msgTime(m.ts)}</span></div><div class="small ${u?'':'muted'}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.from==='coach'?'Vous : ':''}${esc(m.text)}</div></div>${u?`<span class="pill crit">${u}</span>`:''}</button>`;}).join(''):'<p class="muted small" style="margin:0">Aucun message. Tes client·es peuvent t\'écrire depuis leur application (onglet « Messages »).</p>';
+  const msgCard=`<div class="card"><div class="hrow"><h2 style="margin:0">💬 Messages${unread?` <span class="pill crit">${unread}</span>`:''}</h2><button class="btn sm pri" data-act="openMsgs">Ouvrir la messagerie</button></div>
+    <div class="stack" style="gap:8px;margin-top:4px">${msgList}</div></div>`;
+  // KPI
+  const nSessWeekAll=Object.values(DATA.sessions).filter(s=>s.date>=mon&&s.date<=addDays(mon,6)).length;
+  const rpeMiss=Object.values(DATA.sessions).filter(s=>s.date<=ref&&s.date>=addDays(ref,-13)&&s.players&&Object.values(s.players).some(e=>e&&e.rpe==null)).length;
+  const kpis=`<div class="grid g4">
+    ${kpi('Client·es',clients.length,'','suivi·es')}
+    ${kpi('Séances (semaine)',nSess,'',esc(weekLabel))}
+    ${kpi('Messages non lus',unread,'',unread?'à lire':'tout est lu',unread?'warn':null)}
+    ${kpi('RPE à compléter',rpeMiss,'','14 derniers jours',rpeMiss?'warn':null)}</div>`;
+  return `${kpis}${calCard}${msgCard}`;
+}
 VIEWS.overview=()=>{
+  if(INDIV)return indivOverview();
   const ps=playersOf(UI.cat);if(!ps.length)return emptyPlayers();const ref=UI.ref;const th=S().th;
   const st=ps.map(p=>({p,s:playerStatus(p,ref)})).sort((a,b)=>b.s.lv-a.s.lv||a.p.name.localeCompare(b.p.name));
   const red=st.filter(x=>x.s.lv>=3).length,orange=st.filter(x=>x.s.lv===2).length;
@@ -3139,6 +3261,7 @@ function startChrono(){if(CHRONO_TIMER){clearInterval(CHRONO_TIMER);CHRONO_TIMER
     if(closed&&UI.tab==='entry')render();};
   if($$('[data-chrono]').length){tick();CHRONO_TIMER=setInterval(tick,1000);}}
 const FORMS={};
+FORMS.chatSend=async f=>{const v=Object.fromEntries(new FormData(f));const text=(v.text||'').trim();if(!text)return;const pid=v.pid;if(!pid)return;f.reset();await coachSendMsg(pid,text);render();};
 FORMS.session=async f=>{const e=editing('sessions');const v=Object.fromEntries(new FormData(f));const id=e?e.id:uid();
   const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
   const staffNotes={physique:v['sn-physique']||'',technique:v['sn-technique']||'',gb:v['sn-gb']||'',tactique:v['sn-tactique']||'',mental:v['sn-mental']||''};
@@ -3729,6 +3852,10 @@ const ACT={
   spPerf:()=>{UI.sheet=UI.sheet==='perf'?null:'perf';renderSpaceNav();},
   spEntry:()=>{UI.sheet=UI.sheet==='entry'?null:'entry';renderSpaceNav();},
   spClose:()=>{UI.sheet=null;renderSpaceNav();},
+  openChat:b=>{UI.chatPid=b.dataset.id;UI.tab='messages';saveUI();render();window.scrollTo(0,0);},
+  openMsgs:()=>{UI.chatPid=null;UI.tab='messages';saveUI();render();window.scrollTo(0,0);},
+  ovWeekNav:b=>{UI.ovWeek=addDays(UI.ovWeek||mondayOf(UI.ref),7*(+b.dataset.d));render();},
+  chatBack:()=>{UI.chatPid=null;render();},
   saveTemplate:async()=>{const f=$('form[data-form="session"]');if(!f)return;const v=Object.fromEntries(new FormData(f));
     const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
     if(!procedes.length){toast('Ajoute au moins un procédé avant d\'enregistrer un modèle');return;}

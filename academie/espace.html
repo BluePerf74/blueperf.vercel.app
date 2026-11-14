@@ -176,6 +176,19 @@ body.coach-fill .botnav-inner{max-width:720px}
 .botnav-item.on .ic{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 26%,transparent),color-mix(in srgb,var(--accent-2) 26%,transparent));box-shadow:0 5px 16px -5px color-mix(in srgb,var(--accent) 60%,transparent)}
 .botnav-item:active{transform:translateY(1px)}
 .botnav-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.botnav-item .nbadge{position:absolute;top:-2px;right:8px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e5484d;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
+.botnav-item{position:relative}
+.chat-thread{display:flex;flex-direction:column;gap:9px;min-height:50vh;padding:4px 0 8px}
+.msg-row{display:flex}
+.msg-row.me{justify-content:flex-end}
+.msg-bub{max-width:80%;padding:9px 13px;border-radius:17px;font-size:14.5px;line-height:1.42;white-space:pre-wrap;word-wrap:break-word}
+.msg-bub.me{background:var(--grad);color:#fff;border-bottom-right-radius:5px}
+.msg-bub.them{background:var(--surface);border:1px solid var(--line-2);border-bottom-left-radius:5px}
+.msg-t{display:block;font-size:10.5px;opacity:.72;margin-top:3px;text-align:right}
+.chat-bar{position:fixed;left:0;right:0;bottom:0;z-index:960;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 60%,transparent);display:flex;gap:8px;align-items:flex-end;max-width:560px;margin:0 auto}
+.chat-bar textarea{flex:1;resize:none;min-height:44px;max-height:120px;border-radius:16px;padding:11px 14px;font-size:15px}
+.chat-bar .btn{padding:11px 16px}
+.chat-day{text-align:center;font-size:11.5px;color:var(--muted);margin:6px 0}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .kpi{position:relative;overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb,var(--kpi-bg) 94%,#fff 6%),var(--kpi-bg));border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;box-shadow:0 1px 0 color-mix(in srgb,#fff 6%,transparent) inset}
 .kpi::after{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--grad);opacity:.9}
@@ -406,6 +419,55 @@ const COACH_SPACE=ESPACE_Q.get('space')||null;
 // Mode coach : on retire tout de suite l'écran de chargement (squelette) — l'interface doit apparaître vite, pas de long chargement.
 if(COACH_MODE){try{const sp=document.getElementById('splash');if(sp)sp.classList.add('hidden');const bt=document.getElementById('boot');if(bt)bt.classList.add('hidden');document.body.classList.add('coach-fill');}catch(e){}}
 function selfLog(){return SPACE==='ci';} // seules les client·es individuel·les saisissent leurs propres séances
+
+/* ---------- Messagerie client ↔ coach ---------- */
+let MY_MSGS=[]; let MSG_UNREAD=0; let MSG_POLL=null;
+async function loadMyMessages(){
+  if(!PLAYER){MY_MSGS=[];MSG_UNREAD=0;return;}
+  try{const all=(await kvGet(SPACE+':messages'))||{};
+    MY_MSGS=Object.values(all).filter(m=>m&&m.pid===PLAYER.id&&m.text).sort((a,b)=>(a.ts||0)-(b.ts||0));
+    MSG_UNREAD=MY_MSGS.filter(m=>m.from==='coach'&&!m.readClient).length;
+  }catch(e){MY_MSGS=[];MSG_UNREAD=0;}
+}
+async function sendMyMessage(text){
+  text=(text||'').trim();if(!text||!PLAYER)return;
+  const all=(await kvGet(SPACE+':messages'))||{};
+  const id='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  all[id]={id,pid:PLAYER.id,from:'client',text,ts:Date.now(),readCoach:false,readClient:true};
+  await kvSet(SPACE+':messages',all);
+}
+async function markClientRead(){
+  if(!PLAYER)return;
+  try{const all=(await kvGet(SPACE+':messages'))||{};let ch=false;
+    Object.values(all).forEach(m=>{if(m&&m.pid===PLAYER.id&&m.from==='coach'&&!m.readClient){m.readClient=true;ch=true;}});
+    if(ch)await kvSet(SPACE+':messages',all);
+  }catch(e){}
+  MSG_UNREAD=0;updateMsgBadge();
+}
+function updateMsgBadge(){const b=document.querySelector('.botnav-item[data-nav="messages"]');if(!b)return;let n=b.querySelector('.nbadge');if(MSG_UNREAD>0){if(!n){n=document.createElement('span');n.className='nbadge';b.insertBefore(n,b.querySelector('span'));}n.textContent=MSG_UNREAD>9?'9+':String(MSG_UNREAD);}else if(n){n.remove();}}
+function msgDayLabel(ts){const d=new Date(ts);const now=new Date();const y=new Date(now);y.setDate(y.getDate()-1);if(d.toDateString()===now.toDateString())return "Aujourd'hui";if(d.toDateString()===y.toDateString())return 'Hier';return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}
+function msgHm(ts){try{return new Date(ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+function messagesHtml(){
+  let lastDay='';
+  const thread=MY_MSGS.length?('<div class="chat-thread">'+MY_MSGS.map(m=>{let dh='';const dl=new Date(m.ts).toDateString();if(dl!==lastDay){lastDay=dl;dh=`<div class="chat-day">${esc(msgDayLabel(m.ts))}</div>`;}const me=m.from==='client';return dh+`<div class="msg-row ${me?'me':'them'}"><div class="msg-bub ${me?'me':'them'}">${esc(m.text)}<span class="msg-t">${msgHm(m.ts)}</span></div></div>`;}).join('')+'</div>')
+    :`<div style="text-align:center;padding:30px 10px;color:var(--muted)"><div style="font-size:30px">💬</div><p style="margin:8px 0 0">Aucun message pour l'instant.</p><p style="font-size:13px;margin:6px 0 0">Pose une question à ton coach ci-dessous.</p></div>`;
+  return `<div class="card" style="padding:12px 12px 10px;margin-bottom:0">
+    <div class="row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:16px">Mon coach</b><button class="btn sec" id="msgRefresh" aria-label="Actualiser" style="padding:6px 11px;font-size:14px">↻</button></div>
+    ${thread}
+    <form id="chatBar" style="display:flex;gap:8px;align-items:flex-end;margin-top:10px;border-top:1px solid var(--line);padding-top:10px"><textarea id="chatText" rows="1" placeholder="Écris à ton coach…" required style="flex:1;resize:none;min-height:42px;max-height:120px;border-radius:14px;padding:11px 13px;font-size:15px;font-family:inherit"></textarea><button class="btn" type="submit" style="padding:11px 16px">Envoyer</button></form>
+  </div>`;
+}
+function stopMsgPoll(){if(MSG_POLL){clearInterval(MSG_POLL);MSG_POLL=null;}}
+function startMsgPoll(){stopMsgPoll();MSG_POLL=setInterval(async()=>{
+  if(ESPACE_TAB!=='messages'){stopMsgPoll();return;}
+  if(document.hidden)return;
+  const txt=document.getElementById('chatText');
+  if(txt&&document.activeElement===txt&&txt.value.trim())return; // ne pas interrompre la saisie
+  const before=MY_MSGS.length?MY_MSGS[MY_MSGS.length-1].ts:0;
+  await loadMyMessages();
+  const after=MY_MSGS.length?MY_MSGS[MY_MSGS.length-1].ts:0;
+  if(after!==before){await markClientRead();await renderTab();}
+},9000);}
 
 /* ---------- Auth ---------- */
 function norm(s){return (s||'').toString().trim().toLowerCase();}
@@ -1494,7 +1556,8 @@ function navIco(n){
     programme:'<rect x="5" y="4.3" width="14" height="16.4" rx="2.3"/><path d="M9 4.7A1.5 1.5 0 0 1 10.5 3.2h3A1.5 1.5 0 0 1 15 4.7v1.3H9Z"/><path d="M8.6 10.6h6.8M8.6 14h6.8M8.6 17.3h4"/>',
     sante:'<path d="M12 20.4s-6.6-4.5-8.7-9A4.65 4.65 0 0 1 12 6.3a4.65 4.65 0 0 1 8.7 5.1c-2.1 4.5-8.7 9-8.7 9Z"/><path d="M7.5 12.2h2.2l1.1-2.3 1.6 4 1.1-1.7h2.5"/>',
     rpe:'<path d="M3 12h3.3l1.8 5.2 3.4-12 2.2 8.3 1.6-3.1h4.4"/>',
-    nutrition:'<path d="M5 19C5 10.4 11 6.4 19.2 6.4c0 8.6-6 12.6-14.2 12.6Z"/><path d="M5 19C8.2 15.3 12.2 12.2 16.4 10.4"/>'
+    nutrition:'<path d="M5 19C5 10.4 11 6.4 19.2 6.4c0 8.6-6 12.6-14.2 12.6Z"/><path d="M5 19C8.2 15.3 12.2 12.2 16.4 10.4"/>',
+    messages:'<path d="M21 11.5a8.4 8.4 0 0 1-9 8.3 9.3 9.3 0 0 1-3.6-.7L3 20.5l1.4-4.3A8.3 8.3 0 0 1 3.6 11.5 8.4 8.4 0 0 1 12 3.2a8.4 8.4 0 0 1 9 8.3Z"/>'
   };
   return `<span class="ic"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]||''}</svg></span>`;
 }
@@ -1503,7 +1566,9 @@ function bottomNav(){
   if(MY_PLAN)items.push(['programme','Programme']);
   items.push(['sante','Santé'],['rpe','Charge']);
   if(NUTRI_CID)items.push(['nutrition','Nutrition']);
-  return `<nav class="botnav" role="tablist" aria-label="Catégories"><div class="botnav-inner">${items.map(([k,l])=>`<button class="botnav-item ${ESPACE_TAB===k?'on':''}" data-nav="${k}" role="tab" aria-selected="${ESPACE_TAB===k?'true':'false'}">${navIco(k)}<span>${l}</span></button>`).join('')}</div></nav>`;
+  if(SPACE==='ci'&&!COACH_MODE)items.push(['messages','Messages']);
+  const unread=MSG_UNREAD||0;
+  return `<nav class="botnav" role="tablist" aria-label="Catégories"><div class="botnav-inner">${items.map(([k,l])=>`<button class="botnav-item ${ESPACE_TAB===k?'on':''}" data-nav="${k}" role="tab" aria-selected="${ESPACE_TAB===k?'true':'false'}">${navIco(k)}${k==='messages'&&unread?`<span class="nbadge">${unread>9?'9+':unread}</span>`:''}<span>${l}</span></button>`).join('')}</div></nav>`;
 }
 async function renderSpace(skipLoad){
   applyTheme(loadTheme());
@@ -1514,12 +1579,14 @@ async function renderSpace(skipLoad){
     loadMyPlan(),
     loadNutriLink(),
     selfLog()?loadStore():Promise.resolve(),
-    menstruAllowed(PLAYER)?loadMenstru():Promise.resolve()
+    menstruAllowed(PLAYER)?loadMenstru():Promise.resolve(),
+    (SPACE==='ci'&&!COACH_MODE)?loadMyMessages():Promise.resolve()
   ]);
   if(ESPACE_TAB==='boutique'&&!selfLog())ESPACE_TAB='apercu';
   if(ESPACE_TAB==='nutrition'&&!NUTRI_CID)ESPACE_TAB='apercu';
   if(ESPACE_TAB==='menstruation')ESPACE_TAB='sante'; // le cycle est désormais intégré dans Santé & forme
   if(ESPACE_TAB==='programme'&&!MY_PLAN)ESPACE_TAB='apercu';
+  if(ESPACE_TAB==='messages'&&(SPACE!=='ci'||COACH_MODE))ESPACE_TAB='apercu';
   $('#app').innerHTML=`
     <div class="topbar">
       <div><div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">Elite<span> Adapt</span></div><div class="muted" style="font-size:13px">${COACH_MODE?'✍️ Saisie coach — <b>'+esc(PLAYER.name)+'</b>'+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):''):'Bonjour '+esc(PLAYER.name)+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):'')}</div></div>
@@ -1541,6 +1608,19 @@ async function renderSpace(skipLoad){
 async function renderTab(){
   document.querySelectorAll('.botnav-item').forEach(b=>{const on=b.getAttribute('data-nav')===ESPACE_TAB;b.classList.toggle('on',on);b.setAttribute('aria-selected',on?'true':'false');});
   const c=$('#tabc');if(!c)return;
+  if(ESPACE_TAB!=='messages')stopMsgPoll();
+  if(ESPACE_TAB==='messages'){
+    await loadMyMessages();
+    await markClientRead();
+    c.innerHTML=messagesHtml();
+    const bar=$('#chatBar'),txt=$('#chatText');
+    if(txt)txt.addEventListener('input',()=>{txt.style.height='auto';txt.style.height=Math.min(120,txt.scrollHeight)+'px';});
+    if(bar)bar.onsubmit=async e=>{e.preventDefault();const v=(txt.value||'').trim();if(!v)return;txt.value='';txt.style.height='auto';bar.querySelector('button').disabled=true;await sendMyMessage(v);await loadMyMessages();await markClientRead();await renderTab();};
+    const rf=$('#msgRefresh');if(rf)rf.onclick=async()=>{rf.disabled=true;await loadMyMessages();await markClientRead();await renderTab();};
+    setTimeout(()=>window.scrollTo({top:document.body.scrollHeight,behavior:'auto'}),30);
+    startMsgPoll();
+    return;
+  }
   if(ESPACE_TAB==='sante'){
     if(COACH_MODE){
       await loadCoachRoster();
