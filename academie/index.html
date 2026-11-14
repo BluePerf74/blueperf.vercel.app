@@ -473,6 +473,7 @@ const TABS=[
  {id:'programme',label:'Programme'},
  {id:'health',label:'Santé & forme'},
  {id:'load',label:'Charges'},
+ {id:'charge',label:'Évaluation charge'},
  {id:'gps',label:'GPS'},
  {id:'comp',label:'Compétition'},
  {id:'training',label:'Entraînement'},
@@ -970,6 +971,17 @@ function ewma(pid,end,key){key=key||'load';const la=2/8,lc=2/29;let a=0,c=0,seen
 function weekStats(pid,end){const l=loads(pid,end,7);const s=sum(l);const m=s/7;const v=sd(l);const mono=v&&v>0?m/v:null;
   const prev=[1,2,3].map(k=>sum(loads(pid,addDays(end,-7*k),7)));const pm=mean(prev);
   return{sum:s,mono,strain:mono!=null?s*mono:null,prev:sum(loads(pid,addDays(end,-7),7)),prevAvg:pm,chg:pm?((s-pm)/pm*100):null};}
+/* Modèle Fitness-Fatigue (Banister) à partir de la CE (sRPE). Paramètres du cours :
+   k1=1, k2=2, τ1=45 j (fitness/aptitude), τ2=15 j (fatigue). Réponse impulsionnelle récursive.
+   Forme (performance modélisée) = k1·Fitness − k2·Fatigue. */
+function fitnessFatigue(pid,end,show){
+  const tau1=45,tau2=15,k1=1,k2=2,look=150;
+  const d1=Math.exp(-1/tau1),d2=Math.exp(-1/tau2);
+  let fit=0,fat=0;const out=[];
+  for(let i=look;i>=0;i--){const d=addDays(end,-i);const x=pday(pid,d);const w=x?(x.load||0):0;
+    fit=fit*d1+w;fat=fat*d2+w;
+    if(i<show)out.push({date:d,fit:k1*fit,fat:k2*fat,perf:k1*fit-k2*fat});}
+  return out;}
 const WK=['sleep','fatigue','soreness','stress','mood'];
 const WL={sleep:'Sommeil',fatigue:'Fatigue',soreness:'Courbatures',stress:'Stress',mood:'Humeur'};
 function wScore(e){if(!e)return null;const v=WK.map(k=>num(e[k])).filter(x=>x!=null);if(!v.length)return null;return sum(v)/(v.length*5)*100;}
@@ -1528,6 +1540,53 @@ VIEWS.seances=()=>{
     ${kpis}${curves}${detail}${table}`;
 };
 POST.seances=()=>{};
+
+/* ===================== ÉVALUATION DE LA CHARGE D'ENTRAÎNEMENT =====================
+   D'après le cours « Training Work Load » : CE = durée × RPE (Foster, CR-10),
+   Monotonie & Contrainte (Foster 1998), ACWR aiguë/chronique (Gabbett 2016),
+   modèle Fitness-Fatigue (Banister). */
+function acwrZone(a){return a==null?null:a<0.8?['Sous-charge','warn','Charge en baisse — risque de désentraînement si prolongé.']:a<=1.3?['Zone optimale','good','« Sweet spot » : progression maîtrisée (Gabbett).']:a<=1.5?['À surveiller','warn','Montée de charge marquée — surveiller la récupération.']:['Risque élevé','crit','Pic de charge aiguë — risque de blessure nettement accru.'];}
+VIEWS.charge=()=>{
+  const roster=playersOf(UI.cat,true);if(!roster.length)return emptyPlayers();
+  let pid=UI.chargePid;if(!pid||!DATA.players[pid]||!roster.some(x=>x.id===pid))pid=roster[0].id;
+  const p=DATA.players[pid];const ref=UI.ref;const th=S().th;
+  const idx=roster.findIndex(x=>x.id===pid);
+  const days=range(addDays(ref,-41),ref);
+  const lv=days.map(d=>{const x=pday(pid,d);return x?x.load:0;});
+  const isSess=days.map(d=>{const x=pday(pid,d);return x&&x.n>0;});
+  const acR=days.map(d=>ewma(pid,d).acwr);
+  const w=weekStats(pid,ref);const e=ewma(pid,ref);
+  const ff=fitnessFatigue(pid,ref,42);
+  const az=acwrZone(e.acwr);const monoHi=w.mono!=null&&w.mono>th.monotony;
+  const cur=ff[ff.length-1],prevP=ff.length>7?ff[ff.length-8]:null;const formTrend=cur&&prevP?cur.perf-prevP.perf:null;
+  const sel=`<div class="row" style="gap:8px;align-items:center;flex-wrap:nowrap">
+    <button class="btn sm" data-act="chargeNav" data-d="-1" ${idx<=0?'disabled':''}>‹</button>
+    <select data-chg="chargePid" style="width:auto;max-width:260px;font-weight:600">${roster.map(x=>`<option value="${esc(x.id)}" ${x.id===pid?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
+    <button class="btn sm" data-act="chargeNav" data-d="1" ${idx>=roster.length-1?'disabled':''}>›</button></div>`;
+  const kpis=`<div class="grid g4">
+    ${kpi('Charge 7 j (sRPE)',r0(w.sum),'UA',w.chg!=null?(w.chg>0?'+':'')+r0(w.chg)+' % vs 3 sem.':'Durée × RPE')}
+    ${kpi('Monotonie',w.mono!=null?r2(w.mono):'–','',`Variabilité des charges · cible < ${th.monotony}`,monoHi?'warn':null)}
+    ${kpi('Contrainte (strain)',w.strain!=null?r0(w.strain):'–','','Charge hebdo × monotonie (Foster)')}
+    ${kpi('ACWR',e.acwr!=null?r2(e.acwr):'–','',az?az[0]:'Aiguë / chronique',az?(az[1]==='good'?null:az[1]):null)}</div>`;
+  const dailyCard=`<div class="card"><div class="hrow"><h3>Charge quotidienne (sRPE, 42 j)</h3><span class="small muted">CE = durée × RPE</span></div>
+    ${barChart({labels:days,values:lv,colors:isSess.map(m=>m?'var(--accent)':'var(--line-2)'),unit:'UA',h:150})}<p class="note">Chaque barre = la charge d'une journée (RPE ressenti × minutes). Alterner jours durs et jours légers limite la monotonie.</p></div>`;
+  const acwrCard=`<div class="card"><div class="hrow"><h3>ACWR — charge aiguë / chronique</h3>${az?`<span class="pill ${az[1]}">${az[0]}</span>`:''}</div>
+    ${lineChart({labels:days,series:[{name:'ACWR',values:acR,color:'var(--accent)'}],band:[th.acwrLo,th.acwrHi],refs:[{v:1.5,label:'Risque',color:'var(--crit)'}],h:160,fmt:v=>r2(v),yMin:0})}<p class="note">Zone verte ${r1(th.acwrLo)}–${r1(th.acwrHi)} = « sweet spot » (Gabbett 2016). Au-delà de 1,5 : risque de blessure accru.</p></div>`;
+  const ffCard=`<div class="card"><div class="hrow"><h3>Modèle Fitness–Fatigue (Banister)</h3><span class="small muted">τ₁=45 j · τ₂=15 j</span></div>
+    ${lineChart({labels:ff.map(x=>x.date),series:[{name:'Aptitude (fitness)',values:ff.map(x=>x.fit),color:'var(--good)'},{name:'Fatigue',values:ff.map(x=>x.fat),color:'var(--crit)'},{name:'Forme (perf. modélisée)',values:ff.map(x=>x.perf),color:'var(--accent)',dots:true}],h:170,fmt:v=>r0(v)})}
+    <p class="note">La <b>forme</b> = aptitude − 2×fatigue. Quand la fatigue (court terme) retombe après une charge, la forme remonte : c'est l'<b>affûtage</b>.</p></div>`;
+  // interprétation
+  const notes=[];
+  if(az)notes.push(`<div class="row sb"><span><b>ACWR ${e.acwr!=null?r2(e.acwr):'–'}</b> — ${az[0]}</span><span class="pill ${az[1]}">${az[1]==='good'?'OK':'!'}</span></div><p class="small muted" style="margin:2px 0 10px">${az[2]}</p>`);
+  if(monoHi)notes.push(`<div class="row sb"><span><b>Monotonie ${r2(w.mono)}</b> — trop uniforme</span><span class="pill warn">!</span></div><p class="small muted" style="margin:2px 0 10px">Monotonie élevée + contrainte élevée = plus de risque de maladie/surmenage (Foster). Ajoute une séance nettement plus légère (RPE ≤ 3) et une séance clé plus intense.</p>`);
+  if(w.chg!=null&&Math.abs(w.chg)>th.weekChg)notes.push(`<div class="row sb"><span><b>Variation hebdo ${w.chg>0?'+':''}${r0(w.chg)} %</b></span><span class="pill ${Math.abs(w.chg)>25?'crit':'warn'}">!</span></div><p class="small muted" style="margin:2px 0 10px">Variation de charge d'une semaine à l'autre élevée (> ${th.weekChg} %) : progresser par paliers (~10 %/semaine) sécurise l'adaptation.</p>`);
+  if(formTrend!=null)notes.push(`<div class="row sb"><span><b>Forme (modèle)</b> ${formTrend>=0?'en hausse ↗':'en baisse ↘'}</span><span class="pill ${formTrend>=0?'good':'warn'}">${formTrend>=0?'↗':'↘'}</span></div><p class="small muted" style="margin:2px 0 6px">${formTrend>=0?'La fatigue retombe plus vite que l\'aptitude : bon moment pour une échéance.':'La fatigue domine encore : prévoir de la récupération avant une échéance importante.'}</p>`);
+  const interp=`<div class="card"><h3>Lecture & recommandations</h3>${notes.join('')||'<p class="muted small" style="margin:0">Pas assez de données pour évaluer la charge. Enregistre des séances avec RPE et durée.</p>'}</div>`;
+  const refs=`<div class="card flat"><div class="small muted" style="line-height:1.6"><b>Méthode (références du cours) :</b> CE = durée × RPE, échelle CR-10 (Foster 1998, 2001) · Monotonie & Contrainte (Foster 1998) · ACWR aiguë:chronique & « sweet spot » (Gabbett 2016 ; Blanch & Gabbett 2016) · Charge interne vs externe (Impellizzeri 2004, 2019) · Modèle Fitness-Fatigue (Banister ; Clarke & Skiba 2013).</div></div>`;
+  const header=`<div class="sect-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h2 class="sect-title">📈 Évaluation de la charge — ${esc(p.name)}</h2>${sel}</div>`;
+  return `${header}${kpis}<div class="grid g2">${dailyCard}${acwrCard}</div>${ffCard}${interp}${refs}`;
+};
+POST.charge=()=>{};
 
 
 /* ---------- PROGRAMME INDIVIDUEL (12 semaines) ---------- */
@@ -3593,6 +3652,7 @@ const ACT={
   player:b=>{UI.drawer=b.dataset.id;UI.drawerTab='profil';renderDrawer();},
   drawerTab:b=>{UI.drawerTab=b.dataset.id;renderDrawer();},
   joueurNav:b=>{const roster=playersOf(UI.cat,true);let i=roster.findIndex(x=>x.id===UI.joueurSel);if(i<0)i=0;i=Math.max(0,Math.min(roster.length-1,i+(+b.dataset.d)));if(roster[i]){UI.joueurSel=roster[i].id;saveUI();render();}},
+  chargeNav:b=>{const roster=playersOf(UI.cat,true);let i=roster.findIndex(x=>x.id===UI.chargePid);if(i<0)i=0;i=Math.max(0,Math.min(roster.length-1,i+(+b.dataset.d)));if(roster[i]){UI.chargePid=roster[i].id;render();}},
   seanceOpen:b=>{UI.seanceSel=b.dataset.id;render();const el=document.getElementById('seance-detail');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},
   seanceClose:()=>{UI.seanceSel=null;render();},
   calToday:()=>{UI.seanceFrom=null;UI.seanceTo=null;saveUI();render();},
@@ -3740,6 +3800,7 @@ let PENDING_IMPORT=null;
 const CHG={
   joueurSel:t=>{UI.joueurSel=t.value;saveUI();render();},
   pdfClient:t=>{UI.pdfClient=t.value;render();},
+  chargePid:t=>{UI.chargePid=t.value;render();},
   calCat:t=>{UI.cat=t.value;saveUI();render();},
   competPid:t=>{UI.competPid=t.value;render();},
   calFrom:t=>{UI.seanceFrom=t.value||null;saveUI();render();},
