@@ -466,7 +466,7 @@ const MODE=(function(){try{return new URLSearchParams(location.search).get('mode
 // Restriction « gérant·e d'équipe » : équipe imposée + onglets autorisés (passés en paramètres d'URL par l'app de base).
 const RESTRICT=(function(){try{const q=new URLSearchParams(location.search);const team=q.get('team');const tabs=q.get('tabs');return {team:(team&&team.trim())||null,tabs:tabs?tabs.split(',').map(s=>s.trim()).filter(Boolean):null};}catch(e){return {team:null,tabs:null};}})();
 const DB_PREFIX=MODE==='individuel'?'ci':'aca';               // espace de données séparé pour le coaching individuel
-const HIDDEN_TABS=MODE==='individuel'?['gps','comp','reco','medical','report','training','load','health']:['programme'];  // coaching : « Charges » et « Santé & forme » sont déjà sur la fiche Client·e → on les masque du menu pour éviter les doublons ; la saisie wellness passe dans « Saisie »
+const HIDDEN_TABS=MODE==='individuel'?['gps','comp','reco','medical','report','training','load','health','recovery','nutrition']:['programme'];  // coaching : « Charges » et « Santé & forme » sont déjà sur la fiche Client·e → on les masque du menu pour éviter les doublons ; la saisie wellness passe dans « Saisie »
 const TABS=[
  {id:'overview',label:"Vue d'ensemble"},
  {id:'joueur',label:MODE==='individuel'?'Client·e':'Joueur'},
@@ -479,6 +479,8 @@ const TABS=[
  {id:'training',label:'Entraînement'},
  {id:'seances',label:'Séances'},
  {id:'reco',label:'Recommandations'},
+ {id:'recovery',label:'Récupération'},
+ {id:'nutrition',label:'Nutrition'},
  {id:'perf',label:MODE==='individuel'?'Progrès':'Performance',children:MODE==='individuel'?[{id:'testing',label:'Tests & mesures'},{id:'muscu',label:'Force / muscu'},{id:'reathle',label:'Reprise après blessure'}]:[{id:'testing',label:'Testing'},{id:'reathle',label:'Réathlétisation'},{id:'muscu',label:'Musculation'}]},
  {id:'medical',label:'Médical'},
  {id:'report',label:'Compte rendu'},
@@ -1194,7 +1196,8 @@ const SPNICO={
  seances:'<rect x="3" y="4.5" width="18" height="16" rx="2.2"/><path d="M3 9.2h18M8 2.6v3.6M16 2.6v3.6"/>',
  entry:'<path d="M13 3 4 14h6l-1 7 9-11h-6z"/>',
  load:'<path d="M3 12h3.3l1.8 5.2 3.4-12 2.2 8.3 1.6-3.1h4.4"/>',
- more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'};
+ more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+ perf:'<path d="M7 4h10v4a5 5 0 0 1-10 0Z"/><path d="M7 5H4.5v1.5A2.5 2.5 0 0 0 7 9M17 5h2.5v1.5A2.5 2.5 0 0 1 17 9"/><path d="M10 13h4M12 13v4M8.5 20h7"/>'};
 const spnIco=n=>`<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SPNICO[n]||''}</svg></span>`;
 function spaceEntryItems(){const g=TABS.find(t=>t.entryGroup);if(!g||!tabOn('entry'))return [];return g.children.map(k=>({act:k.season?'goSeason':'goEntry',id:k.id,label:(k.icon?k.icon+' ':'')+k.label,on:(UI.tab==='entry'&&UI.entryTab===k.id)||(k.season&&UI.tab==='seasonplan')}));}
 function spaceMoreItems(){const skip=['overview','joueur','seances'];const out=[];TABS.forEach(t=>{
@@ -1204,19 +1207,31 @@ function spaceMoreItems(){const skip=['overview','joueur','seances'];const out=[
   if(!tabOn(t.id)&&(t.id!=='settings'||RESTRICT.tabs))return;
   out.push({act:'tab',id:t.id,label:t.label,on:UI.tab===t.id});});
  return out;}
+/* Football : menu « Performance » (tests, recommandations, récupération, nutrition, évaluation charge) */
+function spacePerfItems(){const want=[['testing','📊 Tests à enregistrer'],['charge','📈 Évaluation de la charge'],['reco',"🎯 Recommandations d'entraînement"],['recovery','🧊 Récupération'],['nutrition','🥗 Nutrition'],['reathle','🩹 Réathlétisation'],['muscu','💪 Musculation'],['medical','⚕️ Médical'],['report','📄 Compte rendu']];
+ return want.filter(([id])=>tabOn(id)||id==='recovery'||id==='nutrition'||id==='charge').map(([id,label])=>({act:'tab',id,label,on:UI.tab===id}));}
+/* Football : menu « Saisie » = saisies + Paramètres */
+function spaceSaisieItems(){const out=spaceEntryItems();if(tabOn('settings')||!RESTRICT.tabs)out.push({act:'tab',id:'settings',label:'⚙️ Paramètres',on:UI.tab==='settings'});return out;}
 function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
- const items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'joueur',ic:'joueur',label:INDIV?'Client·e':'Joueur'},{type:'tab',id:'seances',ic:'seances',label:'Séances'}];
- if(tabOn('entry'))items.push({type:'entry',ic:'entry',label:'Saisie'});
- else if(tabOn('load'))items.push({type:'tab',id:'load',ic:'load',label:'Charges'});
- items.push({type:'more',ic:'more',label:'Plus'});
+ let items;
+ if(INDIV){
+   items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'joueur',ic:'joueur',label:'Client·e'},{type:'tab',id:'seances',ic:'seances',label:'Séances'}];
+   if(tabOn('entry'))items.push({type:'entry',ic:'entry',label:'Saisie'});
+   items.push({type:'more',ic:'more',label:'Plus'});
+ } else {
+   items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'seances',ic:'seances',label:'Séance'},{type:'tab',id:'joueur',ic:'joueur',label:'Joueur'},{type:'perf',ic:'perf',label:'Performance'},{type:'entry',ic:'entry',label:'Saisie'}];
+ }
+ const PERFIDS=['testing','charge','reco','recovery','nutrition','reathle','muscu','medical','report'];
  bar.innerHTML=`<div class="spn-in">${items.map(it=>{
-   const on=it.type==='tab'?UI.tab===it.id:it.type==='entry'?(UI.tab==='entry'||UI.sheet==='entry'):(UI.sheet==='more');
-   const act=it.type==='tab'?`data-act="tab" data-id="${it.id}"`:it.type==='entry'?'data-act="spEntry"':'data-act="spMore"';
+   const on=it.type==='tab'?UI.tab===it.id:it.type==='entry'?(UI.tab==='entry'||UI.sheet==='entry'):it.type==='perf'?(PERFIDS.includes(UI.tab)||UI.sheet==='perf'):(UI.sheet==='more');
+   const act=it.type==='tab'?`data-act="tab" data-id="${it.id}"`:it.type==='entry'?'data-act="spEntry"':it.type==='perf'?'data-act="spPerf"':'data-act="spMore"';
    return `<button class="spn-b${on?' on':''}" ${act}>${spnIco(it.ic)}<span>${it.label}</span></button>`;}).join('')}</div>`;
  const sheet=$('#spacesheet');if(!sheet)return;
- if(UI.sheet){const list=UI.sheet==='entry'?spaceEntryItems():spaceMoreItems();const title=UI.sheet==='entry'?'Saisie':'Plus';
-  sheet.innerHTML=`<div class="spsheet-bg" data-act="spClose"></div><div class="spsheet"><div class="spsheet-h"><b>${title}</b><button class="spsheet-x" data-act="spClose" aria-label="Fermer">✕</button></div><div class="spsheet-list">${list.map(i=>`<button class="spsheet-i${i.on?' on':''}" data-act="${i.act}" data-id="${i.id||''}">${i.label}</button>`).join('')}</div></div>`;
-  sheet.hidden=false;}
+ if(UI.sheet){
+   const list=UI.sheet==='entry'?(INDIV?spaceEntryItems():spaceSaisieItems()):UI.sheet==='perf'?spacePerfItems():spaceMoreItems();
+   const title=UI.sheet==='entry'?'Saisie':UI.sheet==='perf'?'Performance':'Plus';
+   sheet.innerHTML=`<div class="spsheet-bg" data-act="spClose"></div><div class="spsheet"><div class="spsheet-h"><b>${title}</b><button class="spsheet-x" data-act="spClose" aria-label="Fermer">✕</button></div><div class="spsheet-list">${list.map(i=>`<button class="spsheet-i${i.on?' on':''}" data-act="${i.act}" data-id="${i.id||''}">${i.label}</button>`).join('')}</div></div>`;
+   sheet.hidden=false;}
  else{sheet.innerHTML='';sheet.hidden=true;}
 }
 function renderNavFoot(){const f=$('#navfoot');if(!f)return;
@@ -1587,6 +1602,32 @@ VIEWS.charge=()=>{
   return `${header}${kpis}<div class="grid g2">${dailyCard}${acwrCard}</div>${ffCard}${interp}${refs}`;
 };
 POST.charge=()=>{};
+
+/* ===================== RÉCUPÉRATION ===================== */
+VIEWS.recovery=()=>{
+  const ps=playersOf(UI.cat);if(!ps.length)return emptyPlayers();const ref=UI.ref;const th=S().th;
+  const rows=ps.map(p=>{const s=playerStatus(p,ref);const w=weekStats(p.id,ref);const e=ewma(p.id,ref);
+    let prio=0;const reasons=[];
+    if(s.inj){prio+=3;reasons.push('🩹 '+(s.inj.zone||'blessure'));}
+    if(e.acwr!=null&&e.acwr>1.3){prio+=2;reasons.push('ACWR '+r2(e.acwr));}
+    if(s.w&&s.w.today!=null&&s.w.today<th.well){prio+=2;reasons.push('forme '+r0(s.w.today)+'%');}
+    if(w.mono!=null&&w.mono>th.monotony){prio+=1;reasons.push('monotonie '+r2(w.mono));}
+    return {p,prio,reasons};}).filter(r=>r.prio>0).sort((a,b)=>b.prio-a.prio);
+  const prioCard=`<div class="card"><div class="hrow"><h2>🧊 Priorité récupération</h2><span class="small muted">${PL.Many} à surveiller aujourd'hui</span></div>
+    ${rows.length?`<div class="stack" style="gap:8px">${rows.map(r=>`<div class="row sb" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px"><span><b>${esc(r.p.name)}</b> <span class="small muted">${r.reasons.join(' · ')}</span></span><span class="pill ${r.prio>=4?'crit':'warn'}">${r.prio>=4?'Récup. prioritaire':'À alléger'}</span></div>`).join('')}</div>`:'<p class="muted small" style="margin:0">Aucune alerte : charges et formes dans le vert. 👍</p>'}</div>`;
+  const protocols=[['😴 Sommeil','7–9 h, horaires réguliers. Le premier levier de récupération.'],['💧 Hydratation','Réhydrater ~150 % des pertes (peser avant/après si possible), ajouter du sodium après une grosse séance.'],['🍽️ Nutrition post-effort','Glucides + protéines dans les 30–60 min (ratio ~3:1) pour reconstituer le glycogène.'],['🧊 Froid / contrastes','Immersion froide 10–15 °C, 10–15 min après un match intense.'],['🚴 Récupération active','20–30 min à faible intensité (vélo, mobilité) le lendemain d\'un match.'],['🧘 Charge mentale','Alterner jours durs / faciles, limiter la monotonie, prévoir des coupures.']];
+  const proCard=`<div class="card"><div class="hrow"><h2>Protocoles de récupération</h2></div><div class="grid g2">${protocols.map(([t,d])=>`<div class="card flat"><b>${t}</b><p class="small muted" style="margin:6px 0 0">${d}</p></div>`).join('')}</div></div>`;
+  return prioCard+proCard;
+};
+POST.recovery=()=>{};
+/* ===================== NUTRITION (repères football) ===================== */
+VIEWS.nutrition=()=>{
+  const cards=[['💧 Hydratation','Boire régulièrement sur la journée. ~5–7 ml/kg 4 h avant l\'effort. Pendant : 400–800 ml/h selon la chaleur. Après : compenser les pertes + sodium.'],['🍝 Avant le match (J-1 / J)','Repas riche en glucides (pâtes, riz, patate douce) 3–4 h avant, pauvre en graisses et fibres. Collation légère 1–2 h avant si besoin.'],['🥩 Après le match','Fenêtre 30–60 min : glucides (glycogène) + 20–30 g de protéines. Réhydrater avec du sodium.'],['🥗 Au quotidien','Protéines à chaque repas (1,4–1,8 g/kg/j), fruits & légumes variés, bons lipides, limiter l\'ultra-transformé.'],['🍌 Collations','Banane, fruits secs, skyr/yaourt, pain complet + jambon/œuf — autour des séances.'],['⚖️ Suivi du poids','Suis le poids de forme (Saisie → Test/mesure → Poids). Variation rapide = hydratation ; tendance = composition corporelle.']];
+  return `<div class="card"><div class="hrow"><h2>🥗 Nutrition du sportif</h2><span class="small muted">repères pour sportifs en bonne santé</span></div>
+    <div class="grid g2">${cards.map(([t,d])=>`<div class="card flat"><b>${t}</b><p class="small muted" style="margin:6px 0 0">${d}</p></div>`).join('')}</div>
+    <p class="note" style="margin-top:12px">Ces repères sont généraux. Pour un suivi individualisé (anamnèse, programme, journal), utilise le module <b>Nutrition</b> dédié depuis l'accueil Organisation.</p></div>`;
+};
+POST.nutrition=()=>{};
 
 
 /* ---------- PROGRAMME INDIVIDUEL (12 semaines) ---------- */
@@ -3639,6 +3680,7 @@ const ACT={
   pdfDel:async b=>{if(!b.classList.contains('arm')){b.classList.add('arm');const t=b.textContent;b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent=t;}},3000);return;}
     const id=b.dataset.id;await pdfDelKey(id);await del('pdfprograms',id);toast('Programme supprimé');render();},
   spMore:()=>{UI.sheet=UI.sheet==='more'?null:'more';renderSpaceNav();},
+  spPerf:()=>{UI.sheet=UI.sheet==='perf'?null:'perf';renderSpaceNav();},
   spEntry:()=>{UI.sheet=UI.sheet==='entry'?null:'entry';renderSpaceNav();},
   spClose:()=>{UI.sheet=null;renderSpaceNav();},
   saveTemplate:async()=>{const f=$('form[data-form="session"]');if(!f)return;const v=Object.fromEntries(new FormData(f));
