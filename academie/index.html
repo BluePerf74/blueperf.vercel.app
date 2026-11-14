@@ -1550,9 +1550,25 @@ VIEWS.seances=()=>{
   const table=`<div class="card"><h3>${selPid?'Séances de '+esc(indivName(selPid)):'Toutes les séances'}</h3><div class="tw"><table><thead><tr><th>Date</th><th>Séance</th><th>Type</th>${selPid?'':`<th class="n">${PL.Many}</th>`}<th class="n">Durée</th><th class="n">RPE${selPid?'':' moyen'}</th><th>Difficulté</th><th class="n">Charge</th><th></th></tr></thead><tbody>
     ${evs.slice(0,50).map(e=>{const st=stat(e);const [dl,dc]=rpeDiff(st.rpe);return `<tr${e.id===selId?' style="background:var(--accent-soft)"':''}><td>${fmtShort(e.date)}</td><td class="wrap">${esc(e.title||e.type)}</td><td><span class="pill ${e._m?'crit':'neutral'}" style="font-size:11px">${e._m?(INDIV?'Compét.':'Match'):esc(e.type||'Entr.')}</span></td>${selPid?'':`<td class="n">${st.n}/${st.np}</td>`}<td class="n">${st.dur||'–'}</td><td class="n"><b>${st.rpe!=null?r1(st.rpe):'–'}</b></td><td><span class="pill ${dc}">${dl}</span></td><td class="n">${st.load!=null?r0(st.load):'–'}</td><td><div class="row" style="flex-wrap:nowrap;gap:5px;justify-content:flex-end"><button class="btn sm" data-act="seanceOpen" data-id="${esc(e.id)}">Détail</button><button class="btn sm" data-act="edit" data-col="${esc(e.col)}" data-id="${esc(e.id)}">Modifier</button><button class="btn sm danger" data-act="del" data-col="${esc(e.col)}" data-id="${esc(e.id)}">Supprimer</button></div></td></tr>`;}).join('')}
     </tbody></table></div></div>`;
+  // Football : check des séances collectives (présents/absents/blessés) + présence par joueur
+  let collCard='',presCard='';
+  if(!INDIV){
+    const isIll=i=>/malad|grippe|angine|virus|gastro|fi[eè]vre|rhume/i.test(((i&&i.type)||'')+' '+((i&&i.zone)||''));
+    const tps=playersOf(UI.cat);
+    const sdays=range(addDays(ref,-27),ref).filter(d=>Object.values(DATA.sessions).some(s=>s.date===d&&inC(s)));
+    const last=sdays[sdays.length-1];
+    if(last){let pr=0,ab=0,ij=0,il=0;const lp=[],la=[],li=[];tps.forEach(p=>{const ai=activeInjury(p.id,last);const x=pday(p.id,last);const did=x&&x.n>0;if(ai&&ai.date<=last){if(isIll(ai)){il++;}else{ij++;li.push(p.name);}}else if(did){pr++;lp.push(p.name);}else{ab++;la.push(p.name);}});
+      collCard=`<div class="card"><div class="hrow"><h2>Dernière séance collective — ${fmtD(last)}</h2><span class="small muted">présences / absences / blessés</span></div>
+        <div class="grid g4">${kpi('Présents',pr,'/'+tps.length,'à l\'entraînement')}${kpi('Absents',ab,'',ab?la.slice(0,4).join(', ')+(la.length>4?'…':''):'personne',ab?'warn':null)}${kpi('Blessés',ij,'',li.slice(0,3).join(', ')||'aucun',ij?'crit':null)}${kpi('Malades',il,'',il?'':'aucun',il?'warn':null)}</div></div>`;}
+    const rows=tps.map(p=>{let pres=0,abs=0,injd=0;sdays.forEach(d=>{const ai=activeInjury(p.id,d);const x=pday(p.id,d);if(ai&&ai.date<=d){injd++;}else if(x&&x.n>0){pres++;}else{abs++;}});const tot=pres+abs;return {p,pres,abs,injd,rate:tot?Math.round(pres/tot*100):null};}).sort((a,b)=>(a.rate==null?999:a.rate)-(b.rate==null?999:b.rate));
+    presCard=`<div class="card"><div class="hrow"><h2>Présence aux entraînements (28 j)</h2><span class="small muted">${sdays.length} séance(s) collective(s)</span></div>
+      ${sdays.length?`<div class="tw"><table><thead><tr><th>Joueur</th><th class="n">Présences</th><th class="n">Absences</th><th class="n">Blessé (j)</th><th class="n">Taux</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td>${plinkA(r.p.id)}</td><td class="n">${r.pres}</td><td class="n">${r.abs?`<span class="pill warn">${r.abs}</span>`:'0'}</td><td class="n">${r.injd||'–'}</td><td class="n"><b>${r.rate!=null?r.rate+' %':'–'}</b></td></tr>`).join('')}
+      </tbody></table></div>`:'<p class="muted small" style="margin:0">Aucune séance collective sur la période.</p>'}</div>`;
+  }
   return `${seanceCalendar()}
     <div class="sect-head"><h2 class="sect-title">📊 Analyse des séances ${selPid?`<span class="pill info" style="font-size:12px;vertical-align:middle">${esc(indivName(selPid))}</span>`:'<span class="muted" style="font-weight:400;font-size:13px">— difficulté ressentie (RPE) & charge</span>'}</h2></div>
-    ${kpis}${curves}${detail}${table}`;
+    ${collCard}${kpis}${curves}${presCard}${detail}${table}`;
 };
 POST.seances=()=>{};
 
@@ -1773,8 +1789,12 @@ VIEWS.overview=()=>{
     ${rpeMiss.length?`<div class="tw"><table><thead><tr><th>Date</th><th>${INDIV?'Séance':'Séance / match'}</th><th>RPE manquants</th><th></th></tr></thead><tbody>
       ${rpeMiss.map(x=>`<tr><td>${fmtD(x.date)}</td><td>${esc(x.title)}${(!INDIV&&UI.cat==='Tous')?' · '+esc(x.cat):''}</td>
         <td><span class="pill warn">${x.names.length}</span> <span class="small muted">${esc(x.names.slice(0,4).join(', '))}${x.names.length>4?'…':''}</span></td>
-        <td><button class="btn sm pri" data-act="rpeComplete" data-col="${x.col}" data-id="${esc(x.id)}">Compléter</button></td></tr>`).join('')}
+        <td><div class="row" style="flex-wrap:nowrap;gap:5px;justify-content:flex-end"><button class="btn sm" data-act="sendRpe" data-id="${esc(x.id)}" title="Rouvrir la fenêtre pour que ${INDIV?'le/la client·e':'les joueur·ses'} saisissent eux-mêmes">↻ Relancer</button><button class="btn sm pri" data-act="rpeComplete" data-col="${x.col}" data-id="${esc(x.id)}">Compléter</button></div></td></tr>`).join('')}
     </tbody></table></div>`:'<p class="muted" style="margin:0">Tous les RPE des 21 derniers jours sont saisis 👍</p>'}</div>`;
+  // --- Alerte douleurs : blessures actives + courbatures marquées signalées au wellness ---
+  const painList=ps.map(p=>{const ai=activeInjury(p.id,ref);let sore=null,zones=[];for(let k=0;k<4;k++){const e=wEntry(p.id,addDays(ref,-k));if(e){if(num(e.soreness)!=null)sore=6-num(e.soreness);zones=e.soreZones||[];break;}}return {p,ai,sore,zones};}).filter(x=>x.ai||(x.sore!=null&&x.sore>=4)||(x.zones&&x.zones.length));
+  const painCard=painList.length?`<div class="card" style="border-left:3px solid var(--crit)"><div class="hrow"><h2>🩹 Douleurs signalées</h2><span class="small muted">blessures en cours & courbatures marquées</span></div>
+    <div class="stack" style="gap:8px">${painList.map(x=>`<div class="row sb" style="padding:9px 12px;border:1px solid var(--line);border-radius:10px"><span><b>${esc(x.p.name)}</b> ${x.ai?`<span class="pill crit">🩹 ${esc(x.ai.zone||'Blessure')}${x.ai.side?' ('+esc(x.ai.side)+')':''}</span>`:''}${x.sore!=null&&x.sore>=4?`<span class="pill warn">Courbatures ${x.sore}/5</span>`:''}${(x.zones&&x.zones.length)?`<span class="small muted">${esc(x.zones.join(', '))}</span>`:''}</span><button class="btn sm" data-act="${x.ai?'tab':'fillPlayer'}" data-id="${x.ai?'medical':esc(x.p.id)}" data-tab="sante">${x.ai?'Médical':'Voir'}</button></div>`).join('')}</div></div>`:'';
   return `${quickstart()}<div class="grid g6">
     ${kpi('Disponibles',ps.length-unavail,'/'+ps.length,unavail?unavail+' blessé'+(unavail>1?'s':'')+(INDIV?' ou en reprise':' ou en réathlé'):(INDIV?'Tout le monde est disponible':'Tout le groupe est disponible'))}
     ${kpi('Alertes',red,'',`<span class="pill crit">${red} rouge${red>1?'s':''}</span> <span class="pill warn">${orange} orange</span>`,red?'crit':null)}
@@ -1783,6 +1803,7 @@ VIEWS.overview=()=>{
     ${kpi('ACWR moyen',ac!=null?r2(ac):'–','',`Zone cible ${r1(th.acwrLo)}–${r1(th.acwrHi)} (EWMA 7/28 j)`,ac!=null?(acwrCls(ac)==='good'?null:acwrCls(ac)):null)}
     ${INDIV?kpi('Séances (7 j)',Object.values(DATA.sessions).filter(x=>inCat(x)&&x.date>=addDays(ref,-6)&&x.date<=ref).length,'','toutes séances confondues'):kpi('Prochain match',nm?(dayDiff(nm.date,ref)===0?'J':'J-'+dayDiff(nm.date,ref)):'–','',nm?esc(fmtD(nm.date)+' · '+nm.label):'Aucun match planifié')}
   </div>
+  ${painCard}
   ${squadCard}
   ${toFillCard}
   ${rpeMissCard}
