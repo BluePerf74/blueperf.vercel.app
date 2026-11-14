@@ -1052,6 +1052,7 @@ async function loadSessionsToday(){
   Object.values(allS).forEach(s=>{
     if(!s||s.cat!==PLAYER.cat)return;
     if(s.source==='joueur')return; // activités perso : gérées dans l'onglet activité de la semaine
+    if(s.shared===false)return; // séance gardée privée par le coach
     const me=(s.players&&s.players[PLAYER.id])||null;if(!me)return;
     const submitted=me.rpe!=null||(me.partRpe&&Object.keys(me.partRpe).length);
     const windowOpen=s.rpeOpenedAt&&(now-s.rpeOpenedAt)<RPE_WINDOW_MS;
@@ -1066,6 +1067,7 @@ async function loadSessionsToday(){
   // Matchs affectés (difficulté RPE + note de perf + commentaire)
   Object.values(allM).forEach(m=>{
     if(!m||m.cat!==PLAYER.cat)return;
+    if(m.shared===false)return; // compétition gardée privée par le coach
     const me=(m.players&&m.players[PLAYER.id])||null;if(!me)return; // seulement les participantes
     const submitted=me.rpe!=null||me.perf!=null;
     const windowOpen=m.rpeOpenedAt&&(now-m.rpeOpenedAt)<RPE_WINDOW_MS;
@@ -1275,8 +1277,8 @@ let MY_SESSIONS=[];
 async function loadMySessions(){
   const allS=await kvGet(SPACE+':sessions');
   const allM=await kvGet(SPACE+':matches');
-  const list=Object.values(allS).filter(s=>s&&s.players&&s.players[PLAYER.id]);
-  Object.values(allM).forEach(m=>{if(m&&m.players&&m.players[PLAYER.id])list.push(Object.assign({},m,{type:'Match',title:'Match vs '+(m.opponent||''),isMatch:true}));});
+  const list=Object.values(allS).filter(s=>s&&s.players&&s.players[PLAYER.id]&&s.shared!==false);
+  Object.values(allM).forEach(m=>{if(m&&m.players&&m.players[PLAYER.id]&&m.shared!==false)list.push(Object.assign({},m,{type:'Match',title:'Match vs '+(m.opponent||''),isMatch:true}));});
   MY_SESSIONS=list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
 function addDaysISO(d,n){const [y,m,dd]=d.split('-').map(Number);const t=new Date(Date.UTC(y,m-1,dd));t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10);} // UTC : pas de décalage de fuseau
@@ -1434,10 +1436,27 @@ async function overviewHtml(){
     ${!wt?`<div class="row"><button class="btn block" data-goto="sante">Remplir mon wellness</button></div>`:''}`;
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
-let MY_PLAN=null, PROG_WEEK=null, PROG_OPEN=null;
+let MY_PLAN=null, PROG_WEEK=null, PROG_OPEN=null, MY_PDFS=[];
 async function loadMyPlan(){
   const all=await kvGet(SPACE+':seanceplans');
-  MY_PLAN=(all&&all[PLAYER.id]&&Array.isArray(all[PLAYER.id].weeks)&&all[PLAYER.id].weeks.length)?all[PLAYER.id]:null;
+  const pl=all&&all[PLAYER.id];
+  MY_PLAN=(pl&&pl.shared!==false&&Array.isArray(pl.weeks)&&pl.weeks.length)?pl:null;
+}
+async function loadMyPdfs(){
+  try{const all=(await kvGet(SPACE+':pdfprograms'))||{};
+    MY_PDFS=Object.values(all).filter(x=>x&&x.cid===PLAYER.id&&x.shared!==false).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  }catch(e){MY_PDFS=[];}
+}
+async function openMyPdf(id,btn){
+  const old=btn.textContent;btn.disabled=true;btn.textContent='…';
+  let data=null;try{const r=await fetch('/api/storage?action=get&key='+encodeURIComponent(SPACE+':pdf:'+id)+'&_='+Date.now(),{cache:'no-store'});const j=await r.json();data=j&&j.value?j.value:null;}catch(e){}
+  btn.disabled=false;btn.textContent=old;
+  if(!data){alert('Document introuvable.');return;}
+  try{const parts=data.split(',');const bin=atob(parts[1]||'');const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);const blob=new Blob([arr],{type:'application/pdf'});const url=URL.createObjectURL(blob);window.open(url,'_blank');setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){window.open(data,'_blank');}
+}
+function myPdfsCard(){
+  if(!MY_PDFS.length)return '';
+  return `<div class="card"><b style="font-size:16px">📄 Mes programmes (PDF)</b><div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${MY_PDFS.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line-2);border-radius:12px;padding:10px 12px"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name||'Programme')}</b><span class="muted" style="font-size:12px">${x.date?new Date(x.date).toLocaleDateString('fr-FR'):''}${x.size?' · '+Math.round(x.size/1024)+' Ko':''}</span></div><button class="btn" data-pdfopen="${esc(x.id)}" style="padding:9px 14px;flex:none">Ouvrir</button></div>`).join('')}</div></div>`;
 }
 async function saveProgDone(ref,val){
   const all=await kvGet(SPACE+':seanceplans');
@@ -1563,7 +1582,7 @@ function navIco(n){
 }
 function bottomNav(){
   const items=[['apercu','Accueil']];
-  if(MY_PLAN)items.push(['programme','Programme']);
+  if(MY_PLAN||MY_PDFS.length)items.push(['programme','Programme']);
   items.push(['sante','Santé'],['rpe','Charge']);
   if(NUTRI_CID)items.push(['nutrition','Nutrition']);
   if(SPACE==='ci'&&!COACH_MODE)items.push(['messages','Messages']);
@@ -1580,12 +1599,13 @@ async function renderSpace(skipLoad){
     loadNutriLink(),
     selfLog()?loadStore():Promise.resolve(),
     menstruAllowed(PLAYER)?loadMenstru():Promise.resolve(),
-    (SPACE==='ci'&&!COACH_MODE)?loadMyMessages():Promise.resolve()
+    (SPACE==='ci'&&!COACH_MODE)?loadMyMessages():Promise.resolve(),
+    (SPACE==='ci'&&!COACH_MODE)?loadMyPdfs():Promise.resolve()
   ]);
   if(ESPACE_TAB==='boutique'&&!selfLog())ESPACE_TAB='apercu';
   if(ESPACE_TAB==='nutrition'&&!NUTRI_CID)ESPACE_TAB='apercu';
   if(ESPACE_TAB==='menstruation')ESPACE_TAB='sante'; // le cycle est désormais intégré dans Santé & forme
-  if(ESPACE_TAB==='programme'&&!MY_PLAN)ESPACE_TAB='apercu';
+  if(ESPACE_TAB==='programme'&&!MY_PLAN&&!MY_PDFS.length)ESPACE_TAB='apercu';
   if(ESPACE_TAB==='messages'&&(SPACE!=='ci'||COACH_MODE))ESPACE_TAB='apercu';
   $('#app').innerHTML=`
     <div class="topbar">
@@ -1636,12 +1656,13 @@ async function renderTab(){
   }else if(ESPACE_TAB==='nutrition'){
     c.innerHTML=`<div class="card" style="padding:0;overflow:hidden;background:#0f1d30"><iframe src="/academie/nutrition.html?client=${encodeURIComponent(NUTRI_CID)}&view=player" title="Nutrition" style="width:100%;height:78vh;border:0;display:block"></iframe></div>`;
   }else if(ESPACE_TAB==='programme'){
-    c.innerHTML=programmeHtml();
+    c.innerHTML=(MY_PLAN?programmeHtml():'')+myPdfsCard();
     document.querySelectorAll('[data-pweek]').forEach(b=>b.onclick=()=>{PROG_WEEK=+b.getAttribute('data-pweek');PROG_OPEN=null;renderTab();});
     document.querySelectorAll('[data-ptoggle]').forEach(b=>b.onclick=()=>{const r=b.getAttribute('data-ptoggle');PROG_OPEN=PROG_OPEN===r?null:r;renderTab();});
     document.querySelectorAll('[data-pvalidate]').forEach(b=>b.onclick=async()=>{b.disabled=true;await saveProgDone(b.getAttribute('data-pvalidate'),{date:TODAY,rpe:null});renderTab();});
     document.querySelectorAll('[data-punvalidate]').forEach(b=>b.onclick=async()=>{b.disabled=true;await saveProgDone(b.getAttribute('data-punvalidate'),null);renderTab();});
     document.querySelectorAll('[data-prpe]').forEach(inp=>inp.onchange=async()=>{const v=inp.value===''?null:Math.max(0,Math.min(10,+inp.value));await saveProgDone(inp.getAttribute('data-prpe'),{rpe:v});});
+    document.querySelectorAll('[data-pdfopen]').forEach(b=>b.onclick=()=>openMyPdf(b.getAttribute('data-pdfopen'),b));
   }else if(ESPACE_TAB==='boutique'){
     c.innerHTML=boutiqueHtml();
     bindBoutique();
