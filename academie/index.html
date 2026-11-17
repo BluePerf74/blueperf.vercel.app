@@ -111,6 +111,19 @@ a{color:var(--accent)}
 .kpi .d{font-size:12px;color:var(--muted);margin-top:2px}
 .kpi{position:relative;overflow:hidden}
 .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--accent),var(--s3));opacity:.85}
+/* ===== Skin Football — look « Espace Performance » (barre du bas, logo & couleurs Elite Adapt conservés) ===== */
+.skin-foot .kpi{padding-left:18px}
+.skin-foot .kpi::before{width:4px;border-radius:0;opacity:1;background:var(--k,var(--accent))}
+.skin-foot .kpi .v{color:var(--ink)!important;font-size:37px}
+.skin-foot .kpi .v small{color:var(--muted)}
+.skin-foot .kpi .eyebrow{font-size:12px;letter-spacing:.07em}
+.skin-foot .kpi .d{font-size:12.5px}
+.skin-foot .card{border-radius:12px}
+.skin-foot .card h2,.skin-foot .card h3{letter-spacing:.2px}
+/* titres de page un peu plus marqués, comme la maquette */
+.skin-foot .top h1{font-size:30px;letter-spacing:.3px}
+/* en-têtes de tableau denses */
+.skin-foot th{font-size:11.5px;letter-spacing:.06em}
 /* AVATARS */
 .avatar{display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-family:var(--fd);font-weight:700;border-radius:50%;background-size:cover;background-position:center;width:34px;height:34px;font-size:14px;line-height:1;flex:none;overflow:hidden;border:1px solid var(--line);vertical-align:middle}
 .avatar.xs{width:26px;height:26px;font-size:11px}
@@ -1240,6 +1253,7 @@ function allTabIds(){const o=[];TABS.forEach(t=>{if(t.children)t.children.forEac
 function saveUI(){try{localStorage.setItem(LSKEY+'-ui',JSON.stringify({tab:UI.tab,cat:UI.cat,seen:UI.seen}));}catch(e){}}
 const INDIV=MODE==='individuel';
 const INDIV_CAT='Individuel';
+try{if(!INDIV&&document.body)document.body.classList.add('skin-foot');}catch(e){}
 /* Libellés : en coaching individuel on parle de « client·e·s », pas de « joueur·se·s ». */
 const PL={one:INDIV?'client·e':'joueur·se',One:INDIV?'Client·e':'Joueur·se',many:INDIV?'client·es':'joueur·ses',Many:INDIV?'Client·es':'Joueur·ses'};
 /* Sports possibles en coaching individuel (le sport n'est pas forcément le football). */
@@ -1839,7 +1853,7 @@ VIEWS.programme=()=>{
 const COL_TR='var(--accent)',COL_MATCH='var(--s2)',COL_REA='var(--s3)';
 const CHART_LEG=INDIV?[['Séance',COL_TR],['Compétition',COL_MATCH]]:[['Entraînement',COL_TR],['Match',COL_MATCH]];
 function emptyPlayers(){return `<div class="card"><h2>${INDIV?'Aucun·e client·e':'Aucun joueur'+(UI.cat!=='Tous'?' en '+esc(UI.cat):'')}</h2><p class="muted">${INDIV?'Ajoute tes client·es pour que les tableaux se remplissent.':'Ajoute ton effectif pour que les tableaux se remplissent.'}</p><button class="btn pri" data-act="goEntry" data-id="player">${INDIV?'Ajouter des client·es':'Ajouter des joueurs'}</button></div>`;}
-function kpi(label,v,unit,d,cls){return `<div class="card kpi"><div class="eyebrow">${label}</div><div class="v" ${cls?`style="color:var(--${cls})"`:''}>${v}${unit?`<small>${unit}</small>`:''}</div>${d?`<div class="d">${d}</div>`:''}</div>`;}
+function kpi(label,v,unit,d,cls){return `<div class="card kpi"${cls?` style="--k:var(--${cls})"`:''}><div class="eyebrow">${label}</div><div class="v" ${cls?`style="color:var(--${cls})"`:''}>${v}${unit?`<small>${unit}</small>`:''}</div>${d?`<div class="d">${d}</div>`:''}</div>`;}
 function teamDaily(ps,end,n,key='load'){const labels=[],vals=[],isM=[];for(let i=n-1;i>=0;i--){const d=addDays(end,-i);labels.push(d);const v=ps.map(p=>pday(p.id,d)).filter(x=>x&&x[key]>0);vals.push(v.length?mean(v.map(x=>x[key])):0);isM.push(v.some(x=>x.match));}return{labels,vals,isM};}
 function teamWell(ps,end,n,key){const labels=[],vals=[];for(let i=n-1;i>=0;i--){const d=addDays(end,-i);labels.push(d);const v=ps.map(p=>{const e=wEntry(p.id,d);return key?num(e&&e[key]):wScore(e);}).filter(x=>x!=null);vals.push(v.length?mean(v):null);}return{labels,vals};}
 function chgTxt(c){if(c==null)return 'Pas encore d’historique';const s=(c>0?'+':'')+r0(c)+' % vs moyenne des 3 semaines précédentes';return s;}
