@@ -1509,7 +1509,7 @@ function renderFullApp(section){
   let src = section === 'individuel' ? '/academie/?mode=individuel'
     : section === 'nutrition' ? '/academie/nutrition.html'
     : section === 'apa' ? '/academie/apa.html?coach=1'
-    : '/academie/' + footQ;
+    : '/academie/foot.html' + footQ;
   if(section === 'football' && state.fbDemo){ src += (src.indexOf('?')>=0?'&':'?') + 'demo=1'; }
   const label = section === 'individuel' ? t('COACHING INDIVIDUEL','INDIVIDUAL') : section === 'nutrition' ? 'NUTRITION' : section === 'apa' ? 'APA' : 'FOOTBALL';
   const swBtn = (sec, txt) => {
