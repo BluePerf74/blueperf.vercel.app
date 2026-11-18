@@ -943,26 +943,36 @@ async function logout(){
    ========================================================= */
 function renderLoginScreen(){
   if(state.loginStep === 'signup'){ renderSignupScreen(); return; }
+  const _icU = `<svg class="login-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c0-3.4 3.2-5.6 7.5-5.6S19.5 16.6 19.5 20"/></svg>`;
+  const _icL = `<svg class="login-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>`;
+  const _eye = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const _eyeOff = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 0 0 4.2 4.2"/><path d="M9.4 5.2A10 10 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-3.2 4.1"/><path d="M6.1 6.1A18 18 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 3.1-.5"/></svg>`;
   app.innerHTML = `
     <div class="login-screen">
-      <div class="login-card">
-        ${shieldSvg()}
-        <h1 class="login-brand">Elite<span> Adapt</span></h1>
-        <p class="login-sub">Connecte-toi / Log in</p>
+      <div class="login-fx" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="login-inner">
+        <div class="login-hero">
+          <div class="login-logo-glow">${shieldSvg()}</div>
+          <h1 class="login-wm">Elite<span>Adapt</span></h1>
+          <p class="login-tag">Ta meilleure version commence ici.</p>
+        </div>
         <form id="login-form" class="login-form">
-          <label for="login-user">IDENTIFIANT / USERNAME</label>
-          <input type="text" id="login-user" name="username" placeholder="Identifiant" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
-          <label for="login-pass">MOT DE PASSE / PASSWORD</label>
-          <div class="login-pass-wrap">
-            <input type="password" id="login-pass" name="password" placeholder="•••" autocomplete="current-password">
-            <button type="button" class="login-pass-toggle" id="login-pass-toggle" aria-label="Afficher le mot de passe / Show password" aria-pressed="false">AFFICHER</button>
+          <div class="login-field">${_icU}
+            <input type="text" id="login-user" name="username" placeholder="Identifiant" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Identifiant">
           </div>
-          <button type="submit" class="login-submit">Se connecter / Log in</button>
+          <div class="login-field login-pass-wrap">${_icL}
+            <input type="password" id="login-pass" name="password" placeholder="Mot de passe" autocomplete="current-password" aria-label="Mot de passe">
+            <button type="button" class="login-pass-toggle" id="login-pass-toggle" aria-label="Afficher le mot de passe" aria-pressed="false">${_eye}</button>
+          </div>
+          <button type="submit" class="login-submit">Se connecter <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
         </form>
         ${state.loginError ? `<div class="login-error" role="alert">${state.loginError}</div>` : ''}
         ${state.loginNotice ? `<div class="login-error" role="status" style="color:#8fe0b0;border-color:rgba(47,191,113,.5);background:rgba(47,191,113,.12)">${state.loginNotice}</div>` : ''}
-        <p class="login-forgot">Mot de passe oublié ? <button type="button" id="login-forgot">Voir ici</button></p>
-        <p class="login-forgot" style="margin-top:2px">Enseignant·e APA ? <button type="button" id="login-signup">Créer un compte</button></p>
+        <div class="login-aux">
+          <button type="button" id="login-forgot">Mot de passe oublié ?</button>
+          <span class="login-dot">·</span>
+          <button type="button" id="login-signup">Enseignant·e APA — créer un compte</button>
+        </div>
         <div class="login-hint" id="login-hint" hidden>Ton identifiant et ton mot de passe te sont fournis par ton coach. En cas d'oubli, contacte-le/la directement : il/elle peut les retrouver ou les réinitialiser depuis son espace.</div>
         <p class="login-legal">
           Données de santé et de performance traitées pour le suivi sportif. Pour les moins de 15 ans, l'inscription requiert l'accord d'un parent ou tuteur.
@@ -981,7 +991,8 @@ function renderLoginScreen(){
     const inp = document.getElementById('login-pass');
     const show = inp.type === 'password';
     inp.type = show ? 'text' : 'password';
-    tog.textContent = show ? 'MASQUER' : 'AFFICHER';
+    tog.innerHTML = show ? _eyeOff : _eye;
+    tog.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
     tog.setAttribute('aria-pressed', show ? 'true' : 'false');
   });
   const fg = document.getElementById('login-forgot');

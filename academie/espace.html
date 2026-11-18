@@ -51,6 +51,48 @@ h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 #tabc .kpi{background:none;border:0;box-shadow:none;border-radius:0;padding:1px 0 1px 12px}
 #tabc .kpi::after{border-radius:3px}
 #tabc .well-ic{background:none;border:0;width:auto;height:auto}
+/* Activité de la semaine : repère visuel (point par jour) + plage de dates en bulle */
+.wk-pill{flex:none;background:var(--surface);border:1px solid var(--line-2);border-radius:999px;padding:8px 18px;font-family:var(--fd);font-weight:700;font-size:14px;white-space:nowrap;letter-spacing:.01em}
+.dayblock{padding:13px 0;border-bottom:1px solid var(--line)}
+.dayblock:last-child{border-bottom:0}
+.dayhead{display:flex;align-items:center;gap:11px}
+.daydot{width:10px;height:10px;border-radius:50%;background:var(--line-2);flex:none}
+.daydot.on{background:var(--grad)}
+.daydot.today{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 20%,transparent)}
+.dayname{font-weight:700;text-transform:capitalize}
+.dayadd{margin-left:auto;flex:none}
+.daybody{margin:6px 0 0 21px}
+/* Écran de connexion premium */
+.lg-screen{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:26px 20px calc(26px + env(safe-area-inset-bottom,0px));overflow:auto;color:#eaf1fb;background:radial-gradient(1000px 640px at 15% -12%,#19427f 0,transparent 56%),radial-gradient(820px 560px at 108% 118%,#0b3357 0,transparent 52%),linear-gradient(165deg,#060b16,#0a1627 52%,#05080f);font-family:var(--fd)}
+.lg-fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lg-fx span{position:absolute;border-radius:50%;filter:blur(64px);opacity:.5;mix-blend-mode:screen;animation:lgFloat 15s ease-in-out infinite}
+.lg-fx span:nth-child(1){width:340px;height:340px;left:-80px;top:-70px;background:#2a6bff}
+.lg-fx span:nth-child(2){width:300px;height:300px;right:-80px;bottom:-50px;background:#15b4c7;animation-delay:-5s}
+.lg-fx span:nth-child(3){width:220px;height:220px;right:18%;top:6%;background:#ff7a66;opacity:.26;animation-delay:-9s}
+@keyframes lgFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(28px,-24px) scale(1.06)}}
+.lg-inner{position:relative;z-index:1;width:100%;max-width:404px;margin:auto;animation:lgUp .6s cubic-bezier(.2,.7,.2,1) both}
+@keyframes lgUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.lg-hero{text-align:center;margin-bottom:28px}
+.lg-glow{display:inline-grid;place-items:center;width:94px;height:94px;margin:0 auto 16px;border-radius:27px;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.13);box-shadow:0 20px 54px -14px rgba(42,107,255,.65),inset 0 1px 0 rgba(255,255,255,.16)}
+.lg-glow img{width:58px;height:auto;display:block}
+.lg-wm{margin:0;font-family:var(--fd);font-size:36px;line-height:1;font-weight:700;letter-spacing:.01em}
+.lg-wm span{background:linear-gradient(92deg,#ff9a6b,#ff6f91);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-left:.22em}
+.lg-tag{margin:13px 0 0;font-family:var(--fb);color:#aebdd4;font-size:14.5px;font-weight:500}
+.lg-form{display:flex;flex-direction:column;gap:12px}
+.lg-field{position:relative;display:flex;align-items:center}
+.lg-field .lg-ic{position:absolute;left:15px;width:19px;height:19px;color:#6d82a0;pointer-events:none}
+.lg-field input{width:100%;padding:15px 16px 15px 44px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);color:#eaf1fb;font-size:15.5px;font-family:var(--fb)}
+.lg-field input::placeholder{color:#64748f}
+.lg-field input:focus{outline:0;border-color:#4d86ff;background:rgba(77,134,255,.08);box-shadow:0 0 0 4px rgba(77,134,255,.17)}
+.lg-field .lg-eye{position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:0;color:#7e90a8;cursor:pointer;padding:9px;line-height:0}
+.lg-field .lg-eye svg{width:20px;height:20px}
+.lg-sub{width:100%;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:9px;padding:16px;border-radius:14px;border:0;cursor:pointer;font-family:var(--fd);font-weight:700;font-size:15.5px;letter-spacing:.02em;color:#fff;background:linear-gradient(100deg,#2a6bff,#3f8bff 55%,#15b4c7);box-shadow:0 14px 34px -10px rgba(42,107,255,.7);transition:transform .12s,filter .16s}
+.lg-sub:hover{filter:brightness(1.06)}
+.lg-sub:active{transform:translateY(1px)}
+.lg-sub svg{width:18px;height:18px}
+.lg-note{margin:16px auto 0;max-width:330px;text-align:center;font-family:var(--fb);color:#8aa0bd;font-size:12.5px;line-height:1.5}
+.lg-err2{margin-top:12px;text-align:center;font-family:var(--fb);color:#ffc2b8;font-size:13px;min-height:1px}
+@media(prefers-reduced-motion:reduce){.lg-fx span{animation:none}}
 /* Accordéon (historique repliable) : fermé par défaut, s'ouvre au clic */
 details.acc{border:0}
 summary.acc-sum{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -545,19 +587,29 @@ function saveSession(pid){try{sessionStorage.setItem('espace_pid',pid);sessionSt
 function clearSession(){try{sessionStorage.removeItem('espace_pid');sessionStorage.removeItem('espace_space');}catch(e){}}
 
 function renderLogin(msg){
+  const icU=`<svg class="lg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c0-3.4 3.2-5.6 7.5-5.6S19.5 16.6 19.5 20"/></svg>`;
+  const icL=`<svg class="lg-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>`;
+  const eye=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const eyeOff=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 0 0 4.2 4.2"/><path d="M9.4 5.2A10 10 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-3.2 4.1"/><path d="M6.1 6.1A18 18 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 3.1-.5"/></svg>`;
   $('#app').innerHTML=`
-    <div style="text-align:center;margin:28px 0 22px">
-      <div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">Elite<span> Adapt</span></div>
-      <div class="muted" style="font-size:12px;letter-spacing:.14em;text-transform:uppercase">Mon espace</div>
-    </div>
-    <div class="card">
-      <h2>Connexion</h2>
-      <p class="sub" style="margin-bottom:14px">Entre l'identifiant et le mot de passe donnés par ton coach.</p>
-      <div class="field"><label>Identifiant</label><input id="lg-user" autocomplete="username" placeholder="ton identifiant"></div>
-      <div class="field"><label>Mot de passe</label><input id="lg-pass" type="password" autocomplete="current-password" placeholder="ton mot de passe"></div>
-      <button class="btn block" id="lg-btn">Se connecter</button>
-      <div class="err" id="lg-err">${msg||''}</div>
+    <div class="lg-screen">
+      <div class="lg-fx" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="lg-inner">
+        <div class="lg-hero">
+          <div class="lg-glow"><img src="/elite-adapt-mark.svg" alt="Elite Adapt"></div>
+          <h1 class="lg-wm">Elite<span>Adapt</span></h1>
+          <p class="lg-tag">Ton suivi, ta progression — rien que pour toi.</p>
+        </div>
+        <div class="lg-form">
+          <div class="lg-field">${icU}<input id="lg-user" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Identifiant" aria-label="Identifiant"></div>
+          <div class="lg-field">${icL}<input id="lg-pass" type="password" autocomplete="current-password" placeholder="Mot de passe" aria-label="Mot de passe"><button type="button" class="lg-eye" id="lg-eye" aria-label="Afficher le mot de passe">${eye}</button></div>
+          <button class="lg-sub" id="lg-btn">Se connecter <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
+        <div class="lg-err2" id="lg-err">${msg||''}</div>
+        <p class="lg-note">Identifiant et mot de passe fournis par ton coach. En cas d'oubli, contacte-le directement.</p>
+      </div>
     </div>`;
+  const eb=$('#lg-eye');if(eb)eb.onclick=()=>{const i=$('#lg-pass');const sh=i.type==='password';i.type=sh?'text':'password';eb.innerHTML=sh?eyeOff:eye;eb.setAttribute('aria-label',sh?'Masquer le mot de passe':'Afficher le mot de passe');};
   const go=async()=>{
     const u=$('#lg-user').value,p=$('#lg-pass').value;
     if(!u||!p){$('#lg-err').textContent='Renseigne identifiant et mot de passe.';return;}
@@ -935,27 +987,34 @@ function activityWeekCard(){
   const title=`${new Date(ACT_WEEK+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} → ${new Date(sun+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`;
   const dayBlocks=days.map(d=>{
     const list=acts.filter(s=>s.date===d);
-    const items=list.map(s=>{const me=s.players[PLAYER.id]||{};const sp=sportOf(s.sport);
-      return `<div class="session" style="margin-bottom:8px;padding:10px"><div class="t">${sp?sp.e+' ':''}${esc(s.title||s.type||'Activité')}</div>
-        <div class="m">${me.min?me.min+' min':''}${s.distance?' · '+s.distance+' km':''}${me.rpe!=null?' · RPE '+me.rpe:''}</div>
-        ${s.detail?`<div class="muted" style="font-size:12px;margin-top:3px;white-space:pre-wrap">${esc(s.detail)}</div>`:''}
-        <div class="row" style="gap:6px;margin-top:6px"><button class="btn sec" data-editact="${esc(s.id)}" style="padding:5px 10px;font-size:12px">Modifier</button><button class="btn sec" data-delact="${esc(s.id)}" style="padding:5px 10px;font-size:12px">Supprimer</button></div></div>`;}).join('')
-      ||'<p class="muted" style="font-size:12.5px;margin:0 0 6px">Aucune activité ce jour.</p>';
     const isOpen=ACT_DAY===d;
-    const form=isOpen?activityForm(d):'';
-    return `<div style="padding:14px 0;border-bottom:1px solid var(--line)">
-      <div class="row" style="justify-content:space-between"><b style="text-transform:capitalize">${weekdayLabel(d)}${d===TODAY?' · aujourd\'hui':''}</b><span class="muted" style="font-size:12px">${d.slice(8)}/${d.slice(5,7)}</span></div>
-      <div style="margin-top:8px">${items}</div>
-      <button class="btn sec" data-addday="${d}" style="padding:7px 12px;font-size:13px">${isOpen?'Annuler':'+ Ajouter une activité'}</button>
-      ${form}</div>`;
+    const items=list.map(s=>{const me=s.players[PLAYER.id]||{};const sp=sportOf(s.sport);
+      return `<div style="padding:6px 0">
+        <div style="font-weight:600;font-size:14px">${sp?sp.e+' ':''}${esc(s.title||s.type||'Activité')}</div>
+        <div class="muted" style="font-size:12.5px">${me.min?me.min+' min':''}${s.distance?' · '+s.distance+' km':''}${me.rpe!=null?' · RPE '+me.rpe:''}</div>
+        ${s.detail?`<div class="muted" style="font-size:12px;margin-top:2px;white-space:pre-wrap">${esc(s.detail)}</div>`:''}
+        <div class="row" style="gap:6px;margin-top:5px"><button class="btn sec" data-editact="${esc(s.id)}" style="padding:4px 10px;font-size:12px">Modifier</button><button class="btn sec" data-delact="${esc(s.id)}" style="padding:4px 10px;font-size:12px">Supprimer</button></div></div>`;}).join('')
+      ||'<div class="muted" style="font-size:12.5px">Repos / libre</div>';
+    const form=isOpen?`<div class="daybody">${activityForm(d)}</div>`:'';
+    return `<div class="dayblock">
+      <div class="dayhead">
+        <span class="daydot${list.length?' on':''}${d===TODAY?' today':''}"></span>
+        <span class="dayname">${weekdayLabel(d)}</span>
+        <span class="muted" style="font-size:12.5px">${d.slice(8)}/${d.slice(5,7)}${d===TODAY?" · auj.":''}</span>
+        <button class="btn sec dayadd" data-addday="${d}" style="padding:5px 11px;font-size:12.5px">${isOpen?'Annuler':'+ Ajouter'}</button>
+      </div>
+      <div class="daybody">${items}</div>${form}
+    </div>`;
   }).join('');
+  const thisWeek=ACT_WEEK===mondayOfISO(TODAY);
   return `<div class="sect">
     <h2>Mon activité de la semaine</h2>
-    <div class="row" style="gap:8px;margin:0 0 12px;align-items:center">
-      <button class="btn sec" data-actweek="-7" style="padding:7px 11px" aria-label="Semaine précédente">◀</button>
-      <b style="flex:1;text-align:center;font-size:14px">${title}${ACT_WEEK!==mondayOfISO(TODAY)?'':' · cette semaine'}</b>
-      <button class="btn sec" data-actweek="7" style="padding:7px 11px" aria-label="Semaine suivante">▶</button>
+    <div class="row" style="gap:10px;margin:0 0 16px;align-items:center;justify-content:center">
+      <button class="btn sec" data-actweek="-7" style="padding:8px 12px" aria-label="Semaine précédente">◀</button>
+      <span class="wk-pill">📅 ${title}</span>
+      <button class="btn sec" data-actweek="7" style="padding:8px 12px" aria-label="Semaine suivante">▶</button>
     </div>
+    ${thisWeek?'<div class="muted" style="font-size:12px;text-align:center;margin:-10px 0 14px">cette semaine</div>':''}
     ${dayBlocks}</div>`;
 }
 function activityForm(d){
