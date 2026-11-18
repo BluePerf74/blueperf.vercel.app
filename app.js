@@ -1091,6 +1091,7 @@ async function attemptLogin(userRaw, passRaw){
     renderLoginScreen();
     return;
   }
+  state.allRoles = roles; // mémorisé pour « Changer de compte » (bascule sans ressaisir les codes)
   if(roles.length === 1){ await roles[0].enter(); return; }
   // Plusieurs rôles pour ce compte (ex. coach APA + cliente ailleurs) : on laisse choisir.
   state.roleChoices = roles; state.loginError = '';
@@ -1170,6 +1171,44 @@ function renderRoleChooser(){
     </div></div>`;
   app.querySelectorAll('[data-role]').forEach(b=>b.onclick=()=>{const r=(state.roleChoices||[])[+b.getAttribute('data-role')];state.roleChoices=null;if(r)r.enter();});
   const bk=document.getElementById('rc-back'); if(bk)bk.onclick=()=>{state.roleChoices=null;renderLoginScreen();};
+}
+/* « Changer de compte » : grande page listant tous les espaces/comptes accessibles avec
+   l'identifiant courant. Bascule sans ressaisir les codes. */
+function accountDestinations(){
+  const dests=[];
+  // Espaces coach accessibles (staff « tous les espaces ») : bascule immédiate, sans rechargement.
+  if(state.access==='coach' && !state.manager && !state.spaceCoach){
+    sectionDefs().filter(([id])=>sectionVisible(id)).forEach(([id,lbl])=>{
+      const m=SPACE_META[id]||{ic:'•',bg:'#5f708a'};
+      dests.push({ic:m.ic,bg:m.bg,label:lbl,sub:t('Espace coach','Coach space'),cur:state.section===id,
+        enter:()=>{state.section=id;const nt=tabsFor(state.section,state.viewAs==='coach');if(nt&&nt[0])state.tab=nt[0].id;render();}});
+    });
+  }
+  // Autres rôles issus de la connexion (compte client, coach délégué d'un espace…),
+  // en évitant de redoubler le rôle « tous les espaces » déjà couvert par les cartes ci-dessus.
+  (state.allRoles||[]).forEach(r=>{
+    if(state.access==='coach' && !state.manager && !state.spaceCoach && /tous les espaces|all spaces/i.test(r.label||'')) return;
+    dests.push({ic:r.icon||'•',bg:'#1b46c9',label:r.label,sub:r.sub,enter:r.enter});
+  });
+  return dests;
+}
+function openAccountSwitch(){
+  const dests=accountDestinations();
+  app.innerHTML=`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--app-bg,#0b1522);font-family:system-ui,-apple-system,sans-serif">
+    <div style="width:100%;max-width:460px;background:var(--app-surface,#152439);border:1px solid var(--app-border,#33465f);border-radius:16px;padding:24px;color:var(--app-text,#EAF1FB);box-shadow:0 20px 50px rgba(0,0,0,.5)">
+      <h2 style="margin:0 0 4px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:22px">${t('Changer de compte','Switch account')}</h2>
+      <p style="color:#8aa0bd;font-size:13px;margin:0 0 18px">${t('Les espaces auxquels tu as accès. Touche-en un pour y aller — sans ressaisir tes codes.','Spaces you can access. Tap one to go there — no need to re-enter your credentials.')}</p>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        ${dests.map((d,i)=>`<button data-acct="${i}" style="appearance:none;cursor:pointer;text-align:left;display:flex;align-items:center;gap:13px;border:1px solid ${d.cur?'#5b8cff':'var(--app-border,#33465f)'};background:${d.cur?'rgba(91,140,255,.14)':'rgba(255,255,255,.03)'};color:inherit;border-radius:13px;padding:13px 15px;font:inherit">
+          <span style="width:40px;height:40px;border-radius:11px;background:${d.bg};display:flex;align-items:center;justify-content:center;font-size:19px;flex:none">${d.ic}</span>
+          <span style="min-width:0;flex:1"><span style="display:block;font-weight:700;font-size:15.5px">${admEsc(d.label)}</span>${d.sub?`<span style="display:block;color:#8aa0bd;font-size:12.5px;margin-top:1px">${admEsc(d.sub)}</span>`:''}</span>
+          ${d.cur?'<span style="color:#5b8cff;font-weight:800">✓</span>':'<span style="color:#8aa0bd">→</span>'}
+        </button>`).join('')}
+      </div>
+      <button id="acct-back" style="appearance:none;cursor:pointer;margin-top:16px;border:0;background:transparent;color:#8aa0bd;font-size:13.5px;font-weight:600">← ${t('Retour','Back')}</button>
+    </div></div>`;
+  app.querySelectorAll('[data-acct]').forEach(b=>b.onclick=()=>{const d=dests[+b.getAttribute('data-acct')];if(d&&d.enter)d.enter();});
+  const bk=document.getElementById('acct-back'); if(bk)bk.onclick=()=>render();
 }
 const SPACE_LABELS = {football:'Football', individuel:'Coaching individuel', apa:'APA', nutrition:'Nutrition'};
 /* ----- Comptes coach par espace (coachs délégués) ----- */
@@ -1530,6 +1569,7 @@ function renderFullApp(section){
           ${section==='football'?`<button data-fbdemo title="${t('Afficher une équipe démo (lecture seule) pour voir les courbes','Show a demo team (read-only) to preview the charts')}" style="appearance:none;cursor:pointer;border:1px solid ${state.fbDemo?'#3b82f6':'rgba(255,255,255,.25)'};background:${state.fbDemo?'#3b82f6':'transparent'};color:${state.fbDemo?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">👁 ${state.fbDemo?t('Démo ✓','Demo ✓'):t('Démo','Demo')}</button>`:''}
           <button data-fbtheme title="${t('Thème clair / sombre','Light / dark theme')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">${themeIcon()} ${themeLabel()}</button>
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
+          <button data-fbswitch title="${t('Changer de compte','Switch account')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">🔄 ${t('Changer de compte','Switch account')}</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
         </div>
       </div>
@@ -1565,6 +1605,8 @@ function renderFullApp(section){
   if(dmb) dmb.addEventListener('click', () => { state.fbDemo = !state.fbDemo; render(); });
   const lo = app.querySelector('[data-fblogout]');
   if(lo) lo.addEventListener('click', logout);
+  const sw = app.querySelector('[data-fbswitch]');
+  if(sw) sw.addEventListener('click', openAccountSwitch);
   const ad = app.querySelector('[data-fbadmin]');
   if(ad) ad.addEventListener('click', () => { state.prevSection = state.section; state.section = 'settings'; render(); });
 }
@@ -1683,6 +1725,7 @@ function renderSettingsPage(){
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${sectionDropdown('settings')}
+          <button data-fbswitch title="${t('Changer de compte','Switch account')}" style="${chevronBtn};border:1px solid rgba(255,255,255,.22);background:transparent;color:#fff">🔄 ${t('Changer de compte','Switch account')}</button>
           <button data-fbadmin title="${t('Fermer les paramètres','Close settings')}" style="${chevronBtn};border:0;background:var(--app-accent);color:var(--app-accent-ink)">✕ ${t('Fermer','Close')}</button>
           <button data-fblogout style="${chevronBtn};border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8">${t('Déconnexion','Log out')}</button>
         </div>
@@ -1703,6 +1746,8 @@ function renderSettingsPage(){
   if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
   const lo = app.querySelector('[data-fblogout]');
   if(lo) lo.addEventListener('click', logout);
+  const swx = app.querySelector('[data-fbswitch]');
+  if(swx) swx.addEventListener('click', openAccountSwitch);
   app.querySelectorAll('[data-set-theme]').forEach(b=>b.onclick=()=>setTheme(b.getAttribute('data-set-theme')));
   app.querySelectorAll('[data-set-lang]').forEach(b=>b.onclick=()=>setLang(b.getAttribute('data-set-lang')));
   app.querySelectorAll('[data-settab]').forEach(b=>b.onclick=()=>{
@@ -2464,6 +2509,7 @@ async function renderHubPage(){
       <button data-fbtheme class="hubpage-ibtn" title="${t('Thème clair / sombre','Light / dark theme')}">${themeIcon()} ${themeLabel()}</button>
       <button data-fblang class="hubpage-ibtn">🌐 ${LANG==='en'?'EN':'FR'}</button>
       <button data-fbadmin class="hubpage-ibtn" title="${t('Paramètres','Settings')}">⚙️</button>
+      <button data-fbswitch class="hubpage-ibtn" title="${t('Changer de compte','Switch account')}">🔄 ${t('Changer de compte','Switch account')}</button>
       <span class="hubpage-user">👤 ${admEsc(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>
       <button data-fblogout class="hubpage-logout">${t('Déconnexion','Log out')}</button>
     </div></div>`;
@@ -2471,6 +2517,7 @@ async function renderHubPage(){
   const q=s=>app.querySelector(s);
   if(q('[data-fbtheme]'))q('[data-fbtheme]').addEventListener('click',cycleTheme);
   if(q('[data-fblang]'))q('[data-fblang]').addEventListener('click',()=>setLang(LANG==='en'?'fr':'en'));
+  if(q('[data-fbswitch]'))q('[data-fbswitch]').addEventListener('click',openAccountSwitch);
   if(q('[data-fblogout]'))q('[data-fblogout]').addEventListener('click',logout);
   if(q('[data-fbadmin]'))q('[data-fbadmin]').addEventListener('click',()=>{state.prevSection='hub';state.section='settings';render();});
   await renderHub(document.getElementById('screen'));
