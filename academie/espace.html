@@ -62,6 +62,19 @@ h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 .dayname{font-weight:700;text-transform:capitalize}
 .dayadd{margin-left:auto;flex:none}
 .daybody{margin:6px 0 0 21px}
+/* Sous-onglets (mini-bande en haut d'une page) */
+.subsep{height:1px;background:var(--line);margin:0 0 14px}
+.subnav{display:flex;gap:4px;background:color-mix(in srgb,var(--surface-2) 80%,transparent);border:1px solid var(--line);border-radius:999px;padding:4px;margin:0 0 20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.subnav::-webkit-scrollbar{display:none}
+.subnav-i{flex:1 0 auto;white-space:nowrap;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font:700 13px var(--fb);padding:9px 14px;border-radius:999px;transition:background .16s,color .16s}
+.subnav-i.on{background:var(--grad);color:#fff;box-shadow:0 6px 16px -7px color-mix(in srgb,var(--accent) 70%,transparent)}
+/* Jours colorés & ludiques (activité de la semaine) */
+.dayblock{transition:background .2s}
+.dayblock.done{background:linear-gradient(90deg,color-mix(in srgb,var(--dc) 13%,transparent),transparent 72%);border-radius:14px;padding-left:12px;padding-right:12px;margin:0 -12px;border-bottom-color:transparent}
+.daydot{border:2px solid var(--dc,var(--line-2));background:transparent;box-sizing:border-box}
+.daydot.on{background:var(--dc);box-shadow:0 0 0 4px color-mix(in srgb,var(--dc) 26%,transparent)}
+.dayblock.done .dayname{color:var(--dc)}
+.daychk{color:var(--dc);font-weight:800;font-size:13px}
 /* Écran de connexion premium */
 .lg-screen{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:26px 20px calc(26px + env(safe-area-inset-bottom,0px));overflow:auto;color:#eaf1fb;background:radial-gradient(1000px 640px at 15% -12%,#19427f 0,transparent 56%),radial-gradient(820px 560px at 108% 118%,#0b3357 0,transparent 52%),linear-gradient(165deg,#060b16,#0a1627 52%,#05080f);font-family:var(--fd)}
 .lg-fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -240,8 +253,11 @@ body.coach-fill .botnav-inner{max-width:720px}
 .msg-bub.me{background:var(--grad);color:#fff;border-bottom-right-radius:5px}
 .msg-bub.them{background:var(--surface);border:1px solid var(--line-2);border-bottom-left-radius:5px}
 .msg-t{display:block;font-size:10.5px;opacity:.72;margin-top:3px;text-align:right}
-.chat-bar{position:fixed;left:0;right:0;bottom:0;z-index:960;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 60%,transparent);display:flex;gap:8px;align-items:flex-end;max-width:560px;margin:0 auto}
-.chat-bar textarea{flex:1;resize:none;min-height:44px;max-height:120px;border-radius:16px;padding:11px 14px;font-size:15px}
+.chat-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:955;width:calc(100% - 28px);max-width:540px;display:flex;gap:8px;align-items:flex-end;padding:8px 10px;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:24px;box-shadow:0 14px 34px -10px rgba(0,0,0,.5)}
+.chat-bar textarea{flex:1;resize:none;min-height:42px;max-height:120px;border:0;background:none;border-radius:14px;padding:10px 12px;font-size:15px;font-family:inherit}
+.chat-bar textarea:focus{outline:0}
+.chat-bar .btn{flex:none;padding:11px 16px;border-radius:14px;font-size:16px}
+.msg-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .chat-bar .btn{padding:11px 16px}
 .chat-day{text-align:center;font-size:11.5px;color:var(--muted);margin:6px 0}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
@@ -527,11 +543,10 @@ function messagesHtml(){
   let lastDay='';
   const thread=MY_MSGS.length?('<div class="chat-thread">'+MY_MSGS.map(m=>{let dh='';const dl=new Date(m.ts).toDateString();if(dl!==lastDay){lastDay=dl;dh=`<div class="chat-day">${esc(msgDayLabel(m.ts))}</div>`;}const me=m.from==='client';return dh+`<div class="msg-row ${me?'me':'them'}"><div class="msg-bub ${me?'me':'them'}">${esc(m.text)}<span class="msg-t">${msgHm(m.ts)}</span></div></div>`;}).join('')+'</div>')
     :`<div style="text-align:center;padding:30px 10px;color:var(--muted)"><div style="font-size:30px">💬</div><p style="margin:8px 0 0">Aucun message pour l'instant.</p><p style="font-size:13px;margin:6px 0 0">Pose une question à ton coach ci-dessous.</p></div>`;
-  return `<div class="card" style="padding:12px 12px 10px;margin-bottom:0">
-    <div class="row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:16px">Mon coach</b><button class="btn sec" id="msgRefresh" aria-label="Actualiser" style="padding:6px 11px;font-size:14px">↻</button></div>
+  return `<div class="msg-head"><b style="font-size:17px">💬 Mon coach</b><button class="btn sec" id="msgRefresh" aria-label="Actualiser" style="padding:6px 11px;font-size:14px">↻</button></div>
     ${thread}
-    <form id="chatBar" style="display:flex;gap:8px;align-items:flex-end;margin-top:10px;border-top:1px solid var(--line);padding-top:10px"><textarea id="chatText" rows="1" placeholder="Écris à ton coach…" required style="flex:1;resize:none;min-height:42px;max-height:120px;border-radius:14px;padding:11px 13px;font-size:15px;font-family:inherit"></textarea><button class="btn" type="submit" style="padding:11px 16px">Envoyer</button></form>
-  </div>`;
+    <div style="height:92px" aria-hidden="true"></div>
+    <form id="chatBar" class="chat-bar"><textarea id="chatText" rows="1" placeholder="Écris à ton coach…" required></textarea><button class="btn" type="submit" aria-label="Envoyer">➤</button></form>`;
 }
 function stopMsgPoll(){if(MSG_POLL){clearInterval(MSG_POLL);MSG_POLL=null;}}
 function startMsgPoll(){stopMsgPoll();MSG_POLL=setInterval(async()=>{
@@ -985,8 +1000,10 @@ function activityWeekCard(){
   const acts=MY_SESSIONS.filter(s=>s.source==='joueur');
   const sun=days[6];
   const title=`${new Date(ACT_WEEK+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} → ${new Date(sun+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`;
-  const dayBlocks=days.map(d=>{
+  const DAYCOL=['#5b8cff','#2fc77c','#f0b24a','#ff7a66','#9b82ff','#17b0c4','#e86aa6'];
+  const dayBlocks=days.map((d,i)=>{
     const list=acts.filter(s=>s.date===d);
+    const col=DAYCOL[i%7];const done=list.length>0;
     const isOpen=ACT_DAY===d;
     const items=list.map(s=>{const me=s.players[PLAYER.id]||{};const sp=sportOf(s.sport);
       return `<div style="padding:6px 0">
@@ -996,11 +1013,12 @@ function activityWeekCard(){
         <div class="row" style="gap:6px;margin-top:5px"><button class="btn sec" data-editact="${esc(s.id)}" style="padding:4px 10px;font-size:12px">Modifier</button><button class="btn sec" data-delact="${esc(s.id)}" style="padding:4px 10px;font-size:12px">Supprimer</button></div></div>`;}).join('')
       ||'<div class="muted" style="font-size:12.5px">Repos / libre</div>';
     const form=isOpen?`<div class="daybody">${activityForm(d)}</div>`:'';
-    return `<div class="dayblock">
+    return `<div class="dayblock${done?' done':''}" style="--dc:${col}">
       <div class="dayhead">
-        <span class="daydot${list.length?' on':''}${d===TODAY?' today':''}"></span>
+        <span class="daydot${done?' on':''}${d===TODAY?' today':''}"></span>
         <span class="dayname">${weekdayLabel(d)}</span>
         <span class="muted" style="font-size:12.5px">${d.slice(8)}/${d.slice(5,7)}${d===TODAY?" · auj.":''}</span>
+        ${done?`<span class="daychk">✓ ${list.length}</span>`:''}
         <button class="btn sec dayadd" data-addday="${d}" style="padding:5px 11px;font-size:12.5px">${isOpen?'Annuler':'+ Ajouter'}</button>
       </div>
       <div class="daybody">${items}</div>${form}
@@ -1082,10 +1100,14 @@ async function renderRpeTab(){
   const c=$('#tabc');if(!c)return;
   // Football : pas de saisie libre de séances — seulement les séances/matchs affectés + la charge.
   // Individuel : la cliente saisit ses propres séances (journal d'activité).
-  c.innerHTML=sessionsCard()+(selfLog()?activityWeekCard():`<div class="sect"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>`)+historyCard();
-  drawSessions();
-  if(selfLog())bindActivityWeek();
-  bindHistory();
+  const items=[['activite','Mon activité'],['historique','Historique']];
+  const sub=ESPACE_SUB.rpe&&items.some(i=>i[0]===ESPACE_SUB.rpe)?ESPACE_SUB.rpe:'activite';
+  let body='';
+  if(sub==='activite')body=sessionsCard()+(selfLog()?activityWeekCard():`<div class="sect"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>`);
+  else body=historyCard();
+  c.innerHTML=subNav('rpe',items)+body;
+  if(sub==='activite'){drawSessions();if(selfLog())bindActivityWeek();}
+  if(sub==='historique')bindHistory();
 }
 function bindActivityWeek(){
   document.querySelectorAll('[data-actweek]').forEach(b=>b.onclick=()=>{ACT_WEEK=addDaysISO(ACT_WEEK,+b.getAttribute('data-actweek'));ACT_DAY=null;ACT_EDIT=null;renderRpeTab();});
@@ -1366,6 +1388,13 @@ async function loadHistory(){
 
 /* ---------- Vue d'ensemble & charge ---------- */
 let ESPACE_TAB='apercu';
+let ESPACE_SUB={apercu:'resume',sante:'wellness',rpe:'activite'};
+function subNav(tab,items){
+  const cur=ESPACE_SUB[tab]&&items.some(i=>i[0]===ESPACE_SUB[tab])?ESPACE_SUB[tab]:items[0][0];
+  ESPACE_SUB[tab]=cur;
+  return `<div class="subsep"></div><div class="subnav" role="tablist">${items.map(([k,l])=>`<button class="subnav-i${cur===k?' on':''}" role="tab" aria-selected="${cur===k}" data-subnav="${tab}" data-sub="${k}">${l}</button>`).join('')}</div>`;
+}
+try{document.addEventListener('click',e=>{const b=e.target.closest('[data-subnav]');if(!b)return;ESPACE_SUB[b.getAttribute('data-subnav')]=b.getAttribute('data-sub');window.scrollTo({top:0,behavior:'auto'});renderTab();});}catch(e){}
 let MY_SESSIONS=[];
 async function loadMySessions(){
   const allS=await kvGet(SPACE+':sessions');
@@ -1505,7 +1534,7 @@ function bindOvSaisir(){
   });
   startEspaceChrono();
 }
-async function overviewHtml(){
+async function overviewHtml(sub){
   const wt=await wellnessToday();
   const toRate=SESSIONS_TODAY.filter(o=>o.rpe==null).length;
   const l7=load7();
@@ -1514,19 +1543,21 @@ async function overviewHtml(){
       ?`<span class="muted" style="font-size:12.5px;white-space:nowrap">RPE ${me.rpe}${s.isMatch&&me.perf!=null?' · Perf '+me.perf:''}${me.min?' · '+me.min+' min':''}</span>`
       :`<button class="btn sec" data-rate="${esc(s.id)}" style="padding:4px 12px">Saisir</button>`;
     return `<div class="hist"><span>${isoLong(s.date)} · ${esc(s.title||s.type||'Séance')}</span>${right}</div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
-  return `
-    <div class="kpis">
+  const kpis=`<div class="kpis">
       <div class="kpi" data-kidx="0" style="${kpiStyle(0)}"><div class="lab">Wellness du jour</div><div class="val">${wt?wt.score+'<small>%</small>':'—'}</div><div class="d">${wt?'rempli ✓':'à remplir'}</div></div>
       <div class="kpi" data-kidx="1" style="${kpiStyle(1)}"><div class="lab">Séances à noter</div><div class="val">${toRate}</div><div class="d">${toRate?'RPE en attente':'tout est noté'}</div></div>
       <div class="kpi" data-kidx="2" style="${kpiStyle(2)}"><div class="lab">Charge 7 jours</div><div class="val">${l7}<small> UA</small></div><div class="d">RPE × minutes</div></div>
       <div class="kpi" data-kidx="3" style="${kpiStyle(3)}"><div class="lab">Séances suivies</div><div class="val">${MY_SESSIONS.length}</div><div class="d">au total avec toi</div></div>
-    </div>
-    ${menstruOverviewCard()}
-    ${ovSaisirCard()}
-    ${selfLog()?progressionCard():''}
-    <div class="sect"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
-    <div class="sect"><h2>Mes dernières séances${selfLog()?'':' & matchs'}</h2>${recentHtml}</div>
-    ${!wt?`<div class="row"><button class="btn block" data-goto="sante">Remplir mon wellness</button></div>`:''}`;
+    </div>`;
+  const charges=`<div class="sect"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
+    <div class="sect"><h2>Mes dernières séances${selfLog()?'':' & matchs'}</h2>${recentHtml}</div>`;
+  if(sub==='progression') return selfLog()?progressionCard():kpis;
+  if(sub==='charges') return charges;
+  // Résumé : les 4 blocs + « à noter » + la progression
+  return kpis
+    + ovSaisirCard()
+    + (selfLog()?progressionCard():'')
+    + (!wt?`<div class="row"><button class="btn block" data-goto="sante">Remplir mon wellness</button></div>`:'');
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
 let MY_PLAN=null, PROG_WEEK=null, PROG_OPEN=null, MY_PDFS=[];
@@ -1741,9 +1772,17 @@ async function renderTab(){
       bindStaffWellness();
       return;
     }
-    const done=await hasWellnessEntry(FEEL_DATE);
-    c.innerHTML=(done?wellnessLockedCard():wellnessCard())+`<div class="card"><details class="acc"><summary class="acc-sum"><span class="acc-ttl">Mon historique wellness</span><svg class="chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="acc-body"><div id="hist"></div></div></details></div>`+(menstruAllowed(PLAYER)?menstruSectionHtml():'');
-    bindWellness();loadHistory();if(menstruAllowed(PLAYER))bindMenstruSection();
+    const items=[['wellness','Mon wellness'],['historique','Mon historique']];
+    if(menstruAllowed(PLAYER))items.push(['cycle','Mon cycle']);
+    const sub=ESPACE_SUB.sante&&items.some(i=>i[0]===ESPACE_SUB.sante)?ESPACE_SUB.sante:'wellness';
+    let body='';
+    if(sub==='wellness'){const done=await hasWellnessEntry(FEEL_DATE);body=done?wellnessLockedCard():wellnessCard();}
+    else if(sub==='historique'){body=`<div class="sect"><h2>Mon historique wellness</h2><div id="hist"></div></div>`;}
+    else if(sub==='cycle'){body=menstruSectionHtml();}
+    c.innerHTML=subNav('sante',items)+body;
+    if(sub==='wellness')bindWellness();
+    if(sub==='historique')loadHistory();
+    if(sub==='cycle'&&menstruAllowed(PLAYER))bindMenstruSection();
   }else if(ESPACE_TAB==='rpe'){
     await renderRpeTab();
   }else if(ESPACE_TAB==='nutrition'){
@@ -1760,9 +1799,11 @@ async function renderTab(){
     c.innerHTML=boutiqueHtml();
     bindBoutique();
   }else{
-    c.innerHTML=await overviewHtml();
+    const items=[['resume','Résumé'],['progression','Ma progression'],['charges','Charges']];
+    const sub=ESPACE_SUB.apercu&&items.some(i=>i[0]===ESPACE_SUB.apercu)?ESPACE_SUB.apercu:'resume';
+    c.innerHTML=subNav('apercu',items)+await overviewHtml(sub);
     document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-goto');renderTab();});
-    document.querySelectorAll('[data-rate]').forEach(b=>b.onclick=()=>{HIST_OPEN=b.getAttribute('data-rate');ESPACE_TAB='rpe';renderTab();setTimeout(()=>{const el=document.querySelector('[data-histsave]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},60);});
+    document.querySelectorAll('[data-rate]').forEach(b=>b.onclick=()=>{HIST_OPEN=b.getAttribute('data-rate');ESPACE_TAB='rpe';ESPACE_SUB.rpe='historique';renderTab();setTimeout(()=>{const el=document.querySelector('[data-histsave]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},60);});
     bindOvSaisir();
   }
 }
