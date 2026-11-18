@@ -124,6 +124,14 @@ a{color:var(--accent)}
 .skin-foot .top h1{font-size:30px;letter-spacing:.3px}
 /* en-têtes de tableau denses */
 .skin-foot th{font-size:11.5px;letter-spacing:.06em}
+/* De-box GLOBAL du contenu : plus d'encadré de couleur, texte directement sur la page.
+   (Tiroirs, feuilles et modales sont hors de #content → non touchés.) */
+#content .card{background:none;border:0;box-shadow:none;border-radius:0;padding:0}
+#content .card.flat{background:none}
+#content .kpi{padding-left:14px}
+#content .grid{gap:22px}
+#content .tw{border:0;border-radius:0}
+#content .chatwrap{padding:0}
 /* AVATARS */
 .avatar{display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-family:var(--fd);font-weight:700;border-radius:50%;background-size:cover;background-position:center;width:34px;height:34px;font-size:14px;line-height:1;flex:none;overflow:hidden;border:1px solid var(--line);vertical-align:middle}
 .avatar.xs{width:26px;height:26px;font-size:11px}

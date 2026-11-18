@@ -205,6 +205,15 @@ main{padding-bottom:116px!important}
 .bs-list{display:flex;flex-direction:column;gap:4px}
 .bs-i{display:block;width:100%;text-align:left;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font:600 14.5px var(--f-body);color:var(--ink);cursor:pointer}
 .bs-i.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+/* De-box GLOBAL du contenu : plus d'encadré de couleur, texte directement sur la page.
+   (La fenêtre modale .mbox et la barre du bas gardent leur cadre.) */
+#main .card{background:none;border:0;box-shadow:none;border-radius:0;padding:0}
+#main .card>header{margin-bottom:9px}
+#main .grid{gap:24px}
+#main .kpi{background:none;border:0;box-shadow:none;border-radius:0;padding:1px 0 1px 13px}
+#main .kpi:before{border-radius:3px}
+#main .tw{border:0;border-radius:0}
+#main .slot{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 0}
 </style>
 </head>
 <body>

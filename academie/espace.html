@@ -44,6 +44,13 @@ h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 .sect{margin:0 0 26px;padding:0}
 .sect>h2{margin:0 0 12px}
 .sect+.sect{margin-top:2px}
+/* De-box GLOBAL du contenu : plus d'encadré de couleur, le texte vit sur la page.
+   (On ne touche pas aux fenêtres/réglages/connexion qui sont hors de #tabc.) */
+#tabc .card{background:none;border:0;box-shadow:none;border-radius:0;padding:0;margin-bottom:24px}
+#tabc .qcard{background:none;border:0;box-shadow:none;border-radius:0;padding:0;margin-bottom:18px}
+#tabc .kpi{background:none;border:0;box-shadow:none;border-radius:0;padding:1px 0 1px 12px}
+#tabc .kpi::after{border-radius:3px}
+#tabc .well-ic{background:none;border:0;width:auto;height:auto}
 /* Accordéon (historique repliable) : fermé par défaut, s'ouvre au clic */
 details.acc{border:0}
 summary.acc-sum{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
