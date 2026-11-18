@@ -40,6 +40,10 @@ h1{font-family:var(--fd);font-weight:700;font-size:22px;margin:0 0 2px}
 h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
 .card{position:relative;background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 96%,#fff 4%),var(--surface));border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 color-mix(in srgb,#fff 6%,transparent) inset,0 10px 26px -18px rgba(0,0,0,.65)}
+/* Section ouverte : le contenu respire directement sur la page, sans encadré */
+.sect{margin:0 0 26px;padding:0}
+.sect>h2{margin:0 0 12px}
+.sect+.sect{margin-top:2px}
 /* Accordéon (historique repliable) : fermé par défaut, s'ouvre au clic */
 details.acc{border:0}
 summary.acc-sum{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -95,7 +99,8 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .qcard .qsub{color:var(--muted);font-size:12.5px;margin:0 0 12px}
 .scale-help{font-size:11.5px;color:var(--muted);text-align:center;margin-top:8px}
 /* Wellness : chaque critère dans sa propre carte, avec icône */
-.well-item{background:color-mix(in srgb,var(--surface-2) 70%,transparent);border:1px solid var(--line);border-radius:14px;padding:13px 14px 12px;margin-bottom:12px}
+.well-item{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:4px 0 15px;margin-bottom:11px}
+.well-item:last-of-type{border-bottom:0}
 .well-head{display:flex;align-items:center;gap:10px;margin-bottom:11px}
 .well-ic{width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);border-radius:11px}
 .well-lab{font-family:var(--fd);font-weight:600;font-size:15.5px;color:var(--ink)}
@@ -139,7 +144,8 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .bdetail{fill:none;stroke:#5b8cff;stroke-opacity:.3;stroke-width:1;stroke-linecap:round}
 .bfoot{fill:#0f2236;stroke:#5b8cff;stroke-opacity:.45;stroke-width:1.2}
 .zones-list{font-size:12.5px;color:var(--ink-2);margin-top:8px;min-height:18px}
-.session{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--surface-2)}
+.session{border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 0;margin-bottom:0;background:none}
+.session:last-child{border-bottom:0}
 .session .t{font-weight:600;font-size:14px}
 .session .m{font-size:12px;color:var(--muted);margin:2px 0 8px}
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
@@ -682,7 +688,7 @@ function wellnessLockedCard(){
   </div>`;
 }
 function wellnessCard(){
-  return `<div class="card">
+  return `<div class="sect">
     <h2>Mon wellness du jour</h2>
     <div class="field" style="text-align:center"><label>Date</label><input type="date" id="w-date" value="${FEEL_DATE}" style="max-width:210px;margin:0 auto;text-align:center"></div>
     ${WELL.map(w=>`<div class="well-item">
@@ -872,7 +878,7 @@ function bindMenstruSection(){
 let SESSIONS_TODAY=[]; // {sid, session, rpe}
 let OV_SAISIR=null; // id de l'élément déplié pour saisie dans la Vue d'ensemble
 function sessionsCard(){
-  return `<div class="card">
+  return `<div class="sect">
     <h2>Séances du coach à noter</h2>
     <div id="sess-list"></div>
   </div>`;
@@ -909,13 +915,13 @@ function activityWeekCard(){
       ||'<p class="muted" style="font-size:12.5px;margin:0 0 6px">Aucune activité ce jour.</p>';
     const isOpen=ACT_DAY===d;
     const form=isOpen?activityForm(d):'';
-    return `<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--surface-2)">
+    return `<div style="padding:14px 0;border-bottom:1px solid var(--line)">
       <div class="row" style="justify-content:space-between"><b style="text-transform:capitalize">${weekdayLabel(d)}${d===TODAY?' · aujourd\'hui':''}</b><span class="muted" style="font-size:12px">${d.slice(8)}/${d.slice(5,7)}</span></div>
       <div style="margin-top:8px">${items}</div>
       <button class="btn sec" data-addday="${d}" style="padding:7px 12px;font-size:13px">${isOpen?'Annuler':'+ Ajouter une activité'}</button>
       ${form}</div>`;
   }).join('');
-  return `<div class="card">
+  return `<div class="sect">
     <h2>Mon activité de la semaine</h2>
     <div class="row" style="gap:8px;margin:0 0 12px;align-items:center">
       <button class="btn sec" data-actweek="-7" style="padding:7px 11px" aria-label="Semaine précédente">◀</button>
@@ -989,7 +995,7 @@ async function renderRpeTab(){
   const c=$('#tabc');if(!c)return;
   // Football : pas de saisie libre de séances — seulement les séances/matchs affectés + la charge.
   // Individuel : la cliente saisit ses propres séances (journal d'activité).
-  c.innerHTML=sessionsCard()+(selfLog()?activityWeekCard():`<div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>`)+historyCard();
+  c.innerHTML=sessionsCard()+(selfLog()?activityWeekCard():`<div class="sect"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>`)+historyCard();
   drawSessions();
   if(selfLog())bindActivityWeek();
   bindHistory();
@@ -1325,7 +1331,7 @@ function weekStat(start){
 }
 function progressionCard(){
   const anyDone=MY_SESSIONS.some(s=>(s.players[PLAYER.id]||{}).rpe!=null)||!!(MY_PLAN&&MY_PLAN.done&&Object.values(MY_PLAN.done).some(d=>d&&d.rpe!=null));
-  if(!anyDone)return `<div class="card"><h2>Ma progression</h2><p class="muted" style="font-size:13px;margin:0">Les séances réalisées — les tiennes comme celles que ton coach t'envoie — apparaîtront ici, semaine après semaine.</p></div>`;
+  if(!anyDone)return `<div class="sect"><h2>Ma progression</h2><p class="muted" style="font-size:13px;margin:0">Les séances réalisées — les tiennes comme celles que ton coach t'envoie — apparaîtront ici, semaine après semaine.</p></div>`;
   const wkStart=mondayOfISO(TODAY);
   const cur=weekStat(wkStart),prev=weekStat(addDaysISO(wkStart,-7));
   const delta=(a,b)=>{if(!prev.n)return '';const d=Math.round((a-b)*10)/10;if(d===0)return '<span style="font-size:11px;color:var(--muted)"> =</span>';return `<span style="font-size:11px;color:${d>0?'var(--good)':'var(--warn)'}"> ${d>0?'▲':'▼'} ${Math.abs(d)}</span>`;};
@@ -1337,9 +1343,9 @@ function progressionCard(){
   const wkEnd=addDaysISO(wkStart,7);const bySport={};
   MY_SESSIONS.filter(s=>s.date>=wkStart&&s.date<wkEnd&&(s.players[PLAYER.id]||{}).rpe!=null).forEach(s=>{const sp=sportOf(s.sport);const key=sp?sp.e+' '+sp.l:((s.isMatch||s.type==='Match')?'⚽ Match':'🏋️ '+(s.type||'Séance'));bySport[key]=(bySport[key]||0)+1;});
   if(MY_PLAN&&MY_PLAN.done){let pc=0;Object.values(MY_PLAN.done).forEach(d=>{if(d&&d.rpe!=null&&d.date>=wkStart&&d.date<wkEnd)pc++;});if(pc)bySport['📋 Programme']=(bySport['📋 Programme']||0)+pc;}
-  const sportChips=Object.entries(bySport).map(([k,v])=>`<span class="pill">${k} ×${v}</span>`).join(' ')||'<span class="muted" style="font-size:12.5px">Aucune séance réalisée cette semaine.</span>';
-  return `<div class="card"><h2>Ma progression</h2>
-    <div class="kpis" style="margin-bottom:12px">
+  const sportChips=Object.entries(bySport).map(([k,v])=>`${k} ×${v}`).join('  ·  ')||'Aucune séance réalisée cette semaine.';
+  return `<div class="sect"><h2>Ma progression</h2>
+    <div class="kpis" style="margin-bottom:14px">
       ${stat('Séances (7 j)',cur.n,'',delta(cur.n,prev.n))}
       ${stat('Minutes (7 j)',cur.min,'min',delta(cur.min,prev.min))}
       ${stat('Distance (7 j)',cur.km,'km',delta(cur.km,prev.km))}
@@ -1347,7 +1353,7 @@ function progressionCard(){
     </div>
     <div class="muted" style="font-size:12.5px;margin-bottom:4px">Charge par semaine (6 dernières)</div>
     <div class="loadbars">${bars}</div><div class="loadlab">${labs}</div>
-    <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:12px">${sportChips}</div>
+    <div class="muted" style="font-size:12.5px;margin-top:12px">${sportChips}</div>
   </div>`;
 }
 /* ---------- « À saisir » dans la Vue d'ensemble : bouton Saisir → RPE (+ note de perf si match) ---------- */
@@ -1382,7 +1388,7 @@ function ovSaisirCard(){
   }).join('');
   const pend=SESSIONS_TODAY.filter(o=>o.open&&o.rpe==null).length;
   const hasMatch=SESSIONS_TODAY.some(o=>o.isMatch);
-  return `<div class="card"><h2>À saisir — séances &amp; matchs du coach</h2>
+  return `<div class="sect"><h2>À saisir — séances &amp; matchs du coach</h2>
     <p class="muted" style="font-size:12.5px;margin:-4px 0 10px">${pend?('Ton coach t\'a envoyé '+pend+' élément'+(pend>1?'s':'')+' à noter. Clique « Saisir » pour entrer ton RPE'+(hasMatch?' et ta note de performance':'')+'.'):'Tout est noté pour le moment.'}</p>
     ${rows}</div>`;
 }
@@ -1418,7 +1424,7 @@ async function overviewHtml(){
   const l7=load7();
   const recent=MY_SESSIONS.slice(0,6);
   const recentHtml=recent.length?recent.map(s=>{const me=s.players[PLAYER.id]||{};const right=me.rpe!=null
-      ?`<span class="pill">RPE ${me.rpe}${s.isMatch&&me.perf!=null?' · Perf '+me.perf:''}${me.min?' · '+me.min+' min':''}</span>`
+      ?`<span class="muted" style="font-size:12.5px;white-space:nowrap">RPE ${me.rpe}${s.isMatch&&me.perf!=null?' · Perf '+me.perf:''}${me.min?' · '+me.min+' min':''}</span>`
       :`<button class="btn sec" data-rate="${esc(s.id)}" style="padding:4px 12px">Saisir</button>`;
     return `<div class="hist"><span>${isoLong(s.date)} · ${esc(s.title||s.type||'Séance')}</span>${right}</div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
   return `
@@ -1431,8 +1437,8 @@ async function overviewHtml(){
     ${menstruOverviewCard()}
     ${ovSaisirCard()}
     ${selfLog()?progressionCard():''}
-    <div class="card"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
-    <div class="card"><h2>Mes dernières séances${selfLog()?'':' & matchs'}</h2>${recentHtml}</div>
+    <div class="sect"><h2>Ma charge (14 jours)</h2>${loadChartHtml()}</div>
+    <div class="sect"><h2>Mes dernières séances${selfLog()?'':' & matchs'}</h2>${recentHtml}</div>
     ${!wt?`<div class="row"><button class="btn block" data-goto="sante">Remplir mon wellness</button></div>`:''}`;
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
@@ -1456,7 +1462,7 @@ async function openMyPdf(id,btn){
 }
 function myPdfsCard(){
   if(!MY_PDFS.length)return '';
-  return `<div class="card"><b style="font-size:16px">📄 Mes programmes (PDF)</b><div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${MY_PDFS.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line-2);border-radius:12px;padding:10px 12px"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name||'Programme')}</b><span class="muted" style="font-size:12px">${x.date?new Date(x.date).toLocaleDateString('fr-FR'):''}${x.size?' · '+Math.round(x.size/1024)+' Ko':''}</span></div><button class="btn" data-pdfopen="${esc(x.id)}" style="padding:9px 14px;flex:none">Ouvrir</button></div>`).join('')}</div></div>`;
+  return `<div class="sect"><h2>📄 Mes programmes (PDF)</h2><div style="display:flex;flex-direction:column">${MY_PDFS.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name||'Programme')}</b><span class="muted" style="font-size:12px">${x.date?new Date(x.date).toLocaleDateString('fr-FR'):''}${x.size?' · '+Math.round(x.size/1024)+' Ko':''}</span></div><button class="btn" data-pdfopen="${esc(x.id)}" style="padding:9px 14px;flex:none">Ouvrir</button></div>`).join('')}</div></div>`;
 }
 async function saveProgDone(ref,val){
   const all=await kvGet(SPACE+':seanceplans');
@@ -1469,7 +1475,7 @@ async function saveProgDone(ref,val){
 const PDAYS=[['lundi','Lundi'],['mardi','Mardi'],['mercredi','Mercredi'],['jeudi','Jeudi'],['vendredi','Vendredi'],['samedi','Samedi'],['dimanche','Dimanche']];
 function programmeHtml(){
   const plan=MY_PLAN;
-  if(!plan)return '<div class="card"><p class="muted">Ton coach ne t\'a pas encore attribué de programme.</p></div>';
+  if(!plan)return '<p class="muted" style="padding:12px 2px">Ton coach ne t\'a pas encore attribué de programme.</p>';
   const done=plan.done||{};
   const weeks=plan.weeks.slice().sort((a,b)=>a.n-b.n);
   const wk=(PROG_WEEK&&weeks.find(w=>w.n===PROG_WEEK))||weeks[0];
@@ -1500,9 +1506,9 @@ function programmeHtml(){
         </div>`:''}
       </div>`;}).join('')}</div>`;
   }).join('');
-  return `<div class="card"><b>${esc(plan.name||'Mon programme')}</b><div class="muted" style="font-size:12.5px;margin-top:2px">Semaine ${wk.n}${wk.meso?' — '+esc(wk.meso):''}${wk.charge?' · charge '+esc(wk.charge):''} · ${doneCount}/${wk.sessions.length} séance(s) faite(s)</div></div>
+  return `<div style="margin:2px 2px 14px"><h2 style="margin:0 0 2px">${esc(plan.name||'Mon programme')}</h2><div class="muted" style="font-size:12.5px">Semaine ${wk.n}${wk.meso?' — '+esc(wk.meso):''}${wk.charge?' · charge '+esc(wk.charge):''} · ${doneCount}/${wk.sessions.length} séance(s) faite(s)</div></div>
     <div class="tabbar" style="flex-wrap:wrap">${chips}</div>
-    ${days||'<div class="card"><p class="muted">Aucune séance cette semaine.</p></div>'}`;
+    ${days||'<p class="muted" style="margin:12px 2px">Aucune séance cette semaine.</p>'}`;
 }
 /* ---------- Boutique de programmes (30 jours à débloquer — Coaching individuel) ---------- */
 let STORE={unlocks:{},done:{}}, BOUTIQUE_OPEN=null, BOUTIQUE_WEEK=null, BOUTIQUE_SOPEN=null;
