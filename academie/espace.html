@@ -943,53 +943,107 @@ async function deleteMenstruStart(date){const all=(await kvGet(SPACE+':menstru')
 // Fin des règles rattachée au dernier début : on remplace une éventuelle fin déjà posée pour ce cycle.
 async function saveMenstruEnd(date){const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id]||{pid:PLAYER.id,starts:[]};rec.ends=Array.isArray(rec.ends)?rec.ends:[];const starts=(rec.starts||[]).slice().sort();const last=starts.length?starts[starts.length-1]:null;if(!last)return;rec.ends=rec.ends.filter(e=>mDaysBetween(last,e)<0);rec.ends.push(date);rec.ends=[...new Set(rec.ends)].sort();rec.updatedAt=new Date().toISOString();rec.name=PLAYER.name;all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}
 function menstruEndFor(starts,ends,start){if(!start||!ends||!ends.length)return null;const si=starts.indexOf(start);const nextStart=(si>=0&&si<starts.length-1)?starts[si+1]:null;for(const e of ends.slice().sort()){if(mDaysBetween(start,e)>=0&&(!nextStart||mDaysBetween(e,nextStart)>0))return e;}return null;}
-// Section « Mon cycle » dans Santé & forme — interface complète : bouton « Débuter », où j'en suis, historique.
-// Le bouton ne se saisit qu'une fois par cycle : il se réactive quand les prochaines règles approchent.
+// ====== Section « Mon cycle » : grand cercle interactif ======
+let MN_ASK=null, MN_DATEVAL=null;
+// 4 phases contiguës mises à l'échelle de la longueur de cycle L
+function menstruPhases(L,reglesLen){
+  const rE=Math.max(3,Math.min(reglesLen||5,Math.round(L*0.3)));
+  const ovul=Math.max(rE+3,L-14);
+  return [
+    {key:'menstruelle',name:'Phase menstruelle',short:'menstruelle',from:1,to:rE,color:'#e84a9a'},
+    {key:'folliculaire',name:'Phase folliculaire',short:'folliculaire',from:rE+1,to:ovul-2,color:'#1e46c9'},
+    {key:'ovulatoire',name:'Phase ovulatoire',short:'ovulatoire',from:ovul-1,to:ovul+1,color:'#8ccf2a'},
+    {key:'luteale',name:'Phase lutéale',short:'lutéale',from:ovul+2,to:L,color:'#43b3e0'}
+  ];
+}
+function phaseForDay(ph,day){if(day==null)return null;for(const p of ph){if(day>=p.from&&day<=p.to)return p;}return ph[ph.length-1];}
+function mnPolar(cx,cy,r,deg){const a=(deg-90)*Math.PI/180;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];}
+function mnArc(cx,cy,r,d0,d1){const [x0,y0]=mnPolar(cx,cy,r,d0);const [x1,y1]=mnPolar(cx,cy,r,d1);const large=Math.abs(d1-d0)>180?1:0;const sweep=d1>d0?1:0;return `M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r} ${r} 0 ${large} ${sweep} ${x1.toFixed(1)} ${y1.toFixed(1)}`;}
+function buildCycleSVG(L,ph,curDay){
+  const cx=160,cy=160,rDots=118,rLabel=150;
+  const dotR=Math.max(6.5,Math.min(10,(2*Math.PI*rDots)/L/2.5));
+  let dots='';
+  for(let i=1;i<=L;i++){
+    const deg=((i-1)/L)*360;const [x,y]=mnPolar(cx,cy,rDots,deg);const p=phaseForDay(ph,i);const cur=(i===curDay);
+    dots+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(cur?dotR+2:dotR).toFixed(1)}" fill="${p.color}" ${cur?'stroke="#fff" stroke-width="2.5"':''}/>`;
+    if(L<=31){const fs=dotR*1.15;dots+=`<text x="${x.toFixed(1)}" y="${(y+fs*0.35).toFixed(1)}" text-anchor="middle" font-size="${fs.toFixed(1)}" font-weight="700" fill="#fff" font-family="system-ui">${i}</text>`;}
+  }
+  let needle='';
+  if(curDay){const deg=((curDay-1)/L)*360;const [mx,my]=mnPolar(cx,cy,rDots-dotR-3,deg);needle=`<line x1="${cx}" y1="${cy}" x2="${mx.toFixed(1)}" y2="${my.toFixed(1)}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--ink)"/>`;}
+  let labels='',defs='';
+  ph.forEach((p,idx)=>{
+    const midDeg=((((p.from-1)+(p.to))/2)/L)*360;const bottom=(midDeg>90&&midDeg<270);const spread=27;
+    const r=bottom?rLabel+13:rLabel;
+    const d=bottom?mnArc(cx,cy,r,midDeg+spread,midDeg-spread):mnArc(cx,cy,r,midDeg-spread,midDeg+spread);
+    const id='mnlab'+idx;defs+=`<path id="${id}" d="${d}" fill="none"/>`;
+    labels+=`<text font-size="11.5" font-weight="800" letter-spacing=".02em" fill="${p.color}" font-family="system-ui"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${p.short}</textPath></text>`;
+  });
+  return `<svg viewBox="0 0 320 320" width="100%" style="display:block;max-width:360px;margin:0 auto;overflow:visible"><defs>${defs}</defs>${labels}${needle}${dots}</svg>`;
+}
+const MN_SRC={
+  mcnulty:{url:'https://doi.org/10.1007/s40279-020-01319-3'},
+  herzberg:{url:'https://doi.org/10.1177/2325967117718781'},
+  holtzman:{url:'https://doi.org/10.1007/s40279-021-01508-8'}
+};
+const MN_INFO={
+  menstruelle:{
+    sport:{t:"Énergie parfois plus basse en début de règles, mais la performance reste globalement possible : adapte l'intensité à ton ressenti plutôt qu'au calendrier.",s:'mcnulty'},
+    nut:{t:"Pertes de fer pendant les règles : privilégie les aliments riches en fer (légumineuses, viandes rouges, légumes verts) avec de la vitamine C, et hydrate-toi bien.",s:'holtzman'},
+    hum:{t:"Hormones au plus bas : un peu de fatigue est normale en début de règles et s'estompe souvent dès la fin des saignements. Sois indulgente avec toi-même.",s:'mcnulty'}
+  },
+  folliculaire:{
+    sport:{t:"Montée des œstrogènes : souvent la meilleure phase pour les séances intenses et le travail de force, avec une bonne récupération.",s:'mcnulty'},
+    nut:{t:"Bonne tolérance aux glucides : fais le plein de glucides pour les séances intenses et vise assez de protéines pour progresser.",s:'holtzman'},
+    hum:{t:"Les œstrogènes qui montent sont associés à plus d'énergie, de motivation et une humeur en hausse : bon moment pour les objectifs ambitieux.",s:'mcnulty'}
+  },
+  ovulatoire:{
+    sport:{t:"Pic d'œstrogènes : la laxité des ligaments augmente et le risque de blessure au genou (LCA) est plus élevé. Soigne l'échauffement et reste prudente sur les sauts et changements de direction.",s:'herzberg'},
+    nut:{t:"Besoins stables : maintiens glucides et protéines autour des séances, et pense à bien t'hydrater.",s:'holtzman'},
+    hum:{t:"Souvent un pic d'énergie, de confiance et de libido en milieu de cycle.",s:'mcnulty'}
+  },
+  luteale:{
+    sport:{t:"Progestérone en hausse et température du corps un peu plus haute : l'effort peut sembler plus dur, surtout à la chaleur. Charge modérée et récupération soignée, surtout en fin de phase (SPM possible).",s:'mcnulty'},
+    nut:{t:"Dépense et besoins en protéines légèrement plus élevés : glucides complets et magnésium peuvent aider face au SPM, et hydrate-toi davantage (température plus haute).",s:'holtzman'},
+    hum:{t:"Fatigue, baisse de moral ou SPM peuvent apparaître avant les règles : c'est normal. Ajuste l'intensité et privilégie la douceur.",s:'mcnulty'}
+  }
+};
+function mnBlock(emoji,txt,src){const s=MN_SRC[src];return `<div style="display:flex;gap:11px;padding:12px 0;border-top:1px solid var(--line)"><span style="font-size:21px;flex:none;line-height:1.2">${emoji}</span><p style="margin:0;font-size:13px;line-height:1.5">${txt} <a href="${s.url}" target="_blank" rel="noopener" style="color:var(--accent);font-size:11.5px;white-space:nowrap">(source)</a></p></div>`;}
 function menstruSectionHtml(){
   const starts=(MY_MENSTRU&&MY_MENSTRU.starts)||[];const last=starts.length?starts[starts.length-1]:null;
   const ends=(MY_MENSTRU&&MY_MENSTRU.ends)||[];const lastEnd=menstruEndFor(starts,ends,last);
-  const L=menstruCycleLen(starts);const reglesLen=lastEnd?Math.min(L,Math.max(1,mDaysBetween(last,lastEnd)+1)):Math.min(5,L);
-  const zones=menstruZones(L,reglesLen);const day=menstruDayOf(last,TODAY,L);const zone=menstruZoneForDay(zones,day);
+  const L=menstruCycleLen(starts);
+  const reglesLen=lastEnd?Math.min(L,Math.max(2,mDaysBetween(last,lastEnd)+1)):5;
+  const ph=menstruPhases(L,reglesLen);
+  const day=last?menstruDayOf(last,TODAY,L):null;
+  const curP=day?phaseForDay(ph,day):null;
   const next=last?addDaysISO(last,L):null;
-  const dSince=last!=null?mDaysBetween(last,TODAY):null;
-  const canStart=(last==null)||(dSince>=Math.max(10,L-3)); // une seule saisie par cycle
-  if(!MENSTRU_DATE)MENSTRU_DATE=TODAY;
-  if(!MENSTRU_END)MENSTRU_END=TODAY;
-  // Saisie de la fin des règles : proposée quand un début récent est posé et que la fin n'est pas encore connue.
-  const endInput=(last&&!lastEnd&&!canStart)
-    ? `<div class="field" style="margin-top:12px"><label>Mes règles sont terminées le</label><input type="date" id="mn-end-date" value="${MENSTRU_END}" min="${last}" max="${TODAY}" style="max-width:210px"></div>
-       <button class="btn sec block" id="mn-end">✓ Mes règles sont terminées</button>
-       <div class="ok" id="mn-end-ok" style="margin-top:8px"></div>`
-    : '';
-  const endDone=lastEnd?`<p class="muted" style="font-size:12.5px;margin:10px 0 0">Fin des règles enregistrée le <b>${isoLong(lastEnd)}</b> · durée <b>${mDaysBetween(last,lastEnd)+1} j</b>. <button class="btn sec" id="mn-end-del" style="padding:3px 9px;margin-left:4px">Corriger</button></p>`:'';
-  const startCard=`<div class="card"><h2>🌸 Mon cycle <span class="muted" style="font-size:12px;font-weight:400">· facultatif &amp; privé</span></h2>
-    <p class="muted" style="font-size:12.5px;margin:0 0 12px">Quand tes règles commencent, appuie une fois sur le bouton. C'est privé ; seul ton coach le voit, pour adapter les séances.</p>
-    ${canStart
-      ? `<div class="field"><label>Date de début</label><input type="date" id="mn-date" value="${MENSTRU_DATE}" max="${TODAY}" style="max-width:210px"></div>
-         <button class="btn block" id="mn-start">🌸 Débuter — mes règles ont commencé</button>
-         <div class="ok" id="mn-ok" style="margin-top:8px"></div>`
-      : `<div style="background:var(--surface-2);border:1px dashed var(--line);border-radius:10px;padding:12px 14px">
-           <b>✓ Règles enregistrées le ${isoLong(last)}</b>
-           <p class="muted" style="font-size:12.5px;margin:6px 0 0">Rien à saisir pour le moment.${next?` Le bouton se réactivera vers le ${isoLong(next)} (prochaines règles estimées).`:''}</p>
-         </div>`}
-    ${endInput}${endDone}
+  const svg=buildCycleSVG(L,ph,day);
+  const circle=`<div class="sect wellform"><div style="position:relative;max-width:360px;margin:6px auto 0">${svg}<button id="mn-j1" aria-label="Déclarer le jour 1 des règles" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;border:0;cursor:pointer;background:radial-gradient(circle at 36% 30%,#c0392b,#7a1420);color:#fff;font-weight:800;font-size:25px;box-shadow:0 10px 26px -6px rgba(140,20,30,.55);font-family:inherit">J1</button></div>
+    <p class="muted" style="text-align:center;margin:14px 0 0;font-size:12.5px">Appuie sur <b>J1</b> le 1<sup>er</sup> jour de tes règles${last?' pour recaler ton cycle':' pour démarrer le suivi'}. C'est privé — seul ton coach le voit.</p>
   </div>`;
-  const whereCard=last?`<div class="card"><h2>Où j'en suis</h2>
-    <p style="margin:0 0 2px;font-size:14px">Dernier début : <b>${isoLong(last)}</b>${day!=null?` · aujourd'hui <b>J${day}</b> — <b style="color:${zone?zone.color:'inherit'}">${zone?zone.name:''}</b>`:''}</p>
-    <p class="muted" style="font-size:12.5px;margin:2px 0 0">Cycle estimé : ${L} jours${next?` · prochaines règles estimées vers le ${isoLong(next)}`:''}.</p>
-    ${menstruBar(zones,L,day)}
-    ${zone&&zone.msg?`<p style="font-size:13px;margin:8px 0 0;line-height:1.5">${zone.msg}</p>`:''}
-  </div>`:'';
-  const histCard=starts.length?`<div class="card"><details><summary style="cursor:pointer;font-weight:600">Historique &amp; corrections</summary><div style="margin-top:8px">${starts.slice().reverse().map(d=>`<div class="hist"><span>${isoLong(d)}</span><button class="btn sec" data-mndel="${d}" style="padding:4px 10px">Supprimer</button></div>`).join('')}<p class="muted" style="font-size:11.5px;margin:8px 0 0">Supprime une date saisie par erreur : le bouton « Débuter » redeviendra disponible.</p></div></details></div>`:'';
-  return startCard+whereCard+histCard;
+  let ask='';
+  if(MN_ASK==='confirm') ask=`<div class="sect wellform"><div class="card" style="text-align:center"><p style="margin:0 0 14px;font-size:15px;font-weight:600">Est-ce bien ton <b style="color:#c0392b">jour 1</b> de règles aujourd'hui ?<br><span class="muted" style="font-weight:400;font-size:13px">${isoLong(TODAY)}</span></p><div style="display:flex;gap:10px"><button class="btn block" id="mn-yes">Oui, c'est aujourd'hui</button><button class="btn sec block" id="mn-no">Non, un autre jour</button></div></div></div>`;
+  else if(MN_ASK==='date') ask=`<div class="sect wellform"><div class="card"><label style="display:block;font-size:13.5px;font-weight:600;margin-bottom:8px">Quel jour tes règles ont-elles commencé ?</label><input type="date" id="mn-date" max="${TODAY}" value="${MN_DATEVAL||TODAY}" style="max-width:220px"><p class="muted" style="font-size:12px;margin:8px 0 0">Je recalcule automatiquement où tu en es dans ton cycle.</p><div style="display:flex;gap:10px;margin-top:12px"><button class="btn block" id="mn-date-ok">Valider</button><button class="btn sec block" id="mn-cancel">Annuler</button></div></div></div>`;
+  let infos='';
+  if(day&&curP&&!MN_ASK){
+    const I=MN_INFO[curP.key];
+    infos=`<div class="sect wellform">
+      <div style="text-align:center;margin-bottom:4px"><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Aujourd'hui · jour ${day} / ${L}</div><h2 style="margin:3px 0 0;color:${curP.color}">${curP.name}</h2>${next?`<div class="muted" style="font-size:12px;margin-top:3px">Prochaines règles estimées vers le ${isoLong(next)}</div>`:''}</div>
+      ${mnBlock('🏃‍♀️',I.sport.t,I.sport.s)}
+      ${mnBlock('🥗',I.nut.t,I.nut.s)}
+      ${mnBlock('🧠',I.hum.t,I.hum.s)}
+      <p class="muted" style="font-size:11px;margin:11px 0 0">Informations générales, pas un avis médical — chaque personne est différente, fie-toi d'abord à ton ressenti.</p>
+    </div>`;
+  }
+  return circle+ask+infos;
 }
 function bindMenstruSection(){
-  const dt=$('#mn-date');if(dt)dt.addEventListener('change',e=>{MENSTRU_DATE=e.target.value||TODAY;});
-  const st=$('#mn-start');if(st)st.onclick=async()=>{const d=$('#mn-date').value||TODAY;st.disabled=true;const ok=$('#mn-ok');if(ok)ok.textContent='Enregistrement…';try{await saveMenstruStart(d);MENSTRU_DATE=TODAY;await renderTab();}catch(e){if(ok)ok.textContent='échec, réessaie';st.disabled=false;}};
-  const ed=$('#mn-end-date');if(ed)ed.addEventListener('change',e=>{MENSTRU_END=e.target.value||TODAY;});
-  const eb=$('#mn-end');if(eb)eb.onclick=async()=>{const d=$('#mn-end-date').value||TODAY;eb.disabled=true;const ok=$('#mn-end-ok');if(ok)ok.textContent='Enregistrement…';try{await saveMenstruEnd(d);MENSTRU_END=TODAY;await renderTab();}catch(e){if(ok)ok.textContent='échec, réessaie';eb.disabled=false;}};
-  const edel=$('#mn-end-del');if(edel)edel.onclick=async()=>{const starts=(MY_MENSTRU&&MY_MENSTRU.starts)||[];const last=starts.length?starts[starts.length-1]:null;if(!last)return;const all=(await kvGet(SPACE+':menstru'))||{};const rec=all[PLAYER.id];if(rec&&Array.isArray(rec.ends)){rec.ends=rec.ends.filter(e=>mDaysBetween(last,e)<0);rec.updatedAt=new Date().toISOString();all[PLAYER.id]=rec;await kvSet(SPACE+':menstru',all);MY_MENSTRU=rec;}await renderTab();};
-  document.querySelectorAll('[data-mndel]').forEach(b=>b.onclick=async()=>{if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Confirmer';setTimeout(()=>{if(b.isConnected){b.classList.remove('arm');b.textContent='Supprimer';}},3000);return;}await deleteMenstruStart(b.getAttribute('data-mndel'));await renderTab();});
+  const j1=$('#mn-j1');if(j1)j1.onclick=()=>{MN_ASK='confirm';renderTab();};
+  const yes=$('#mn-yes');if(yes)yes.onclick=async()=>{yes.disabled=true;try{await saveMenstruStart(TODAY);}catch(e){}MN_ASK=null;await renderTab();};
+  const no=$('#mn-no');if(no)no.onclick=()=>{MN_ASK='date';MN_DATEVAL=TODAY;renderTab();};
+  const dt=$('#mn-date');if(dt)dt.addEventListener('change',e=>{MN_DATEVAL=e.target.value||TODAY;});
+  const ok=$('#mn-date-ok');if(ok)ok.onclick=async()=>{ok.disabled=true;try{await saveMenstruStart(MN_DATEVAL||TODAY);}catch(e){}MN_ASK=null;await renderTab();};
+  const cancel=$('#mn-cancel');if(cancel)cancel.onclick=()=>{MN_ASK=null;renderTab();};
 }
 
 let SESSIONS_TODAY=[]; // {sid, session, rpe}
