@@ -1592,6 +1592,7 @@ function renderFullApp(section){
           ${section==='football'?`<button data-fbdemo title="${t('Afficher une équipe démo (lecture seule) pour voir les courbes','Show a demo team (read-only) to preview the charts')}" style="appearance:none;cursor:pointer;border:1px solid ${state.fbDemo?'#3b82f6':'rgba(255,255,255,.25)'};background:${state.fbDemo?'#3b82f6':'transparent'};color:${state.fbDemo?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">👁 ${state.fbDemo?t('Démo ✓','Demo ✓'):t('Démo','Demo')}</button>`:''}
           <button data-fbtheme title="${t('Thème clair / sombre','Light / dark theme')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">${themeIcon()} ${themeLabel()}</button>
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
+          ${section==='apa'?`<button data-apacal title="${t('Calendrier / planning','Calendar / schedule')}" aria-label="${t('Calendrier','Calendar')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">📅</button>`:''}
           <button data-fbswitch title="${t('Changer de vue','Switch view')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">🔄 ${t('Changer de vue','Switch view')}</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
         </div>
@@ -1630,6 +1631,8 @@ function renderFullApp(section){
   if(lo) lo.addEventListener('click', logout);
   const sw = app.querySelector('[data-fbswitch]');
   if(sw) sw.addEventListener('click', openAccountSwitch);
+  const apc = app.querySelector('[data-apacal]');
+  if(apc) apc.addEventListener('click', () => { const f = app.querySelector('iframe'); try{ if(f&&f.contentWindow) f.contentWindow.postMessage({type:'apa-cal'}, location.origin); }catch(e){} });
   const ad = app.querySelector('[data-fbadmin]');
   if(ad) ad.addEventListener('click', () => { state.prevSection = state.section; state.section = 'settings'; render(); });
 }
