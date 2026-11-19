@@ -517,9 +517,15 @@ table.cmp th{background:var(--card2);font:600 11px var(--f-body);letter-spacing:
 .apanav-b.on .ic{background:color-mix(in srgb,var(--accent) 16%,transparent)}
 .apanav-b:active{transform:translateY(1px)}
 .apanav-b:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+/* bouton central « Planning » (calendrier) — rond, un peu plus gros, surélevé */
+.apanav-cal{flex:0 0 auto;appearance:none;border:0;cursor:pointer;width:56px;height:56px;margin:-16px 6px 0;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--lav));color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--accent) 70%,transparent);transition:transform .15s,box-shadow .15s}
+.apanav-cal svg{width:26px;height:26px;stroke:#fff}
+.apanav-cal.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent),0 10px 24px -6px color-mix(in srgb,var(--accent) 70%,transparent)}
+.apanav-cal:active{transform:translateY(1px) scale(.97)}
+.apanav-cal:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 body.apacoach #tabs{display:none}
 body.apacoach .topbar{display:none} /* bande redondante masquée : l'en-tête Elite Adapt est déjà au-dessus (coquille coach) */
-body.apacoach .shell{padding-bottom:calc(116px + env(safe-area-inset-bottom,0px))}
+body.apacoach .shell{padding-top:8px;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
 </style>
 <div class="topbar">
   <div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt"><span class="wm">Elite <span class="ad">Adapt</span></span><span class="sub">Activité physique adaptée</span></div>
@@ -897,7 +903,9 @@ const APAICO={
 const apaIco=n=>`<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${APAICO[n]||''}</svg></span>`;
 function renderApaNav(){const an=$('#apanav');if(!an)return;
  const B=[['groupes',T('Vue d’ensemble','Overview')],['agenda',T('Séances','Sessions')],['m2',T('Dossier','File')],['anamnese',T('Anamnèse','History')]];
- an.innerHTML=`<div class="apanav-in">${B.map(([k,l])=>`<button class="apanav-b${S.ui.tab===k?' on':''}" data-tab="${k}" role="tab" aria-selected="${S.ui.tab===k?'true':'false'}">${apaIco(k)}<span>${l}</span></button>`).join('')}</div>`;}
+ const btn=([k,l])=>`<button class="apanav-b${S.ui.tab===k?' on':''}" data-tab="${k}" role="tab" aria-selected="${S.ui.tab===k?'true':'false'}">${apaIco(k)}<span>${l}</span></button>`;
+ const cal=`<button class="apanav-cal${S.ui.tab==='planning'?' on':''}" data-tab="planning" title="${T('Planning','Schedule')}" aria-label="${T('Planning','Schedule')}">${apaIco('agenda')}</button>`;
+ an.innerHTML=`<div class="apanav-in">${btn(B[0])}${btn(B[1])}${cal}${btn(B[2])}${btn(B[3])}</div>`;}
 function coachRender(){document.body.classList.add('apacoach');setRole('<button class="iconbtn'+(S.ui.tab==='planning'?' on':'')+'" data-tab="planning" title="'+T('Planning','Schedule')+'" aria-label="'+T('Planning','Schedule')+'">📅</button>');$('#saved').hidden=true;
  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.ui.tab===k}">${l}</button>`).join('');
  renderApaNav();

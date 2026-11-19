@@ -25,7 +25,8 @@
   --grad:linear-gradient(135deg,var(--accent),var(--accent-2));
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:15px;line-height:1.5}
+html{scrollbar-gutter:stable}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:15px;line-height:1.5;overflow-y:scroll}
 /* Lueur d'ambiance subtile en fond (fixe), pour une profondeur moderne sans surcharge */
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:
@@ -42,6 +43,10 @@ h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 .card{position:relative;background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 96%,#fff 4%),var(--surface));border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 color-mix(in srgb,#fff 6%,transparent) inset,0 10px 26px -18px rgba(0,0,0,.65)}
 /* Section ouverte : le contenu respire directement sur la page, sans encadré */
 .sect{margin:0 0 26px;padding:0}
+.wellform{padding:0 11px}
+.wellform h2{padding:0 1px}
+.shopbar{display:flex;align-items:center;gap:8px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:14px;padding:10px 12px;margin:0 0 16px;font-size:14.5px}
+.shopbar b{flex:1}
 .sect>h2{margin:0 0 12px}
 .sect+.sect{margin-top:2px}
 /* De-box GLOBAL du contenu : plus d'encadré de couleur, le texte vit sur la page.
@@ -222,8 +227,9 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .topbar .brand{color:var(--onbg)}
 .topbar>div>.muted{color:var(--onbg);opacity:.68}
 .topbar .btn.sec{color:var(--onbg);border-color:color-mix(in srgb,var(--onbg) 42%,transparent)}
-.iconbtn{appearance:none;cursor:pointer;border:1px solid color-mix(in srgb,var(--onbg) 42%,transparent);background:transparent;color:var(--onbg);border-radius:10px;padding:8px 10px;font-size:17px;line-height:1}
+.iconbtn{appearance:none;cursor:pointer;border:1px solid color-mix(in srgb,var(--onbg) 42%,transparent);background:transparent;color:var(--onbg);border-radius:10px;padding:8px 10px;font-size:17px;line-height:1;transition:background .15s,border-color .15s,box-shadow .15s}
 .iconbtn:active{transform:scale(.96)}
+.iconbtn.on{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 6px 16px -6px color-mix(in srgb,var(--accent) 70%,transparent)}
 .sheet{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:22px 14px;overflow:auto;-webkit-overflow-scrolling:touch}
 .sheetbox{width:100%;max-width:460px}
 .sheetbox .card{margin-bottom:10px}
@@ -262,7 +268,8 @@ body.coach-fill .botnav-inner{max-width:720px}
 .msg-bub.them{background:var(--surface);border:1px solid var(--line-2);border-bottom-left-radius:5px}
 .msg-t{display:block;font-size:10.5px;opacity:.72;margin-top:3px;text-align:right}
 .chat-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:955;width:calc(100% - 28px);max-width:540px;display:flex;gap:8px;align-items:flex-end;padding:8px 10px;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:24px;box-shadow:0 14px 34px -10px rgba(0,0,0,.5)}
-.chat-bar textarea{flex:1;resize:none;min-height:42px;max-height:120px;border:0;background:none;border-radius:14px;padding:10px 12px;font-size:15px;font-family:inherit}
+.chat-bar textarea{flex:1;resize:none;min-height:42px;max-height:120px;border:0;background:none;border-radius:14px;padding:10px 12px;font-size:15px;font-family:inherit;color:var(--ink);-webkit-text-fill-color:var(--ink);caret-color:var(--accent)}
+.chat-bar textarea::placeholder{color:var(--muted);-webkit-text-fill-color:var(--muted)}
 .chat-bar textarea:focus{outline:0}
 .chat-bar .btn{flex:none;padding:11px 16px;border-radius:14px;font-size:16px}
 .msg-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -435,35 +442,19 @@ function openSettings(){
     <button class="dropitem" data-set="contrast">🌓 Contraste<small>Auto · Clair · Sombre — <b id="ct-cur">${(function(){try{var p=localStorage.getItem('bp_theme');return p==='light'?'Clair':p==='dark'?'Sombre':'Auto';}catch(e){return 'Auto';}})()}</b></small></button>
     <button class="dropitem" data-set="theme">🎨 Mes couleurs<small>Fond + couleur des encadrés</small></button>
     <button class="dropitem" data-set="notif">🔔 Notifications<small>Rappels wellness &amp; RPE</small></button>
-    <button class="dropitem" data-set="switch">🔄 Changer de compte<small>Voir les comptes accessibles</small></button>`;
+    <button class="dropitem" data-set="switch">🔄 Changer de point de vue<small>Revenir au choix des espaces</small></button>`;
   document.body.appendChild(menu);
   const b=$('#settingsbtn');const r=b.getBoundingClientRect();
   menu.style.top=(r.bottom+6)+'px';menu.style.right=Math.max(8,window.innerWidth-r.right)+'px';
   menu.querySelector('[data-set="contrast"]').onclick=()=>{const n=cycleContrast();const c=document.getElementById('ct-cur');if(c)c.textContent=n==='light'?'Clair':n==='dark'?'Sombre':'Auto';};
   menu.querySelector('[data-set="theme"]').onclick=()=>{closeSettings();openTheme();};
   menu.querySelector('[data-set="notif"]').onclick=()=>{closeSettings();openNotif();};
-  menu.querySelector('[data-set="switch"]').onclick=()=>{closeSettings();openAccountSwitch();};
+  menu.querySelector('[data-set="switch"]').onclick=()=>{closeSettings();switchViewpoint();};
   setTimeout(()=>document.addEventListener('click',settingsOutside,true),0);
 }
-function openAccountSwitch(){
-  const ov=document.createElement('div');ov.className='sheet';ov.id='acctsheet';
-  const spaceLbl=SPACE==='ci'?'Coaching individuel':'Football';
-  const roleLbl=SPACE==='ci'?'Client·e':'Joueur·se';
-  ov.innerHTML=`<div class="sheetbox"><div class="card">
-    <h2>🔄 Changer de compte</h2>
-    <p class="muted" style="font-size:13px;margin:-4px 0 14px">Voici les comptes accessibles avec ton identifiant. Touche un compte pour y accéder, sans ressaisir tes codes.</p>
-    <div style="display:flex;align-items:center;gap:12px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);border-radius:14px;padding:14px">
-      <div style="width:42px;height:42px;border-radius:12px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none">${SPACE==='ci'?'🧍':'⚽'}</div>
-      <div style="min-width:0"><div style="font-weight:700;font-size:15px">${esc(PLAYER.name)}</div><div class="muted" style="font-size:12.5px">${roleLbl} · ${spaceLbl} · <span style="color:var(--good)">connecté·e ✓</span></div></div>
-    </div>
-    <p class="muted" style="font-size:12px;margin:14px 0 0">Tu n'as accès qu'à ce compte. Pour un autre compte (coach, autre espace…), connecte-toi avec ses identifiants.</p>
-    <button class="btn block" id="acct-relogin" style="margin-top:12px">Me connecter avec un autre compte</button>
-  </div><button class="btn sec block" id="acct-close" style="margin-top:4px">Fermer</button></div>`;
-  document.body.appendChild(ov);
-  ov.onclick=e=>{if(e.target===ov)ov.remove();};
-  const cl=$('#acct-close');if(cl)cl.onclick=()=>ov.remove();
-  const rl=$('#acct-relogin');if(rl)rl.onclick=()=>{ov.remove();clearSession();PLAYER=null;renderLogin();};
-}
+// « Changer de point de vue » : on revient à l'entrée de l'app (/), où l'on choisit son espace
+// (comme le « Changer de vue » des autres points de vue). On ne déconnecte pas le compte client.
+function switchViewpoint(){ try{ location.href='/'; }catch(e){} }
 function closeNotif(){const s=$('#notifsheet');if(s)s.remove();}
 async function openNotif(){
   const ps=await pushStatus();
@@ -814,7 +805,7 @@ function wellnessLockedCard(){
   </div>`;
 }
 function wellnessCard(){
-  return `<div class="sect">
+  return `<div class="sect wellform">
     <h2>Mon wellness du jour</h2>
     <div class="field" style="text-align:center"><label>Date</label><input type="date" id="w-date" value="${FEEL_DATE}" style="max-width:210px;margin:0 auto;text-align:center"></div>
     ${WELL.map(w=>`<div class="well-item">
@@ -1464,11 +1455,12 @@ function loadChartHtml(){
   const days=[];for(let i=13;i>=0;i--)days.push(addDaysISO(TODAY,-i));
   const vals=days.map(d=>dayLoad(d));const max=Math.max(1,...vals.map(v=>v.load+v.planned));
   const bars=vals.map((v,i)=>{const tot=v.load+v.planned;const h=Math.max(2,Math.round(tot/max*88));const realH=tot?Math.round(h*v.load/tot):2;const planH=Math.max(0,h-realH);
+    const ratio=max?Math.min(1,v.load/max):0;const col=`color-mix(in srgb, var(--warn) ${Math.round(ratio*100)}%, var(--good))`;
     const tip=`${days[i]} : ${v.load} UA réalisé${v.planned?' · '+v.planned+' UA prévu':''}`;
-    return `<div class="bcol" title="${tip}">${planH?`<div class="seg prev" style="height:${planH}px"></div>`:''}${realH?`<div class="seg real ${v.match?'match':''}" style="height:${realH}px"></div>`:''}</div>`;}).join('');
+    return `<div class="bcol" title="${tip}">${planH?`<div class="seg prev" style="height:${planH}px"></div>`:''}${realH?`<div class="seg real" style="height:${realH}px;background:${col};opacity:1"></div>`:''}</div>`;}).join('');
   const labs=days.map((d,i)=>`<span>${i%2===0?d.slice(8):''}</span>`).join('');
   const hasPlanned=vals.some(v=>v.planned>0);
-  return `<div class="loadbars">${bars}</div><div class="loadlab">${labs}</div><p class="muted" style="font-size:11.5px;margin:8px 0 0">Charge = RPE × minutes (unités arbitraires). Orange = match.${hasPlanned?' Barres hachurées = séances envoyées, RPE pas encore saisi.':''}</p>`;
+  return `<div class="loadbars">${bars}</div><div class="loadlab">${labs}</div><p class="muted" style="font-size:11.5px;margin:8px 0 0">Charge = RPE × minutes (UA). Couleur : charge faible = <b style="color:var(--good)">vert</b>, charge élevée = <b style="color:var(--warn)">orange</b>.${hasPlanned?' Barres hachurées = séances envoyées, RPE pas encore saisi.':''}</p>`;
 }
 // Progression : compte TOUTES les séances réalisées (notées) — les tiennes, celles du coach, et le programme validé.
 function weekStat(start){
@@ -1495,12 +1487,6 @@ function progressionCard(){
   if(MY_PLAN&&MY_PLAN.done){let pc=0;Object.values(MY_PLAN.done).forEach(d=>{if(d&&d.rpe!=null&&d.date>=wkStart&&d.date<wkEnd)pc++;});if(pc)bySport['📋 Programme']=(bySport['📋 Programme']||0)+pc;}
   const sportChips=Object.entries(bySport).map(([k,v])=>`${k} ×${v}`).join('  ·  ')||'Aucune séance réalisée cette semaine.';
   return `<div class="sect">
-    <div class="kpis" style="margin-bottom:14px">
-      ${stat('Séances (7 j)',cur.n,'',delta(cur.n,prev.n))}
-      ${stat('Minutes (7 j)',cur.min,'min',delta(cur.min,prev.min))}
-      ${stat('Distance (7 j)',cur.km,'km',delta(cur.km,prev.km))}
-      ${stat('Charge (7 j)',cur.load,'UA',delta(cur.load,prev.load))}
-    </div>
     <div class="muted" style="font-size:12.5px;margin-bottom:6px">Charge par semaine (6 dernières)</div>
     <div class="wkwrap">
       <div class="wkyttl">Charge (UA)</div>
@@ -1511,8 +1497,28 @@ function progressionCard(){
         <div class="wkxttl">Semaines (lundi)</div>
       </div>
     </div>
-    <p class="muted" style="font-size:11px;margin:6px 0 0">Couleur = nombre de séances : plus il y en a, plus c'est <b style="color:var(--good)">vert</b> ; moins il y en a, plus c'est <b style="color:var(--warn)">orange</b>.</p>
-    <div class="muted" style="font-size:12.5px;margin-top:12px">${sportChips}</div>
+    <div class="kpis" style="margin-top:18px">
+      ${stat('Séances (7 j)',cur.n,'',delta(cur.n,prev.n))}
+      ${stat('Minutes (7 j)',cur.min,'min',delta(cur.min,prev.min))}
+      ${stat('Distance (7 j)',cur.km,'km',delta(cur.km,prev.km))}
+      ${stat('Charge (7 j)',cur.load,'UA',delta(cur.load,prev.load))}
+    </div>
+    <div class="muted" style="font-size:12.5px;margin-top:14px">${sportChips}</div>
+    ${chargeRefHtml()}
+  </div>`;
+}
+function chargeRefHtml(){
+  const row=(c,t)=>`<div style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border-radius:3px;background:${c};flex:none"></span> ${t}</div>`;
+  return `<div style="margin-top:16px;padding-top:13px;border-top:1px solid var(--line)">
+    <div style="font-weight:700;font-size:13px;margin-bottom:5px">📊 Comprendre la charge</div>
+    <p class="muted" style="font-size:12.5px;margin:0 0 9px">La charge se mesure en <b>UA</b> (unités arbitraires) = <b>RPE</b> (effort ressenti sur 10) × <b>minutes</b>. Exemple : <b>360 UA</b> = une séance de 60 min à un effort modéré (6/10).</p>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+      ${row('var(--good)','Semaine légère · récupération — moins de 1500 UA')}
+      ${row('color-mix(in srgb,var(--good) 50%,var(--warn))','Charge modérée — 1500 à 3000 UA')}
+      ${row('var(--warn)','Charge élevée — 3000 à 4500 UA')}
+      ${row('var(--crit)','Très élevée · attention à la récupération — plus de 4500 UA')}
+    </div>
+    <p class="muted" style="font-size:11px;margin:9px 0 0">Repères indicatifs : l'essentiel est la régularité et l'évolution d'une semaine à l'autre, pas un chiffre absolu.</p>
   </div>`;
 }
 /* ---------- « À saisir » dans la Vue d'ensemble : bouton Saisir → RPE (+ note de perf si match) ---------- */
@@ -1616,7 +1622,7 @@ async function overviewHtml(sub){
       :`<button class="btn sec" data-rate="${esc(s.id)}" style="padding:4px 12px">Saisir</button>`;
     return `<div class="hist"><span>${isoLong(s.date)} · ${esc(s.title||s.type||'Séance')}</span>${right}</div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
   const kpis=`<div class="kpis">
-      <div class="kpi" data-kidx="0" style="${kpiStyle(0)}"><div class="lab">Wellness du jour</div><div class="val">${wt?wt.score+'<small>%</small>':'—'}</div><div class="d">${wt?'rempli ✓':'à remplir'}</div></div>
+      <div class="kpi" data-kidx="0" style="${kpiStyle(0)}"><div class="lab">Wellness du jour</div><div class="val">${wt?wt.score+'<small>%</small>':'<button class="btn" data-goto="sante" style="padding:6px 18px;font-size:14px;margin:2px 0 1px">Remplir</button>'}</div><div class="d">${wt?'rempli ✓':'à remplir'}</div></div>
       <div class="kpi" data-kidx="1" style="${kpiStyle(1)}"><div class="lab">Séances à noter</div><div class="val">${toRate}</div><div class="d">${toRate?'RPE en attente':'tout est noté'}</div></div>
       <div class="kpi" data-kidx="2" style="${kpiStyle(2)}"><div class="lab">Charge 7 jours</div><div class="val">${l7}<small> UA</small></div><div class="d">RPE × minutes</div></div>
       <div class="kpi" data-kidx="3" style="${kpiStyle(3)}"><div class="lab">Séances suivies</div><div class="val">${MY_SESSIONS.length}</div><div class="d">au total avec toi</div></div>
@@ -1629,8 +1635,7 @@ async function overviewHtml(sub){
   return kpis
     + publicEventsCard()
     + `<div class="rebox">${ovSaisirCard()}</div>`
-    + (selfLog()?`<div class="rebox">${progressionCard()}</div>`:'')
-    + (!wt?`<div class="row"><button class="btn block" data-goto="sante">Remplir mon wellness</button></div>`:'');
+    + (selfLog()?`<div class="rebox">${progressionCard()}</div>`:'');
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
 let MY_PLAN=null, PROG_WEEK=null, PROG_OPEN=null, MY_PDFS=[];
@@ -1726,7 +1731,8 @@ function boutiqueHtml(){
     <div style="font-weight:800;font-size:16px;margin:6px 0 2px">${esc(p.title)}</div><div class="muted" style="font-size:12.5px">${esc(p.desc)}</div>
     <div class="muted" style="font-size:11.5px;margin-top:7px">${p.durationDays} jours · ${p.weeks.length} semaines · ${progCount(p)} séances</div>
     <button class="btn" data-bunlock="${p.id}" style="width:100%;margin-top:11px">🔓 Débloquer — ${PROG_PRICE} €</button></div>`;
-  return `${owned.length?`<h2 style="margin:4px 0 8px">Mes programmes</h2>${owned.map(ownedCard).join('')}`:''}
+  return `<div class="shopbar">🛒 <b>Boutique de programmes</b><button class="btn sec" data-shopclose style="padding:5px 12px;font-size:13px">Fermer</button></div>
+    ${owned.length?`<h2 style="margin:4px 0 8px">Mes programmes</h2>${owned.map(ownedCard).join('')}`:''}
     <h2 style="margin:${owned.length?'18px':'4px'} 0 4px">Boutique de programmes</h2>
     <p class="muted" style="font-size:12.5px;margin:0 0 10px">Des programmes de 30 jours à suivre directement dans l'app. Débloque-les pour ${PROG_PRICE} €.</p>
     ${locked.map(lockedCard).join('')||'<div class="card"><p class="muted" style="margin:0">Tous les programmes sont débloqués 🎉</p></div>'}`;
@@ -1757,6 +1763,7 @@ function boutiquePlayerHtml(p){
     ${days||'<div class="card"><p class="muted">Aucune séance cette semaine.</p></div>'}`;
 }
 function bindBoutique(){
+  document.querySelectorAll('[data-shopclose]').forEach(b=>b.onclick=()=>{ESPACE_TAB='apercu';BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();});
   document.querySelectorAll('[data-bopen]').forEach(b=>b.onclick=()=>{BOUTIQUE_OPEN=b.getAttribute('data-bopen');BOUTIQUE_WEEK=null;BOUTIQUE_SOPEN=null;renderTab();});
   document.querySelectorAll('[data-bunlock]').forEach(b=>b.onclick=async()=>{const pid=b.getAttribute('data-bunlock');const p=CATALOG().find(x=>x.id===pid);if(!p)return;if(!confirm('Débloquer « '+p.title+' » ?\n\nLe paiement de '+PROG_PRICE+' € sera bientôt disponible. Pour l\'instant, l\'accès est activé directement.'))return;b.disabled=true;b.textContent='Déblocage…';await boutiqueUnlock(pid);BOUTIQUE_OPEN=pid;BOUTIQUE_WEEK=null;BOUTIQUE_SOPEN=null;renderTab();});
   document.querySelectorAll('[data-bback]').forEach(b=>b.onclick=()=>{BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;renderTab();});
@@ -1817,13 +1824,14 @@ async function renderSpace(skipLoad){
     ${bottomNav()}`;
   const lo=$('#logout');if(lo)lo.onclick=()=>{clearSession();PLAYER=null;renderLogin();};
   const tb=$('#settingsbtn');if(tb)tb.onclick=openSettings;
-  const bq=$('#boutiquebtn');if(bq)bq.onclick=()=>{ESPACE_TAB='boutique';BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;renderTab();};
+  const bq=$('#boutiquebtn');if(bq)bq.onclick=()=>{ESPACE_TAB=(ESPACE_TAB==='boutique')?'apercu':'boutique';BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();};
   document.querySelectorAll('.botnav-item').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-nav');BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();});
   await renderTab();
   hideBoot();
 }
 async function renderTab(){
   document.querySelectorAll('.botnav-item').forEach(b=>{const on=b.getAttribute('data-nav')===ESPACE_TAB;b.classList.toggle('on',on);b.setAttribute('aria-selected',on?'true':'false');});
+  const bqb=$('#boutiquebtn');if(bqb)bqb.classList.toggle('on',ESPACE_TAB==='boutique');
   const c=$('#tabc');if(!c)return;
   if(ESPACE_TAB!=='messages'){stopMsgPoll();document.body.classList.remove('chat-typing');}
   if(ESPACE_TAB==='messages'){

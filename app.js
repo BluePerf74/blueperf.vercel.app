@@ -1520,6 +1520,8 @@ const GEAR_STYLE=`<style>
 .ea-gear-seg button{flex:1;appearance:none;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#cfd9e8;border-radius:9px;padding:8px 6px;font:600 12.5px system-ui,-apple-system,sans-serif}
 .ea-gear-seg button.on{background:#2552d6;border-color:#2552d6;color:#fff}
 .ea-gear-admin{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid rgba(255,255,255,.1);color:#dfe8f5;font:600 13px system-ui,-apple-system,sans-serif;padding:11px 2px 1px;margin-top:2px;cursor:pointer}
+.ea-gear-item{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid rgba(255,255,255,.1);color:#dfe8f5;font:600 13px system-ui,-apple-system,sans-serif;padding:11px 2px;cursor:pointer}
+.ea-gear-item.danger{color:#ffb4a8}
 </style>`;
 function gearMenu(){const th=themePref();const admin=(state.access==='coach'&&!state.manager&&!state.spaceCoach);
   return `${GEAR_STYLE}<div class="ea-gear" data-gear-wrap>
@@ -1537,6 +1539,8 @@ function gearMenu(){const th=themePref();const admin=(state.access==='coach'&&!s
         <button data-set-lang="en" class="${LANG==='en'?'on':''}">English</button>
       </div>
       ${admin?`<button class="ea-gear-admin" data-gear-admin>⚙️ ${t('Paramètres administrateur','Admin settings')}</button>`:''}
+      <button class="ea-gear-item" data-gear-switch>🔄 ${t('Changer de vue','Switch view')}</button>
+      <button class="ea-gear-item danger" data-gear-logout>${t('Déconnexion','Log out')}</button>
     </div>
   </div>`;
 }
@@ -1547,6 +1551,8 @@ function bindGearMenu(){
   wrap.querySelectorAll('[data-set-theme]').forEach(b=>b.addEventListener('click',()=>setTheme(b.getAttribute('data-set-theme'))));
   wrap.querySelectorAll('[data-set-lang]').forEach(b=>b.addEventListener('click',()=>setLang(b.getAttribute('data-set-lang'))));
   const adm=wrap.querySelector('[data-gear-admin]'); if(adm)adm.addEventListener('click',()=>{state.prevSection=state.section;state.section='settings';render();});
+  const gsw=wrap.querySelector('[data-gear-switch]'); if(gsw)gsw.addEventListener('click',openAccountSwitch);
+  const glo=wrap.querySelector('[data-gear-logout]'); if(glo)glo.addEventListener('click',logout);
 }
 try{document.addEventListener('click',e=>{if(!e.target.closest('[data-gear-wrap]'))document.querySelectorAll('.ea-gear.open').forEach(x=>x.classList.remove('open'));});}catch(e){}
 /* ----- Config générale : quels onglets (sections) sont affichés ----- */
@@ -1631,9 +1637,6 @@ function renderFullApp(section){
           ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:sc?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(sc.name||sc.username)} · <b style="color:#fff">Coach ${admEsc(SPACE_LABELS[sc.space]||sc.space||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
           ${section==='football'?`<button data-fbdemo title="${t('Afficher une équipe démo (lecture seule) pour voir les courbes','Show a demo team (read-only) to preview the charts')}" style="appearance:none;cursor:pointer;border:1px solid ${state.fbDemo?'#3b82f6':'rgba(255,255,255,.25)'};background:${state.fbDemo?'#3b82f6':'transparent'};color:${state.fbDemo?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">👁 ${state.fbDemo?t('Démo ✓','Demo ✓'):t('Démo','Demo')}</button>`:''}
           ${gearMenu()}
-          ${section==='apa'?`<button data-apacal title="${t('Calendrier / planning','Calendar / schedule')}" aria-label="${t('Calendrier','Calendar')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">📅</button>`:''}
-          <button data-fbswitch title="${t('Changer de vue','Switch view')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">🔄 ${t('Changer de vue','Switch view')}</button>
-          <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
         </div>
       </div>
       <iframe src="${src}" title="Elite Adapt" style="flex:1;width:100%;border:0;display:block"></iframe>
@@ -1663,12 +1666,6 @@ function renderFullApp(section){
   bindGearMenu();
   const dmb = app.querySelector('[data-fbdemo]');
   if(dmb) dmb.addEventListener('click', () => { state.fbDemo = !state.fbDemo; render(); });
-  const lo = app.querySelector('[data-fblogout]');
-  if(lo) lo.addEventListener('click', logout);
-  const sw = app.querySelector('[data-fbswitch]');
-  if(sw) sw.addEventListener('click', openAccountSwitch);
-  const apc = app.querySelector('[data-apacal]');
-  if(apc) apc.addEventListener('click', () => { const f = app.querySelector('iframe'); try{ if(f&&f.contentWindow) f.contentWindow.postMessage({type:'apa-cal'}, location.origin); }catch(e){} });
 }
 /* ----- Page Paramètres (plein écran, hors menu déroulant) ----- */
 const SET_STYLE=`<style>
@@ -2576,10 +2573,8 @@ async function renderHubPage(){
   const head=`<div class="hubpage-head">
     <div class="hubpage-brand">${shieldSeason()}<span class="hubpage-wm">Elite<span> Adapt</span></span><span class="hubpage-tag">Organisation</span></div>
     <div class="hubpage-actions">
-      ${gearMenu()}
-      <button data-fbswitch class="hubpage-ibtn" title="${t('Changer de vue','Switch view')}">🔄 ${t('Changer de vue','Switch view')}</button>
       <span class="hubpage-user">👤 ${admEsc(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>
-      <button data-fblogout class="hubpage-logout">${t('Déconnexion','Log out')}</button>
+      ${gearMenu()}
     </div></div>`;
   const curTab=state.hubTab||'accueil';
   const hubbar=`<nav id="hubbar" aria-label="Organisation"><div class="hubbar-in">${HUB_TABS.map(([k,l,ic])=>`<button class="hubbar-b${curTab===k?' on':''}" data-hubnav="${k}">${`<span class="ic">${hubIco(ic,22)}</span>`}<span>${l}</span></button>`).join('')}</div></nav>`;
