@@ -3248,7 +3248,7 @@ ENTRY.player=()=>{const e=editing('players');const s=S();const all=playersOf('To
       : fld('pp-pos','Poste',`<select id="pp-pos" name="pos">${opt(s.positions,e&&e.pos)}</select>`)}
     ${INDIV?'':fld('pp-num','Numéro',`<input type="number" id="pp-num" name="number" value="${esc(e&&e.number||'')}">`)}
     ${fld('pp-birth','Date de naissance',`<input type="date" id="pp-birth" name="birth" value="${esc(e&&e.birth||'')}">`)}
-    ${fld('pp-sex','Sexe',`<select id="pp-sex" name="sex"><option value="" ${!e||!e.sex?'selected':''}>—</option><option value="F" ${e&&e.sex==='F'?'selected':''}>Féminin</option><option value="M" ${e&&e.sex==='M'?'selected':''}>Masculin</option></select>`)}
+    ${fld('pp-sex','Sexe',`<select id="pp-sex" name="sex" required><option value="" ${!e||!e.sex?'selected':''} disabled>— à renseigner —</option><option value="F" ${e&&e.sex==='F'?'selected':''}>Féminin</option><option value="M" ${e&&e.sex==='M'?'selected':''}>Masculin</option></select>`)}
     ${fld('pp-h','Taille (cm)',`<input type="number" id="pp-h" name="height" value="${esc(e&&e.height||'')}">`)}
     ${fld('pp-m','Masse (kg)',`<input type="number" id="pp-m" name="mass" step="0.1" value="${esc(e&&e.mass||'')}">`)}
     ${fld('pp-v',INDIV?'VMA / Vitesse réf. (km/h)':'Vmax de référence (km/h)',`<input type="number" id="pp-v" name="vmax" step="0.1" value="${esc(e&&e.vmax||'')}">`)}

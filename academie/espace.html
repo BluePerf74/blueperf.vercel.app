@@ -51,11 +51,17 @@ h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 #tabc .kpi{background:none;border:0;box-shadow:none;border-radius:0;padding:1px 0 1px 12px}
 #tabc .kpi::after{border-radius:3px}
 #tabc .well-ic{background:none;border:0;width:auto;height:auto}
+/* Encadré volontaire (ré-ajouté là où ça clarifie, ex. Résumé) */
+#tabc .rebox{background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 96%,#fff 4%),var(--surface));border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;box-shadow:0 1px 0 color-mix(in srgb,#fff 6%,transparent) inset,0 10px 26px -18px rgba(0,0,0,.6)}
+#tabc .rebox>.sect{margin-bottom:0}
 /* Activité de la semaine : repère visuel (point par jour) + plage de dates en bulle */
 .wk-pill{flex:none;background:var(--surface);border:1px solid var(--line-2);border-radius:999px;padding:8px 18px;font-family:var(--fd);font-weight:700;font-size:14px;white-space:nowrap;letter-spacing:.01em}
-.dayblock{padding:13px 0;border-bottom:1px solid var(--line)}
+.dayblock{padding:4px 0;border-bottom:1px solid var(--line)}
 .dayblock:last-child{border-bottom:0}
-.dayhead{display:flex;align-items:center;gap:11px}
+.dayhead{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;cursor:pointer;color:inherit;font:inherit;text-align:left;padding:11px 0}
+.daysum{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;margin-left:4px}
+.daychev{margin-left:auto;flex:none;color:var(--muted);transition:transform .2s}
+.dayblock.open .daychev{transform:rotate(180deg)}
 .daydot{width:10px;height:10px;border-radius:50%;background:var(--line-2);flex:none}
 .daydot.on{background:var(--grad)}
 .daydot.today{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 20%,transparent)}
@@ -260,6 +266,9 @@ body.coach-fill .botnav-inner{max-width:720px}
 .chat-bar textarea:focus{outline:0}
 .chat-bar .btn{flex:none;padding:11px 16px;border-radius:14px;font-size:16px}
 .msg-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+/* Pendant l'écriture : la barre du bas ne remonte pas, seule la zone de saisie suit le clavier */
+body.chat-typing .botnav{display:none}
+body.chat-typing .chat-bar{bottom:calc(8px + env(safe-area-inset-bottom,0px))}
 .chat-bar .btn{padding:11px 16px}
 .chat-day{text-align:center;font-size:11.5px;color:var(--muted);margin:6px 0}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
@@ -1003,7 +1012,7 @@ const SPORTS_ESPACE=[
   {k:'tennis',l:'Tennis',e:'🎾',dist:true}
 ];
 const sportOf=k=>SPORTS_ESPACE.find(x=>x.k===k);
-let ACT_WEEK=null, ACT_DAY=null, ACT_SPORT=null, ACT_RPE=null, ACT_EDIT=null;
+let ACT_WEEK=null, ACT_DAY=null, ACT_SPORT=null, ACT_RPE=null, ACT_EDIT=null, ACT_OPEN=null;
 function mondayOfISO(d){const [y,m,dd]=d.split('-').map(Number);const t=new Date(Date.UTC(y,m-1,dd));const wd=(t.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-wd);return t.toISOString().slice(0,10);} // UTC : indépendant du fuseau (semaine lundi→dimanche partout)
 function weekdayLabel(d){try{return new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long'});}catch(e){return d;}}
 function activityWeekCard(){
@@ -1013,27 +1022,28 @@ function activityWeekCard(){
   const sun=days[6];
   const title=`${new Date(ACT_WEEK+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} → ${new Date(sun+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`;
   const DAYCOL=['#5b8cff','#2fc77c','#f0b24a','#ff7a66','#9b82ff','#17b0c4','#e86aa6'];
+  const FUN=['🔥','💪','⭐','🎉','✨','🙌','🏅'];
   const dayBlocks=days.map((d,i)=>{
     const list=acts.filter(s=>s.date===d);
     const col=DAYCOL[i%7];const done=list.length>0;
-    const isOpen=ACT_DAY===d;
+    const open=ACT_OPEN===d;const formOpen=ACT_DAY===d;
+    const sum=done?`<span class="daysum" style="color:var(--dc)">${list.map(s=>{const sp=sportOf(s.sport);return (sp?sp.e:'🏅')+' '+esc(s.title||s.type||'Activité');}).join(' · ')} ${FUN[i%FUN.length]}</span>`:'';
     const items=list.map(s=>{const me=s.players[PLAYER.id]||{};const sp=sportOf(s.sport);
-      return `<div style="padding:6px 0">
+      return `<div style="padding:7px 0;border-top:1px solid var(--line)">
         <div style="font-weight:600;font-size:14px">${sp?sp.e+' ':''}${esc(s.title||s.type||'Activité')}</div>
         <div class="muted" style="font-size:12.5px">${me.min?me.min+' min':''}${s.distance?' · '+s.distance+' km':''}${me.rpe!=null?' · RPE '+me.rpe:''}</div>
         ${s.detail?`<div class="muted" style="font-size:12px;margin-top:2px;white-space:pre-wrap">${esc(s.detail)}</div>`:''}
-        <div class="row" style="gap:6px;margin-top:5px"><button class="btn sec" data-editact="${esc(s.id)}" style="padding:4px 10px;font-size:12px">Modifier</button><button class="btn sec" data-delact="${esc(s.id)}" style="padding:4px 10px;font-size:12px">Supprimer</button></div></div>`;}).join('')
-      ||'<div class="muted" style="font-size:12.5px">Repos / libre</div>';
-    const form=isOpen?`<div class="daybody">${activityForm(d)}</div>`:'';
-    return `<div class="dayblock${done?' done':''}" style="--dc:${col}">
-      <div class="dayhead">
+        <div class="row" style="gap:6px;margin-top:5px"><button class="btn sec" data-editact="${esc(s.id)}" style="padding:4px 10px;font-size:12px">Modifier</button><button class="btn sec" data-delact="${esc(s.id)}" style="padding:4px 10px;font-size:12px">Supprimer</button></div></div>`;}).join('');
+    const body=open?`<div class="daybody">${items}<div style="margin-top:10px"><button class="btn sec" data-addday="${d}" style="padding:7px 12px;font-size:13px">${formOpen?'Annuler':'+ Ajouter une activité'}</button></div>${formOpen?`<div style="margin-top:10px">${activityForm(d)}</div>`:''}</div>`:'';
+    return `<div class="dayblock${done?' done':''}${open?' open':''}" style="--dc:${col}">
+      <button class="dayhead" type="button" data-dayopen="${d}">
         <span class="daydot${done?' on':''}${d===TODAY?' today':''}"></span>
         <span class="dayname">${weekdayLabel(d)}</span>
         <span class="muted" style="font-size:12.5px">${d.slice(8)}/${d.slice(5,7)}${d===TODAY?" · auj.":''}</span>
-        ${done?`<span class="daychk">✓ ${list.length}</span>`:''}
-        <button class="btn sec dayadd" data-addday="${d}" style="padding:5px 11px;font-size:12.5px">${isOpen?'Annuler':'+ Ajouter'}</button>
-      </div>
-      <div class="daybody">${items}</div>${form}
+        ${sum}
+        <svg class="daychev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      ${body}
     </div>`;
   }).join('');
   const thisWeek=ACT_WEEK===mondayOfISO(TODAY);
@@ -1122,9 +1132,10 @@ async function renderRpeTab(){
   if(sub==='historique')bindHistory();
 }
 function bindActivityWeek(){
+  document.querySelectorAll('[data-dayopen]').forEach(b=>b.onclick=()=>{const d=b.getAttribute('data-dayopen');if(ACT_OPEN===d){ACT_OPEN=null;ACT_DAY=null;}else{ACT_OPEN=d;ACT_DAY=null;}ACT_EDIT=null;ACT_SPORT=null;ACT_RPE=null;renderRpeTab();});
   document.querySelectorAll('[data-actweek]').forEach(b=>b.onclick=()=>{ACT_WEEK=addDaysISO(ACT_WEEK,+b.getAttribute('data-actweek'));ACT_DAY=null;ACT_EDIT=null;renderRpeTab();});
   document.querySelectorAll('[data-addday]').forEach(b=>b.onclick=()=>{const d=b.getAttribute('data-addday');ACT_DAY=(ACT_DAY===d)?null:d;ACT_SPORT=null;ACT_RPE=null;ACT_EDIT=null;renderRpeTab();});
-  document.querySelectorAll('[data-editact]').forEach(b=>b.onclick=()=>{const id=b.getAttribute('data-editact');const s=MY_SESSIONS.find(x=>x.id===id);if(!s)return;ACT_EDIT=id;ACT_DAY=s.date;ACT_SPORT=s.sport||null;ACT_RPE=(s.players[PLAYER.id]||{}).rpe;renderRpeTab();});
+  document.querySelectorAll('[data-editact]').forEach(b=>b.onclick=()=>{const id=b.getAttribute('data-editact');const s=MY_SESSIONS.find(x=>x.id===id);if(!s)return;ACT_EDIT=id;ACT_OPEN=s.date;ACT_DAY=s.date;ACT_SPORT=s.sport||null;ACT_RPE=(s.players[PLAYER.id]||{}).rpe;renderRpeTab();});
   document.querySelectorAll('[data-delact]').forEach(b=>b.onclick=async()=>{b.disabled=true;await delActivity(b.getAttribute('data-delact'));if(ACT_EDIT===b.getAttribute('data-delact')){ACT_EDIT=null;ACT_DAY=null;}await loadMySessions();renderRpeTab();});
   document.querySelectorAll('[data-sport]').forEach(b=>b.onclick=()=>{ACT_SPORT=b.getAttribute('data-sport');document.querySelectorAll('[data-sport]').forEach(x=>x.classList.toggle('on',x.getAttribute('data-sport')===ACT_SPORT));const w=document.querySelector('.wz-msg');if(w)w.textContent='';setTimeout(()=>wzGo(2),150);});
   bindRpeScale('act-rpe',v=>{ACT_RPE=v;const wiz=document.querySelector('.wizard');if(wiz){const m=wiz.querySelector('.wz-step[data-step="3"] .wz-msg');if(m)m.textContent='';}});
@@ -1565,10 +1576,10 @@ async function overviewHtml(sub){
     <div class="sect"><h2>Mes dernières séances${selfLog()?'':' & matchs'}</h2>${recentHtml}</div>`;
   if(sub==='progression') return selfLog()?progressionCard():kpis;
   if(sub==='charges') return charges;
-  // Résumé : les 4 blocs + « à noter » + la progression
+  // Résumé : les 4 blocs + « à noter » + la progression (en encadrés pour la lisibilité)
   return kpis
-    + ovSaisirCard()
-    + (selfLog()?progressionCard():'')
+    + `<div class="rebox">${ovSaisirCard()}</div>`
+    + (selfLog()?`<div class="rebox">${progressionCard()}</div>`:'')
     + (!wt?`<div class="row"><button class="btn block" data-goto="sante">Remplir mon wellness</button></div>`:'');
 }
 /* ---------- Mon programme (séances planifiées par le coach) ---------- */
@@ -1764,13 +1775,15 @@ async function renderSpace(skipLoad){
 async function renderTab(){
   document.querySelectorAll('.botnav-item').forEach(b=>{const on=b.getAttribute('data-nav')===ESPACE_TAB;b.classList.toggle('on',on);b.setAttribute('aria-selected',on?'true':'false');});
   const c=$('#tabc');if(!c)return;
-  if(ESPACE_TAB!=='messages')stopMsgPoll();
+  if(ESPACE_TAB!=='messages'){stopMsgPoll();document.body.classList.remove('chat-typing');}
   if(ESPACE_TAB==='messages'){
     await loadMyMessages();
     await markClientRead();
     c.innerHTML=messagesHtml();
     const bar=$('#chatBar'),txt=$('#chatText');
-    if(txt)txt.addEventListener('input',()=>{txt.style.height='auto';txt.style.height=Math.min(120,txt.scrollHeight)+'px';});
+    if(txt){txt.addEventListener('input',()=>{txt.style.height='auto';txt.style.height=Math.min(120,txt.scrollHeight)+'px';});
+      txt.addEventListener('focus',()=>document.body.classList.add('chat-typing'));
+      txt.addEventListener('blur',()=>document.body.classList.remove('chat-typing'));}
     if(bar)bar.onsubmit=async e=>{e.preventDefault();const v=(txt.value||'').trim();if(!v)return;txt.value='';txt.style.height='auto';bar.querySelector('button').disabled=true;await sendMyMessage(v);await loadMyMessages();await markClientRead();await renderTab();};
     const rf=$('#msgRefresh');if(rf)rf.onclick=async()=>{rf.disabled=true;await loadMyMessages();await markClientRead();await renderTab();};
     setTimeout(()=>window.scrollTo({top:document.body.scrollHeight,behavior:'auto'}),30);
@@ -1784,8 +1797,9 @@ async function renderTab(){
       bindStaffWellness();
       return;
     }
-    const items=[['wellness','Mon wellness'],['historique','Mon historique']];
+    const items=[['wellness','Mon wellness']];
     if(menstruAllowed(PLAYER))items.push(['cycle','Mon cycle']);
+    items.push(['historique','Mon historique']);
     const sub=ESPACE_SUB.sante&&items.some(i=>i[0]===ESPACE_SUB.sante)?ESPACE_SUB.sante:'wellness';
     let body='';
     if(sub==='wellness'){const done=await hasWellnessEntry(FEEL_DATE);body=done?wellnessLockedCard():wellnessCard();}
