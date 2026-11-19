@@ -237,6 +237,7 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .dropitem{appearance:none;cursor:pointer;text-align:left;background:transparent;border:0;color:var(--ink);border-radius:8px;padding:11px 12px;font:inherit;font-size:14px;font-weight:600}
 .dropitem:hover,.dropitem:active{background:var(--surface-2)}
 .dropitem small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+.dropitem.danger{color:#ff9a8b;border-top:1px solid var(--line);border-radius:0 0 8px 8px;margin-top:2px}
 input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px;padding:3px;cursor:pointer}
 .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 .swatches button{width:30px;height:30px;border-radius:8px;border:2px solid var(--line-2);cursor:pointer;padding:0}
@@ -260,6 +261,9 @@ body.coach-fill .botnav-inner{max-width:720px}
 .botnav-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 .botnav-item .nbadge{position:absolute;top:-2px;right:8px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e5484d;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
 .botnav-item{position:relative}
+.botnav-cal{flex:0 0 auto;appearance:none;border:0;cursor:pointer;width:56px;height:56px;margin:-18px 6px 0;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--accent) 65%,transparent);transition:transform .15s,box-shadow .15s}
+.botnav-cal.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 32%,transparent),0 10px 24px -6px color-mix(in srgb,var(--accent) 65%,transparent)}
+.botnav-cal:active{transform:translateY(1px) scale(.97)}
 .chat-thread{display:flex;flex-direction:column;gap:9px;min-height:50vh;padding:4px 0 8px}
 .msg-row{display:flex}
 .msg-row.me{justify-content:flex-end}
@@ -442,7 +446,8 @@ function openSettings(){
     <button class="dropitem" data-set="contrast">🌓 Contraste<small>Auto · Clair · Sombre — <b id="ct-cur">${(function(){try{var p=localStorage.getItem('bp_theme');return p==='light'?'Clair':p==='dark'?'Sombre':'Auto';}catch(e){return 'Auto';}})()}</b></small></button>
     <button class="dropitem" data-set="theme">🎨 Mes couleurs<small>Fond + couleur des encadrés</small></button>
     <button class="dropitem" data-set="notif">🔔 Notifications<small>Rappels wellness &amp; RPE</small></button>
-    <button class="dropitem" data-set="switch">🔄 Changer de point de vue<small>Revenir au choix des espaces</small></button>`;
+    <button class="dropitem" data-set="switch">🔄 Changer de point de vue<small>Revenir au choix des espaces</small></button>
+    <button class="dropitem danger" data-set="logout">🚪 Déconnexion<small>Fermer ma session</small></button>`;
   document.body.appendChild(menu);
   const b=$('#settingsbtn');const r=b.getBoundingClientRect();
   menu.style.top=(r.bottom+6)+'px';menu.style.right=Math.max(8,window.innerWidth-r.right)+'px';
@@ -450,6 +455,7 @@ function openSettings(){
   menu.querySelector('[data-set="theme"]').onclick=()=>{closeSettings();openTheme();};
   menu.querySelector('[data-set="notif"]').onclick=()=>{closeSettings();openNotif();};
   menu.querySelector('[data-set="switch"]').onclick=()=>{closeSettings();switchViewpoint();};
+  menu.querySelector('[data-set="logout"]').onclick=()=>{closeSettings();clearSession();PLAYER=null;renderLogin();};
   setTimeout(()=>document.addEventListener('click',settingsOutside,true),0);
 }
 // « Changer de point de vue » : on revient à l'entrée de l'app (/), où l'on choisit son espace
@@ -1665,6 +1671,18 @@ function publicEventsCard(){
       </div>
     </div>`).join('')}</div></div>`;
 }
+function agendaClientHtml(){
+  const pub=(PUBLIC_EVENTS||[]).filter(e=>e&&e.visibility==='public'&&e.status!=='Annulé'&&(!e.date||e.date>=TODAY)).map(e=>({date:e.date,time:e.time||'',title:e.title||'Événement',type:e.type||'Événement'}));
+  const sess=(MY_SESSIONS||[]).filter(s=>s.date>=TODAY).map(s=>({date:s.date,time:'',title:s.title||s.type||'Séance',type:s.isMatch?'Match':'Séance'}));
+  const all=pub.concat(sess).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.time||'').localeCompare(b.time||''));
+  const head=`<div style="text-align:center;margin:2px 0 16px"><h2 style="margin:0">📅 Mon agenda</h2><p class="muted" style="font-size:12.5px;margin:4px 0 0">Tes séances et événements à venir.</p></div>`;
+  if(!all.length)return `<div class="sect wellform">${head}<div class="card"><p class="muted" style="margin:0">Rien de prévu pour le moment. Les événements publics et les séances planifiées par ton coach apparaîtront ici.</p></div></div>`;
+  const rows=all.map((e,i)=>`<div style="display:flex;align-items:center;gap:13px;padding:13px 0;${i?'border-top:1px solid var(--line)':''}">
+    <div style="flex:none;width:46px;text-align:center;line-height:1.05"><div style="font-size:20px;font-weight:800;color:var(--accent)">${evDay(e.date)}</div><div class="muted" style="font-size:11px;text-transform:uppercase">${evMon(e.date)}</div></div>
+    <div style="min-width:0;flex:1"><b style="display:block;font-size:14.5px">${esc(e.title)}</b><span class="muted" style="font-size:12.5px">${isoLong(e.date)}${e.time?' · '+esc(e.time):''} · ${esc(e.type)}</span></div>
+  </div>`).join('');
+  return `<div class="sect wellform">${head}<div class="rebox" style="padding:2px 14px">${rows}</div></div>`;
+}
 async function overviewHtml(sub){
   await loadPublicEvents();
   const wt=await wellnessToday();
@@ -1845,7 +1863,12 @@ function bottomNav(){
   if(NUTRI_CID)items.push(['nutrition','Nutrition']);
   if(SPACE==='ci'&&!COACH_MODE)items.push(['messages','Messages']);
   const unread=MSG_UNREAD||0;
-  return `<nav class="botnav" role="tablist" aria-label="Catégories"><div class="botnav-inner">${items.map(([k,l])=>`<button class="botnav-item ${ESPACE_TAB===k?'on':''}" data-nav="${k}" role="tab" aria-selected="${ESPACE_TAB===k?'true':'false'}">${navIco(k)}${k==='messages'&&unread?`<span class="nbadge">${unread>9?'9+':unread}</span>`:''}<span>${l}</span></button>`).join('')}</div></nav>`;
+  const itemBtn=([k,l])=>`<button class="botnav-item ${ESPACE_TAB===k?'on':''}" data-nav="${k}" role="tab" aria-selected="${ESPACE_TAB===k?'true':'false'}">${navIco(k)}${k==='messages'&&unread?`<span class="nbadge">${unread>9?'9+':unread}</span>`:''}<span>${l}</span></button>`;
+  const calIco='<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2.2"/><path d="M3 9.2h18M8 2.6v3.6M16 2.6v3.6"/></svg>';
+  const cal=`<button class="botnav-cal ${ESPACE_TAB==='agenda'?'on':''}" data-nav="agenda" title="Mon agenda" aria-label="Mon agenda">${calIco}</button>`;
+  const mid=Math.ceil(items.length/2);
+  const left=items.slice(0,mid).map(itemBtn).join('');const right=items.slice(mid).map(itemBtn).join('');
+  return `<nav class="botnav" role="tablist" aria-label="Catégories"><div class="botnav-inner">${left}${cal}${right}</div></nav>`;
 }
 async function renderSpace(skipLoad){
   applyTheme(loadTheme());
@@ -1868,10 +1891,9 @@ async function renderSpace(skipLoad){
   $('#app').innerHTML=`
     <div class="topbar">
       <div><div class="brand"><span class="mark-wrap"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">${seasonEmoji()?`<span class="ea-season">${seasonEmoji()}</span>`:''}</span>Elite<span> Adapt</span></div><div class="muted" style="font-size:13px">${COACH_MODE?'✍️ Saisie coach — <b>'+esc(PLAYER.name)+'</b>'+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):''):'Bonjour '+esc(PLAYER.name)+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):'')}</div></div>
-      ${COACH_MODE?'':`<div class="row" style="gap:8px;flex-wrap:nowrap">
+      ${COACH_MODE?'':`<div class="row" style="gap:8px;flex-wrap:nowrap;margin-left:auto">
         ${selfLog()?'<button class="iconbtn" id="boutiquebtn" title="Boutique de programmes" aria-label="Boutique de programmes">🛒</button>':''}
         <button class="iconbtn" id="settingsbtn" title="Paramètres" aria-label="Paramètres">⚙️</button>
-        <button class="btn sec" id="logout">Déconnexion</button>
       </div>`}
     </div>
     <div id="tabc"></div>
@@ -1879,12 +1901,12 @@ async function renderSpace(skipLoad){
   const lo=$('#logout');if(lo)lo.onclick=()=>{clearSession();PLAYER=null;renderLogin();};
   const tb=$('#settingsbtn');if(tb)tb.onclick=openSettings;
   const bq=$('#boutiquebtn');if(bq)bq.onclick=()=>{ESPACE_TAB=(ESPACE_TAB==='boutique')?'apercu':'boutique';BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();};
-  document.querySelectorAll('.botnav-item').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-nav');BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();});
+  document.querySelectorAll('.botnav-inner [data-nav]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-nav');BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();});
   await renderTab();
   hideBoot();
 }
 async function renderTab(){
-  document.querySelectorAll('.botnav-item').forEach(b=>{const on=b.getAttribute('data-nav')===ESPACE_TAB;b.classList.toggle('on',on);b.setAttribute('aria-selected',on?'true':'false');});
+  document.querySelectorAll('.botnav-inner [data-nav]').forEach(b=>{const on=b.getAttribute('data-nav')===ESPACE_TAB;b.classList.toggle('on',on);b.setAttribute('aria-selected',on?'true':'false');});
   const bqb=$('#boutiquebtn');if(bqb)bqb.classList.toggle('on',ESPACE_TAB==='boutique');
   const c=$('#tabc');if(!c)return;
   if(ESPACE_TAB!=='messages'){stopMsgPoll();document.body.classList.remove('chat-typing');}
@@ -1900,6 +1922,11 @@ async function renderTab(){
     const rf=$('#msgRefresh');if(rf)rf.onclick=async()=>{rf.disabled=true;await loadMyMessages();await markClientRead();await renderTab();};
     setTimeout(()=>window.scrollTo({top:document.body.scrollHeight,behavior:'auto'}),30);
     startMsgPoll();
+    return;
+  }
+  if(ESPACE_TAB==='agenda'){
+    await loadPublicEvents();
+    c.innerHTML=agendaClientHtml();
     return;
   }
   if(ESPACE_TAB==='sante'){

@@ -1628,13 +1628,12 @@ function renderFullApp(section){
   app.innerHTML = `
     <div style="position:fixed;inset:0;display:flex;flex-direction:column;background:var(--nav,#0E1A2C)">
       <div style="flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 8px;background:var(--nav,#0E1A2C);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08);flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0">
           <div style="font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:17px;letter-spacing:.02em">Elite<span style="color:#ff9a8b"> Adapt</span> <span style="font-size:12px;opacity:.6;letter-spacing:.14em">${label}</span></div>
-          <span title="${t('Toutes les saisies sont enregistrées en ligne automatiquement','All entries are saved online automatically')}" style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8fe0b0;background:rgba(47,191,113,.14);border:1px solid rgba(47,191,113,.4);border-radius:20px;padding:5px 11px"><span style="width:7px;height:7px;border-radius:50%;background:#2FBF71;display:inline-block"></span>${t('Données enregistrées','Data saved')}</span>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          ${restricted?'':sectionDropdown(section)}
           ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:sc?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(sc.name||sc.username)} · <b style="color:#fff">Coach ${admEsc(SPACE_LABELS[sc.space]||sc.space||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto">
+          ${restricted?'':sectionDropdown(section)}
           ${section==='football'?`<button data-fbdemo title="${t('Afficher une équipe démo (lecture seule) pour voir les courbes','Show a demo team (read-only) to preview the charts')}" style="appearance:none;cursor:pointer;border:1px solid ${state.fbDemo?'#3b82f6':'rgba(255,255,255,.25)'};background:${state.fbDemo?'#3b82f6':'transparent'};color:${state.fbDemo?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">👁 ${state.fbDemo?t('Démo ✓','Demo ✓'):t('Démo','Demo')}</button>`:''}
           ${gearMenu()}
         </div>
@@ -2551,7 +2550,7 @@ const HUBPAGE_STYLE=`<style>
 .hubpage-wm{font-weight:800;font-size:18px;letter-spacing:.01em}
 .hubpage-wm span{color:#ff9a8b}
 .hubpage-tag{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8190a6;border-left:1px solid rgba(255,255,255,.18);padding-left:11px;margin-left:3px}
-.hubpage-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hubpage-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
 .hubpage-ibtn{appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.22);background:transparent;color:#fff;border-radius:9px;padding:7px 11px;font-size:13px;font-weight:600}
 .hubpage-ibtn:hover{background:rgba(255,255,255,.08)}
 .hubpage-user{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 12px}
@@ -2567,17 +2566,23 @@ const HUBPAGE_STYLE=`<style>
 .hubbar-b.on{color:var(--app-accent,#2552d6)}
 .hubbar-b.on .ic{background:color-mix(in srgb,var(--app-accent,#2552d6) 14%,transparent)}
 .hubbar-b span{display:block;max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hubbar-cal{flex:0 0 auto;appearance:none;border:0;cursor:pointer;width:56px;height:56px;margin:-16px 6px 0;border-radius:50%;background:linear-gradient(135deg,var(--app-accent,#2552d6),#6ea8ff);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--app-accent,#2552d6) 65%,transparent);transition:transform .15s,box-shadow .15s}
+.hubbar-cal svg{stroke:#fff}
+.hubbar-cal.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--app-accent,#2552d6) 32%,transparent),0 10px 24px -6px color-mix(in srgb,var(--app-accent,#2552d6) 65%,transparent)}
+.hubbar-cal:active{transform:translateY(1px) scale(.97)}
 </style>`;
 const HUB_TABS=[['accueil','Accueil','home'],['cal','Calendrier','calendar'],['events','Événements','pin'],['contacts','Inscriptions','users'],['docs','Documents','folder']];
 async function renderHubPage(){
   const head=`<div class="hubpage-head">
-    <div class="hubpage-brand">${shieldSeason()}<span class="hubpage-wm">Elite<span> Adapt</span></span><span class="hubpage-tag">Organisation</span></div>
+    <div class="hubpage-brand">${shieldSeason()}<span class="hubpage-wm">Elite<span> Adapt</span></span><span class="hubpage-tag">Organisation</span><span class="hubpage-user">👤 ${admEsc(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span></div>
     <div class="hubpage-actions">
-      <span class="hubpage-user">👤 ${admEsc(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>
       ${gearMenu()}
     </div></div>`;
   const curTab=state.hubTab||'accueil';
-  const hubbar=`<nav id="hubbar" aria-label="Organisation"><div class="hubbar-in">${HUB_TABS.map(([k,l,ic])=>`<button class="hubbar-b${curTab===k?' on':''}" data-hubnav="${k}">${`<span class="ic">${hubIco(ic,22)}</span>`}<span>${l}</span></button>`).join('')}</div></nav>`;
+  const hbtn=([k,l,ic])=>`<button class="hubbar-b${curTab===k?' on':''}" data-hubnav="${k}"><span class="ic">${hubIco(ic,22)}</span><span>${l}</span></button>`;
+  const sides=HUB_TABS.filter(x=>x[0]!=='cal');
+  const calBtn=`<button class="hubbar-cal${curTab==='cal'?' on':''}" data-hubnav="cal" title="${t('Calendrier','Calendar')}" aria-label="${t('Calendrier','Calendar')}">${hubIco('calendar',24)}</button>`;
+  const hubbar=`<nav id="hubbar" aria-label="Organisation"><div class="hubbar-in">${hbtn(sides[0])}${hbtn(sides[1])}${calBtn}${hbtn(sides[2])}${hbtn(sides[3])}</div></nav>`;
   app.innerHTML=HUBPAGE_STYLE+`<div class="hubpage">${head}<div class="screen" id="screen"></div></div>${hubbar}`;
   const q=s=>app.querySelector(s);
   bindGearMenu();

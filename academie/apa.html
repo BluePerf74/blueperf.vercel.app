@@ -526,6 +526,10 @@ table.cmp th{background:var(--card2);font:600 11px var(--f-body);letter-spacing:
 body.apacoach #tabs{display:none}
 body.apacoach .topbar{display:none} /* bande redondante masquée : l'en-tête Elite Adapt est déjà au-dessus (coquille coach) */
 body.apacoach .shell{padding-top:8px;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+/* le gros titre de page duplique l'onglet actif en bas : on le masque en vue coach */
+body.apacoach .pagehead h1{display:none}
+body.apacoach .pagehead{padding-bottom:10px}
+body.apacoach .pagehead p{margin:0}
 </style>
 <div class="topbar">
   <div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt"><span class="wm">Elite <span class="ad">Adapt</span></span><span class="sub">Activité physique adaptée</span></div>
