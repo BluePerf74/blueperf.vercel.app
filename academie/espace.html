@@ -288,6 +288,12 @@ body.chat-typing .chat-bar{bottom:calc(8px + env(safe-area-inset-bottom,0px))}
 .loadbars .seg.prev{background:var(--accent);opacity:.3;border:1px dashed var(--accent)}
 .loadlab{display:flex;gap:5px;margin-top:5px}
 .loadlab span{flex:1;text-align:center;font-size:9.5px;color:var(--muted)}
+/* mini-graphe « Charge par semaine » avec axes */
+.wkwrap{display:flex;gap:7px;align-items:stretch}
+.wkyttl{writing-mode:vertical-rl;transform:rotate(180deg);font-size:10.5px;font-weight:600;color:var(--muted);text-align:center;letter-spacing:.02em;padding:2px 0 18px}
+.wkycol{display:flex;flex-direction:column;justify-content:space-between;height:90px;font-size:9.5px;color:var(--muted);text-align:right;min-width:16px;border-right:1px solid var(--line);padding-right:5px}
+.wkplot{flex:1;min-width:0}
+.wkxttl{text-align:center;font-size:10.5px;font-weight:600;color:var(--muted);margin-top:4px;letter-spacing:.02em}
 .boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(14,26,44,.66);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);color:var(--ink);font-size:13.5px;font-weight:600}
 .boot.solid{background:var(--bg)}
 .boot.hidden{display:none}
@@ -1474,28 +1480,38 @@ function weekStat(start){
 }
 function progressionCard(){
   const anyDone=MY_SESSIONS.some(s=>(s.players[PLAYER.id]||{}).rpe!=null)||!!(MY_PLAN&&MY_PLAN.done&&Object.values(MY_PLAN.done).some(d=>d&&d.rpe!=null));
-  if(!anyDone)return `<div class="sect"><h2>Ma progression</h2><p class="muted" style="font-size:13px;margin:0">Les séances réalisées — les tiennes comme celles que ton coach t'envoie — apparaîtront ici, semaine après semaine.</p></div>`;
+  if(!anyDone)return `<div class="sect"><p class="muted" style="font-size:13px;margin:0">Les séances réalisées — les tiennes comme celles que ton coach t'envoie — apparaîtront ici, semaine après semaine.</p></div>`;
   const wkStart=mondayOfISO(TODAY);
   const cur=weekStat(wkStart),prev=weekStat(addDaysISO(wkStart,-7));
   const delta=(a,b)=>{if(!prev.n)return '';const d=Math.round((a-b)*10)/10;if(d===0)return '<span style="font-size:11px;color:var(--muted)"> =</span>';return `<span style="font-size:11px;color:${d>0?'var(--good)':'var(--warn)'}"> ${d>0?'▲':'▼'} ${Math.abs(d)}</span>`;};
   const stat=(lab,val,unit,d)=>`<div class="kpi"><div class="lab">${lab}</div><div class="val">${val}${unit?'<small> '+unit+'</small>':''}${d}</div></div>`;
   const starts=[];for(let k=5;k>=0;k--)starts.push(addDaysISO(wkStart,-7*k));
-  const weeks=starts.map(weekStat);const max=Math.max(1,...weeks.map(w=>w.load));
-  const bars=weeks.map(w=>`<div class="b" style="height:${Math.round(w.load/max*88)||2}px" title="${w.load} UA"></div>`).join('');
+  const weeks=starts.map(weekStat);const max=Math.max(1,...weeks.map(w=>w.load));const maxN=Math.max(1,...weeks.map(w=>w.n));
+  const bars=weeks.map((w,i)=>{const h=Math.round(w.load/max*88)||2;const pct=Math.round(w.n/maxN*100);const col=`color-mix(in srgb, var(--good) ${pct}%, var(--warn))`;
+    return `<div class="b" style="height:${h}px;background:${col};opacity:1" title="Semaine du ${new Date(starts[i]+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} · ${w.load} UA · ${w.n} séance${w.n>1?'s':''}"></div>`;}).join('');
   const labs=starts.map(st=>`<span>${new Date(st+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'numeric'})}</span>`).join('');
   const wkEnd=addDaysISO(wkStart,7);const bySport={};
   MY_SESSIONS.filter(s=>s.date>=wkStart&&s.date<wkEnd&&(s.players[PLAYER.id]||{}).rpe!=null).forEach(s=>{const sp=sportOf(s.sport);const key=sp?sp.e+' '+sp.l:((s.isMatch||s.type==='Match')?'⚽ Match':'🏋️ '+(s.type||'Séance'));bySport[key]=(bySport[key]||0)+1;});
   if(MY_PLAN&&MY_PLAN.done){let pc=0;Object.values(MY_PLAN.done).forEach(d=>{if(d&&d.rpe!=null&&d.date>=wkStart&&d.date<wkEnd)pc++;});if(pc)bySport['📋 Programme']=(bySport['📋 Programme']||0)+pc;}
   const sportChips=Object.entries(bySport).map(([k,v])=>`${k} ×${v}`).join('  ·  ')||'Aucune séance réalisée cette semaine.';
-  return `<div class="sect"><h2>Ma progression</h2>
+  return `<div class="sect">
     <div class="kpis" style="margin-bottom:14px">
       ${stat('Séances (7 j)',cur.n,'',delta(cur.n,prev.n))}
       ${stat('Minutes (7 j)',cur.min,'min',delta(cur.min,prev.min))}
       ${stat('Distance (7 j)',cur.km,'km',delta(cur.km,prev.km))}
       ${stat('Charge (7 j)',cur.load,'UA',delta(cur.load,prev.load))}
     </div>
-    <div class="muted" style="font-size:12.5px;margin-bottom:4px">Charge par semaine (6 dernières)</div>
-    <div class="loadbars">${bars}</div><div class="loadlab">${labs}</div>
+    <div class="muted" style="font-size:12.5px;margin-bottom:6px">Charge par semaine (6 dernières)</div>
+    <div class="wkwrap">
+      <div class="wkyttl">Charge (UA)</div>
+      <div class="wkycol"><span>${max}</span><span>0</span></div>
+      <div class="wkplot">
+        <div class="loadbars">${bars}</div>
+        <div class="loadlab">${labs}</div>
+        <div class="wkxttl">Semaines (lundi)</div>
+      </div>
+    </div>
+    <p class="muted" style="font-size:11px;margin:6px 0 0">Couleur = nombre de séances : plus il y en a, plus c'est <b style="color:var(--good)">vert</b> ; moins il y en a, plus c'est <b style="color:var(--warn)">orange</b>.</p>
     <div class="muted" style="font-size:12.5px;margin-top:12px">${sportChips}</div>
   </div>`;
 }
