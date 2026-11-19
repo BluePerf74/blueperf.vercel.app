@@ -2437,6 +2437,7 @@ function renderScreen(){
 const HUB_SPACES=[['apa','APA','⚕️','#2fbf71'],['football','Football','⚽','#2552d6'],['individuel','Coaching individuel','🏃','#f2617a'],['nutrition','Nutrition','🥗','#f59e0b']];
 const HUB_EVTYPES=['Rendez-vous','Essai / découverte','Inscription','Cours / séance','Réunion','Relance','Autre'];
 const HUB_EVSTATUS=['À venir','Fait','Annulé'];
+const HUB_EVVIS=[['prive','🔒 Privé (coachs)'],['public','🌍 Public (clients)']];
 const HUB_CTSTATUS=['Nouveau','Contacté','Essai prévu','Inscrit','Archivé'];
 const HUB_CTCOLORS={'Nouveau':'#64748b','Contacté':'#2552d6','Essai prévu':'#f59e0b','Inscrit':'#2fbf71','Archivé':'#9aa4b2'};
 function hubSafeArr(s){try{const a=JSON.parse(s||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}}
@@ -2642,7 +2643,7 @@ function hubEventRow(e){
   const stCol=e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':col;
   return `<div class="hub-ev">
     <div class="hub-row" style="justify-content:space-between">
-      <div class="hub-row" style="gap:10px"><span class="evb" style="background:${stCol}"></span><b style="font-size:14.5px">${hubEsc(e.title||'Événement')}</b> ${e.type?`<span class="hub-tag">${hubEsc(e.type)}</span>`:''} ${sp?`<span class="hub-tag" style="background:color-mix(in srgb,${col} 14%,transparent);color:${col}">${hubEsc(sp[1])}</span>`:''}</div>
+      <div class="hub-row" style="gap:10px"><span class="evb" style="background:${stCol}"></span><b style="font-size:14.5px">${hubEsc(e.title||'Événement')}</b> ${e.visibility==='public'?'<span class="hub-tag" style="background:color-mix(in srgb,#2fbf71 16%,transparent);color:#1f9d5b">🌍 Public</span>':'<span class="hub-tag" style="background:color-mix(in srgb,#64748b 14%,transparent);color:#64748b">🔒 Privé</span>'} ${e.type?`<span class="hub-tag">${hubEsc(e.type)}</span>`:''} ${sp?`<span class="hub-tag" style="background:color-mix(in srgb,${col} 14%,transparent);color:${col}">${hubEsc(sp[1])}</span>`:''}</div>
       <div class="hub-row"><span class="hub-pill" style="background:${e.status==='Annulé'?'#9aa4b2':e.status==='Fait'?'#2fbf71':'var(--app-accent,#2552d6)'}">${hubEsc(e.status||'À venir')}</span>
         <button class="hub-btn sm" data-hub-act="editEvent" data-id="${e.id}">Ouvrir</button></div></div>
     <div class="hub-muted" style="font-size:12.5px;margin-top:6px;display:inline-flex;align-items:center;gap:6px">${hubIco('clock',14)} ${hubFmtDate(e.date)}${e.time?' · '+hubEsc(e.time):''}${e.contactId?' · '+hubEsc(hubContactName(e.contactId)):''}</div>
@@ -2689,10 +2690,12 @@ function hubEventForm(){
       <div class="hub-field"><label>Type</label><select id="hf-type">${HUB_EVTYPES.map(x=>`<option ${e.type===x?'selected':''}>${x}</option>`).join('')}</select></div>
     </div>
     <div class="hub-grid3">
+      <div class="hub-field"><label>Visibilité</label><select id="hf-visibility">${HUB_EVVIS.map(([k,l])=>`<option value="${k}" ${(e.visibility||'prive')===k?'selected':''}>${l}</option>`).join('')}</select></div>
       <div class="hub-field"><label>Espace concerné</label><select id="hf-space"><option value="">—</option>${HUB_SPACES.map(s=>`<option value="${s[0]}" ${e.space===s[0]?'selected':''}>${s[1]}</option>`).join('')}</select></div>
-      <div class="hub-field"><label>Personne / inscription</label><select id="hf-contact"><option value="">—</option>${h.contacts.map(c=>`<option value="${c.id}" ${e.contactId===c.id?'selected':''}>${hubEsc(c.name)}</option>`).join('')}</select></div>
       <div class="hub-field"><label>Statut</label><select id="hf-status">${HUB_EVSTATUS.map(x=>`<option ${e.status===x?'selected':''}>${x}</option>`).join('')}</select></div>
     </div>
+    <p class="hub-muted" id="hf-vis-hint" style="margin:-4px 0 10px;font-size:12px">${(e.visibility==='public')?'🌍 <b>Public</b> — cet événement s\'affiche dans l\'accueil de tous les clients.':'🔒 <b>Privé</b> — visible uniquement par toi et les coachs'+(e.space?' de l\'espace '+(hubSpaceMeta(e.space)||['','cet espace'])[1]:' concernés')+', jamais par les clients.'}</p>
+    <div class="hub-field"><label>Personne / inscription</label><select id="hf-contact"><option value="">—</option>${h.contacts.map(c=>`<option value="${c.id}" ${e.contactId===c.id?'selected':''}>${hubEsc(c.name)}</option>`).join('')}</select></div>
     <div class="hub-field"><label>Étapes du dossier (une par ligne — cochables ensuite)</label><textarea id="hf-steps" rows="4" placeholder="ex.\nAppel de prise de contact\nEnvoi du devis\nDossier d'inscription signé\nPremier rendez-vous planifié">${hubEsc(stepsText)}</textarea></div>
     <div class="hub-field"><label>Notes</label><textarea id="hf-note" rows="2" placeholder="Infos utiles, à faire…">${hubEsc(e.note||'')}</textarea></div>
     ${e.id&&e.steps&&e.steps.length?`<div class="hub-field"><label>Suivi du dossier</label><div>${e.steps.map((s,i)=>`<label class="hub-step"><input type="checkbox" data-hub-act="toggleStep" data-id="${e.id}" data-i="${i}" ${s.done?'checked':''}> <span style="${s.done?'text-decoration:line-through;color:var(--muted,#7E90A8)':''}">${hubEsc(s.label)}</span></label>`).join('')}</div></div>`:''}
@@ -2749,6 +2752,8 @@ function hubBind(screen){
   const wrap=screen.querySelector('.hub-wrap');if(!wrap)return;
   wrap.querySelectorAll('[data-hubtab]').forEach(b=>b.addEventListener('click',()=>{state.hubTab=b.getAttribute('data-hubtab');state.hubForm=null;renderHub(screen);}));
   wrap.addEventListener('change',async ev=>{
+    const tgt=ev.target;
+    if(tgt&&(tgt.id==='hf-visibility'||tgt.id==='hf-space')){hubUpdateVisHint(screen);}
     const el=ev.target.closest('[data-hub-act]');if(!el)return;const act=el.getAttribute('data-hub-act');
     if(act==='toggleStep'){const id=el.getAttribute('data-id'),i=+el.getAttribute('data-i');const e=state.hub.events.find(x=>x.id===id);if(e&&e.steps&&e.steps[i]){e.steps[i].done=el.checked;await hubSave('events');renderHub(screen);}}
     if(act==='uploadDoc'){await hubUpload(el.files&&el.files[0],screen);}
@@ -2775,12 +2780,19 @@ function hubBind(screen){
 }
 
 function hubField(screen,id){const el=screen.querySelector('#'+id);return el?el.value:'';}
+function hubUpdateVisHint(screen){
+  const hint=screen.querySelector('#hf-vis-hint');if(!hint)return;
+  const vis=hubField(screen,'hf-visibility');const sp=hubField(screen,'hf-space');
+  hint.innerHTML=(vis==='public')
+    ?'🌍 <b>Public</b> — cet événement s\'affiche dans l\'accueil de tous les clients.'
+    :'🔒 <b>Privé</b> — visible uniquement par toi et les coachs'+(sp?' de l\'espace '+(hubSpaceMeta(sp)||['','cet espace'])[1]:' concernés')+', jamais par les clients.';
+}
 async function hubSaveEventForm(screen){
   const f=state.hubForm.data||{};const id=f.id||hubId();
   const title=hubField(screen,'hf-title').trim();
   const stepsLines=hubField(screen,'hf-steps').split('\n').map(s=>s.trim()).filter(Boolean);
   const prev=f.steps||[];const steps=stepsLines.map((label,i)=>({label,done:(prev[i]&&prev[i].label===label)?!!prev[i].done:(prev.find(p=>p.label===label)||{}).done||false}));
-  const ev={id,title:title||'Événement',date:hubField(screen,'hf-date'),time:hubField(screen,'hf-time'),type:hubField(screen,'hf-type'),space:hubField(screen,'hf-space'),contactId:hubField(screen,'hf-contact'),status:hubField(screen,'hf-status'),steps,note:hubField(screen,'hf-note').trim(),createdAt:f.createdAt||new Date().toISOString()};
+  const ev={id,title:title||'Événement',date:hubField(screen,'hf-date'),time:hubField(screen,'hf-time'),type:hubField(screen,'hf-type'),visibility:hubField(screen,'hf-visibility')||'prive',space:hubField(screen,'hf-space'),contactId:hubField(screen,'hf-contact'),status:hubField(screen,'hf-status'),steps,note:hubField(screen,'hf-note').trim(),createdAt:f.createdAt||new Date().toISOString()};
   const idx=state.hub.events.findIndex(x=>x.id===id);if(idx>=0)state.hub.events[idx]=ev;else state.hub.events.push(ev);
   await hubSave('events');state.hubForm=null;renderHub(screen);
 }

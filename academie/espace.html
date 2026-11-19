@@ -1561,7 +1561,36 @@ function bindOvSaisir(){
   });
   startEspaceChrono();
 }
+/* ---------- Événements publics (créés côté coach « tous les espaces ») ---------- */
+let PUBLIC_EVENTS=null;
+async function loadPublicEvents(force){
+  if(PUBLIC_EVENTS&&!force)return PUBLIC_EVENTS;
+  try{const r=await fetch('/api/storage?action=get&key=hubEvents&_='+Date.now(),{cache:'no-store'});
+    const j=r.ok?await r.json():null;const arr=j&&j.value?JSON.parse(j.value):[];
+    PUBLIC_EVENTS=Array.isArray(arr)?arr:[];
+  }catch(e){PUBLIC_EVENTS=[];}
+  return PUBLIC_EVENTS;
+}
+function evDay(d){try{return new Date(d+'T12:00:00').getDate();}catch(e){return '';}}
+function evMon(d){try{return new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{month:'short'}).replace('.','');}catch(e){return '';}}
+function publicEventsCard(){
+  const evs=(PUBLIC_EVENTS||[]).filter(e=>e&&e.visibility==='public'&&e.status!=='Annulé'&&(!e.date||e.date>=TODAY))
+    .sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.time||'').localeCompare(b.time||'')).slice(0,5);
+  if(!evs.length)return '';
+  return `<div class="sect"><h2>📅 À l'agenda</h2><div class="rebox" style="padding:2px 14px">${evs.map((e,i)=>`
+    <div style="display:flex;align-items:center;gap:13px;padding:12px 0;${i?'border-top:1px solid var(--line)':''}">
+      <div style="flex:none;width:46px;text-align:center;line-height:1.05">
+        <div style="font-size:20px;font-weight:800;color:var(--accent)">${evDay(e.date)}</div>
+        <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.04em">${evMon(e.date)}</div>
+      </div>
+      <div style="min-width:0;flex:1">
+        <b style="display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.title||'Événement')}</b>
+        <span class="muted" style="font-size:12.5px">${isoLong(e.date)}${e.time?' · '+esc(e.time):''}${e.type?' · '+esc(e.type):''}</span>
+      </div>
+    </div>`).join('')}</div></div>`;
+}
 async function overviewHtml(sub){
+  await loadPublicEvents();
   const wt=await wellnessToday();
   const toRate=SESSIONS_TODAY.filter(o=>o.rpe==null).length;
   const l7=load7();
@@ -1582,6 +1611,7 @@ async function overviewHtml(sub){
   if(sub==='charges') return charges;
   // Résumé : les 4 blocs + « à noter » + la progression (en encadrés pour la lisibilité)
   return kpis
+    + publicEventsCard()
     + `<div class="rebox">${ovSaisirCard()}</div>`
     + (selfLog()?`<div class="rebox">${progressionCard()}</div>`:'')
     + (!wt?`<div class="row"><button class="btn block" data-goto="sante">Remplir mon wellness</button></div>`:'');
@@ -1869,7 +1899,7 @@ async function renderTab(){
   // (voile semi-transparent), sans page blanche. Une bannière propose de recharger si le CODE change.
   let refreshing=false;
   let lastRefresh=Date.now();
-  async function softRefresh(){ if(!PLAYER||refreshing||document.hidden)return; refreshing=true; showBoot();
+  async function softRefresh(){ if(!PLAYER||refreshing||document.hidden)return; refreshing=true; PUBLIC_EVENTS=null; showBoot();
     try{ await renderSpace(false); lastRefresh=Date.now(); const f=document.getElementById('reloadfab'); if(f)f.style.display='none'; }catch(e){ hideBoot(); } refreshing=false; }
   // Bouton flottant « Recharger » quand la page reste ouverte longtemps, pour se remettre à jour sur les données.
   const fab=document.createElement('button'); fab.id='reloadfab'; fab.type='button'; fab.textContent='🔄 Recharger';
