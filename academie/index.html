@@ -62,6 +62,8 @@ a{color:var(--accent)}
 .brand{padding:0 12px 0 0;margin-right:4px;flex:none;display:flex;align-items:center;gap:8px;line-height:1}
 .brand .mark{height:24px;width:auto;flex:none}
 .brand b.wm,.brand b.ad{font-family:var(--fd);font-size:18px;letter-spacing:.02em;line-height:1;white-space:nowrap;display:inline}
+.mark-wrap{position:relative;display:inline-flex;align-items:center}
+.ea-season{position:absolute;top:-8px;right:-1px;font-size:12px;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
 .brand b.wm{color:#fff}
 .brand b.ad{color:#ff9a8b;margin-left:4px}
 .brand span{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--nav-ink-2);border-left:1px solid rgba(255,255,255,.18);padding-left:8px;margin-left:4px}
@@ -441,7 +443,7 @@ details summary{cursor:pointer;font-weight:600}
 .sk{border-radius:14px;background:linear-gradient(90deg,rgba(125,140,160,.10) 25%,rgba(125,140,160,.20) 37%,rgba(125,140,160,.10) 63%);background-size:200% 100%;animation:skmove 1.3s ease-in-out infinite;border:1px solid rgba(125,140,160,.10)}
 @keyframes skmove{100%{background-position:-200% 0}}
 @media (max-width:640px){.sp-row{grid-template-columns:repeat(2,1fr)}}
-#updbar{position:fixed;top:0;left:0;right:0;z-index:100000;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
+#updbar{position:fixed;bottom:0;left:0;right:0;z-index:100000;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;text-align:center;padding:9px 12px calc(9px + env(safe-area-inset-bottom,0px))}
 #updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
 /* Barre de navigation fixe en bas (comme APA / espace client) */
 .nav ul{display:none}
@@ -497,6 +499,15 @@ const r0=v=>fr(v,0), r1=v=>fr(v,1), r2=v=>fr(v,2);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const iso=d=>{const z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);};
 const TODAY=iso(new Date());
+function seasonEmoji(){try{const d=new Date(),m=d.getMonth()+1,day=d.getDate();
+  if(m===12||(m===1&&day<=6))return '🎄';
+  if(m===10&&day>=24)return '🎃';
+  if(m===2&&day>=12&&day<=15)return '❤️';
+  if((m===3&&day>=22)||(m===4&&day<=22))return '🐣';
+  if(m>=6&&m<=8)return '☀️';
+  if(m>=9&&m<=11)return '🍂';
+  if(m>=3&&m<=5)return '🌸';
+  return '❄️';}catch(e){return '';}}
 const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return iso(d);};
 const dayDiff=(a,b)=>Math.round((new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))/864e5);
 const mondayOf=s=>{const d=new Date(s+'T12:00:00');return addDays(s,-((d.getDay()+6)%7));};
@@ -1302,7 +1313,7 @@ function renderNav(){
   const healthN=sig.health?sig.health.split(',').length:0;
   const badge={overview:show('overview')?(c.red?`<span class="badge crit">${c.red}</span>`:c.orange?`<span class="badge warn">${c.orange}</span>`:''):'',medical:show('medical')&&c.inj?`<span class="badge">${c.inj}</span>`:'',reathle:show('reathle')&&c.rea?`<span class="badge">${c.rea}</span>`:'',health:show('health')&&healthN?`<span class="badge warn">🩸${healthN}</span>`:''};
   const inPerf=['testing','reathle','muscu'].includes(UI.tab);
-  let h=`<div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt"><b class="wm">Elite</b><b class="ad">Adapt</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
+  let h=`<div class="brand"><span class="mark-wrap"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">${seasonEmoji()?`<span class="ea-season">${seasonEmoji()}</span>`:''}</span><b class="wm">Elite</b><b class="ad">Adapt</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
   TABS.forEach(t=>{
     if(t.entryGroup){ // groupe Saisie : menu déroulant dans la barre, navigation par goEntry (UI.entryTab)
       if(!tabOn('entry'))return;const inGrp=UI.tab==='entry';const open=!!UI.entryOpen; // ouvert seulement au clic sur « Saisie » ; se referme après avoir choisi une entrée

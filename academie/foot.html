@@ -187,6 +187,8 @@ tbody tr:hover td.stick{background:var(--soft)}
 .top .logo{background:none!important;border-radius:0;width:auto;height:28px}
 .top .logo:after{display:none}
 .ea-mark{height:26px;width:auto;display:block}
+.ea-logo-wrap{position:relative;display:inline-flex;align-items:center}
+.ea-season{position:absolute;top:-8px;right:-2px;font-size:13px;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
 main{padding-bottom:116px!important}
 #botbar{position:fixed;left:0;right:0;bottom:0;z-index:50;pointer-events:none;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
 .bb-in{pointer-events:auto;max-width:600px;margin:0 auto;display:flex;gap:2px;padding:8px;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.4)}
@@ -218,7 +220,7 @@ main{padding-bottom:116px!important}
 </head>
 <body>
 <header class="top">
-  <div class="brand"><img class="ea-mark" src="/elite-adapt-mark.svg" alt="Elite Adapt" onerror="this.onerror=null;this.src='/elite-adapt-icon.svg'"><span class="bt">Elite Adapt<small>Performance Football</small></span></div>
+  <div class="brand"><span class="ea-logo-wrap"><img class="ea-mark" src="/elite-adapt-mark.svg" alt="Elite Adapt" onerror="this.onerror=null;this.src='/elite-adapt-icon.svg'"><span class="ea-season" id="eaSeason"></span></span><span class="bt">Elite Adapt<small>Performance Football</small></span></div>
   <div class="tools">
     <span class="sync" id="sync" title="État de la sauvegarde">En ligne</span>
     <button class="btn ghost sm" data-a="squad">Effectif</button>
@@ -255,6 +257,16 @@ const r2 = x => x == null || isNaN(x) ? '–' : (Math.round(x * 100) / 100).toLo
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TODAY = iso(new Date());
+function seasonEmoji(){try{const d=new Date(),m=d.getMonth()+1,day=d.getDate();
+  if(m===12||(m===1&&day<=6))return '🎄';
+  if(m===10&&day>=24)return '🎃';
+  if(m===2&&day>=12&&day<=15)return '❤️';
+  if((m===3&&day>=22)||(m===4&&day<=22))return '🐣';
+  if(m>=6&&m<=8)return '☀️';
+  if(m>=9&&m<=11)return '🍂';
+  if(m>=3&&m<=5)return '🌸';
+  return '❄️';}catch(e){return '';}}
+try{const _es=document.getElementById('eaSeason');if(_es)_es.textContent=seasonEmoji();}catch(e){}
 const col = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 const STAT = {

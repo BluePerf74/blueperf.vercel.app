@@ -131,6 +131,8 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0;border
 .brand{font-family:var(--fd);font-weight:700;font-size:20px;letter-spacing:.02em}
 .brand span{color:#ff9a8b}
 .brand .mark{height:24px;width:auto;vertical-align:middle;margin-right:7px}
+.mark-wrap{position:relative;display:inline-flex;align-items:center}
+.ea-season{position:absolute;top:-8px;right:-1px;font-size:13px;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
 .err{color:#ffb4a8;font-size:13px;min-height:18px;margin-top:8px}
 .ok{color:var(--good);font-size:13px;min-height:18px}
 .muted{color:var(--muted)}
@@ -295,7 +297,7 @@ body.coach-fill .botnav-inner{max-width:720px}
 .sp-card{height:150px;margin-bottom:14px}
 .sk{border-radius:14px;background:linear-gradient(90deg,rgba(140,155,175,.10) 25%,rgba(140,155,175,.22) 37%,rgba(140,155,175,.10) 63%);background-size:200% 100%;animation:skmove 1.3s ease-in-out infinite;border:1px solid rgba(140,155,175,.10)}
 @keyframes skmove{100%{background-position:-200% 0}}
-#updbar{position:fixed;top:0;left:0;right:0;z-index:10000;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;text-align:center;padding:9px 12px}
+#updbar{position:fixed;bottom:0;left:0;right:0;z-index:10000;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;text-align:center;padding:9px 12px calc(9px + env(safe-area-inset-bottom,0px))}
 #updbar button{margin-left:10px;background:#fff;color:#04121f;border:0;border-radius:7px;padding:5px 13px;font-weight:700;cursor:pointer}
 </style>
 </head>
@@ -309,6 +311,16 @@ body.coach-fill .botnav-inner{max-width:720px}
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const TODAY=new Date().toISOString().slice(0,10);
+/* Petite touche saisonnière / événementielle discrète sur le logo (après connexion). */
+function seasonEmoji(){try{const d=new Date(),m=d.getMonth()+1,day=d.getDate();
+  if(m===12||(m===1&&day<=6))return '🎄';
+  if(m===10&&day>=24)return '🎃';
+  if(m===2&&day>=12&&day<=15)return '❤️';
+  if((m===3&&day>=22)||(m===4&&day<=22))return '🐣';
+  if(m>=6&&m<=8)return '☀️';
+  if(m>=9&&m<=11)return '🍂';
+  if(m>=3&&m<=5)return '🌸';
+  return '❄️';}catch(e){return '';}}
 function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hidden');const sp=document.getElementById('splash');if(sp)sp.classList.add('hidden');}
 function showBoot(){const b=document.getElementById('boot');if(b){b.classList.remove('hidden');b.classList.remove('solid');}} // voile semi-transparent (interface visible derrière)
 function isoLong(d){try{return new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
@@ -1733,7 +1745,7 @@ async function renderSpace(skipLoad){
   if(ESPACE_TAB==='messages'&&(SPACE!=='ci'||COACH_MODE))ESPACE_TAB='apercu';
   $('#app').innerHTML=`
     <div class="topbar">
-      <div><div class="brand"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">Elite<span> Adapt</span></div><div class="muted" style="font-size:13px">${COACH_MODE?'✍️ Saisie coach — <b>'+esc(PLAYER.name)+'</b>'+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):''):'Bonjour '+esc(PLAYER.name)+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):'')}</div></div>
+      <div><div class="brand"><span class="mark-wrap"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">${seasonEmoji()?`<span class="ea-season">${seasonEmoji()}</span>`:''}</span>Elite<span> Adapt</span></div><div class="muted" style="font-size:13px">${COACH_MODE?'✍️ Saisie coach — <b>'+esc(PLAYER.name)+'</b>'+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):''):'Bonjour '+esc(PLAYER.name)+(PLAYER.cat&&PLAYER.cat!=='Individuel'?' · '+esc(PLAYER.cat):'')}</div></div>
       ${COACH_MODE?'':`<div class="row" style="gap:8px;flex-wrap:nowrap">
         ${selfLog()?'<button class="iconbtn" id="boutiquebtn" title="Boutique de programmes" aria-label="Boutique de programmes">🛒</button>':''}
         <button class="iconbtn" id="settingsbtn" title="Paramètres" aria-label="Paramètres">⚙️</button>

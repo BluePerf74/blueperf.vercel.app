@@ -546,6 +546,17 @@ async function saveCoachCredentials(username, password){
 function shieldSvg(){
   return `<img src="/elite-adapt-mark.svg" class="shield-logo" alt="Elite Adapt">`;
 }
+/* Petite touche saisonnière / événementielle discrète sur le logo (après connexion). */
+function seasonEmoji(){try{const d=new Date(),m=d.getMonth()+1,day=d.getDate();
+  if(m===12||(m===1&&day<=6))return '🎄';
+  if(m===10&&day>=24)return '🎃';
+  if(m===2&&day>=12&&day<=15)return '❤️';
+  if((m===3&&day>=22)||(m===4&&day<=22))return '🐣';
+  if(m>=6&&m<=8)return '☀️';
+  if(m>=9&&m<=11)return '🍂';
+  if(m>=3&&m<=5)return '🌸';
+  return '❄️';}catch(e){return '';}}
+function shieldSeason(){const e=seasonEmoji();return `<span style="position:relative;display:inline-flex;align-items:center">${shieldSvg()}${e?`<span style="position:absolute;top:-8px;right:-3px;font-size:13px;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))">${e}</span>`:''}</span>`;}
 
 /* ---------- Clients (multi-athlètes) ---------- */
 async function ensureClientsLoaded(){
@@ -1152,19 +1163,19 @@ async function collectRoles(userRaw, passRaw, user, pass){
   }});
   const sc = await findCoachAccount(userRaw, passRaw);
   if(sc){ const sl = SPACE_LABELS[sc.space] || sc.space;
-    roles.push({label:t('Coach ','Coach ')+sl, sub:sc.name||sc.username, icon:'🧑‍🏫', enter:async()=>{
+    roles.push({label:sc.space==='apa'?t('Enseignant APA','APA teacher'):t('Coach ','Coach ')+sl, sub:sc.name||sc.username, icon:'🧑‍🏫', enter:async()=>{
       await sSet('access','coach',false); await sSet('accessStamp',AUTH_VERSION,false); await sSet('spaceCoachId',sc.id,false); await sSet('managerId','',false);
       await bootstrapCoach(); state.manager=null; state.spaceCoach=sc; state.section=sc.space||'apa'; render();
     }});
   }
   await ensureClientsLoaded();
   const match = state.clients.find(c => normalizeCode(c.id) === user && c.code && normalizeCode(c.code) === pass);
-  if(match) roles.push({label:t('Cliente — Coaching individuel','Client — Individual coaching'), sub:match.name||match.id, icon:'🧍', enter:async()=>{
+  if(match) roles.push({label:t('Client·e','Client'), sub:match.name||match.id, icon:'🧍', enter:async()=>{
     await sSet('access','client',false); await sSet('clientId',match.id,false); await sSet('accessStamp',AUTH_VERSION,false);
     state.access='client'; state.myClientId=match.id; state.viewAs='client'; state.section='programme'; state.tab='programme'; state.manager=null; state.spaceCoach=null; render();
   }});
   const ec = await findAcademieClient(userRaw, passRaw);
-  if(ec) roles.push({label:ec.space==='ci'?t('Client·e — Coaching individuel','Client — Individual coaching'):t('Joueur·se — Football','Player — Football'), sub:ec.name||'', icon:ec.space==='ci'?'🧍':'⚽', enter:async()=>{
+  if(ec) roles.push({label:ec.space==='ci'?t('Client·e','Client'):t('Joueur·se — Football','Player — Football'), sub:ec.name||'', icon:ec.space==='ci'?'🧍':'⚽', enter:async()=>{
     try{ sessionStorage.setItem('espace_pid', ec.id); sessionStorage.setItem('espace_space', ec.space); }catch(e){}
     location.href = '/academie/espace.html';
   }});
@@ -1187,28 +1198,29 @@ function renderRoleChooser(){
    l'identifiant courant. Bascule sans ressaisir les codes. */
 function accountDestinations(){
   const dests=[];
-  // Espaces coach accessibles (staff « tous les espaces ») : bascule immédiate, sans rechargement.
-  if(state.access==='coach' && !state.manager && !state.spaceCoach){
-    sectionDefs().filter(([id])=>sectionVisible(id)).forEach(([id,lbl])=>{
-      const m=SPACE_META[id]||{ic:'•',bg:'#5f708a'};
-      dests.push({ic:m.ic,bg:m.bg,label:lbl,sub:t('Espace coach','Coach space'),cur:state.section===id,
-        enter:()=>{state.section=id;const nt=tabsFor(state.section,state.viewAs==='coach');if(nt&&nt[0])state.tab=nt[0].id;render();}});
-    });
+  const staff = state.access==='coach' && !state.manager && !state.spaceCoach;
+  if(staff){
+    // Trois points de vue d'un même compte « tous les espaces » — on bascule la vue, sans rechargement.
+    dests.push({ic:'👥',bg:'#1b46c9',label:t('Coach — tous les espaces','Coach — all spaces'),sub:t('Football · Coaching individuel · Nutrition','Football · Individual coaching · Nutrition'),cur:state.section==='hub',
+      enter:()=>{state.section='hub';render();}});
+    if(sectionVisible('apa')) dests.push({ic:'⚕️',bg:'#2fbf71',label:t('Enseignant APA','APA teacher'),sub:t('Espace activité physique adaptée','Adapted physical activity space'),cur:state.section==='apa',
+      enter:()=>{state.section='apa';const nt=tabsFor('apa',state.viewAs==='coach');if(nt&&nt[0])state.tab=nt[0].id;render();}});
+    // Vue client·e : via un vrai compte client si le login en donne un, sinon aperçu de l'espace client.
+    const clientRole=(state.allRoles||[]).find(r=>/client|joueur/i.test(r.label||''));
+    dests.push({ic:'🧍',bg:'#7a5af8',label:t('Client·e','Client'),sub:t('Aperçu de l’espace client','Client space preview'),
+      enter: clientRole? clientRole.enter : (()=>{location.href='/academie/espace.html';})});
+    return dests;
   }
-  // Autres rôles issus de la connexion (compte client, coach délégué d'un espace…),
-  // en évitant de redoubler le rôle « tous les espaces » déjà couvert par les cartes ci-dessus.
-  (state.allRoles||[]).forEach(r=>{
-    if(state.access==='coach' && !state.manager && !state.spaceCoach && /tous les espaces|all spaces/i.test(r.label||'')) return;
-    dests.push({ic:r.icon||'•',bg:'#1b46c9',label:r.label,sub:r.sub,enter:r.enter});
-  });
+  // Hors staff (client, gérant·e, coach délégué) : on liste les rôles réellement accessibles.
+  (state.allRoles||[]).forEach(r=>{ dests.push({ic:r.icon||'•',bg:'#1b46c9',label:r.label,sub:r.sub,enter:r.enter}); });
   return dests;
 }
 function openAccountSwitch(){
   const dests=accountDestinations();
   app.innerHTML=`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--app-bg,#0b1522);font-family:system-ui,-apple-system,sans-serif">
     <div style="width:100%;max-width:460px;background:var(--app-surface,#152439);border:1px solid var(--app-border,#33465f);border-radius:16px;padding:24px;color:var(--app-text,#EAF1FB);box-shadow:0 20px 50px rgba(0,0,0,.5)">
-      <h2 style="margin:0 0 4px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:22px">${t('Changer de compte','Switch account')}</h2>
-      <p style="color:#8aa0bd;font-size:13px;margin:0 0 18px">${t('Les espaces auxquels tu as accès. Touche-en un pour y aller — sans ressaisir tes codes.','Spaces you can access. Tap one to go there — no need to re-enter your credentials.')}</p>
+      <h2 style="margin:0 0 4px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:22px">${t('Changer de vue','Switch view')}</h2>
+      <p style="color:#8aa0bd;font-size:13px;margin:0 0 18px">${t('Bascule entre tes différents points de vue — sans ressaisir tes codes.','Switch between your viewpoints — no need to re-enter your credentials.')}</p>
       <div style="display:flex;flex-direction:column;gap:9px">
         ${dests.map((d,i)=>`<button data-acct="${i}" style="appearance:none;cursor:pointer;text-align:left;display:flex;align-items:center;gap:13px;border:1px solid ${d.cur?'#5b8cff':'var(--app-border,#33465f)'};background:${d.cur?'rgba(91,140,255,.14)':'rgba(255,255,255,.03)'};color:inherit;border-radius:13px;padding:13px 15px;font:inherit">
           <span style="width:40px;height:40px;border-radius:11px;background:${d.bg};display:flex;align-items:center;justify-content:center;font-size:19px;flex:none">${d.ic}</span>
@@ -1580,7 +1592,7 @@ function renderFullApp(section){
           ${section==='football'?`<button data-fbdemo title="${t('Afficher une équipe démo (lecture seule) pour voir les courbes','Show a demo team (read-only) to preview the charts')}" style="appearance:none;cursor:pointer;border:1px solid ${state.fbDemo?'#3b82f6':'rgba(255,255,255,.25)'};background:${state.fbDemo?'#3b82f6':'transparent'};color:${state.fbDemo?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">👁 ${state.fbDemo?t('Démo ✓','Demo ✓'):t('Démo','Demo')}</button>`:''}
           <button data-fbtheme title="${t('Thème clair / sombre','Light / dark theme')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">${themeIcon()} ${themeLabel()}</button>
           <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
-          <button data-fbswitch title="${t('Changer de compte','Switch account')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">🔄 ${t('Changer de compte','Switch account')}</button>
+          <button data-fbswitch title="${t('Changer de vue','Switch view')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">🔄 ${t('Changer de vue','Switch view')}</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
         </div>
       </div>
@@ -1736,7 +1748,7 @@ function renderSettingsPage(){
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${sectionDropdown('settings')}
-          <button data-fbswitch title="${t('Changer de compte','Switch account')}" style="${chevronBtn};border:1px solid rgba(255,255,255,.22);background:transparent;color:#fff">🔄 ${t('Changer de compte','Switch account')}</button>
+          <button data-fbswitch title="${t('Changer de vue','Switch view')}" style="${chevronBtn};border:1px solid rgba(255,255,255,.22);background:transparent;color:#fff">🔄 ${t('Changer de vue','Switch view')}</button>
           <button data-fbadmin title="${t('Fermer les paramètres','Close settings')}" style="${chevronBtn};border:0;background:var(--app-accent);color:var(--app-accent-ink)">✕ ${t('Fermer','Close')}</button>
           <button data-fblogout style="${chevronBtn};border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8">${t('Déconnexion','Log out')}</button>
         </div>
@@ -2261,7 +2273,7 @@ async function render(){
     dashHeaderHtml = `
       <div class="dash-row">
         <div class="dash-brand">
-          ${shieldSvg()}
+          ${shieldSeason()}
           <div class="dash-title">Elite<span> Adapt</span> <em>· DASHBOARD</em></div>
         </div>
         <div class="dash-badges">
@@ -2515,12 +2527,12 @@ const HUBPAGE_STYLE=`<style>
 </style>`;
 async function renderHubPage(){
   const head=`<div class="hubpage-head">
-    <div class="hubpage-brand">${shieldSvg()}<span class="hubpage-wm">Elite<span> Adapt</span></span><span class="hubpage-tag">Organisation</span></div>
+    <div class="hubpage-brand">${shieldSeason()}<span class="hubpage-wm">Elite<span> Adapt</span></span><span class="hubpage-tag">Organisation</span></div>
     <div class="hubpage-actions">
       <button data-fbtheme class="hubpage-ibtn" title="${t('Thème clair / sombre','Light / dark theme')}">${themeIcon()} ${themeLabel()}</button>
       <button data-fblang class="hubpage-ibtn">🌐 ${LANG==='en'?'EN':'FR'}</button>
       <button data-fbadmin class="hubpage-ibtn" title="${t('Paramètres','Settings')}">⚙️</button>
-      <button data-fbswitch class="hubpage-ibtn" title="${t('Changer de compte','Switch account')}">🔄 ${t('Changer de compte','Switch account')}</button>
+      <button data-fbswitch class="hubpage-ibtn" title="${t('Changer de vue','Switch view')}">🔄 ${t('Changer de vue','Switch view')}</button>
       <span class="hubpage-user">👤 ${admEsc(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>
       <button data-fblogout class="hubpage-logout">${t('Déconnexion','Log out')}</button>
     </div></div>`;
