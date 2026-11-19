@@ -2558,10 +2558,19 @@ const HUBPAGE_STYLE=`<style>
 .hubpage-ibtn:hover{background:rgba(255,255,255,.08)}
 .hubpage-user{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 12px}
 .hubpage-logout{appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600}
-.hubpage .screen{padding:26px 22px 60px;max-width:1220px;margin:0 auto}
+.hubpage .screen{padding:26px 22px 120px;max-width:1220px;margin:0 auto}
 .hubpage-title{font-size:27px;font-weight:800;margin:0 0 3px;color:var(--app-text,#0f172a)}
 .hubpage-sub{color:var(--app-muted,#7E90A8);font-size:13.5px;margin:0 0 18px}
+.hub-subtabs{display:none!important}
+#hubbar{position:fixed;left:0;right:0;bottom:0;z-index:60;pointer-events:none;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+.hubbar-in{pointer-events:auto;max-width:600px;margin:0 auto;display:flex;gap:2px;padding:8px;background:color-mix(in srgb,var(--app-surface,#fff) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid var(--app-border,#e6eaf0);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.3)}
+.hubbar-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--app-muted,#6b7688);font:600 10.5px/1.12 inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;text-align:center}
+.hubbar-b .ic{width:44px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:13px;transition:background .15s}
+.hubbar-b.on{color:var(--app-accent,#2552d6)}
+.hubbar-b.on .ic{background:color-mix(in srgb,var(--app-accent,#2552d6) 14%,transparent)}
+.hubbar-b span{display:block;max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>`;
+const HUB_TABS=[['accueil','Accueil','home'],['cal','Calendrier','calendar'],['events','Événements','pin'],['contacts','Inscriptions','users'],['docs','Documents','folder']];
 async function renderHubPage(){
   const head=`<div class="hubpage-head">
     <div class="hubpage-brand">${shieldSeason()}<span class="hubpage-wm">Elite<span> Adapt</span></span><span class="hubpage-tag">Organisation</span></div>
@@ -2571,11 +2580,14 @@ async function renderHubPage(){
       <span class="hubpage-user">👤 ${admEsc(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>
       <button data-fblogout class="hubpage-logout">${t('Déconnexion','Log out')}</button>
     </div></div>`;
-  app.innerHTML=HUBPAGE_STYLE+`<div class="hubpage">${head}<div class="screen" id="screen"></div></div>`;
+  const curTab=state.hubTab||'accueil';
+  const hubbar=`<nav id="hubbar" aria-label="Organisation"><div class="hubbar-in">${HUB_TABS.map(([k,l,ic])=>`<button class="hubbar-b${curTab===k?' on':''}" data-hubnav="${k}">${`<span class="ic">${hubIco(ic,22)}</span>`}<span>${l}</span></button>`).join('')}</div></nav>`;
+  app.innerHTML=HUBPAGE_STYLE+`<div class="hubpage">${head}<div class="screen" id="screen"></div></div>${hubbar}`;
   const q=s=>app.querySelector(s);
   bindGearMenu();
   if(q('[data-fbswitch]'))q('[data-fbswitch]').addEventListener('click',openAccountSwitch);
   if(q('[data-fblogout]'))q('[data-fblogout]').addEventListener('click',logout);
+  app.querySelectorAll('[data-hubnav]').forEach(b=>b.addEventListener('click',()=>{state.hubTab=b.getAttribute('data-hubnav');state.hubForm=null;renderHubPage();}));
   await renderHub(document.getElementById('screen'));
 }
 async function renderHub(screen){
