@@ -824,6 +824,22 @@ async function init(){
   //     restauration de session basée sur le stockage (dont les clés sont elles-mêmes cloisonnées).
   if(authRole === 'apa'){ enterTeacherSpace(authTenant, authImp); return; }
   await migrateIfNeeded();
+  // « Changer de point de vue » depuis l'espace client : on reconstruit le choix des espaces (coach,
+  // APA, client…) à partir des identifiants mémorisés dans l'onglet, au lieu de revenir à la connexion.
+  if(/[?&]ea_switch=1/.test(location.search)){
+    let cred=null; try{ cred=JSON.parse(sessionStorage.getItem('ea_login')||'null'); }catch(e){}
+    try{ history.replaceState(null,'',location.pathname); }catch(e){}
+    if(cred && cred.u && cred.p){
+      try{
+        const roles = await collectRoles(cred.u, cred.p, normalizeCode(cred.u), normalizeCode(cred.p));
+        if(roles && roles.length){
+          state.allRoles = roles;
+          if(roles.length === 1){ await roles[0].enter(); try{ openAccountSwitch(); }catch(e){} return; }
+          state.roleChoices = roles; state.loginError=''; renderRoleChooser(); return;
+        }
+      }catch(e){}
+    }
+  }
   const storedAccess = await sGet('access', false);
   const stamp = await sGet('accessStamp', false);
   // Session valable uniquement si elle a été ouverte via l'écran de connexion de cette version.
@@ -1114,6 +1130,9 @@ async function attemptLogin(userRaw, passRaw){
     return;
   }
   state.allRoles = roles; // mémorisé pour « Changer de compte » (bascule sans ressaisir les codes)
+  // Mémorise les identifiants pour cet onglet : permet « Changer de point de vue » depuis l'espace
+  // client (page séparée) sans redemander la connexion. sessionStorage = propre à l'onglet, effacé à la fermeture.
+  try{ sessionStorage.setItem('ea_login', JSON.stringify({u:userRaw,p:passRaw})); }catch(e){}
   if(roles.length === 1){ await roles[0].enter(); return; }
   // Plusieurs rôles pour ce compte (ex. coach APA + cliente ailleurs) : on laisse choisir.
   state.roleChoices = roles; state.loginError = '';
@@ -2560,13 +2579,14 @@ const HUBPAGE_STYLE=`<style>
 .hubpage-sub{color:var(--app-muted,#7E90A8);font-size:13.5px;margin:0 0 18px}
 .hub-subtabs{display:none!important}
 #hubbar{position:fixed;left:0;right:0;bottom:0;z-index:60;pointer-events:none;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
-.hubbar-in{pointer-events:auto;max-width:600px;margin:0 auto;display:flex;gap:2px;padding:8px;background:color-mix(in srgb,var(--app-surface,#fff) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid var(--app-border,#e6eaf0);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.3)}
+.hubbar-in{position:relative;pointer-events:auto;max-width:600px;margin:0 auto;display:flex;gap:2px;padding:8px;background:color-mix(in srgb,var(--app-surface,#fff) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid var(--app-border,#e6eaf0);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.3)}
+.hubbar-sp{flex:0 0 46px}
 .hubbar-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--app-muted,#6b7688);font:600 10.5px/1.12 inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;text-align:center}
 .hubbar-b .ic{width:44px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:13px;transition:background .15s}
 .hubbar-b.on{color:var(--app-accent,#2552d6)}
 .hubbar-b.on .ic{background:color-mix(in srgb,var(--app-accent,#2552d6) 14%,transparent)}
 .hubbar-b span{display:block;max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hubbar-cal{flex:0 0 auto;appearance:none;border:0;cursor:pointer;width:56px;height:56px;margin:-16px 6px 0;border-radius:50%;background:linear-gradient(135deg,var(--app-accent,#2552d6),#6ea8ff);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--app-accent,#2552d6) 65%,transparent);transition:transform .15s,box-shadow .15s}
+.hubbar-cal{position:absolute;left:50%;top:-14px;transform:translateX(-50%);appearance:none;border:0;cursor:pointer;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--app-accent,#2552d6),#6ea8ff);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--app-accent,#2552d6) 65%,transparent);transition:transform .15s,box-shadow .15s;z-index:2}
 .hubbar-cal svg{stroke:#fff}
 .hubbar-cal.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--app-accent,#2552d6) 32%,transparent),0 10px 24px -6px color-mix(in srgb,var(--app-accent,#2552d6) 65%,transparent)}
 .hubbar-cal:active{transform:translateY(1px) scale(.97)}
@@ -2582,7 +2602,7 @@ async function renderHubPage(){
   const hbtn=([k,l,ic])=>`<button class="hubbar-b${curTab===k?' on':''}" data-hubnav="${k}"><span class="ic">${hubIco(ic,22)}</span><span>${l}</span></button>`;
   const sides=HUB_TABS.filter(x=>x[0]!=='cal');
   const calBtn=`<button class="hubbar-cal${curTab==='cal'?' on':''}" data-hubnav="cal" title="${t('Calendrier','Calendar')}" aria-label="${t('Calendrier','Calendar')}">${hubIco('calendar',24)}</button>`;
-  const hubbar=`<nav id="hubbar" aria-label="Organisation"><div class="hubbar-in">${hbtn(sides[0])}${hbtn(sides[1])}${calBtn}${hbtn(sides[2])}${hbtn(sides[3])}</div></nav>`;
+  const hubbar=`<nav id="hubbar" aria-label="Organisation"><div class="hubbar-in">${hbtn(sides[0])}${hbtn(sides[1])}<div class="hubbar-sp"></div>${hbtn(sides[2])}${hbtn(sides[3])}${calBtn}</div></nav>`;
   app.innerHTML=HUBPAGE_STYLE+`<div class="hubpage">${head}<div class="screen" id="screen"></div></div>${hubbar}`;
   const q=s=>app.querySelector(s);
   bindGearMenu();

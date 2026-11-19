@@ -508,17 +508,18 @@ table.cmp th{background:var(--card2);font:600 11px var(--f-body);letter-spacing:
 /* Barre de navigation fixe en bas (coach APA) — repère constant quelle que soit la partie */
 #apanav{position:fixed;left:0;right:0;bottom:0;z-index:60;pointer-events:none;padding:16px 12px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 48%,color-mix(in srgb,var(--bg) 55%,transparent) 76%,transparent)}
 #apanav:empty{display:none}
-.apanav-in{pointer-events:auto;max-width:560px;margin:0 auto;display:flex;gap:2px;padding:8px 8px;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.5)}
+.apanav-in{position:relative;pointer-events:auto;max-width:560px;margin:0 auto;display:flex;gap:2px;padding:8px 8px;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.5)}
+.apanav-sp{flex:0 0 46px}
 .apanav-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 2px;font-size:10.5px;font-weight:600;line-height:1.12;text-align:center;transition:color .15s}
 .apanav-b .ic{width:48px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:14px;transition:background .15s}
 .apanav-b .ic svg{width:22px;height:22px}
-.apanav-b span{display:block;max-width:76px}
+.apanav-b span{display:block;max-width:84px;white-space:nowrap}
 .apanav-b.on{color:var(--accent)}
 .apanav-b.on .ic{background:color-mix(in srgb,var(--accent) 16%,transparent)}
 .apanav-b:active{transform:translateY(1px)}
 .apanav-b:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
 /* bouton central « Planning » (calendrier) — rond, un peu plus gros, surélevé */
-.apanav-cal{flex:0 0 auto;appearance:none;border:0;cursor:pointer;width:56px;height:56px;margin:-16px 6px 0;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--lav));color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--accent) 70%,transparent);transition:transform .15s,box-shadow .15s}
+.apanav-cal{position:absolute;left:50%;top:-14px;transform:translateX(-50%);appearance:none;border:0;cursor:pointer;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--lav));color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--accent) 70%,transparent);transition:transform .15s,box-shadow .15s;z-index:2}
 .apanav-cal svg{width:26px;height:26px;stroke:#fff}
 .apanav-cal.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent),0 10px 24px -6px color-mix(in srgb,var(--accent) 70%,transparent)}
 .apanav-cal:active{transform:translateY(1px) scale(.97)}
@@ -909,7 +910,7 @@ function renderApaNav(){const an=$('#apanav');if(!an)return;
  const B=[['groupes',T('Vue d’ensemble','Overview')],['agenda',T('Séances','Sessions')],['m2',T('Dossier','File')],['anamnese',T('Anamnèse','History')]];
  const btn=([k,l])=>`<button class="apanav-b${S.ui.tab===k?' on':''}" data-tab="${k}" role="tab" aria-selected="${S.ui.tab===k?'true':'false'}">${apaIco(k)}<span>${l}</span></button>`;
  const cal=`<button class="apanav-cal${S.ui.tab==='planning'?' on':''}" data-tab="planning" title="${T('Planning','Schedule')}" aria-label="${T('Planning','Schedule')}">${apaIco('agenda')}</button>`;
- an.innerHTML=`<div class="apanav-in">${btn(B[0])}${btn(B[1])}${cal}${btn(B[2])}${btn(B[3])}</div>`;}
+ an.innerHTML=`<div class="apanav-in">${btn(B[0])}${btn(B[1])}<div class="apanav-sp"></div>${btn(B[2])}${btn(B[3])}${cal}</div>`;}
 function coachRender(){document.body.classList.add('apacoach');setRole('<button class="iconbtn'+(S.ui.tab==='planning'?' on':'')+'" data-tab="planning" title="'+T('Planning','Schedule')+'" aria-label="'+T('Planning','Schedule')+'">📅</button>');$('#saved').hidden=true;
  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.ui.tab===k}">${l}</button>`).join('');
  renderApaNav();
@@ -2166,7 +2167,7 @@ function agendaView(){if(ctx.psdraft)return plannerForm();
  const todayEv=evs.filter(e=>e.date===today).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
  const soon=evs.filter(e=>e.date>today).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
  const guide=`<div class="agguide"><span class="agi">💡</span><div><b>${T('Comment ça marche','How it works')}</b><p>${T('1. « Programmer une séance » planifie un rendez-vous. 2. Après la séance, cliquez « Compte rendu » pour noter la présence, le ressenti et ajouter une 🎤 note vocale (transcrite automatiquement). 3. Tout se retrouve dans le dossier du bénéficiaire et dans le planning.','1. “Schedule a session” plans an appointment. 2. After the session, click “Report” to note attendance, how it felt and add a 🎤 voice note (auto-transcribed). 3. Everything lands in the beneficiary file and the schedule.')}</p></div></div>`;
- const bar=`<div class="bar" style="margin-bottom:14px"><span class="note" style="min-width:220px">${T('Vos séances à venir et les comptes rendus à faire.','Your upcoming sessions and the reports to write.')}</span><span class="ctl"><button class="btn" data-act="agCalendar">📅 ${T('Voir le calendrier','See the calendar')}</button></span></div>`;
+ const bar=`<div class="bar" style="margin-bottom:14px"><span class="note" style="min-width:220px">${T('Vos séances à venir et les comptes rendus à faire.','Your upcoming sessions and the reports to write.')}</span></div>`;
  const section=(title,sub,list,tone)=>`<div class="card sect"><div class="hd"><div><h2>${title}</h2><p class="note" style="margin:3px 0 0">${sub}</p></div>${list.length?`<span class="agcount${tone?' '+tone:''}">${list.length}</span>`:''}</div>${list.length?`<div class="aglist">${list.map(e=>agRow(e,today)).join('')}</div>`:`<p class="empty" style="margin-top:6px">${T('Rien ici pour l’instant.','Nothing here for now.')}</p>`}</div>`;
  let out=bar+guide;
  if(todo.length)out+=section('⏳ '+T('Comptes rendus à faire','Reports to write'),T('Séances passées pas encore renseignées.','Past sessions not filled in yet.'),todo,'warn');

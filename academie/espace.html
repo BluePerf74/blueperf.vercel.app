@@ -45,8 +45,13 @@ h2{font-family:var(--fd);font-weight:600;font-size:16px;margin:0 0 10px}
 .sect{margin:0 0 26px;padding:0}
 .wellform{padding:0 11px}
 .wellform h2{padding:0 1px}
-.shopbar{display:flex;align-items:center;gap:8px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:14px;padding:10px 12px;margin:0 0 16px;font-size:14.5px}
-.shopbar b{flex:1}
+.shop{padding:0 6px}
+.shop-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 2px 18px}
+.shop-head h2{margin:0}
+.shop-x{appearance:none;cursor:pointer;width:38px;height:38px;flex:none;border-radius:50%;border:0;background:#e5484d;color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px -6px rgba(229,72,77,.6)}
+.shop-x:active{transform:scale(.95)}
+.shop-sec{font-size:17px;margin:16px 2px 10px}
+#tabc .shop .card{background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 96%,#fff 4%),var(--surface));border:1px solid var(--line);border-radius:14px;padding:15px;margin-bottom:14px;box-shadow:0 10px 26px -18px rgba(0,0,0,.6)}
 .sect>h2{margin:0 0 12px}
 .sect+.sect{margin-top:2px}
 /* De-box GLOBAL du contenu : plus d'encadré de couleur, le texte vit sur la page.
@@ -250,7 +255,7 @@ input[type=color]{-webkit-appearance:none;appearance:none;width:52px;height:40px
 .tabbtn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 /* Barre de navigation fixe en bas (comme une app mobile) : on sait toujours dans quelle catégorie on est */
 .botnav{position:fixed;left:0;right:0;bottom:0;z-index:950;pointer-events:none;padding:16px 14px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 48%,color-mix(in srgb,var(--bg) 55%,transparent) 76%,transparent)}
-.botnav-inner{pointer-events:auto;max-width:540px;margin:0 auto;display:flex;align-items:stretch;gap:2px;padding:9px 10px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:saturate(1.5) blur(18px);-webkit-backdrop-filter:saturate(1.5) blur(18px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:30px;box-shadow:0 14px 34px -10px rgba(0,0,0,.55),0 1px 0 color-mix(in srgb,#fff 8%,transparent) inset}
+.botnav-inner{position:relative;pointer-events:auto;max-width:540px;margin:0 auto;display:flex;align-items:stretch;gap:2px;padding:9px 10px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:saturate(1.5) blur(18px);-webkit-backdrop-filter:saturate(1.5) blur(18px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:30px;box-shadow:0 14px 34px -10px rgba(0,0,0,.55),0 1px 0 color-mix(in srgb,#fff 8%,transparent) inset}
 body.coach-fill .botnav-inner{max-width:720px}
 .botnav-item{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px 2px 0;font-size:11px;font-weight:600;letter-spacing:.005em;transition:color .16s}
 .botnav-item .ic{width:50px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:15px;transition:background .16s}
@@ -261,7 +266,8 @@ body.coach-fill .botnav-inner{max-width:720px}
 .botnav-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 .botnav-item .nbadge{position:absolute;top:-2px;right:8px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e5484d;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
 .botnav-item{position:relative}
-.botnav-cal{flex:0 0 auto;appearance:none;border:0;cursor:pointer;width:56px;height:56px;margin:-18px 6px 0;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--accent) 65%,transparent);transition:transform .15s,box-shadow .15s}
+.botnav-cal{position:absolute;left:50%;top:-16px;transform:translateX(-50%);appearance:none;border:0;cursor:pointer;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--accent) 65%,transparent);transition:transform .15s,box-shadow .15s;z-index:2}
+.botnav-sp{flex:0 0 46px}
 .botnav-cal.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 32%,transparent),0 10px 24px -6px color-mix(in srgb,var(--accent) 65%,transparent)}
 .botnav-cal:active{transform:translateY(1px) scale(.97)}
 .chat-thread{display:flex;flex-direction:column;gap:9px;min-height:50vh;padding:4px 0 8px}
@@ -460,7 +466,7 @@ function openSettings(){
 }
 // « Changer de point de vue » : on revient à l'entrée de l'app (/), où l'on choisit son espace
 // (comme le « Changer de vue » des autres points de vue). On ne déconnecte pas le compte client.
-function switchViewpoint(){ try{ location.href='/'; }catch(e){} }
+function switchViewpoint(){ try{ location.href='/?ea_switch=1'; }catch(e){} }
 function closeNotif(){const s=$('#notifsheet');if(s)s.remove();}
 async function openNotif(){
   const ps=await pushStatus();
@@ -974,8 +980,10 @@ function buildCycleSVG(L,ph,curDay){
     dots+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(cur?dotR+2:dotR).toFixed(1)}" fill="${p.color}" ${cur?'stroke="#fff" stroke-width="2.5"':''}/>`;
     if(L<=31){const fs=dotR*1.15;dots+=`<text x="${x.toFixed(1)}" y="${(y+fs*0.35).toFixed(1)}" text-anchor="middle" font-size="${fs.toFixed(1)}" font-weight="700" fill="#fff" font-family="system-ui">${i}</text>`;}
   }
-  let needle='';
-  if(curDay){const deg=((curDay-1)/L)*360;const [mx,my]=mnPolar(cx,cy,rDots-dotR-3,deg);needle=`<line x1="${cx}" y1="${cy}" x2="${mx.toFixed(1)}" y2="${my.toFixed(1)}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--ink)"/>`;}
+  let needle='',curHalo='';
+  if(curDay){const deg=((curDay-1)/L)*360;const [mx,my]=mnPolar(cx,cy,rDots-dotR-4,deg);const [hx,hy]=mnPolar(cx,cy,rDots,deg);
+    curHalo=`<circle cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" r="${(dotR+7).toFixed(1)}" fill="none" stroke="var(--ink)" stroke-width="2" opacity="0.5"/>`;
+    needle=`<line x1="${cx}" y1="${cy}" x2="${mx.toFixed(1)}" y2="${my.toFixed(1)}" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="4" fill="var(--ink)"/>`;}
   let labels='',defs='';
   ph.forEach((p,idx)=>{
     const midDeg=((((p.from-1)+(p.to))/2)/L)*360;const bottom=(midDeg>90&&midDeg<270);const spread=27;
@@ -984,7 +992,7 @@ function buildCycleSVG(L,ph,curDay){
     const id='mnlab'+idx;defs+=`<path id="${id}" d="${d}" fill="none"/>`;
     labels+=`<text font-size="11.5" font-weight="800" letter-spacing=".02em" fill="${p.color}" font-family="system-ui"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${p.short}</textPath></text>`;
   });
-  return `<svg viewBox="0 0 320 320" width="100%" style="display:block;max-width:360px;margin:0 auto;overflow:visible"><defs>${defs}</defs>${labels}${needle}${dots}</svg>`;
+  return `<svg viewBox="0 0 320 320" width="100%" style="display:block;max-width:360px;margin:0 auto;overflow:visible"><defs>${defs}</defs>${labels}${needle}${dots}${curHalo}</svg>`;
 }
 const MN_SRC={
   mcnulty:{url:'https://doi.org/10.1007/s40279-020-01319-3'},
@@ -1694,7 +1702,7 @@ async function overviewHtml(sub){
       :`<button class="btn sec" data-rate="${esc(s.id)}" style="padding:4px 12px">Saisir</button>`;
     return `<div class="hist"><span>${isoLong(s.date)} · ${esc(s.title||s.type||'Séance')}</span>${right}</div>`;}).join(''):'<p class="muted" style="font-size:13px">Aucune séance enregistrée pour l\'instant.</p>';
   const kpis=`<div class="kpis">
-      <div class="kpi" data-kidx="0" style="${kpiStyle(0)}"><div class="lab">Wellness du jour</div><div class="val">${wt?wt.score+'<small>%</small>':'<button class="btn" data-goto="sante" style="padding:6px 18px;font-size:14px;margin:2px 0 1px">Remplir</button>'}</div><div class="d">${wt?'rempli ✓':'à remplir'}</div></div>
+      <div class="kpi" data-kidx="0" style="${kpiStyle(0)}"><div class="lab">Wellness du jour</div><div class="val">${wt?wt.score+'<small>%</small>':'<button data-goto="sante" style="appearance:none;cursor:pointer;border:0;padding:7px 20px;font-size:14px;font-weight:800;font-family:inherit;color:#fff;border-radius:11px;margin:3px 0 1px;background:linear-gradient(135deg,#f59e0b,#f97316);box-shadow:0 6px 16px -5px rgba(249,115,22,.65)">Remplir</button>'}</div><div class="d">${wt?'rempli ✓':'à remplir'}</div></div>
       <div class="kpi" data-kidx="1" style="${kpiStyle(1)}"><div class="lab">Séances à noter</div><div class="val">${toRate}</div><div class="d">${toRate?'RPE en attente':'tout est noté'}</div></div>
       <div class="kpi" data-kidx="2" style="${kpiStyle(2)}"><div class="lab">Charge 7 jours</div><div class="val">${l7}<small> UA</small></div><div class="d">RPE × minutes</div></div>
       <div class="kpi" data-kidx="3" style="${kpiStyle(3)}"><div class="lab">Séances suivies</div><div class="val">${MY_SESSIONS.length}</div><div class="d">au total avec toi</div></div>
@@ -1803,11 +1811,13 @@ function boutiqueHtml(){
     <div style="font-weight:800;font-size:16px;margin:6px 0 2px">${esc(p.title)}</div><div class="muted" style="font-size:12.5px">${esc(p.desc)}</div>
     <div class="muted" style="font-size:11.5px;margin-top:7px">${p.durationDays} jours · ${p.weeks.length} semaines · ${progCount(p)} séances</div>
     <button class="btn" data-bunlock="${p.id}" style="width:100%;margin-top:11px">🔓 Débloquer — ${PROG_PRICE} €</button></div>`;
-  return `<div class="shopbar">🛒 <b>Boutique de programmes</b><button class="btn sec" data-shopclose style="padding:5px 12px;font-size:13px">Fermer</button></div>
-    ${owned.length?`<h2 style="margin:4px 0 8px">Mes programmes</h2>${owned.map(ownedCard).join('')}`:''}
-    <h2 style="margin:${owned.length?'18px':'4px'} 0 4px">Boutique de programmes</h2>
-    <p class="muted" style="font-size:12.5px;margin:0 0 10px">Des programmes de 30 jours à suivre directement dans l'app. Débloque-les pour ${PROG_PRICE} €.</p>
-    ${locked.map(lockedCard).join('')||'<div class="card"><p class="muted" style="margin:0">Tous les programmes sont débloqués 🎉</p></div>'}`;
+  return `<div class="shop">
+    <div class="shop-head"><h2>🛍️ Boutique</h2><button class="shop-x" data-shopclose aria-label="Fermer la boutique" title="Fermer">✕</button></div>
+    ${owned.length?`<h3 class="shop-sec">Mes programmes</h3>${owned.map(ownedCard).join('')}`:''}
+    <h3 class="shop-sec">${owned.length?'Autres programmes':'Programmes disponibles'}</h3>
+    <p class="muted" style="font-size:12.5px;margin:0 2px 12px">Des programmes de 30 jours à suivre directement dans l'app. Débloque-les pour ${PROG_PRICE} €.</p>
+    ${locked.map(lockedCard).join('')||'<div class="card"><p class="muted" style="margin:0">Tous les programmes sont débloqués 🎉</p></div>'}
+  </div>`;
 }
 function boutiquePlayerHtml(p){
   const done=STORE.done[p.id]||{};const weeks=p.weeks.slice().sort((a,b)=>a.n-b.n);
@@ -1829,10 +1839,10 @@ function boutiquePlayerHtml(p){
           ?`<label style="margin:0">RPE ressenti</label><input type="number" min="0" max="10" value="${rec.rpe!=null?rec.rpe:''}" data-bprpe="${ref}" placeholder="0-10" style="width:80px"><button class="btn sec" data-bunvalidate="${ref}" style="padding:8px 12px">Annuler</button>`
           :`<button class="btn" data-bvalidate="${ref}" style="padding:10px 14px">✓ J'ai fait cette séance</button>`}
         </div></div>`:''}</div>`;}).join('')}</div>`;}).join('');
-  return `<button class="btn sec" data-bback style="margin-bottom:8px">← Boutique</button>
+  return `<div class="shop"><div class="shop-head"><button class="btn sec" data-bback style="padding:7px 14px">← Boutique</button><button class="shop-x" data-shopclose aria-label="Fermer la boutique" title="Fermer">✕</button></div>
     <div class="card" style="border-left:4px solid ${p.color}"><b>${p.emoji} ${esc(p.title)}</b><div class="muted" style="font-size:12.5px;margin-top:2px">Semaine ${wk.n}${wk.meso?' — '+esc(wk.meso):''} · ${doneCount}/${wk.sessions.length} séance(s) faite(s)</div></div>
     <div class="tabbar" style="flex-wrap:wrap">${chips}</div>
-    ${days||'<div class="card"><p class="muted">Aucune séance cette semaine.</p></div>'}`;
+    ${days||'<div class="card"><p class="muted">Aucune séance cette semaine.</p></div>'}</div>`;
 }
 function bindBoutique(){
   document.querySelectorAll('[data-shopclose]').forEach(b=>b.onclick=()=>{ESPACE_TAB='apercu';BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();});
@@ -1868,7 +1878,7 @@ function bottomNav(){
   const cal=`<button class="botnav-cal ${ESPACE_TAB==='agenda'?'on':''}" data-nav="agenda" title="Mon agenda" aria-label="Mon agenda">${calIco}</button>`;
   const mid=Math.ceil(items.length/2);
   const left=items.slice(0,mid).map(itemBtn).join('');const right=items.slice(mid).map(itemBtn).join('');
-  return `<nav class="botnav" role="tablist" aria-label="Catégories"><div class="botnav-inner">${left}${cal}${right}</div></nav>`;
+  return `<nav class="botnav" role="tablist" aria-label="Catégories"><div class="botnav-inner">${left}<div class="botnav-sp"></div>${right}${cal}</div></nav>`;
 }
 async function renderSpace(skipLoad){
   applyTheme(loadTheme());
