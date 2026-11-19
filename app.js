@@ -1508,6 +1508,47 @@ function cycleTheme(){
   }
   try{document.querySelectorAll('[data-fbtheme]').forEach(function(b){b.textContent=themeIcon()+' '+themeLabel();});}catch(e){}
 }
+/* ----- Menu Réglages (⚙️) : thème + langue (+ accès paramètres admin), dans toutes les barres du haut ----- */
+const GEAR_STYLE=`<style>
+.ea-gear{position:relative}
+.ea-gear-btn{appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1}
+.ea-gear.open .ea-gear-btn{border-color:#5b8cff;box-shadow:0 0 0 3px rgba(91,140,255,.22)}
+.ea-gear-menu{position:absolute;top:calc(100% + 9px);right:0;min-width:234px;background:#0e1a2c;border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.55);padding:12px;z-index:80;display:none}
+.ea-gear.open .ea-gear-menu{display:block}
+.ea-gear-h{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#7e90a8;margin:4px 2px 7px}
+.ea-gear-seg{display:flex;gap:5px;margin-bottom:12px}
+.ea-gear-seg button{flex:1;appearance:none;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#cfd9e8;border-radius:9px;padding:8px 6px;font:600 12.5px system-ui,-apple-system,sans-serif}
+.ea-gear-seg button.on{background:#2552d6;border-color:#2552d6;color:#fff}
+.ea-gear-admin{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid rgba(255,255,255,.1);color:#dfe8f5;font:600 13px system-ui,-apple-system,sans-serif;padding:11px 2px 1px;margin-top:2px;cursor:pointer}
+</style>`;
+function gearMenu(){const th=themePref();const admin=(state.access==='coach'&&!state.manager&&!state.spaceCoach);
+  return `${GEAR_STYLE}<div class="ea-gear" data-gear-wrap>
+    <button class="ea-gear-btn" data-gear-btn aria-haspopup="true" title="${t('Réglages','Settings')}" aria-label="${t('Réglages','Settings')}">⚙️</button>
+    <div class="ea-gear-menu" data-gear-menu>
+      <div class="ea-gear-h">${t('Thème / contraste','Theme / contrast')}</div>
+      <div class="ea-gear-seg">
+        <button data-set-theme="auto" class="${th==='auto'?'on':''}">${t('Auto','Auto')}</button>
+        <button data-set-theme="light" class="${th==='light'?'on':''}">${t('Clair','Light')}</button>
+        <button data-set-theme="dark" class="${th==='dark'?'on':''}">${t('Sombre','Dark')}</button>
+      </div>
+      <div class="ea-gear-h">${t('Langue','Language')}</div>
+      <div class="ea-gear-seg">
+        <button data-set-lang="fr" class="${LANG==='fr'?'on':''}">Français</button>
+        <button data-set-lang="en" class="${LANG==='en'?'on':''}">English</button>
+      </div>
+      ${admin?`<button class="ea-gear-admin" data-gear-admin>⚙️ ${t('Paramètres administrateur','Admin settings')}</button>`:''}
+    </div>
+  </div>`;
+}
+function bindGearMenu(){
+  const wrap=app.querySelector('[data-gear-wrap]'); if(!wrap)return;
+  const btn=wrap.querySelector('[data-gear-btn]');
+  if(btn)btn.addEventListener('click',e=>{e.stopPropagation();const o=wrap.classList.contains('open');document.querySelectorAll('.ea-gear.open').forEach(x=>x.classList.remove('open'));if(!o)wrap.classList.add('open');});
+  wrap.querySelectorAll('[data-set-theme]').forEach(b=>b.addEventListener('click',()=>setTheme(b.getAttribute('data-set-theme'))));
+  wrap.querySelectorAll('[data-set-lang]').forEach(b=>b.addEventListener('click',()=>setLang(b.getAttribute('data-set-lang'))));
+  const adm=wrap.querySelector('[data-gear-admin]'); if(adm)adm.addEventListener('click',()=>{state.prevSection=state.section;state.section='settings';render();});
+}
+try{document.addEventListener('click',e=>{if(!e.target.closest('[data-gear-wrap]'))document.querySelectorAll('.ea-gear.open').forEach(x=>x.classList.remove('open'));});}catch(e){}
 /* ----- Config générale : quels onglets (sections) sont affichés ----- */
 let APP_CFG=null;
 function sectionDefs(){return [['football','Football'],['individuel',t('Coaching individuel','Individual coaching')],['apa','APA'],['nutrition','Nutrition']];}
@@ -1587,11 +1628,9 @@ function renderFullApp(section){
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${restricted?'':sectionDropdown(section)}
-          ${(state.access==='coach'&&!restricted)?`<button data-fbadmin title="${t('Paramètres administrateur','Admin settings')}" aria-label="${t('Paramètres administrateur','Admin settings')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">⚙️</button>`:''}
           ${mgr?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(mgr.label||mgr.username)} · <b style="color:#fff">Coach ${admEsc(mgr.team||'')}</b></span>`:sc?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${admEsc(sc.name||sc.username)} · <b style="color:#fff">Coach ${admEsc(SPACE_LABELS[sc.space]||sc.space||'')}</b></span>`:(state.access==='coach'?`<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8FCBFF;background:rgba(61,169,252,.16);border-radius:20px;padding:6px 11px">👤 ${(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>`:'')}
           ${section==='football'?`<button data-fbdemo title="${t('Afficher une équipe démo (lecture seule) pour voir les courbes','Show a demo team (read-only) to preview the charts')}" style="appearance:none;cursor:pointer;border:1px solid ${state.fbDemo?'#3b82f6':'rgba(255,255,255,.25)'};background:${state.fbDemo?'#3b82f6':'transparent'};color:${state.fbDemo?'#04121f':'#fff'};border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">👁 ${state.fbDemo?t('Démo ✓','Demo ✓'):t('Démo','Demo')}</button>`:''}
-          <button data-fbtheme title="${t('Thème clair / sombre','Light / dark theme')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">${themeIcon()} ${themeLabel()}</button>
-          <button data-fblang style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;letter-spacing:.03em">🌐 ${LANG==='en'?'EN':'FR'}</button>
+          ${gearMenu()}
           ${section==='apa'?`<button data-apacal title="${t('Calendrier / planning','Calendar / schedule')}" aria-label="${t('Calendrier','Calendar')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 10px;font-size:15px;line-height:1">📅</button>`:''}
           <button data-fbswitch title="${t('Changer de vue','Switch view')}" style="appearance:none;cursor:pointer;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700">🔄 ${t('Changer de vue','Switch view')}</button>
           <button data-fblogout style="appearance:none;cursor:pointer;border:1px solid rgba(255,120,110,.5);background:transparent;color:#ffb4a8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600">${t('Déconnexion','Log out')}</button>
@@ -1621,10 +1660,7 @@ function renderFullApp(section){
       document.addEventListener('keydown', (e) => { if(e.key === 'Escape') document.querySelectorAll('.ea-switch.open').forEach(w => w.classList.remove('open')); });
     }
   }
-  const lg = app.querySelector('[data-fblang]');
-  if(lg) lg.addEventListener('click', () => setLang(LANG==='en'?'fr':'en'));
-  const thb = app.querySelector('[data-fbtheme]');
-  if(thb) thb.addEventListener('click', cycleTheme);
+  bindGearMenu();
   const dmb = app.querySelector('[data-fbdemo]');
   if(dmb) dmb.addEventListener('click', () => { state.fbDemo = !state.fbDemo; render(); });
   const lo = app.querySelector('[data-fblogout]');
@@ -1633,8 +1669,6 @@ function renderFullApp(section){
   if(sw) sw.addEventListener('click', openAccountSwitch);
   const apc = app.querySelector('[data-apacal]');
   if(apc) apc.addEventListener('click', () => { const f = app.querySelector('iframe'); try{ if(f&&f.contentWindow) f.contentWindow.postMessage({type:'apa-cal'}, location.origin); }catch(e){} });
-  const ad = app.querySelector('[data-fbadmin]');
-  if(ad) ad.addEventListener('click', () => { state.prevSection = state.section; state.section = 'settings'; render(); });
 }
 /* ----- Page Paramètres (plein écran, hors menu déroulant) ----- */
 const SET_STYLE=`<style>
@@ -2532,20 +2566,16 @@ async function renderHubPage(){
   const head=`<div class="hubpage-head">
     <div class="hubpage-brand">${shieldSeason()}<span class="hubpage-wm">Elite<span> Adapt</span></span><span class="hubpage-tag">Organisation</span></div>
     <div class="hubpage-actions">
-      <button data-fbtheme class="hubpage-ibtn" title="${t('Thème clair / sombre','Light / dark theme')}">${themeIcon()} ${themeLabel()}</button>
-      <button data-fblang class="hubpage-ibtn">🌐 ${LANG==='en'?'EN':'FR'}</button>
-      <button data-fbadmin class="hubpage-ibtn" title="${t('Paramètres','Settings')}">⚙️</button>
+      ${gearMenu()}
       <button data-fbswitch class="hubpage-ibtn" title="${t('Changer de vue','Switch view')}">🔄 ${t('Changer de vue','Switch view')}</button>
       <span class="hubpage-user">👤 ${admEsc(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span>
       <button data-fblogout class="hubpage-logout">${t('Déconnexion','Log out')}</button>
     </div></div>`;
   app.innerHTML=HUBPAGE_STYLE+`<div class="hubpage">${head}<div class="screen" id="screen"></div></div>`;
   const q=s=>app.querySelector(s);
-  if(q('[data-fbtheme]'))q('[data-fbtheme]').addEventListener('click',cycleTheme);
-  if(q('[data-fblang]'))q('[data-fblang]').addEventListener('click',()=>setLang(LANG==='en'?'fr':'en'));
+  bindGearMenu();
   if(q('[data-fbswitch]'))q('[data-fbswitch]').addEventListener('click',openAccountSwitch);
   if(q('[data-fblogout]'))q('[data-fblogout]').addEventListener('click',logout);
-  if(q('[data-fbadmin]'))q('[data-fbadmin]').addEventListener('click',()=>{state.prevSection='hub';state.section='settings';render();});
   await renderHub(document.getElementById('screen'));
 }
 async function renderHub(screen){

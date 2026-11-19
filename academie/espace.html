@@ -330,6 +330,8 @@ function seasonEmoji(){try{const d=new Date(),m=d.getMonth()+1,day=d.getDate();
   if(m>=9&&m<=11)return '🍂';
   if(m>=3&&m<=5)return '🌸';
   return '❄️';}catch(e){return '';}}
+/* Contraste clair/sombre (Auto → Clair → Sombre), partagé via bp_theme. */
+function cycleContrast(){let cur='auto';try{cur=localStorage.getItem('bp_theme')||'auto';}catch(e){}const next=cur==='auto'?'light':cur==='light'?'dark':'auto';try{if(next==='auto')localStorage.removeItem('bp_theme');else localStorage.setItem('bp_theme',next);}catch(e){}const r=document.documentElement;if(next==='light'||next==='dark')r.setAttribute('data-theme',next);else r.removeAttribute('data-theme');return next;}
 function hideBoot(){const b=document.getElementById('boot');if(b)b.classList.add('hidden');const sp=document.getElementById('splash');if(sp)sp.classList.add('hidden');}
 function showBoot(){const b=document.getElementById('boot');if(b){b.classList.remove('hidden');b.classList.remove('solid');}} // voile semi-transparent (interface visible derrière)
 function isoLong(d){try{return new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}catch(e){return d;}}
@@ -424,12 +426,14 @@ function openSettings(){
   if($('#settingsmenu')){closeSettings();return;}
   const menu=document.createElement('div');menu.id='settingsmenu';menu.className='dropdown';
   menu.innerHTML=`
+    <button class="dropitem" data-set="contrast">🌓 Contraste<small>Auto · Clair · Sombre — <b id="ct-cur">${(function(){try{var p=localStorage.getItem('bp_theme');return p==='light'?'Clair':p==='dark'?'Sombre':'Auto';}catch(e){return 'Auto';}})()}</b></small></button>
     <button class="dropitem" data-set="theme">🎨 Mes couleurs<small>Fond + couleur des encadrés</small></button>
     <button class="dropitem" data-set="notif">🔔 Notifications<small>Rappels wellness &amp; RPE</small></button>
     <button class="dropitem" data-set="switch">🔄 Changer de compte<small>Voir les comptes accessibles</small></button>`;
   document.body.appendChild(menu);
   const b=$('#settingsbtn');const r=b.getBoundingClientRect();
   menu.style.top=(r.bottom+6)+'px';menu.style.right=Math.max(8,window.innerWidth-r.right)+'px';
+  menu.querySelector('[data-set="contrast"]').onclick=()=>{const n=cycleContrast();const c=document.getElementById('ct-cur');if(c)c.textContent=n==='light'?'Clair':n==='dark'?'Sombre':'Auto';};
   menu.querySelector('[data-set="theme"]').onclick=()=>{closeSettings();openTheme();};
   menu.querySelector('[data-set="notif"]').onclick=()=>{closeSettings();openNotif();};
   menu.querySelector('[data-set="switch"]').onclick=()=>{closeSettings();openAccountSwitch();};
