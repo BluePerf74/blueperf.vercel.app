@@ -280,6 +280,7 @@ body.coach-fill .botnav-inner{max-width:720px}
 .chat-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:955;width:calc(100% - 28px);max-width:540px;display:flex;gap:8px;align-items:flex-end;padding:8px 10px;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:24px;box-shadow:0 14px 34px -10px rgba(0,0,0,.5)}
 .chat-bar textarea{flex:1;resize:none;min-height:42px;max-height:120px;border:0;background:none;border-radius:14px;padding:10px 12px;font-size:15px;font-family:inherit;color:var(--ink);-webkit-text-fill-color:var(--ink);caret-color:var(--accent)}
 .chat-bar textarea::placeholder{color:var(--muted);-webkit-text-fill-color:var(--muted)}
+.msg-notifbar{display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:12.5px;line-height:1.4}
 .chat-bar textarea:focus{outline:0}
 .chat-bar .btn{flex:none;padding:11px 16px;border-radius:14px;font-size:16px}
 .msg-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -547,7 +548,7 @@ if(COACH_MODE){try{const sp=document.getElementById('splash');if(sp)sp.classList
 function selfLog(){return SPACE==='ci';} // seules les client·es individuel·les saisissent leurs propres séances
 
 /* ---------- Messagerie client ↔ coach ---------- */
-let MY_MSGS=[]; let MSG_UNREAD=0; let MSG_POLL=null;
+let MY_MSGS=[]; let MSG_UNREAD=0; let MSG_POLL=null; let PUSH_STATE=null;
 async function loadMyMessages(){
   if(!PLAYER){MY_MSGS=[];MSG_UNREAD=0;return;}
   try{const all=(await kvGet(SPACE+':messages'))||{};
@@ -577,8 +578,11 @@ function messagesHtml(){
   let lastDay='';
   const thread=MY_MSGS.length?('<div class="chat-thread">'+MY_MSGS.map(m=>{let dh='';const dl=new Date(m.ts).toDateString();if(dl!==lastDay){lastDay=dl;dh=`<div class="chat-day">${esc(msgDayLabel(m.ts))}</div>`;}const me=m.from==='client';return dh+`<div class="msg-row ${me?'me':'them'}"><div class="msg-bub ${me?'me':'them'}">${esc(m.text)}<span class="msg-t">${msgHm(m.ts)}</span></div></div>`;}).join('')+'</div>')
     :`<div style="text-align:center;padding:30px 10px;color:var(--muted)"><div style="font-size:30px">💬</div><p style="margin:8px 0 0">Aucun message pour l'instant.</p><p style="font-size:13px;margin:6px 0 0">Pose une question à ton coach ci-dessous.</p></div>`;
+  const notifBar=(PUSH_STATE&&PUSH_STATE!=='on'&&PUSH_STATE!=='unsupported'&&PUSH_STATE!=='denied')
+    ? `<div class="msg-notifbar"><span>🔔 Active les notifications pour être prévenu·e sur ton téléphone dès que ton coach t'écrit.</span><button class="btn" id="msgNotifOn" style="padding:7px 15px;font-size:13px;flex:none">Activer</button></div>`
+    : '';
   return `<div class="msg-head"><b style="font-size:17px">💬 Mon coach</b><button class="btn sec" id="msgRefresh" aria-label="Actualiser" style="padding:6px 11px;font-size:14px">↻</button></div>
-    ${thread}
+    ${notifBar}${thread}
     <div style="height:92px" aria-hidden="true"></div>
     <form id="chatBar" class="chat-bar"><textarea id="chatText" rows="1" placeholder="Écris à ton coach…" required></textarea><button class="btn" type="submit" aria-label="Envoyer">➤</button></form>`;
 }
@@ -1923,7 +1927,9 @@ async function renderTab(){
   if(ESPACE_TAB==='messages'){
     await loadMyMessages();
     await markClientRead();
+    try{PUSH_STATE=await pushStatus();}catch(e){PUSH_STATE=null;}
     c.innerHTML=messagesHtml();
+    const nb=$('#msgNotifOn');if(nb)nb.onclick=async()=>{nb.disabled=true;nb.textContent='…';try{await enablePush();PUSH_STATE='on';}catch(e){alert('Notifications non activées. Sur iPhone : ajoute d\'abord l\'app à l\'écran d\'accueil, puis réessaie.');}await renderTab();};
     const bar=$('#chatBar'),txt=$('#chatText');
     if(txt){txt.addEventListener('input',()=>{txt.style.height='auto';txt.style.height=Math.min(120,txt.scrollHeight)+'px';});
       txt.addEventListener('focus',()=>document.body.classList.add('chat-typing'));

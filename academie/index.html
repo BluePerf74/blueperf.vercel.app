@@ -1107,6 +1107,8 @@ async function coachSendMsg(pid,text){
   text=(text||'').trim();if(!text||!pid)return;
   const id='m'+uid();
   await put('messages',id,{id,pid,from:'coach',text,ts:Date.now(),readCoach:true,readClient:false});
+  // Notification push sur le téléphone du/de la client·e (s'il/elle a activé les notifications)
+  try{ fetch('/api/push?action=send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({space:DB_PREFIX,pids:[pid],title:'💬 Nouveau message de ton coach',body:text.slice(0,140),url:'/academie/espace.html'})}); }catch(e){}
 }
 function viewMessages(){
   const clients=Object.values(DATA.players).filter(p=>p.active!==false).sort((a,b)=>{
