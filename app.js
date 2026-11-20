@@ -2583,8 +2583,9 @@ const HUBPAGE_STYLE=`<style>
 .hubbar-sp{flex:0 0 46px}
 .hubbar-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--app-muted,#6b7688);font:600 10.5px/1.12 inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;text-align:center}
 .hubbar-b .ic{width:44px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:13px;transition:background .15s}
+.hubbar-b{position:relative;z-index:1}
 .hubbar-b.on{color:var(--app-accent,#2552d6)}
-.hubbar-b.on .ic{background:color-mix(in srgb,var(--app-accent,#2552d6) 14%,transparent)}
+#hubbar .nav-glow{position:absolute;left:0;top:8px;width:60px;height:36px;border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--app-accent,#2552d6) 30%,transparent),color-mix(in srgb,#6ea8ff 32%,transparent));box-shadow:0 7px 20px -5px color-mix(in srgb,var(--app-accent,#2552d6) 55%,transparent);z-index:0;pointer-events:none;opacity:0;will-change:left,top}
 .hubbar-b span{display:block;max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hubbar-cal{position:absolute;left:50%;top:-14px;transform:translateX(-50%);appearance:none;border:0;cursor:pointer;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--app-accent,#2552d6),#6ea8ff);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--app-accent,#2552d6) 65%,transparent);transition:transform .15s,box-shadow .15s;z-index:2}
 .hubbar-cal svg{stroke:#fff}
@@ -2592,6 +2593,24 @@ const HUBPAGE_STYLE=`<style>
 .hubbar-cal:active{transform:translateY(1px) scale(.97)}
 </style>`;
 const HUB_TABS=[['accueil','Accueil','home'],['cal','Calendrier','calendar'],['events','Événements','pin'],['contacts','Inscriptions','users'],['docs','Documents','folder']];
+function barGlow(inner, items, onPick){
+  if(!inner||!items||!items.length)return;
+  let glow=inner.querySelector('.nav-glow');
+  if(!glow){glow=document.createElement('span');glow.className='nav-glow';glow.setAttribute('aria-hidden','true');inner.insertBefore(glow,inner.firstChild);}
+  const W=60,H=36;
+  const box=el=>{const ic=el.querySelector('.ic')||el;const r=ic.getBoundingClientRect(),ir=inner.getBoundingClientRect();return {cx:r.left-ir.left+r.width/2,cy:r.top-ir.top+r.height/2};};
+  const place=(cx,cy,anim)=>{glow.style.transition=anim?'left .2s cubic-bezier(.2,.9,.3,1),top .2s ease':'none';glow.style.left=(cx-W/2)+'px';glow.style.top=(cy-H/2)+'px';glow.style.opacity='1';};
+  const activeIdx=()=>items.findIndex(b=>b.classList.contains('on'));
+  const snap=anim=>{const i=activeIdx();if(i<0){glow.style.opacity='0';return;}try{const b=box(items[i]);place(b.cx,b.cy,anim);}catch(e){}};
+  const clampX=cx=>{const ir=inner.getBoundingClientRect();const x=cx-ir.left;return Math.max(box(items[0]).cx,Math.min(box(items[items.length-1]).cx,x));};
+  const nearest=cx=>{const ir=inner.getBoundingClientRect();const x=cx-ir.left;let bi=0,bd=1e9;items.forEach((b,i)=>{const d=Math.abs(box(b).cx-x);if(d<bd){bd=d;bi=i;}});return bi;};
+  let drag=false,cy0=0;
+  inner.onpointerdown=e=>{if(e.target.closest('.hubbar-cal,.botnav-cal,.apanav-cal'))return;drag=true;cy0=box(items[Math.max(0,activeIdx())]).cy;try{inner.setPointerCapture(e.pointerId);}catch(_){}place(clampX(e.clientX),cy0,false);};
+  inner.onpointermove=e=>{if(!drag)return;place(clampX(e.clientX),cy0,false);};
+  inner.onpointerup=e=>{if(!drag)return;drag=false;const i=nearest(e.clientX);const b=box(items[i]);place(b.cx,b.cy,true);onPick(i);};
+  inner.onpointercancel=()=>{if(drag){drag=false;snap(true);}};
+  inner._navSnap=snap;requestAnimationFrame(()=>snap(false));
+}
 async function renderHubPage(){
   const head=`<div class="hubpage-head">
     <div class="hubpage-brand">${shieldSeason()}<span class="hubpage-wm">Elite<span> Adapt</span></span><span class="hubpage-tag">Organisation</span><span class="hubpage-user">👤 ${admEsc(state.coachUsername||COACH_USERNAME)} <b style="color:#fff">STAFF</b></span></div>
@@ -2609,6 +2628,9 @@ async function renderHubPage(){
   if(q('[data-fbswitch]'))q('[data-fbswitch]').addEventListener('click',openAccountSwitch);
   if(q('[data-fblogout]'))q('[data-fblogout]').addEventListener('click',logout);
   app.querySelectorAll('[data-hubnav]').forEach(b=>b.addEventListener('click',()=>{state.hubTab=b.getAttribute('data-hubnav');state.hubForm=null;renderHubPage();}));
+  const hbInner=app.querySelector('.hubbar-in');
+  if(hbInner){const hbItems=[...app.querySelectorAll('.hubbar-in .hubbar-b')];
+    barGlow(hbInner,hbItems,i=>{state.hubTab=hbItems[i].getAttribute('data-hubnav');state.hubForm=null;renderHubPage();});}
   await renderHub(document.getElementById('screen'));
 }
 async function renderHub(screen){

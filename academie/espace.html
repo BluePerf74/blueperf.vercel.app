@@ -261,7 +261,9 @@ body.coach-fill .botnav-inner{max-width:720px}
 .botnav-item .ic{width:50px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:15px;transition:background .16s}
 .botnav-item span{line-height:1;white-space:nowrap}
 .botnav-item.on{color:var(--accent)}
-.botnav-item.on .ic{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 26%,transparent),color-mix(in srgb,var(--accent-2) 26%,transparent));box-shadow:0 5px 16px -5px color-mix(in srgb,var(--accent) 60%,transparent)}
+/* La pastille active (modèle « grosse pastille lumineuse ») est un élément flottant qui glisse. */
+.nav-glow{position:absolute;left:0;top:9px;width:60px;height:36px;border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 34%,transparent),color-mix(in srgb,var(--accent-2) 34%,transparent));box-shadow:0 7px 20px -5px color-mix(in srgb,var(--accent) 70%,transparent);z-index:0;pointer-events:none;opacity:0;will-change:left,top}
+.botnav-item{position:relative;z-index:1}
 .botnav-item:active{transform:translateY(1px)}
 .botnav-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 .botnav-item .nbadge{position:absolute;top:-2px;right:8px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e5484d;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
@@ -1870,6 +1872,26 @@ function navIco(n){
   };
   return `<span class="ic"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]||''}</svg></span>`;
 }
+// Pastille active flottante + glissement du doigt sur la barre du bas (confiné à la barre).
+function barGlow(inner, items, onPick){
+  if(!inner||!items||!items.length)return;
+  let glow=inner.querySelector('.nav-glow');
+  if(!glow){glow=document.createElement('span');glow.className='nav-glow';glow.setAttribute('aria-hidden','true');inner.insertBefore(glow,inner.firstChild);}
+  const W=60,H=36;
+  const box=el=>{const ic=el.querySelector('.ic')||el;const r=ic.getBoundingClientRect(),ir=inner.getBoundingClientRect();return {cx:r.left-ir.left+r.width/2,cy:r.top-ir.top+r.height/2};};
+  const place=(cx,cy,anim)=>{glow.style.transition=anim?'left .2s cubic-bezier(.2,.9,.3,1),top .2s ease':'none';glow.style.left=(cx-W/2)+'px';glow.style.top=(cy-H/2)+'px';glow.style.opacity='1';};
+  const activeIdx=()=>items.findIndex(b=>b.classList.contains('on'));
+  const snap=anim=>{const i=activeIdx();if(i<0){glow.style.opacity='0';return;}try{const b=box(items[i]);place(b.cx,b.cy,anim);}catch(e){}};
+  const clampX=cx=>{const ir=inner.getBoundingClientRect();const x=cx-ir.left;return Math.max(box(items[0]).cx,Math.min(box(items[items.length-1]).cx,x));};
+  const nearest=cx=>{const ir=inner.getBoundingClientRect();const x=cx-ir.left;let bi=0,bd=1e9;items.forEach((b,i)=>{const d=Math.abs(box(b).cx-x);if(d<bd){bd=d;bi=i;}});return bi;};
+  let drag=false,cy0=0;
+  inner.onpointerdown=e=>{if(e.target.closest('.botnav-cal,.apanav-cal,.hubbar-cal'))return;drag=true;cy0=box(items[Math.max(0,activeIdx())]).cy;try{inner.setPointerCapture(e.pointerId);}catch(_){}place(clampX(e.clientX),cy0,false);};
+  inner.onpointermove=e=>{if(!drag)return;place(clampX(e.clientX),cy0,false);};
+  inner.onpointerup=e=>{if(!drag)return;drag=false;const i=nearest(e.clientX);const b=box(items[i]);place(b.cx,b.cy,true);onPick(i);};
+  inner.onpointercancel=()=>{if(drag){drag=false;snap(true);}};
+  inner._navSnap=snap;
+  requestAnimationFrame(()=>snap(false));
+}
 function bottomNav(){
   const items=[['apercu','Accueil']];
   if(MY_PLAN||MY_PDFS.length)items.push(['programme','Programme']);
@@ -1916,11 +1938,15 @@ async function renderSpace(skipLoad){
   const tb=$('#settingsbtn');if(tb)tb.onclick=openSettings;
   const bq=$('#boutiquebtn');if(bq)bq.onclick=()=>{ESPACE_TAB=(ESPACE_TAB==='boutique')?'apercu':'boutique';BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();};
   document.querySelectorAll('.botnav-inner [data-nav]').forEach(b=>b.onclick=()=>{ESPACE_TAB=b.getAttribute('data-nav');BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();});
+  const _bni=document.querySelector('.botnav-inner');
+  if(_bni){const _items=[...document.querySelectorAll('.botnav-inner .botnav-item')];
+    barGlow(_bni,_items,i=>{const k=_items[i].getAttribute('data-nav');if(k){ESPACE_TAB=k;BOUTIQUE_OPEN=null;BOUTIQUE_SOPEN=null;window.scrollTo({top:0,behavior:'smooth'});renderTab();}});}
   await renderTab();
   hideBoot();
 }
 async function renderTab(){
   document.querySelectorAll('.botnav-inner [data-nav]').forEach(b=>{const on=b.getAttribute('data-nav')===ESPACE_TAB;b.classList.toggle('on',on);b.setAttribute('aria-selected',on?'true':'false');});
+  const _bni2=document.querySelector('.botnav-inner');if(_bni2&&_bni2._navSnap)_bni2._navSnap(true);
   const bqb=$('#boutiquebtn');if(bqb)bqb.classList.toggle('on',ESPACE_TAB==='boutique');
   const c=$('#tabc');if(!c)return;
   if(ESPACE_TAB!=='messages'){stopMsgPoll();document.body.classList.remove('chat-typing');}
