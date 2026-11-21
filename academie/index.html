@@ -456,6 +456,20 @@ details summary{cursor:pointer;font-weight:600}
 .spn-cal svg{width:26px;height:26px;stroke:#fff}
 .spn-cal.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 32%,transparent),0 10px 24px -6px color-mix(in srgb,var(--accent) 60%,transparent)}
 .spn-cal:active{transform:translateX(-50%) translateY(1px) scale(.97)}
+/* Vue d'ensemble coaching individuel — mise en page « groupes » façon APA */
+.osub-bar{display:flex;gap:4px;background:color-mix(in srgb,var(--surface-2) 85%,transparent);border:1px solid var(--line);border-radius:999px;padding:4px;margin:0 0 18px;overflow-x:auto}
+.osub-bar::-webkit-scrollbar{display:none}
+.osub-i{flex:1 0 auto;white-space:nowrap;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font:700 13.5px inherit;padding:10px 16px;border-radius:999px;transition:background .16s,color .16s}
+.osub-i.on{background:linear-gradient(100deg,var(--accent),#a78bfa);color:#fff}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+.gcard{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--gc);border-radius:16px;padding:15px 17px;display:flex;flex-direction:column;gap:8px;box-shadow:0 12px 28px -20px rgba(0,0,0,.55)}
+.gcard .gh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:2px}
+.gcard h3{font-size:19px;margin:0;line-height:1.15}
+.gcard .cnt{font:800 30px/1 inherit;color:var(--gc);font-variant-numeric:tabular-nums;flex:none}
+.gcard .desc{margin:0;color:var(--muted);font-size:12px}
+.gcard .crow{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:9px 0;border-top:1px solid var(--line)}
+.gcard .crow .nm{display:flex;align-items:center;gap:10px;min-width:0}
+.gcard .crow .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .spn-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font:600 10.5px/1.12 inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 2px;text-align:center;transition:color .15s}
 .spn-b .ic{width:46px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:14px;transition:background .15s}
 .spn-b .ic svg{width:22px;height:22px}
@@ -1421,12 +1435,12 @@ function renderTop(){
   const cs=RESTRICT.team?[RESTRICT.team]:['Tous',...cats()];const ph=curPhase(UI.cat,UI.ref);const nm=nextMatch(UI.cat,UI.ref);
   let ctx=[fmtD(UI.ref,{weekday:'long',day:'numeric',month:'long'})];if(ph)ctx.push(ph.name);if(nm){const d=dayDiff(nm.date,UI.ref);ctx.push((d===0?'Jour de match':'J-'+d)+' · '+(UI.cat==='Tous'?nm.cat+' ':'')+nm.label);}
   const indivClients=INDIV?Object.values(DATA.players).filter(p=>p.active!==false).sort((a,b)=>a.name.localeCompare(b.name)):[];
-  $('#top').innerHTML=`<div><h1>${esc(tabLabel(UI.tab))}</h1><div class="ctx">${esc(ctx.join(' · '))}</div></div>
-  <div class="tools">${INDIV
+  const toolsHtml=(INDIV&&UI.tab==='overview')?'':`<div class="tools">${INDIV
     ?`<select data-chg="indivClient" aria-label="Client·e" style="width:auto"><option value="Tous" ${UI.indivClient==='Tous'?'selected':''}>Tous les client·es</option>${indivClients.map(c=>`<option value="${esc(c.id)}" ${UI.indivClient===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`
     :`<div class="seg" role="group" aria-label="Catégorie">${cs.map(c=>`<button class="${UI.cat===c?'on':''}" data-act="cat" data-id="${esc(c)}">${esc(c)}</button>`).join('')}</div>`}
   <input type="date" id="refDate" value="${UI.ref}" aria-label="Date de référence" style="width:auto">
   ${UI.ref!==TODAY?`<button class="btn sm" data-act="today">Aujourd'hui</button>`:''}</div>`;
+  $('#top').innerHTML=`<div><h1>${esc(tabLabel(UI.tab))}</h1><div class="ctx">${esc(ctx.join(' · '))}</div></div>${toolsHtml}`;
 }
 function banner(){
   if(!Store.demo)return '';
@@ -1931,11 +1945,13 @@ function indivSportGroups(clients){
   const COLS=['#1B46C9','#1D8752','#C23A2E','#B7760A','#7a5af8','#0ea5e9','#d6409f','#0f9d9d'];
   const groups={};clients.forEach(c=>{const s=((c.sport||'').trim())||'Sport à préciser';(groups[s]=groups[s]||[]).push(c);});
   const entries=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0],'fr'));
-  const card=([sport,list],i)=>{const col=COLS[i%COLS.length];
-    return `<div class="card" style="border-left:4px solid ${col}"><div class="hrow" style="margin-bottom:8px"><h2 style="margin:0;font-size:18px">${sportEmoji(sport)} ${esc(sport)}</h2><span class="pill" style="background:color-mix(in srgb,${col} 15%,transparent);border-color:${col};color:${col}">${list.length} client·e${list.length>1?'s':''}</span></div>
-      <div class="stack" style="gap:6px">${list.sort((a,b)=>a.name.localeCompare(b.name,'fr')).map(c=>`<button class="card flat" data-act="player" data-id="${esc(c.id)}" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;margin:0;cursor:pointer;padding:8px 10px">${pAvatar(c,'')}<span style="flex:1;min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)}</b>${c.goal?`<span class="small muted" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🎯 ${esc(c.goal)}</span>`:''}</span><span class="small muted" style="flex:none">Ouvrir ›</span></button>`).join('')}</div></div>`;};
-  return `<div class="hrow" style="margin:2px 2px 6px"><h2 style="margin:0">👥 Mes client·es — par sport</h2><span class="small muted">Classé par activité · pas de séance de groupe</span></div>
-    <div class="grid g2">${entries.map(card).join('')}</div>`;
+  const card=([sport,list],i)=>{const col=COLS[i%COLS.length];const l=list.slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+    return `<div class="gcard" style="--gc:${col}">
+      <div class="gh"><div><h3>${sportEmoji(sport)} ${esc(sport)}</h3><p class="desc">Classé par activité · pas de séance de groupe</p></div><span class="cnt">${list.length}</span></div>
+      ${l.map(c=>`<div class="crow"><span class="nm">${pAvatar(c,'')}<span style="min-width:0"><b>${esc(c.name)}</b>${c.goal?`<span class="small muted" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🎯 ${esc(c.goal)}</span>`:''}</span></span><button class="btn sm" data-act="player" data-id="${esc(c.id)}">Ouvrir</button></div>`).join('')}
+    </div>`;};
+  return `<p class="note" style="margin:0 2px 14px">Tes client·es sont classé·es par activité (course à pied, marche, musculation…). <b>C'est un classement, pas une prise en groupe</b> — chaque suivi reste individuel. Modifie le sport dans la fiche d'un·e client·e.</p>
+    <div class="groups">${entries.map(card).join('')}</div>`;
 }
 function indivOverview(){
   const ref=UI.ref;const clients=Object.values(DATA.players).filter(p=>p.active!==false);
@@ -1969,7 +1985,11 @@ function indivOverview(){
     ${kpi('Séances (semaine)',nSess,'',esc(weekLabel))}
     ${kpi('Messages non lus',unread,'',unread?'à lire':'tout est lu',unread?'warn':null)}
     ${kpi('RPE à compléter',rpeMiss,'','14 derniers jours',rpeMiss?'warn':null)}</div>`;
-  return `${kpis}${indivSportGroups(clients)}${calCard}${msgCard}`;
+  const sub=UI.ovSub||'groupes';
+  const osub=`<div class="osub-bar" role="tablist">${[['groupes','Mes clients'],['suivi','Planning'],['resume','Résumé']].map(([k,l])=>`<button class="osub-i${sub===k?' on':''}" role="tab" aria-selected="${sub===k}" data-act="ovSub" data-id="${k}">${l}</button>`).join('')}</div>`;
+  if(sub==='suivi')return osub+calCard;
+  if(sub==='resume')return osub+kpis+msgCard;
+  return osub+indivSportGroups(clients);
 }
 VIEWS.overview=()=>{
   if(INDIV)return indivOverview();
@@ -3956,6 +3976,7 @@ const ACT={
   openChat:b=>{UI.chatPid=b.dataset.id;UI.tab='messages';saveUI();render();window.scrollTo(0,0);},
   openMsgs:()=>{UI.chatPid=null;UI.tab='messages';saveUI();render();window.scrollTo(0,0);},
   ovWeekNav:b=>{UI.ovWeek=addDays(UI.ovWeek||mondayOf(UI.ref),7*(+b.dataset.d));render();},
+  ovSub:b=>{UI.ovSub=b.dataset.id;render();window.scrollTo(0,0);},
   chatBack:()=>{UI.chatPid=null;render();},
   saveTemplate:async()=>{const f=$('form[data-form="session"]');if(!f)return;const v=Object.fromEntries(new FormData(f));
     const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
