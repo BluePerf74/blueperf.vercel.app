@@ -1393,14 +1393,30 @@ function barGlow(inner, items, onPick){
   inner._navSnap=snap;requestAnimationFrame(()=>snap(false));
 }
 function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
- let items;
+ const calIco=`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SPNICO.seances}</svg>`;
+ const centerFab=()=>{const inr=bar.querySelector('.spn-in'),sp=inr&&inr.querySelector('.spn-sp'),cal=inr&&inr.querySelector('.spn-cal');if(inr&&sp&&cal)requestAnimationFrame(()=>{try{const ir=inr.getBoundingClientRect(),sr=sp.getBoundingClientRect();cal.style.left=(sr.left-ir.left+sr.width/2)+'px';}catch(e){}});};
  if(INDIV){
-   items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'joueur',ic:'joueur',label:'Client·e'},{type:'tab',id:'messages',ic:'messages',label:'Messages',badge:unreadTotal()}];
-   if(tabOn('entry'))items.push({type:'entry',ic:'entry',label:'Saisie'});
-   items.push({type:'more',ic:'more',label:'Plus'});
- } else {
-   items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'seances',ic:'seances',label:'Séance'},{type:'tab',id:'joueur',ic:'joueur',label:'Joueur'},{type:'perf',ic:'perf',label:'Performance'},{type:'entry',ic:'entry',label:'Saisie'}];
+   // Barre identique à l'APA : Vue d'ensemble · Séances · [📅 Planning centré] · Dossier · Saisie
+   const ovPlan=UI.tab==='overview'&&UI.ovSub==='suivi';
+   const flat=[
+     {label:"Vue d'ensemble",ic:'overview',act:'data-act="ovHome"',on:UI.tab==='overview'&&!ovPlan},
+     {label:'Séances',ic:'seances',act:'data-act="tab" data-id="seances"',on:UI.tab==='seances'},
+     {label:'Dossier',ic:'joueur',act:'data-act="tab" data-id="joueur"',on:UI.tab==='joueur'},
+     {label:'Saisie',ic:'entry',act:'data-act="spEntry"',on:UI.tab==='entry'||UI.sheet==='entry'}
+   ];
+   const btn=it=>`<button class="spn-b${it.on?' on':''}" ${it.act}>${spnIco(it.ic)}<span>${it.label}</span></button>`;
+   const fab=`<button class="spn-cal${ovPlan?' on':''}" data-act="ovPlanning" title="Planning" aria-label="Planning">${calIco}</button>`;
+   bar.innerHTML=`<div class="spn-in">${btn(flat[0])}${btn(flat[1])}<div class="spn-sp"></div>${btn(flat[2])}${btn(flat[3])}${fab}</div>`;
+   const inr=bar.querySelector('.spn-in');const fl=[...bar.querySelectorAll('.spn-in .spn-b')];
+   barGlow(inr,fl,i=>{fl[i].click();});centerFab();
+   const sheet=$('#spacesheet');
+   if(sheet){
+     if(UI.sheet==='entry'){const list=spaceEntryItems();sheet.innerHTML=`<div class="spsheet-bg" data-act="spClose"></div><div class="spsheet"><div class="spsheet-h"><b>Saisie</b><button class="spsheet-x" data-act="spClose" aria-label="Fermer">✕</button></div><div class="spsheet-list">${list.map(i=>`<button class="spsheet-i${i.on?' on':''}" data-act="${i.act}" data-id="${i.id||''}">${i.label}</button>`).join('')}</div></div>`;sheet.hidden=false;}
+     else{sheet.innerHTML='';sheet.hidden=true;}
+   }
+   return;
  }
+ const items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'seances',ic:'seances',label:'Séance'},{type:'tab',id:'joueur',ic:'joueur',label:'Joueur'},{type:'perf',ic:'perf',label:'Performance'},{type:'entry',ic:'entry',label:'Saisie'}];
  const PERFIDS=['testing','charge','reco','recovery','nutrition','reathle','muscu','medical','report'];
  const itemHtml=it=>{
    const on=it.type==='tab'?UI.tab===it.id:it.type==='entry'?(UI.tab==='entry'||UI.sheet==='entry'):it.type==='perf'?(PERFIDS.includes(UI.tab)||UI.sheet==='perf'):(UI.sheet==='more');
@@ -1408,15 +1424,11 @@ function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
    const bdg=it.badge?`<span class="spn-badge">${it.badge>9?'9+':it.badge}</span>`:'';
    return `<button class="spn-b${on?' on':''}" ${act}>${spnIco(it.ic)}${bdg}<span>${it.label}</span></button>`;};
  const btns=items.map(itemHtml);
- const calIco=`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SPNICO.seances}</svg>`;
  const fab=`<button class="spn-cal${UI.tab==='seances'?' on':''}" data-act="tab" data-id="seances" title="Planning" aria-label="Planning">${calIco}</button>`;
  const mid=Math.ceil(btns.length/2);
  bar.innerHTML=`<div class="spn-in">${btns.slice(0,mid).join('')}<div class="spn-sp"></div>${btns.slice(mid).join('')}${fab}</div>`;
  const spnInner=bar.querySelector('.spn-in');const spnFlat=[...bar.querySelectorAll('.spn-in .spn-b')];
- barGlow(spnInner,spnFlat,i=>{spnFlat[i].click();});
- // Centre le bouton calendrier sur l'espaceur (items pas forcément en nombre pair).
- const _sp=spnInner.querySelector('.spn-sp'),_cal=spnInner.querySelector('.spn-cal');
- if(_sp&&_cal)requestAnimationFrame(()=>{try{const ir=spnInner.getBoundingClientRect(),sr=_sp.getBoundingClientRect();_cal.style.left=(sr.left-ir.left+sr.width/2)+'px';}catch(e){}});
+ barGlow(spnInner,spnFlat,i=>{spnFlat[i].click();});centerFab();
  const sheet=$('#spacesheet');if(!sheet)return;
  if(UI.sheet){
    const list=UI.sheet==='entry'?(INDIV?spaceEntryItems():spaceSaisieItems()):UI.sheet==='perf'?spacePerfItems():spaceMoreItems();
@@ -3977,6 +3989,8 @@ const ACT={
   openMsgs:()=>{UI.chatPid=null;UI.tab='messages';saveUI();render();window.scrollTo(0,0);},
   ovWeekNav:b=>{UI.ovWeek=addDays(UI.ovWeek||mondayOf(UI.ref),7*(+b.dataset.d));render();},
   ovSub:b=>{UI.ovSub=b.dataset.id;render();window.scrollTo(0,0);},
+  ovHome:()=>{UI.ovSub=(UI.ovSub==='suivi')?'groupes':(UI.ovSub||'groupes');go('overview');},
+  ovPlanning:()=>{UI.ovSub='suivi';go('overview');},
   chatBack:()=>{UI.chatPid=null;render();},
   saveTemplate:async()=>{const f=$('form[data-form="session"]');if(!f)return;const v=Object.fromEntries(new FormData(f));
     const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
