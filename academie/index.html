@@ -467,9 +467,14 @@ details summary{cursor:pointer;font-weight:600}
 .gcard h3{font-size:19px;margin:0;line-height:1.15}
 .gcard .cnt{font:800 30px/1 inherit;color:var(--gc);font-variant-numeric:tabular-nums;flex:none}
 .gcard .desc{margin:0;color:var(--muted);font-size:12px}
-.gcard .crow{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:9px 0;border-top:1px solid var(--line)}
-.gcard .crow .nm{display:flex;align-items:center;gap:10px;min-width:0}
-.gcard .crow .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcard .crow{display:flex;gap:11px;align-items:center;justify-content:space-between;width:100%;padding:10px 8px;border:0;border-top:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .12s}
+.gcard .crow:hover{background:color-mix(in srgb,var(--gc) 8%,transparent)}
+.gcard .crow:active{background:color-mix(in srgb,var(--gc) 14%,transparent)}
+.gcard .crow .nm{display:flex;align-items:center;gap:11px;min-width:0}
+.gcard .crow .nmt{min-width:0}
+.gcard .crow .nmt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;font-size:14.5px}
+.gcard .crow .gl{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcard .crow .chev{color:var(--gc);font-weight:800;font-size:19px;flex:none;line-height:1}
 .spn-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font:600 10.5px/1.12 inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 2px;text-align:center;transition:color .15s}
 .spn-b .ic{width:46px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:14px;transition:background .15s}
 .spn-b .ic svg{width:22px;height:22px}
@@ -1962,10 +1967,10 @@ function indivSportGroups(clients){
   const entries=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0],'fr'));
   const card=([sport,list],i)=>{const col=COLS[i%COLS.length];const l=list.slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
     return `<div class="gcard" style="--gc:${col}">
-      <div class="gh"><div><h3>${sportEmoji(sport)} ${esc(sport)}</h3><p class="desc">Classé par activité · pas de séance de groupe</p></div><span class="cnt">${list.length}</span></div>
-      ${l.map(c=>`<div class="crow"><span class="nm">${pAvatar(c,'')}<span style="min-width:0"><b>${esc(c.name)}</b>${c.goal?`<span class="small muted" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🎯 ${esc(c.goal)}</span>`:''}</span></span><button class="btn sm" data-act="player" data-id="${esc(c.id)}">Ouvrir</button></div>`).join('')}
+      <div class="gh"><h3>${sportEmoji(sport)} ${esc(sport)}</h3><span class="cnt">${list.length}</span></div>
+      ${l.map(c=>`<button class="crow" data-act="player" data-id="${esc(c.id)}"><span class="nm">${pAvatar(c,'')}<span class="nmt"><b>${esc(c.name)}</b>${c.goal?`<span class="gl">🎯 ${esc(c.goal)}</span>`:''}</span></span><span class="chev">›</span></button>`).join('')}
     </div>`;};
-  return `<p class="note" style="margin:0 2px 14px">Tes client·es sont classé·es par activité (course à pied, marche, musculation…). <b>C'est un classement, pas une prise en groupe</b> — chaque suivi reste individuel. Modifie le sport dans la fiche d'un·e client·e.</p>
+  return `<p class="note" style="margin:0 2px 16px">Tes client·es sont classé·es par activité. <b>C'est un classement, pas une prise en groupe</b> — chaque suivi reste individuel. Le sport se règle dans la fiche d'un·e client·e.</p>
     <div class="groups">${entries.map(card).join('')}</div>`;
 }
 function indivOverview(){
