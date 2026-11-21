@@ -1384,14 +1384,17 @@ function barGlow(inner, items, onPick){
   const snap=anim=>{const i=activeIdx();if(i<0){glow.style.opacity='0';return;}try{const b=box(items[i]);place(b.cx,b.cy,anim);}catch(e){}};
   const clampX=cx=>{const ir=inner.getBoundingClientRect();const x=cx-ir.left;return Math.max(box(items[0]).cx,Math.min(box(items[items.length-1]).cx,x));};
   const nearest=cx=>{const ir=inner.getBoundingClientRect();const x=cx-ir.left;let bi=0,bd=1e9;items.forEach((b,i)=>{const d=Math.abs(box(b).cx-x);if(d<bd){bd=d;bi=i;}});return bi;};
-  let drag=false,cy0=0,sx=0,moved=0,justDragged=false,bypass=false;
-  inner.addEventListener('click',e=>{if(justDragged&&!bypass){e.stopPropagation();e.preventDefault();}},true);
-  inner.onpointerdown=e=>{if(e.target.closest('.spn-cal'))return;drag=true;sx=e.clientX;moved=0;cy0=box(items[Math.max(0,activeIdx())]).cy;try{inner.setPointerCapture(e.pointerId);}catch(_){}place(clampX(e.clientX),cy0,false);};
-  inner.onpointermove=e=>{if(!drag)return;moved=Math.max(moved,Math.abs(e.clientX-sx));place(clampX(e.clientX),cy0,false);};
-  inner.onpointerup=e=>{if(!drag)return;drag=false;if(moved>8){justDragged=true;setTimeout(()=>{justDragged=false;},320);const i=nearest(e.clientX);const b=box(items[i]);place(b.cx,b.cy,true);bypass=true;try{onPick(i);}catch(_){}bypass=false;}else{snap(true);}};
-  inner.onpointercancel=()=>{if(drag){drag=false;snap(true);}};
+  // Pas de setPointerCapture (il peut détourner le clic sur mobile) : un simple tap passe par le
+  // clic natif, et seul un vrai glissement horizontal déclenche la navigation par glissement.
+  let sx=0,sy=0,moved=0,cy0=0,tracking=false,swiping=false;
+  inner.onpointerdown=e=>{if(e.target.closest('.spn-cal'))return;tracking=true;swiping=false;sx=e.clientX;sy=e.clientY;moved=0;cy0=box(items[Math.max(0,activeIdx())]).cy;};
+  inner.onpointermove=e=>{if(!tracking)return;const dx=e.clientX-sx,dy=e.clientY-sy;moved=Math.max(moved,Math.abs(dx));if(!swiping&&Math.abs(dx)>14&&Math.abs(dx)>Math.abs(dy)+4)swiping=true;if(swiping){try{e.preventDefault();}catch(_){}place(clampX(e.clientX),cy0,false);}};
+  inner.onpointerup=e=>{if(!tracking)return;tracking=false;if(swiping){swiping=false;window._navSwipeUntil=Date.now()+500;const i=nearest(e.clientX);const b=box(items[i]);place(b.cx,b.cy,true);window._navSwipeBypass=true;try{onPick(i);}catch(_){}window._navSwipeBypass=false;}else{snap(true);}};
+  inner.onpointercancel=()=>{if(tracking){tracking=false;swiping=false;snap(true);}};
   inner._navSnap=snap;requestAnimationFrame(()=>snap(false));
 }
+// Supprime le clic parasite qui suit un glissement (garde global, posé une seule fois).
+if(typeof window!=='undefined'&&!window._navSwipeGuard){window._navSwipeGuard=true;document.addEventListener('click',e=>{try{if(window._navSwipeUntil&&Date.now()<window._navSwipeUntil&&!window._navSwipeBypass&&e.target.closest('.spn-in')){e.stopPropagation();e.preventDefault();}}catch(_){}},true);}
 function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
  const calIco=`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SPNICO.seances}</svg>`;
  const centerFab=()=>{const inr=bar.querySelector('.spn-in'),sp=inr&&inr.querySelector('.spn-sp'),cal=inr&&inr.querySelector('.spn-cal');if(inr&&sp&&cal)requestAnimationFrame(()=>{try{const ir=inr.getBoundingClientRect(),sr=sp.getBoundingClientRect();cal.style.left=(sr.left-ir.left+sr.width/2)+'px';}catch(e){}});};
