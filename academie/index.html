@@ -449,15 +449,21 @@ details summary{cursor:pointer;font-weight:600}
 .nav ul{display:none}
 .content{padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
 #spacenav{position:fixed;left:0;right:0;bottom:0;z-index:60;pointer-events:none;padding:16px 12px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 48%,color-mix(in srgb,var(--bg) 55%,transparent) 76%,transparent)}
-.spn-in{pointer-events:auto;max-width:560px;margin:0 auto;display:flex;gap:2px;padding:8px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.4)}
+.spn-in{position:relative;pointer-events:auto;max-width:560px;margin:0 auto;display:flex;gap:2px;padding:8px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border:1px solid color-mix(in srgb,var(--line) 85%,#fff 15%);border-radius:28px;box-shadow:0 14px 34px -10px rgba(0,0,0,.4)}
+.spn-sp{flex:0 0 46px}
+#spacenav .nav-glow{position:absolute;left:0;top:8px;width:60px;height:36px;border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 36%,transparent),color-mix(in srgb,#a78bfa 34%,transparent));box-shadow:0 7px 20px -5px color-mix(in srgb,var(--accent) 60%,transparent);z-index:0;pointer-events:none;opacity:0;will-change:left,top}
+.spn-cal{position:absolute;left:50%;top:-14px;transform:translateX(-50%);appearance:none;border:0;cursor:pointer;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#a78bfa);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px -6px color-mix(in srgb,var(--accent) 60%,transparent);transition:transform .15s,box-shadow .15s;z-index:2}
+.spn-cal svg{width:26px;height:26px;stroke:#fff}
+.spn-cal.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 32%,transparent),0 10px 24px -6px color-mix(in srgb,var(--accent) 60%,transparent)}
+.spn-cal:active{transform:translateX(-50%) translateY(1px) scale(.97)}
 .spn-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font:600 10.5px/1.12 inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 2px;text-align:center;transition:color .15s}
 .spn-b .ic{width:46px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:14px;transition:background .15s}
 .spn-b .ic svg{width:22px;height:22px}
 .spn-b span{display:block;max-width:76px}
 .spn-b{position:relative}
 .spn-badge{position:absolute;top:-1px;right:calc(50% - 24px);min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--crit);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
+.spn-b{z-index:1}
 .spn-b.on{color:var(--accent)}
-.spn-b.on .ic{background:color-mix(in srgb,var(--accent) 16%,transparent)}
 .spn-b:active{transform:translateY(1px)}
 #spacesheet[hidden]{display:none}
 #spacesheet{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center}
@@ -1278,7 +1284,7 @@ try{if(!INDIV&&document.body)document.body.classList.add('skin-foot');}catch(e){
 /* Libellés : en coaching individuel on parle de « client·e·s », pas de « joueur·se·s ». */
 const PL={one:INDIV?'client·e':'joueur·se',One:INDIV?'Client·e':'Joueur·se',many:INDIV?'client·es':'joueur·ses',Many:INDIV?'Client·es':'Joueur·ses'};
 /* Sports possibles en coaching individuel (le sport n'est pas forcément le football). */
-const SPORTS=['Football','Course à pied','Triathlon','Cyclisme / vélo','Musculation','Natation','Trail','Rugby','Basket','Autre'];
+const SPORTS=['Course à pied','Marche / randonnée','Musculation','Trail','Triathlon','Cyclisme / vélo','Natation','Football','Rugby','Basket','Fitness / cardio','Autre'];
 function cats(){return INDIV?[INDIV_CAT]:(RESTRICT.team?[RESTRICT.team]:S().categories);}
 function playersOf(cat,all){let list=Object.values(DATA.players).filter(p=>(all||p.active!==false)&&(INDIV||cat==='Tous'||p.cat===cat));
   if(INDIV&&UI.indivClient&&UI.indivClient!=='Tous')list=list.filter(p=>p.id===UI.indivClient); // filtre par client·e sélectionné·e (option « Tous » conservée)
@@ -1352,6 +1358,26 @@ function spacePerfItems(){const want=[['testing','📊 Tests à enregistrer'],['
  return want.filter(([id])=>tabOn(id)||id==='recovery'||id==='nutrition'||id==='charge').map(([id,label])=>({act:'tab',id,label,on:UI.tab===id}));}
 /* Football : menu « Saisie » = saisies + Paramètres */
 function spaceSaisieItems(){const out=spaceEntryItems();if(tabOn('settings')||!RESTRICT.tabs)out.push({act:'tab',id:'settings',label:'⚙️ Paramètres',on:UI.tab==='settings'});return out;}
+// Pastille active flottante + glissement du doigt (barre du bas, façon APA).
+function barGlow(inner, items, onPick){
+  if(!inner||!items||!items.length)return;
+  let glow=inner.querySelector('.nav-glow');
+  if(!glow){glow=document.createElement('span');glow.className='nav-glow';glow.setAttribute('aria-hidden','true');inner.insertBefore(glow,inner.firstChild);}
+  const W=60,H=36;
+  const box=el=>{const ic=el.querySelector('.ic')||el;const r=ic.getBoundingClientRect(),ir=inner.getBoundingClientRect();return {cx:r.left-ir.left+r.width/2,cy:r.top-ir.top+r.height/2};};
+  const place=(cx,cy,anim)=>{glow.style.transition=anim?'left .2s cubic-bezier(.2,.9,.3,1),top .2s ease':'none';glow.style.left=(cx-W/2)+'px';glow.style.top=(cy-H/2)+'px';glow.style.opacity='1';};
+  const activeIdx=()=>items.findIndex(b=>b.classList.contains('on'));
+  const snap=anim=>{const i=activeIdx();if(i<0){glow.style.opacity='0';return;}try{const b=box(items[i]);place(b.cx,b.cy,anim);}catch(e){}};
+  const clampX=cx=>{const ir=inner.getBoundingClientRect();const x=cx-ir.left;return Math.max(box(items[0]).cx,Math.min(box(items[items.length-1]).cx,x));};
+  const nearest=cx=>{const ir=inner.getBoundingClientRect();const x=cx-ir.left;let bi=0,bd=1e9;items.forEach((b,i)=>{const d=Math.abs(box(b).cx-x);if(d<bd){bd=d;bi=i;}});return bi;};
+  let drag=false,cy0=0,sx=0,moved=0,justDragged=false,bypass=false;
+  inner.addEventListener('click',e=>{if(justDragged&&!bypass){e.stopPropagation();e.preventDefault();}},true);
+  inner.onpointerdown=e=>{if(e.target.closest('.spn-cal'))return;drag=true;sx=e.clientX;moved=0;cy0=box(items[Math.max(0,activeIdx())]).cy;try{inner.setPointerCapture(e.pointerId);}catch(_){}place(clampX(e.clientX),cy0,false);};
+  inner.onpointermove=e=>{if(!drag)return;moved=Math.max(moved,Math.abs(e.clientX-sx));place(clampX(e.clientX),cy0,false);};
+  inner.onpointerup=e=>{if(!drag)return;drag=false;if(moved>8){justDragged=true;setTimeout(()=>{justDragged=false;},320);const i=nearest(e.clientX);const b=box(items[i]);place(b.cx,b.cy,true);bypass=true;try{onPick(i);}catch(_){}bypass=false;}else{snap(true);}};
+  inner.onpointercancel=()=>{if(drag){drag=false;snap(true);}};
+  inner._navSnap=snap;requestAnimationFrame(()=>snap(false));
+}
 function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
  let items;
  if(INDIV){
@@ -1362,11 +1388,21 @@ function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
    items=[{type:'tab',id:'overview',ic:'overview',label:"Vue d'ensemble"},{type:'tab',id:'seances',ic:'seances',label:'Séance'},{type:'tab',id:'joueur',ic:'joueur',label:'Joueur'},{type:'perf',ic:'perf',label:'Performance'},{type:'entry',ic:'entry',label:'Saisie'}];
  }
  const PERFIDS=['testing','charge','reco','recovery','nutrition','reathle','muscu','medical','report'];
- bar.innerHTML=`<div class="spn-in">${items.map(it=>{
+ const itemHtml=it=>{
    const on=it.type==='tab'?UI.tab===it.id:it.type==='entry'?(UI.tab==='entry'||UI.sheet==='entry'):it.type==='perf'?(PERFIDS.includes(UI.tab)||UI.sheet==='perf'):(UI.sheet==='more');
    const act=it.id==='messages'?'data-act="openMsgs"':it.type==='tab'?`data-act="tab" data-id="${it.id}"`:it.type==='entry'?'data-act="spEntry"':it.type==='perf'?'data-act="spPerf"':'data-act="spMore"';
    const bdg=it.badge?`<span class="spn-badge">${it.badge>9?'9+':it.badge}</span>`:'';
-   return `<button class="spn-b${on?' on':''}" ${act}>${spnIco(it.ic)}${bdg}<span>${it.label}</span></button>`;}).join('')}</div>`;
+   return `<button class="spn-b${on?' on':''}" ${act}>${spnIco(it.ic)}${bdg}<span>${it.label}</span></button>`;};
+ const btns=items.map(itemHtml);
+ const calIco=`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SPNICO.seances}</svg>`;
+ const fab=`<button class="spn-cal${UI.tab==='seances'?' on':''}" data-act="tab" data-id="seances" title="Planning" aria-label="Planning">${calIco}</button>`;
+ const mid=Math.ceil(btns.length/2);
+ bar.innerHTML=`<div class="spn-in">${btns.slice(0,mid).join('')}<div class="spn-sp"></div>${btns.slice(mid).join('')}${fab}</div>`;
+ const spnInner=bar.querySelector('.spn-in');const spnFlat=[...bar.querySelectorAll('.spn-in .spn-b')];
+ barGlow(spnInner,spnFlat,i=>{spnFlat[i].click();});
+ // Centre le bouton calendrier sur l'espaceur (items pas forcément en nombre pair).
+ const _sp=spnInner.querySelector('.spn-sp'),_cal=spnInner.querySelector('.spn-cal');
+ if(_sp&&_cal)requestAnimationFrame(()=>{try{const ir=spnInner.getBoundingClientRect(),sr=_sp.getBoundingClientRect();_cal.style.left=(sr.left-ir.left+sr.width/2)+'px';}catch(e){}});
  const sheet=$('#spacesheet');if(!sheet)return;
  if(UI.sheet){
    const list=UI.sheet==='entry'?(INDIV?spaceEntryItems():spaceSaisieItems()):UI.sheet==='perf'?spacePerfItems():spaceMoreItems();
@@ -1880,6 +1916,27 @@ function teamWell(ps,end,n,key){const labels=[],vals=[];for(let i=n-1;i>=0;i--){
 function chgTxt(c){if(c==null)return 'Pas encore d’historique';const s=(c>0?'+':'')+r0(c)+' % vs moyenne des 3 semaines précédentes';return s;}
 
 /* ---------- VUE D'ENSEMBLE ---------- */
+// Classement des client·es par sport (affichage façon « groupes » APA — pas de séance de groupe).
+function sportEmoji(sport){const s=(sport||'').toLowerCase();
+  if(/muscu|force|renfo|haltéro|haltero|cross ?fit/.test(s))return '💪';
+  if(/course|run|cours.*pied|trail|jogging|semi|marathon|fractionn/.test(s))return '🏃';
+  if(/marche|rando/.test(s))return '🚶';
+  if(/vélo|velo|cycl|bike|spinning/.test(s))return '🚴';
+  if(/nat|swim|aqua/.test(s))return '🏊';
+  if(/cardio|hiit|fitness/.test(s))return '❤️';
+  if(/foot/.test(s))return '⚽';if(/tennis|padel/.test(s))return '🎾';if(/boxe|mma|combat/.test(s))return '🥊';
+  if(/yoga|pilates|mobil|souplesse/.test(s))return '🧘';
+  return '🏅';}
+function indivSportGroups(clients){
+  const COLS=['#1B46C9','#1D8752','#C23A2E','#B7760A','#7a5af8','#0ea5e9','#d6409f','#0f9d9d'];
+  const groups={};clients.forEach(c=>{const s=((c.sport||'').trim())||'Sport à préciser';(groups[s]=groups[s]||[]).push(c);});
+  const entries=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0],'fr'));
+  const card=([sport,list],i)=>{const col=COLS[i%COLS.length];
+    return `<div class="card" style="border-left:4px solid ${col}"><div class="hrow" style="margin-bottom:8px"><h2 style="margin:0;font-size:18px">${sportEmoji(sport)} ${esc(sport)}</h2><span class="pill" style="background:color-mix(in srgb,${col} 15%,transparent);border-color:${col};color:${col}">${list.length} client·e${list.length>1?'s':''}</span></div>
+      <div class="stack" style="gap:6px">${list.sort((a,b)=>a.name.localeCompare(b.name,'fr')).map(c=>`<button class="card flat" data-act="player" data-id="${esc(c.id)}" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;margin:0;cursor:pointer;padding:8px 10px">${pAvatar(c,'')}<span style="flex:1;min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)}</b>${c.goal?`<span class="small muted" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🎯 ${esc(c.goal)}</span>`:''}</span><span class="small muted" style="flex:none">Ouvrir ›</span></button>`).join('')}</div></div>`;};
+  return `<div class="hrow" style="margin:2px 2px 6px"><h2 style="margin:0">👥 Mes client·es — par sport</h2><span class="small muted">Classé par activité · pas de séance de groupe</span></div>
+    <div class="grid g2">${entries.map(card).join('')}</div>`;
+}
 function indivOverview(){
   const ref=UI.ref;const clients=Object.values(DATA.players).filter(p=>p.active!==false);
   if(!clients.length)return emptyPlayers();
@@ -1912,7 +1969,7 @@ function indivOverview(){
     ${kpi('Séances (semaine)',nSess,'',esc(weekLabel))}
     ${kpi('Messages non lus',unread,'',unread?'à lire':'tout est lu',unread?'warn':null)}
     ${kpi('RPE à compléter',rpeMiss,'','14 derniers jours',rpeMiss?'warn':null)}</div>`;
-  return `${kpis}${calCard}${msgCard}`;
+  return `${kpis}${indivSportGroups(clients)}${calCard}${msgCard}`;
 }
 VIEWS.overview=()=>{
   if(INDIV)return indivOverview();
@@ -3246,7 +3303,7 @@ ENTRY.player=()=>{const e=editing('players');const s=S();const all=playersOf('To
     ${fld('pp-name','Nom',`<input type="text" id="pp-name" name="name" value="${esc(e&&e.name||'')}" required>`)}
     ${catFld('pp-cat',e?e.cat:defCat())}
     ${INDIV
-      ? fld('pp-sport','Sport',`<select id="pp-sport" name="sport">${opt(SPORTS,(e&&e.sport)||'Football')}</select>`)
+      ? fld('pp-sport','Sport',`<select id="pp-sport" name="sport">${opt(SPORTS,(e&&e.sport)||'Course à pied')}</select>`)
       : fld('pp-pos','Poste',`<select id="pp-pos" name="pos">${opt(s.positions,e&&e.pos)}</select>`)}
     ${INDIV?'':fld('pp-num','Numéro',`<input type="number" id="pp-num" name="number" value="${esc(e&&e.number||'')}">`)}
     ${fld('pp-birth','Date de naissance',`<input type="date" id="pp-birth" name="birth" value="${esc(e&&e.birth||'')}">`)}
