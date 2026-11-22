@@ -475,6 +475,15 @@ details summary{cursor:pointer;font-weight:600}
 .gcard .crow .nmt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;font-size:14.5px}
 .gcard .crow .gl{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gcard .crow .chev{color:var(--gc);font-weight:800;font-size:19px;flex:none;line-height:1}
+.gcard.clk{cursor:pointer;transition:transform .1s,box-shadow .14s}
+.gcard.clk:hover{box-shadow:0 14px 30px -14px rgba(0,0,0,.55);transform:translateY(-1px)}
+.gcard.clk:active{transform:translateY(0)}
+.gcard .gfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px}
+.gcard .avs{display:flex;align-items:center}
+.gcard .ava{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:700 11px inherit;color:#fff;background:var(--gc);border:2px solid var(--surface);margin-left:-9px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.gcard .avs .ava:first-child{margin-left:0}
+.gcard .ava.more{background:var(--surface-2);color:var(--muted)}
+.gcard .open{color:var(--gc);font-weight:700;font-size:13.5px;white-space:nowrap}
 .spn-b{flex:1;appearance:none;background:none;border:0;cursor:pointer;color:var(--muted);font:600 10.5px/1.12 inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 2px;text-align:center;transition:color .15s}
 .spn-b .ic{width:46px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:14px;transition:background .15s}
 .spn-b .ic svg{width:22px;height:22px}
@@ -1405,15 +1414,14 @@ function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
  const centerFab=()=>{const inr=bar.querySelector('.spn-in'),sp=inr&&inr.querySelector('.spn-sp'),cal=inr&&inr.querySelector('.spn-cal');if(inr&&sp&&cal)requestAnimationFrame(()=>{try{const ir=inr.getBoundingClientRect(),sr=sp.getBoundingClientRect();cal.style.left=(sr.left-ir.left+sr.width/2)+'px';}catch(e){}});};
  if(INDIV){
    // Barre identique à l'APA : Vue d'ensemble · Séances · [📅 Planning centré] · Dossier · Saisie
-   const ovPlan=UI.tab==='overview'&&UI.ovSub==='suivi';
    const flat=[
-     {label:"Vue d'ensemble",ic:'overview',act:'data-act="ovHome"',on:UI.tab==='overview'&&!ovPlan},
+     {label:"Vue d'ensemble",ic:'overview',act:'data-act="tab" data-id="overview"',on:UI.tab==='overview'},
      {label:'Séances',ic:'seances',act:'data-act="tab" data-id="seances"',on:UI.tab==='seances'},
      {label:'Dossier',ic:'joueur',act:'data-act="tab" data-id="joueur"',on:UI.tab==='joueur'},
      {label:'Saisie',ic:'entry',act:'data-act="spEntry"',on:UI.tab==='entry'||UI.sheet==='entry'}
    ];
    const btn=it=>`<button class="spn-b${it.on?' on':''}" ${it.act}>${spnIco(it.ic)}<span>${it.label}</span></button>`;
-   const fab=`<button class="spn-cal${ovPlan?' on':''}" data-act="ovPlanning" title="Planning" aria-label="Planning">${calIco}</button>`;
+   const fab=`<button class="spn-cal${UI.tab==='seances'?' on':''}" data-act="tab" data-id="seances" title="Planning" aria-label="Planning">${calIco}</button>`;
    bar.innerHTML=`<div class="spn-in">${btn(flat[0])}${btn(flat[1])}<div class="spn-sp"></div>${btn(flat[2])}${btn(flat[3])}${fab}</div>`;
    const inr=bar.querySelector('.spn-in');const fl=[...bar.querySelectorAll('.spn-in .spn-b')];
    barGlow(inr,fl,i=>{fl[i].click();});centerFab();
@@ -1961,14 +1969,30 @@ function sportEmoji(sport){const s=(sport||'').toLowerCase();
   if(/foot/.test(s))return '⚽';if(/tennis|padel/.test(s))return '🎾';if(/boxe|mma|combat/.test(s))return '🥊';
   if(/yoga|pilates|mobil|souplesse/.test(s))return '🧘';
   return '🏅';}
-function indivSportGroups(clients){
-  const COLS=['#1B46C9','#1D8752','#C23A2E','#B7760A','#7a5af8','#0ea5e9','#d6409f','#0f9d9d'];
-  const groups={};clients.forEach(c=>{const s=((c.sport||'').trim())||'Sport à préciser';(groups[s]=groups[s]||[]).push(c);});
-  const entries=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0],'fr'));
-  const card=([sport,list],i)=>{const col=COLS[i%COLS.length];const l=list.slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
-    return `<div class="gcard" style="--gc:${col}">
+const SPORT_COLS=['#1B46C9','#1D8752','#C23A2E','#B7760A','#7a5af8','#0ea5e9','#d6409f','#0f9d9d'];
+function sportColor(s){let h=0;s=s||'';for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return SPORT_COLS[Math.abs(h)%SPORT_COLS.length];}
+function sportOfClient(c){return ((c.sport||'').trim())||'Sport à préciser';}
+function indivSportDetail(clients){
+  const sport=UI.ovSport;const col=sportColor(sport);
+  const list=clients.filter(c=>sportOfClient(c)===sport).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  const row=c=>`<button class="crow" data-act="player" data-id="${esc(c.id)}"><span class="nm">${pAvatar(c,'')}<span class="nmt"><b>${esc(c.name)}</b>${c.goal?`<span class="gl">🎯 ${esc(c.goal)}</span>`:''}</span></span><span class="chev">›</span></button>`;
+  return `<button class="btn sm" data-act="ovSportBack" style="margin-bottom:12px">← Tous les sports</button>
+    <div class="gcard" style="--gc:${col}">
       <div class="gh"><h3>${sportEmoji(sport)} ${esc(sport)}</h3><span class="cnt">${list.length}</span></div>
-      ${l.map(c=>`<button class="crow" data-act="player" data-id="${esc(c.id)}"><span class="nm">${pAvatar(c,'')}<span class="nmt"><b>${esc(c.name)}</b>${c.goal?`<span class="gl">🎯 ${esc(c.goal)}</span>`:''}</span></span><span class="chev">›</span></button>`).join('')}
+      ${list.length?list.map(row).join(''):'<p class="note" style="margin:8px 0 0">Aucun·e client·e dans ce sport.</p>'}
+    </div>`;
+}
+function indivSportGroups(clients){
+  if(UI.ovSport)return indivSportDetail(clients);
+  const groups={};clients.forEach(c=>{const s=sportOfClient(c);(groups[s]=groups[s]||[]).push(c);});
+  const entries=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0],'fr'));
+  const card=([sport,list])=>{const col=sportColor(sport);const l=list.slice().sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+    const avs=l.slice(0,5).map(c=>`<span class="ava" title="${esc(c.name)}">${esc(pInitials(c))}</span>`).join('');
+    const more=l.length>5?`<span class="ava more">+${l.length-5}</span>`:'';
+    const names=l.map(c=>(c.name||'').split(' ')[0]).slice(0,4).join(' · ')+(l.length>4?'…':'');
+    return `<div class="gcard clk" data-act="ovSport" data-id="${esc(sport)}" style="--gc:${col}">
+      <div class="gh"><div><h3>${sportEmoji(sport)} ${esc(sport)}</h3><p class="desc">${esc(names)}</p></div><span class="cnt">${list.length}</span></div>
+      <div class="gfoot"><span class="avs">${avs}${more}</span><span class="open">Ouvrir →</span></div>
     </div>`;};
   return `<p class="note" style="margin:0 2px 16px">Tes client·es sont classé·es par activité. <b>C'est un classement, pas une prise en groupe</b> — chaque suivi reste individuel. Le sport se règle dans la fiche d'un·e client·e.</p>
     <div class="groups">${entries.map(card).join('')}</div>`;
@@ -3996,9 +4020,11 @@ const ACT={
   openChat:b=>{UI.chatPid=b.dataset.id;UI.tab='messages';saveUI();render();window.scrollTo(0,0);},
   openMsgs:()=>{UI.chatPid=null;UI.tab='messages';saveUI();render();window.scrollTo(0,0);},
   ovWeekNav:b=>{UI.ovWeek=addDays(UI.ovWeek||mondayOf(UI.ref),7*(+b.dataset.d));render();},
-  ovSub:b=>{UI.ovSub=b.dataset.id;render();window.scrollTo(0,0);},
+  ovSub:b=>{UI.ovSub=b.dataset.id;if(b.dataset.id!=='groupes')UI.ovSport=null;render();window.scrollTo(0,0);},
   ovHome:()=>{UI.ovSub=(UI.ovSub==='suivi')?'groupes':(UI.ovSub||'groupes');go('overview');},
   ovPlanning:()=>{UI.ovSub='suivi';go('overview');},
+  ovSport:b=>{UI.ovSport=b.dataset.id;render();window.scrollTo(0,0);},
+  ovSportBack:()=>{UI.ovSport=null;render();window.scrollTo(0,0);},
   chatBack:()=>{UI.chatPid=null;render();},
   saveTemplate:async()=>{const f=$('form[data-form="session"]');if(!f)return;const v=Object.fromEntries(new FormData(f));
     const procedes=[];for(let i=0;i<8;i++){const type=(v['pc-type-'+i]||'').trim();const temps=num(v['pc-temps-'+i]);const zone=num(v['pc-zone-'+i]);const rpe=num(v['pc-rpe-'+i]);if(type||temps!=null||zone!=null||rpe!=null)procedes.push({type,temps,zone,rpe});}
