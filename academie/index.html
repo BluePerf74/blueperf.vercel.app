@@ -464,8 +464,8 @@ details summary{cursor:pointer;font-weight:600}
 .groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
 .gcard{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--gc);border-radius:16px;padding:15px 17px;display:flex;flex-direction:column;gap:8px;box-shadow:0 12px 28px -20px rgba(0,0,0,.55)}
 .gcard .gh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:2px}
-.gcard h3{font-size:19px;margin:0;line-height:1.15}
-.gcard .cnt{font:800 30px/1 inherit;color:var(--gc);font-variant-numeric:tabular-nums;flex:none}
+.gcard h3{font-family:var(--fd);font-weight:700;font-size:22px;margin:0;line-height:1.1;letter-spacing:.005em}
+.gcard .cnt{font-family:var(--fd);font-weight:700;font-size:33px;line-height:1;color:var(--gc);font-variant-numeric:tabular-nums;flex:none}
 .gcard .desc{margin:0;color:var(--muted);font-size:12px}
 .gcard .crow{display:flex;gap:11px;align-items:center;justify-content:space-between;width:100%;padding:10px 8px;border:0;border-top:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .12s}
 .gcard .crow:hover{background:color-mix(in srgb,var(--gc) 8%,transparent)}
@@ -1421,10 +1421,11 @@ function renderSpaceNav(){const bar=$('#spacenav');if(!bar)return;
      {label:'Saisie',ic:'entry',act:'data-act="spEntry"',on:UI.tab==='entry'||UI.sheet==='entry'}
    ];
    const btn=it=>`<button class="spn-b${it.on?' on':''}" ${it.act}>${spnIco(it.ic)}<span>${it.label}</span></button>`;
-   const fab=`<button class="spn-cal${UI.tab==='seances'?' on':''}" data-act="tab" data-id="seances" title="Planning" aria-label="Planning">${calIco}</button>`;
+   const ovPlan=UI.tab==='overview'&&UI.ovSub==='suivi';
+   const fab=`<button class="spn-cal${ovPlan?' on':''}" data-act="ovPlanning" title="Planning" aria-label="Planning">${calIco}</button>`;
    bar.innerHTML=`<div class="spn-in">${btn(flat[0])}${btn(flat[1])}<div class="spn-sp"></div>${btn(flat[2])}${btn(flat[3])}${fab}</div>`;
    const inr=bar.querySelector('.spn-in');const fl=[...bar.querySelectorAll('.spn-in .spn-b')];
-   barGlow(inr,fl,i=>{fl[i].click();});centerFab();
+   barGlow(inr,fl,i=>{fl[i].click();});
    const sheet=$('#spacesheet');
    if(sheet){
      if(UI.sheet==='entry'){const list=spaceEntryItems();sheet.innerHTML=`<div class="spsheet-bg" data-act="spClose"></div><div class="spsheet"><div class="spsheet-h"><b>Saisie</b><button class="spsheet-x" data-act="spClose" aria-label="Fermer">✕</button></div><div class="spsheet-list">${list.map(i=>`<button class="spsheet-i${i.on?' on':''}" data-act="${i.act}" data-id="${i.id||''}">${i.label}</button>`).join('')}</div></div>`;sheet.hidden=false;}
@@ -1978,7 +1979,7 @@ function indivSportDetail(clients){
   const row=c=>`<button class="crow" data-act="player" data-id="${esc(c.id)}"><span class="nm">${pAvatar(c,'')}<span class="nmt"><b>${esc(c.name)}</b>${c.goal?`<span class="gl">🎯 ${esc(c.goal)}</span>`:''}</span></span><span class="chev">›</span></button>`;
   return `<button class="btn sm" data-act="ovSportBack" style="margin-bottom:12px">← Tous les sports</button>
     <div class="gcard" style="--gc:${col}">
-      <div class="gh"><h3>${sportEmoji(sport)} ${esc(sport)}</h3><span class="cnt">${list.length}</span></div>
+      <div class="gh"><h3>${esc(sport)}</h3><span class="cnt">${list.length}</span></div>
       ${list.length?list.map(row).join(''):'<p class="note" style="margin:8px 0 0">Aucun·e client·e dans ce sport.</p>'}
     </div>`;
 }
@@ -1991,7 +1992,7 @@ function indivSportGroups(clients){
     const more=l.length>5?`<span class="ava more">+${l.length-5}</span>`:'';
     const names=l.map(c=>(c.name||'').split(' ')[0]).slice(0,4).join(' · ')+(l.length>4?'…':'');
     return `<div class="gcard clk" data-act="ovSport" data-id="${esc(sport)}" style="--gc:${col}">
-      <div class="gh"><div><h3>${sportEmoji(sport)} ${esc(sport)}</h3><p class="desc">${esc(names)}</p></div><span class="cnt">${list.length}</span></div>
+      <div class="gh"><div><h3>${esc(sport)}</h3><p class="desc">${esc(names)}</p></div><span class="cnt">${list.length}</span></div>
       <div class="gfoot"><span class="avs">${avs}${more}</span><span class="open">Ouvrir →</span></div>
     </div>`;};
   return `<p class="note" style="margin:0 2px 16px">Tes client·es sont classé·es par activité. <b>C'est un classement, pas une prise en groupe</b> — chaque suivi reste individuel. Le sport se règle dans la fiche d'un·e client·e.</p>
