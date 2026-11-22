@@ -1,14 +1,43 @@
 /* Service worker Elite Adapt.
    - Notifications push.
-   - Installabilité (PWA) + repli hors ligne : on NE met PAS en cache les données ni le code de
-     l'app (pour ne jamais servir de contenu périmé). On met seulement en cache une page « hors
-     ligne » et les icônes. Les pages sont servies réseau d'abord ; en cas de coupure, on affiche
-     la page hors ligne au lieu de l'erreur du navigateur. */
-const CACHE = 'elite-adapt-shell-v2';
-const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/elite-adapt-icon.svg', '/elite-adapt-mark.svg'];
+   - Mode HORS-LIGNE (PWA) : l'application s'ouvre et fonctionne sans connexion.
+     On met en cache la « coquille » (pages HTML + code JS/CSS + icônes/polices) pour
+     pouvoir afficher l'app même sans réseau. Les données (ce que saisit le client) sont
+     gérées côté page : enregistrées localement (localStorage) puis synchronisées avec le
+     serveur dès le retour de la connexion. Les appels /api/* ne sont JAMAIS mis en cache
+     (sinon on servirait des données périmées) — c'est la page qui garde la dernière copie.
+
+   Stratégies :
+   - Navigation (ouverture d'une page) : réseau d'abord → on garde une copie en cache →
+     en cas de coupure on ressert la dernière page mise en cache (ou la page hors-ligne).
+   - Fichiers statiques (code, styles, images, polices) : « stale-while-revalidate » —
+     on sert le cache tout de suite (rapide + hors-ligne) ET on rafraîchit en arrière-plan,
+     donc le rechargement suivant a la version à jour.
+   - /api/* : jamais touché (toujours réseau direct). */
+const CACHE = 'elite-adapt-shell-v3';
+const PRECACHE = [
+  '/offline.html',
+  '/',
+  '/app.min.js',
+  '/academie/espace.html',
+  '/academie/apa.html',
+  '/academie/index.html',
+  '/academie/foot.html',
+  '/academie/nutrition.html',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/apple-touch-icon.png',
+  '/elite-adapt-icon.svg',
+  '/elite-adapt-mark.svg'
+];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).catch(() => {}).then(() => self.skipWaiting()));
+  // On précharge au mieux ; un fichier manquant ne doit pas faire échouer l'installation.
+  e.waitUntil(
+    caches.open(CACHE).then((c) =>
+      Promise.all(PRECACHE.map((u) => c.add(u).catch(() => {})))
+    ).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (e) => {
@@ -18,29 +47,58 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+function isStaticAsset(url) {
+  if (url.origin === self.location.origin) {
+    return /\.(?:js|css|svg|png|jpg|jpeg|webp|gif|ico|woff2?|ttf|otf|json)$/i.test(url.pathname)
+      || url.pathname.startsWith('/icons/')
+      || /\/elite-adapt-[a-z]+\.svg$/.test(url.pathname);
+  }
+  // Polices et feuilles de style Google (externes) : utiles à mettre en cache pour le hors-ligne.
+  return /(?:fonts\.googleapis\.com|fonts\.gstatic\.com)$/.test(url.hostname);
+}
+
+// Sert le cache tout de suite puis rafraîchit en arrière-plan.
+function staleWhileRevalidate(req) {
+  return caches.open(CACHE).then((c) =>
+    c.match(req, { ignoreSearch: false }).then((hit) => {
+      const net = fetch(req).then((res) => {
+        // On ne met en cache que les réponses exploitables (ok, ou opaques pour les polices).
+        if (res && (res.ok || res.type === 'opaque')) { c.put(req, res.clone()).catch(() => {}); }
+        return res;
+      }).catch(() => hit);
+      return hit || net;
+    })
+  );
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // Navigation (ouverture d'une page) : réseau d'abord, repli hors ligne si coupure.
+  // Données : jamais mises en cache par le service worker (la page gère le hors-ligne).
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
+
+  // Navigation (ouverture d'une page) : réseau d'abord, on garde une copie, repli hors-ligne.
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => caches.match('/offline.html', { ignoreSearch: true }))
+      fetch(req).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      }).catch(() =>
+        caches.match(req, { ignoreSearch: true })
+          .then((hit) => hit || caches.match('/offline.html', { ignoreSearch: true }))
+      )
     );
     return;
   }
 
-  // Icônes et logos (statiques) : on sert le cache tout de suite MAIS on rafraîchit
-  // toujours en arrière-plan (stale-while-revalidate), pour que le logo se mette à
-  // jour tout seul au prochain affichage après un changement de marque.
-  if (url.origin === self.location.origin && (url.pathname.startsWith('/icons/') || /\/elite-adapt-[a-z]+\.svg$/.test(url.pathname))) {
-    event.respondWith(
-      caches.open(CACHE).then((c) => c.match(req).then((hit) => {
-        const net = fetch(req).then((res) => { c.put(req, res.clone()).catch(() => {}); return res; }).catch(() => hit);
-        return hit || net;
-      }))
-    );
+  // Fichiers statiques (code, styles, images, polices) : stale-while-revalidate.
+  if (isStaticAsset(url)) {
+    event.respondWith(staleWhileRevalidate(req));
   }
 });
 

@@ -4310,6 +4310,8 @@ boot();
   setInterval(()=>{ if(!document.hidden){ checkVersion(); maybeShowFab(); } },90000);
 })();
 </script>
+<script>/* Mode hors-ligne : enregistre le service worker pour que l'app s'ouvre sans connexion. */
+if('serviceWorker'in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
 
 
 </body>

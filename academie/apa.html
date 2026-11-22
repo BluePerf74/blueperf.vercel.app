@@ -2231,5 +2231,6 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
  else if(a==='agRecapGroup'){recapGroupSeance(b.dataset.gid,b.dataset.date);}
  else if(a==='agGoto'){S.ui.tab='agenda';ctx.psdraft=null;S.ui.screen=null;render();window.scrollTo(0,0);}});
 </script>
-
+<script>/* Mode hors-ligne : enregistre le service worker pour que l'app s'ouvre sans connexion. */
+if('serviceWorker'in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
 </body></html>
