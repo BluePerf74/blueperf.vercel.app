@@ -1634,7 +1634,7 @@ function renderFullApp(section){
     if(mgr.tabs && mgr.tabs.length) parts.push('tabs=' + encodeURIComponent(mgr.tabs.join(',')));
     if(parts.length) footQ = '?' + parts.join('&');
   }
-  let src = section === 'individuel' ? '/academie/?mode=individuel'
+  let src = section === 'individuel' ? '/academie/individuel.html'
     : section === 'nutrition' ? '/academie/nutrition.html'
     : section === 'apa' ? '/academie/apa.html?coach=1'
     : '/academie/foot.html' + footQ;

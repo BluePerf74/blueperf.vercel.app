@@ -21,6 +21,7 @@ const PRECACHE = [
   '/app.min.js',
   '/academie/espace.html',
   '/academie/apa.html',
+  '/academie/individuel.html',
   '/academie/index.html',
   '/academie/foot.html',
   '/academie/nutrition.html',
