@@ -14,7 +14,7 @@
      on sert le cache tout de suite (rapide + hors-ligne) ET on rafraîchit en arrière-plan,
      donc le rechargement suivant a la version à jour.
    - /api/* : jamais touché (toujours réseau direct). */
-const CACHE = 'elite-adapt-shell-v3';
+const CACHE = 'elite-adapt-shell-v4';
 const PRECACHE = [
   '/offline.html',
   '/',
@@ -29,7 +29,8 @@ const PRECACHE = [
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',
   '/elite-adapt-icon.svg',
-  '/elite-adapt-mark.svg'
+  '/elite-adapt-mark.svg',
+  '/elite-adapt-mark-leaf.svg'
 ];
 
 self.addEventListener('install', (e) => {
