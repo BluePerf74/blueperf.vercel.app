@@ -1349,7 +1349,7 @@ function renderNav(){
   const healthN=sig.health?sig.health.split(',').length:0;
   const badge={overview:show('overview')?(c.red?`<span class="badge crit">${c.red}</span>`:c.orange?`<span class="badge warn">${c.orange}</span>`:''):'',medical:show('medical')&&c.inj?`<span class="badge">${c.inj}</span>`:'',reathle:show('reathle')&&c.rea?`<span class="badge">${c.rea}</span>`:'',health:show('health')&&healthN?`<span class="badge warn">🩸${healthN}</span>`:''};
   const inPerf=['testing','reathle','muscu'].includes(UI.tab);
-  let h=`<div class="brand"><span class="mark-wrap"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt">${seasonEmoji()?`<span class="ea-season">${seasonEmoji()}</span>`:''}</span><b class="wm">Elite</b><b class="ad">Adapt</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
+  let h=`<div class="brand"><span class="mark-wrap"><img class="mark" src="/elite-adapt-mark-leaf.svg" alt="Elite Adapt">${seasonEmoji()?`<span class="ea-season">${seasonEmoji()}</span>`:''}</span><b class="wm">Elite</b><b class="ad">Adapt</b><span>${MODE==='individuel'?'Coaching individuel':esc(S().appName)}</span></div><ul>`;
   TABS.forEach(t=>{
     if(t.entryGroup){ // groupe Saisie : menu déroulant dans la barre, navigation par goEntry (UI.entryTab)
       if(!tabOn('entry'))return;const inGrp=UI.tab==='entry';const open=!!UI.entryOpen; // ouvert seulement au clic sur « Saisie » ; se referme après avoir choisi une entrée
