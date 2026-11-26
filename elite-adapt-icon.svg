@@ -2,11 +2,11 @@
 <defs>
 <linearGradient id="ge" gradientUnits="userSpaceOnUse" x1="0" y1="40" x2="0" y2="200"><stop offset="0" stop-color="#5B94FF"/><stop offset="1" stop-color="#1F4FD8"/></linearGradient>
 <linearGradient id="ga" gradientUnits="userSpaceOnUse" x1="0" y1="40" x2="0" y2="200"><stop offset="0" stop-color="#FFB347"/><stop offset="1" stop-color="#F2617A"/></linearGradient>
-<linearGradient id="lfA" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#F3892F"/><stop offset="1" stop-color="#FFD089"/></linearGradient>
-<linearGradient id="lfB" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#A83418"/><stop offset="1" stop-color="#EA7A3C"/></linearGradient>
+<linearGradient id="lfA" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="42" y2="0"><stop offset="0" stop-color="#FFD089"/><stop offset="1" stop-color="#F3892F"/></linearGradient>
+<linearGradient id="lfB" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="52" y2="0"><stop offset="0" stop-color="#E86A34"/><stop offset="1" stop-color="#B0331A"/></linearGradient>
 </defs>
-<rect width="512" height="512" rx="0" fill="#0D1B2A"/>
-<g transform="translate(62,128) scale(1.17)">
+<rect width="512" height="512" fill="#0D1B2A"/>
+<g transform="translate(70,120) scale(1.18)">
  <polygon points="24,40 48,40 48,200 24,200" fill="url(#ge)"/>
  <polygon points="24,40 151.3,40 140.5,64 24,64" fill="url(#ge)"/>
  <polygon points="24,108 120.7,108 109.9,132 24,132" fill="url(#ge)"/>
@@ -14,18 +14,15 @@
  <polygon points="171.3,40 199.7,40 127.7,200 99.3,200" fill="url(#ga)"/>
  <polygon points="180.3,40 208.7,40 280.7,200 252.3,200" fill="url(#ga)"/>
  <polygon points="165.6,138 214.4,138 222.5,156 157.5,156" fill="url(#ga)"/>
- <!-- branche + feuilles au sommet du A -->
- <g transform="translate(190,42)">
-  <path d="M2,0 C 10,-10 17,-22 21,-38" fill="none" stroke="#7a4a22" stroke-width="4.5" stroke-linecap="round"/>
-  <!-- feuille ambre (gauche) -->
-  <g transform="translate(9,-20) rotate(-34)">
-   <path d="M0,0 C -10,-11 -10,-34 0,-45 C 10,-34 10,-11 0,0 Z" fill="url(#lfA)"/>
-   <path d="M0,-5 L0,-41" stroke="#C96A1E" stroke-width="1.6" stroke-linecap="round"/>
+ <!-- feuilles collées au sommet du A : ambre haut-gauche, rouille bas-droite -->
+ <g>
+  <g transform="translate(201,43) rotate(34)">
+   <path d="M0,0 C 16,-17 42,-17 58,0 C 42,17 16,17 0,0 Z" fill="url(#lfB)"/>
+   <path d="M3,0 L55,0" stroke="#6f2710" stroke-width="2" stroke-linecap="round"/>
   </g>
-  <!-- feuille rouille (droite, plus grande) -->
-  <g transform="translate(21,-38) rotate(30)">
-   <path d="M0,0 C -12,-13 -12,-42 0,-55 C 12,-42 12,-13 0,0 Z" fill="url(#lfB)"/>
-   <path d="M0,-6 L0,-50" stroke="#7a2a12" stroke-width="1.8" stroke-linecap="round"/>
+  <g transform="translate(194,37) rotate(206)">
+   <path d="M0,0 C 12,-14 32,-14 44,0 C 32,14 12,14 0,0 Z" fill="url(#lfA)"/>
+   <path d="M3,0 L41,0" stroke="#C96A1E" stroke-width="1.7" stroke-linecap="round"/>
   </g>
  </g>
 </g>
