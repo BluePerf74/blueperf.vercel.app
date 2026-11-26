@@ -27,7 +27,7 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stro
 :focus-visible{outline:2px solid var(--sky);outline-offset:2px}
 #root{height:100%;overflow-y:auto;padding-bottom:130px}
 .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:rgba(8,13,25,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:10px}.blogo{height:38px;width:auto;display:block;flex:none}
+.brand{display:flex;align-items:center;gap:10px}.blogo{height:30px;width:auto;display:block;flex:none}.blogo-wrap{position:relative;display:inline-flex;align-items:center}.ea-season{position:absolute;top:-7px;right:-5px;font-size:14px;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
 .mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font:700 17px var(--fd);background:linear-gradient(135deg,var(--blue),var(--coral));color:#fff}
 .brand b{font:700 20px var(--fd)}.brand b i{font-style:normal;color:var(--coral)}
 .brand small{display:block;font:600 10px var(--fb);letter-spacing:.14em;color:var(--mute);margin-top:-2px}
@@ -289,8 +289,9 @@ const empty=(t,b)=>'<div class="empty">'+t+(b?'<div class="mt">'+b+'</div>':'')+
 const field=(l,h)=>'<label class="field">'+l+h+'</label>';
 /* ---------- chrome ---------- */
 const isCoach=()=>ui.role==='coach';
+function eaSeason(){try{var d=new Date(),m=d.getMonth()+1,day=d.getDate();if(m===12||(m===1&&day<=6))return'\u{1F384}';if(m===10&&day>=24)return'\u{1F383}';if(m===2&&day>=12&&day<=15)return'❤️';if((m===3&&day>=22)||(m===4&&day<=22))return'\u{1F423}';if(m>=6&&m<=8)return'☀️';if(m>=9&&m<=11)return'\u{1F342}';if(m>=3&&m<=5)return'\u{1F338}';return'❄️';}catch(e){return'';}}
 function renderTop(){const opts='<option value="coach">Vue coach</option>'+S.clients.map(c=>'<option value="a:'+c.id+'"'+(ui.role==='athlete'&&ui.athleteId===c.id?' selected':'')+'>Athlète : '+esc(c.name)+'</option>').join('');
-$('#top').innerHTML='<div class="brand"><img class="blogo" src="/elite-adapt-mark-leaf.svg" alt="Elite Adapt"><div><b>Elite <i>Adapt</i></b><small>COACHING INDIVIDUEL</small></div></div><div class="top-r"><span class="staff"><span class="mark" style="width:18px;height:18px;border-radius:50%;font-size:9px">'+esc(initials(S.settings.coach))+'</span>'+esc(S.settings.coach.toLowerCase())+' <b>'+(isCoach()?'STAFF':'ATHLÈTE')+'</b></span><select id="roleSel" aria-label="Changer de vue">'+opts+'</select><button class="ib" data-act="settings" aria-label="Réglages">'+ic('gear')+'</button></div>';
+$('#top').innerHTML='<div class="brand"><span class="blogo-wrap"><img class="blogo" src="/elite-adapt-mark.svg" alt="Elite Adapt"><span class="ea-season">'+eaSeason()+'</span></span><div><b>Elite <i>Adapt</i></b><small>COACHING INDIVIDUEL</small></div></div><div class="top-r"><span class="staff"><span class="mark" style="width:18px;height:18px;border-radius:50%;font-size:9px">'+esc(initials(S.settings.coach))+'</span>'+esc(S.settings.coach.toLowerCase())+' <b>'+(isCoach()?'STAFF':'ATHLÈTE')+'</b></span><select id="roleSel" aria-label="Changer de vue">'+opts+'</select><button class="ib" data-act="settings" aria-label="Réglages">'+ic('gear')+'</button></div>';
 const o=$('#roleSel');if(isCoach())o.value='coach'}
 function renderBar(){const c=isCoach();const it=c?[['overview','home',"Vue d'ensemble"],['programs','list','Programmes'],['calendar','cal','Calendrier'],['client','user','Dossier'],['rpe','zap','Saisie']]:[['overview','home','Accueil'],['sessions','dumb','Séances'],['calendar','cal','Calendrier'],['client','user','Dossier'],['rpe','zap','Saisie']];
 const act=!c&&ui.page==='client'&&ui.clientTab==='sessions'?'sessions':ui.page;

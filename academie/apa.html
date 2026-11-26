@@ -55,6 +55,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .topbar{background:var(--bar);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px}
 .brand{display:flex;align-items:center;gap:10px}
 .brand .mark{height:30px;width:auto;flex:0 0 auto}
+.mark-wrap{position:relative;display:inline-flex;align-items:center}
+.ea-season{position:absolute;top:-6px;right:-5px;font-size:14px;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
 .brand .wm{font:700 22px var(--f-display);letter-spacing:.02em;color:var(--fg);white-space:nowrap}
 .brand .wm .ad{color:var(--salmon)}
 .brand .sub{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;border-left:1px solid var(--line);padding-left:10px}
@@ -534,9 +536,10 @@ body.apacoach .pagehead{padding-bottom:10px}
 body.apacoach .pagehead p{margin:0}
 </style>
 <div class="topbar">
-  <div class="brand"><img class="mark" src="/elite-adapt-mark-leaf.svg" alt="Elite Adapt"><span class="wm">Elite <span class="ad">Adapt</span></span><span class="sub">Activité physique adaptée</span></div>
+  <div class="brand"><span class="mark-wrap"><img class="mark" src="/elite-adapt-mark.svg" alt="Elite Adapt"><span class="ea-season" id="eaSeason"></span></span><span class="wm">Elite <span class="ad">Adapt</span></span><span class="sub">Activité physique adaptée</span></div>
   <div class="tbr"><span id="saved" class="pill ok" hidden></span><span id="role" class="tbr"></span></div>
 </div>
+<script>(function(){function se(){var d=new Date(),m=d.getMonth()+1,day=d.getDate();if(m===12||(m===1&&day<=6))return'\u{1F384}';if(m===10&&day>=24)return'\u{1F383}';if(m===2&&day>=12&&day<=15)return'❤️';if((m===3&&day>=22)||(m===4&&day<=22))return'\u{1F423}';if(m>=6&&m<=8)return'☀️';if(m>=9&&m<=11)return'\u{1F342}';if(m>=3&&m<=5)return'\u{1F338}';return'❄️';}try{var e=document.getElementById('eaSeason');if(e)e.textContent=se();}catch(_){}})();</script>
 <nav class="nav" role="tablist" id="tabs"></nav>
 <div class="shell">
   <div class="pagehead" id="head"></div>

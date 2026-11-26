@@ -544,7 +544,7 @@ async function saveCoachCredentials(username, password){
 }
 
 function shieldSvg(){
-  return `<img src="/elite-adapt-mark-leaf.svg" class="shield-logo" alt="Elite Adapt">`;
+  return `<img src="/elite-adapt-mark.svg" class="shield-logo" alt="Elite Adapt">`;
 }
 /* Petite touche saisonnière / événementielle discrète sur le logo (après connexion). */
 function seasonEmoji(){try{const d=new Date(),m=d.getMonth()+1,day=d.getDate();
