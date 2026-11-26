@@ -2,9 +2,13 @@
 <defs>
 <linearGradient id="ge" gradientUnits="userSpaceOnUse" x1="0" y1="40" x2="0" y2="200"><stop offset="0" stop-color="#5B94FF"/><stop offset="1" stop-color="#1F4FD8"/></linearGradient>
 <linearGradient id="ga" gradientUnits="userSpaceOnUse" x1="0" y1="40" x2="0" y2="200"><stop offset="0" stop-color="#FFB347"/><stop offset="1" stop-color="#F2617A"/></linearGradient>
+<linearGradient id="gframe" gradientUnits="userSpaceOnUse" x1="96" y1="416" x2="416" y2="96"><stop offset="0" stop-color="#5B94FF"/><stop offset=".5" stop-color="#FF9A5A"/><stop offset="1" stop-color="#FFB347"/></linearGradient>
+<filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter>
 </defs>
 <rect width="512" height="512" fill="#0D1B2A"/>
-<g transform="translate(44,120) scale(1.3)">
+<rect x="92" y="92" width="328" height="328" rx="66" fill="none" stroke="url(#gframe)" stroke-width="11" opacity="0.4" filter="url(#glow)"/>
+<rect x="92" y="92" width="328" height="328" rx="66" fill="none" stroke="url(#gframe)" stroke-width="10"/>
+<g transform="translate(103.5,136)">
  <polygon points="24,40 48,40 48,200 24,200" fill="url(#ge)"/>
  <polygon points="24,40 151.3,40 140.5,64 24,64" fill="url(#ge)"/>
  <polygon points="24,108 120.7,108 109.9,132 24,132" fill="url(#ge)"/>
@@ -13,5 +17,4 @@
  <polygon points="180.3,40 208.7,40 280.7,200 252.3,200" fill="url(#ga)"/>
  <polygon points="165.6,138 214.4,138 222.5,156 157.5,156" fill="url(#ga)"/>
 </g>
-<text x="322" y="120" font-size="104" text-anchor="middle" dominant-baseline="central" font-family="'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif">&#x1F342;</text>
 </svg>

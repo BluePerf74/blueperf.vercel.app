@@ -14,7 +14,7 @@
      on sert le cache tout de suite (rapide + hors-ligne) ET on rafraîchit en arrière-plan,
      donc le rechargement suivant a la version à jour.
    - /api/* : jamais touché (toujours réseau direct). */
-const CACHE = 'elite-adapt-shell-v6';
+const CACHE = 'elite-adapt-shell-v7';
 const PRECACHE = [
   '/offline.html',
   '/',
